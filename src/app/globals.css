@@ -264,3 +264,35 @@ button { font: inherit; cursor: pointer; }
 }
 .dishname-lg .dishname-primary { font-family: var(--font-display), system-ui; font-size: 26px; font-weight: 800; }
 .dishname-lg .dishname-secondary { font-size: 14px; }
+
+/* --- feed typography refresh --- */
+:root { --sky: #5d9ac2; }
+/* location + cuisine line: same size as the dish name's secondary line, light blue */
+.dish-meta { font-size: 13px; font-weight: 400; color: var(--sky); line-height: 1.35; margin-top: 2px; }
+/* primary dish name in feed cards: bigger and bolder */
+.card-title .dishname-primary { font-size: 19px; font-weight: 800; }
+.card-title .dishname-secondary { font-size: 13px; }
+
+/* --- heart (helped me decide) --- */
+.heart-btn {
+  border: none; background: none; padding: 6px; cursor: pointer;
+  color: var(--line); transition: color 150ms, transform 150ms;
+  display: inline-flex; align-items: center;
+}
+.heart-btn svg { width: 26px; height: 26px; fill: currentColor; stroke: var(--ink-soft); stroke-width: 1.4; }
+.heart-btn:hover { color: #e8b8b3; }
+.heart-btn.on { color: var(--lacquer); transform: scale(1.12); }
+.heart-btn.on svg { stroke: var(--lacquer); }
+.heart-btn:disabled { cursor: default; }
+
+/* --- buddy recommendation card --- */
+.buddy-rec .card-body { display: flex; gap: 12px; align-items: center; }
+.buddy-rec { border-color: var(--jade); }
+.buddy-rec-bubble {
+  background: var(--glaze); border-radius: 14px; padding: 10px 12px; flex: 1; min-width: 0;
+  position: relative;
+}
+.buddy-rec-bubble::before {
+  content: ''; position: absolute; left: -7px; top: 50%; transform: translateY(-50%);
+  border: 7px solid transparent; border-right-color: var(--glaze); border-left: 0;
+}

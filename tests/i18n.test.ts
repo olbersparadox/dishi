@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { dict, pickNames } from '../src/lib/i18n-dict';
+import { dict, pickNames, cuisineLabel } from '../src/lib/i18n-dict';
 
 describe('translation dictionary', () => {
   it('every key has non-empty zh AND en — no half-translated UI', () => {
@@ -60,5 +60,28 @@ describe('pickNames — bilingual name resolution', () => {
   it('Japanese kana counts as the CJK slot (ramen shops)', () => {
     expect(pickNames({ name: 'Tonkotsu ramen', name_original: 'とんこつラーメン' }).zh)
       .toBe('とんこつラーメン');
+  });
+});
+
+describe('cuisineLabel', () => {
+  it('translates known cuisines to natural HK Chinese', () => {
+    expect(cuisineLabel('japanese', 'zh')).toBe('日本菜');
+    expect(cuisineLabel('cantonese', 'zh')).toBe('粵菜');
+    expect(cuisineLabel('Thai', 'zh')).toBe('泰國菜'); // case-insensitive
+  });
+
+  it('capitalizes in English mode', () => {
+    expect(cuisineLabel('japanese', 'en')).toBe('Japanese');
+    expect(cuisineLabel('middle eastern', 'en')).toBe('Middle eastern');
+  });
+
+  it('returns empty for unknown/null — never renders the vision fallback value', () => {
+    expect(cuisineLabel('unknown', 'zh')).toBe('');
+    expect(cuisineLabel(null, 'en')).toBe('');
+    expect(cuisineLabel(undefined, 'zh')).toBe('');
+  });
+
+  it('falls back to the raw value for unmapped cuisines in zh — no invented translations', () => {
+    expect(cuisineLabel('ethiopian', 'zh')).toBe('ethiopian');
   });
 });

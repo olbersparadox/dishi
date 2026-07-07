@@ -1,3 +1,10 @@
+// Shared OpenRouter client for every LLM call in Dishi (menu scan, dish vision, voice
+// note extraction, hand-added menu item attributes).
+//
+// MODEL: qwen/qwen3.7-plus — Jerry's choice (changed from anthropic/claude-sonnet-5).
+// Requirement for any model in this slot: it MUST accept image input, since the menu
+// scanner and dish vision callers send photos. If scans start failing or returning
+// empty items, model capability is the first thing to check.
 const MODEL = 'qwen/qwen3.7-plus';
 
 const ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';

@@ -3,7 +3,7 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import { dict, type Lang } from './i18n-dict';
 
 export type { Lang } from './i18n-dict';
-export { pickNames } from './i18n-dict';
+export { pickNames, cuisineLabel } from './i18n-dict';
 
 /**
  * Lightweight i18n — dictionary + context, no framework. zh-Hant (HK flavour,

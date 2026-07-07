@@ -188,6 +188,8 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'buddy.penguin': { zh: '企鵝', en: 'Penguin' },
   'buddy.penguin.blurb': { zh: '餐餐着禮服。', en: 'Formal dress at every meal.' },
 
+  'buddy.rec': { zh: '我諗你會啱食呢個：', en: 'I think you\u2019ll love this:' },
+
   // ---- misc ----
   'misc.rating': { zh: '個評分', en: 'rating' },
   'misc.ratings': { zh: '個評分', en: 'ratings' },
@@ -207,3 +209,21 @@ export function pickNames(d: { name: string; name_zh?: string | null; name_origi
   return { en, zh };
 }
 
+
+// Cuisine display names. zh uses the natural Cantonese/HK term; en capitalizes.
+// Unmapped cuisines fall back to the raw value rather than guessing a translation.
+const CUISINE_ZH: Record<string, string> = {
+  japanese: '日本菜', cantonese: '粵菜', chinese: '中菜', sichuan: '川菜',
+  shanghainese: '滬菜', thai: '泰國菜', italian: '意大利菜', french: '法國菜',
+  korean: '韓國菜', indian: '印度菜', mexican: '墨西哥菜', vietnamese: '越南菜',
+  american: '美式', british: '英式', greek: '希臘菜', spanish: '西班牙菜',
+  'middle eastern': '中東菜', peruvian: '秘魯菜', malaysian: '馬拉菜',
+  singaporean: '星洲菜', taiwanese: '台灣菜', turkish: '土耳其菜',
+};
+
+export function cuisineLabel(cuisine: string | null | undefined, lang: Lang): string {
+  if (!cuisine || cuisine === 'unknown') return '';
+  const key = cuisine.toLowerCase();
+  if (lang === 'zh') return CUISINE_ZH[key] ?? cuisine;
+  return cuisine.charAt(0).toUpperCase() + cuisine.slice(1);
+}

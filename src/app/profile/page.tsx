@@ -4,7 +4,7 @@ import AuthGate from '@/components/AuthGate';
 import { supabaseBrowser } from '@/lib/supabase/client';
 import { DIMS } from '@/lib/taste';
 import BuddyCard from '@/components/BuddyCard';
-import { useLang } from '@/lib/i18n';
+import { useLang, cuisineLabel } from '@/lib/i18n';
 
 export default function ProfilePage() {
   return (
@@ -15,7 +15,7 @@ export default function ProfilePage() {
 }
 
 function TasteProfile() {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const [vector, setVector] = useState<Record<string, number>>({});
   const [affinity, setAffinity] = useState<Record<string, number>>({});
   const [count, setCount] = useState(0);
@@ -85,8 +85,8 @@ function TasteProfile() {
           <h3 style={{ marginBottom: 10 }}>{t('profile.cuisines')}</h3>
           <div className="chips">
             {topCuisines.map(([c, v]) => (
-              <span className={`chip ${v > 0 ? 'on' : ''}`} key={c} style={{ textTransform: 'capitalize' }}>
-                {c} {v > 0 ? '↑' : '↓'}
+              <span className={`chip ${v > 0 ? 'on' : ''}`} key={c}>
+                {cuisineLabel(c, lang) || c} {v > 0 ? '↑' : '↓'}
               </span>
             ))}
           </div>

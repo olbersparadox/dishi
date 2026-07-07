@@ -7,7 +7,7 @@ import FlickRating from '@/components/FlickRating';
 import VoiceNote from '@/components/VoiceNote';
 import { normalizePhoto } from '@/lib/image';
 import DishName from '@/components/DishName';
-import { useLang } from '@/lib/i18n';
+import { useLang, cuisineLabel } from '@/lib/i18n';
 
 type Dish = { id: string; name: string; name_zh?: string | null; cuisine: string; photo_url: string; vision_confidence: number };
 
@@ -20,7 +20,7 @@ export default function LogPage() {
 }
 
 function LogFlow() {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const router = useRouter();
   const [photo, setPhoto] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
@@ -115,7 +115,7 @@ function LogFlow() {
     <div>
       <h1 style={{ marginBottom: 4 }}><DishName name={shownName} name_zh={nameOverride ? undefined : dish.name_zh} size="lg" /></h1>
       <p className="card-meta" style={{ marginBottom: 4 }}>
-        {dish.cuisine !== 'unknown' ? t('log.looks', { cuisine: dish.cuisine }) : ''}
+        {dish.cuisine !== 'unknown' ? t('log.looks', { cuisine: cuisineLabel(dish.cuisine, lang) || dish.cuisine }) : ''}
         {dish.vision_confidence < 0.5 ? t('log.lowconf') : ''}
         {t('log.notright')}{' '}
         <button className="btn ghost small" onClick={() => setEditingName(true)}>{t('log.fixname')}</button>
