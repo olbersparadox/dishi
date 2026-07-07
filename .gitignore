@@ -1,0 +1,18 @@
+# Dependencies (recreated by `npm install` — never upload these)
+node_modules/
+
+# Next.js build output
+.next/
+out/
+
+# Secrets — never commit your real keys
+.env.local
+.env*.local
+
+# OS junk files
+.DS_Store
+Thumbs.db
+
+# Editor/tool files
+*.tsbuildinfo
+.vercel
