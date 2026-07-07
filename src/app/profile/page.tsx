@@ -4,10 +4,7 @@ import AuthGate from '@/components/AuthGate';
 import { supabaseBrowser } from '@/lib/supabase/client';
 import { DIMS } from '@/lib/taste';
 import BuddyCard from '@/components/BuddyCard';
-<<<<<<< HEAD
 import { useLang } from '@/lib/i18n';
-=======
->>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
 
 export default function ProfilePage() {
   return (
@@ -18,10 +15,7 @@ export default function ProfilePage() {
 }
 
 function TasteProfile() {
-<<<<<<< HEAD
   const { t } = useLang();
-=======
->>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
   const [vector, setVector] = useState<Record<string, number>>({});
   const [affinity, setAffinity] = useState<Record<string, number>>({});
   const [count, setCount] = useState(0);
@@ -49,31 +43,18 @@ function TasteProfile() {
 
   return (
     <div>
-<<<<<<< HEAD
       <h1 style={{ marginBottom: 4 }}>{t('profile.title')}</h1>
       <p className="card-meta" style={{ marginBottom: 16 }}>
         {t('profile.flicks', { n: count, p: points })}
         {points > 0 ? t('profile.helped') : ''}
-=======
-      <h1 style={{ marginBottom: 4 }}>My taste</h1>
-      <p className="card-meta" style={{ marginBottom: 16 }}>
-        {count} {count === 1 ? 'flick' : 'flicks'} · {points} usefulness points
-        {points > 0 ? ' — your logs helped other people decide' : ''}
->>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
       </p>
 
       <BuddyCard />
 
       <div className="card"><div className="card-body">
-<<<<<<< HEAD
         <h3 style={{ marginBottom: 12 }}>{t('profile.learned')}</h3>
         {count === 0 ? (
           <p className="card-meta">{t('profile.blank')}</p>
-=======
-        <h3 style={{ marginBottom: 12 }}>What Dishi has learned</h3>
-        {count === 0 ? (
-          <p className="card-meta">A blank palate. Log and flick a dish to start the profile.</p>
->>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
         ) : (
           <div className="bars">
             {DIMS.map(dim => {
@@ -101,11 +82,7 @@ function TasteProfile() {
 
       {topCuisines.length > 0 && (
         <div className="card"><div className="card-body">
-<<<<<<< HEAD
           <h3 style={{ marginBottom: 10 }}>{t('profile.cuisines')}</h3>
-=======
-          <h3 style={{ marginBottom: 10 }}>Cuisines</h3>
->>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
           <div className="chips">
             {topCuisines.map(([c, v]) => (
               <span className={`chip ${v > 0 ? 'on' : ''}`} key={c} style={{ textTransform: 'capitalize' }}>
@@ -117,11 +94,7 @@ function TasteProfile() {
       )}
 
       <p className="card-meta" style={{ marginTop: 20 }}>
-<<<<<<< HEAD
         {t('profile.owner')} <a href="/owner" style={{ color: 'var(--jade)', fontWeight: 650 }}>{t('profile.owner.link')}</a> {t('profile.owner.blurb')}
-=======
-        Own a restaurant? <a href="/owner" style={{ color: 'var(--jade)', fontWeight: 650 }}>Open the dashboard</a> to see how diners' palates respond to your menu.
->>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
       </p>
     </div>
   );

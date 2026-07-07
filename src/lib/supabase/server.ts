@@ -11,11 +11,8 @@ export function supabaseServer() {
     {
       cookies: {
         getAll: () => store.getAll(),
-<<<<<<< HEAD
         // Explicit any[] type required: implicit-any here breaks the production
         // TypeScript build (fixed by Jerry — do not revert).
-=======
->>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
         setAll: (all: any[]) => all.forEach(({ name, value, options }) => store.set(name, value, options)),
       },
     }

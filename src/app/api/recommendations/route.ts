@@ -37,11 +37,7 @@ export async function GET(_req: NextRequest) {
   // Candidate pool: recent dishes from everyone incl. synthetic seeds.
   const { data: candidates } = await admin
     .from('dishes')
-<<<<<<< HEAD
     .select('id, user_id, name, name_zh, cuisine, photo_url, attributes, is_synthetic, restaurant_id, restaurants(name)')
-=======
-    .select('id, user_id, name, cuisine, photo_url, attributes, is_synthetic, restaurant_id, restaurants(name)')
->>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
     .order('created_at', { ascending: false })
     .limit(300);
 
@@ -136,10 +132,7 @@ function card(d: any, score: number | null, reason: string) {
     dish_id: d.id,
     owner_id: d.user_id,
     name: d.name,
-<<<<<<< HEAD
     name_zh: d.name_zh ?? null,
-=======
->>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
     cuisine: d.cuisine,
     photo_url: d.photo_url,
     restaurant: d.restaurants?.name ?? null,

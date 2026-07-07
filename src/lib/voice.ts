@@ -1,10 +1,5 @@
-<<<<<<< HEAD
 import { DIMS, DishVector } from './taste';
 import { callClaude, parseJsonResponse } from './openrouter';
-=======
-import Anthropic from '@anthropic-ai/sdk';
-import { DIMS, DishVector } from './taste';
->>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
 
 // Transcription happens client-side with the Web Speech API for MVP (zero cost, zero
 // upload). This module turns the transcript into structured signal. "Too salty but I
@@ -18,7 +13,6 @@ Respond with ONLY JSON, no fences:
 Mention nothing the note doesn't support.`;
 
 export async function extractVoiceSignal(transcript: string): Promise<{ attributes: DishVector; sentiment_hint: number | null }> {
-<<<<<<< HEAD
   if (!transcript.trim()) return { attributes: {}, sentiment_hint: null };
 
   const text = await callClaude(SYSTEM, transcript, { maxTokens: 300 });
@@ -31,28 +25,4 @@ export async function extractVoiceSignal(transcript: string): Promise<{ attribut
   }
   const hint = parsed.sentiment_hint;
   return { attributes, sentiment_hint: typeof hint === 'number' ? Math.min(1, Math.max(-1, hint)) : null };
-=======
-  if (!process.env.ANTHROPIC_API_KEY || !transcript.trim()) {
-    return { attributes: {}, sentiment_hint: null };
-  }
-  const client = new Anthropic();
-  const msg = await client.messages.create({
-    model: 'claude-sonnet-4-6',
-    max_tokens: 300,
-    system: SYSTEM,
-    messages: [{ role: 'user', content: transcript }],
-  });
-  const text = msg.content.filter((b) => b.type === 'text').map((b: any) => b.text).join('');
-  try {
-    const parsed = JSON.parse(text.replace(/```json|```/g, '').trim());
-    const attributes: DishVector = {};
-    for (const [k, v] of Object.entries(parsed?.attributes ?? {})) {
-      if ((DIMS as readonly string[]).includes(k)) attributes[k] = Math.min(1, Math.max(0, Number(v)));
-    }
-    const hint = parsed?.sentiment_hint;
-    return { attributes, sentiment_hint: typeof hint === 'number' ? Math.min(1, Math.max(-1, hint)) : null };
-  } catch {
-    return { attributes: {}, sentiment_hint: null };
-  }
->>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
 }

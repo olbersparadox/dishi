@@ -2,11 +2,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import AuthGate from '@/components/AuthGate';
-<<<<<<< HEAD
 import DishName from '@/components/DishName';
 import { useLang } from '@/lib/i18n';
-=======
->>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
 
 /**
  * /order/[token] — where a table's QR code lands.
@@ -18,11 +15,7 @@ import { useLang } from '@/lib/i18n';
  */
 
 type MenuItem = {
-<<<<<<< HEAD
   key: string; menu_item_id?: string; name: string; name_zh?: string | null; name_original?: string;
-=======
-  key: string; menu_item_id?: string; name: string; name_original?: string;
->>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
   price?: string | null; hook?: string; cuisine: string | null;
   group_match: number; member_matches: { handle: string; match: number }[];
   unanimous: boolean;
@@ -38,19 +31,11 @@ type MyOrder = {
   items: { name: string; qty: number; price: string | null }[];
 };
 
-<<<<<<< HEAD
 const STATUS_KEY: Record<string, string> = {
   pending: 'order.status.pending',
   confirmed: 'order.status.confirmed',
   done: 'order.status.done',
   cancelled: 'order.status.cancelled',
-=======
-const STATUS_LABEL: Record<string, string> = {
-  pending: 'Sent — waiting for the kitchen',
-  confirmed: 'Confirmed — being prepared',
-  done: 'Served',
-  cancelled: 'Cancelled by the restaurant',
->>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
 };
 
 export default function OrderPage() {
@@ -62,10 +47,7 @@ export default function OrderPage() {
 }
 
 function OrderFlow() {
-<<<<<<< HEAD
   const { t } = useLang();
-=======
->>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
   const params = useParams<{ token: string }>();
   const [code, setCode] = useState<string | null>(null);
   const [state, setState] = useState<SessionState | null>(null);
@@ -139,11 +121,7 @@ function OrderFlow() {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
       setCart({});
-<<<<<<< HEAD
       setNotice(json.warnings?.length ? json.warnings.join(' ') : t('order.sent'));
-=======
-      setNotice(json.warnings?.length ? json.warnings.join(' ') : 'Order sent to the kitchen.');
->>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
       refresh();
     } catch (e: any) {
       setError(e.message || 'The order didn\u2019t go through.');
@@ -153,34 +131,19 @@ function OrderFlow() {
   }
 
   if (error && !state) return <p style={{ color: 'var(--lacquer)' }}>{error}</p>;
-<<<<<<< HEAD
   if (!state) return <p className="card-meta">{t('order.setting')}</p>;
-=======
-  if (!state) return <p className="card-meta">Setting your table\u2026</p>;
->>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
 
   const cartCount = Object.values(cart).reduce((s, n) => s + n, 0);
   const profiled = state.members.filter(m => m.has_profile).length;
 
   return (
     <div style={{ paddingBottom: cartCount > 0 ? 76 : 0 }}>
-<<<<<<< HEAD
       <h1 style={{ marginBottom: 2 }}>{state.table?.restaurant_name ?? t('order.menu')}</h1>
       <p className="card-meta" style={{ marginBottom: 8 }}>
         {state.table?.table_label ?? t('order.yourtable')} · {t('order.session')} <span className="table-code">{state.code}</span>
       </p>
       <p className="card-meta" style={{ marginBottom: 14 }}>
         {state.members.length > 1 ? t('order.group', { n: profiled }) : t('order.solo')}
-=======
-      <h1 style={{ marginBottom: 2 }}>{state.table?.restaurant_name ?? 'Menu'}</h1>
-      <p className="card-meta" style={{ marginBottom: 8 }}>
-        {state.table?.table_label ?? 'Your table'} · session <span className="table-code">{state.code}</span>
-      </p>
-      <p className="card-meta" style={{ marginBottom: 14 }}>
-        {state.members.length > 1
-          ? `Ranked for ${profiled || 'the'} palate${profiled === 1 ? '' : 's'} at this table — friends can join with the code.`
-          : 'Ranked for your taste. Friends at the table can scan the same QR to join the ranking.'}
->>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
       </p>
 
       {notice && <p className="scan-banner" role="status">{notice}</p>}
@@ -188,22 +151,14 @@ function OrderFlow() {
 
       {orders.length > 0 && (
         <div className="card"><div className="card-body">
-<<<<<<< HEAD
           <h3 style={{ marginBottom: 8 }}>{t('order.yours')}</h3>
-=======
-          <h3 style={{ marginBottom: 8 }}>Your orders</h3>
->>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
           {orders.map(o => (
             <div key={o.id} style={{ padding: '6px 0', borderBottom: '1px solid var(--line)' }}>
               <div className="card-meta" style={{ fontSize: 14, color: 'var(--ink)' }}>
                 {o.items.map(i => `${i.qty}\u00d7 ${i.name}`).join(', ')}
               </div>
               <div className="card-meta" style={{ color: o.status === 'cancelled' ? 'var(--lacquer)' : 'var(--jade)' }}>
-<<<<<<< HEAD
                 {STATUS_KEY[o.status] ? t(STATUS_KEY[o.status]) : o.status}
-=======
-                {STATUS_LABEL[o.status] ?? o.status}
->>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
               </div>
             </div>
           ))}
@@ -212,13 +167,8 @@ function OrderFlow() {
 
       {state.items.length === 0 && (
         <div className="card"><div className="card-body">
-<<<<<<< HEAD
           <p><strong>{t('order.notsetup.title')}</strong></p>
           <p className="card-meta">{t('order.notsetup.blurb')}</p>
-=======
-          <p><strong>The menu isn\u2019t set up yet.</strong></p>
-          <p className="card-meta">Ask the staff — the restaurant hasn\u2019t added dishes to Dishi ordering.</p>
->>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
         </div></div>
       )}
 
@@ -232,34 +182,19 @@ function OrderFlow() {
             </div>
             <div style={{ minWidth: 0, flex: 1 }}>
               <div className="card-title" style={{ fontSize: 15.5 }}>
-<<<<<<< HEAD
                 <DishName name={item.name} name_zh={item.name_zh} name_original={item.name_original} />
                 {item.unanimous && state.members.length > 1 && <span className="badge-unanimous">{t('table.unanimous')}</span>}
               </div>
               <div className="card-meta">
-=======
-                {item.name}
-                {item.unanimous && state.members.length > 1 && <span className="badge-unanimous">whole table</span>}
-              </div>
-              <div className="card-meta">
-                {item.name_original ? `${item.name_original} · ` : ''}
->>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
                 {item.price ? `${item.price}` : ''}{item.price && item.hook ? ' · ' : ''}{item.hook ?? ''}
               </div>
             </div>
             {item.menu_item_id && (
               <div className="qty-stepper">
-<<<<<<< HEAD
                 <button aria-label={t('order.removeone', { name: item.name })} onClick={() => add(item.menu_item_id!, -1)}
                   disabled={!cart[item.menu_item_id]}>−</button>
                 <span aria-live="polite">{cart[item.menu_item_id] ?? 0}</span>
                 <button aria-label={t('order.addone', { name: item.name })} onClick={() => add(item.menu_item_id!, 1)}>+</button>
-=======
-                <button aria-label={`Remove one ${item.name}`} onClick={() => add(item.menu_item_id!, -1)}
-                  disabled={!cart[item.menu_item_id]}>−</button>
-                <span aria-live="polite">{cart[item.menu_item_id] ?? 0}</span>
-                <button aria-label={`Add one ${item.name}`} onClick={() => add(item.menu_item_id!, 1)}>+</button>
->>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
               </div>
             )}
           </div>
@@ -269,11 +204,7 @@ function OrderFlow() {
       {cartCount > 0 && (
         <div className="cart-bar">
           <button className="btn primary" style={{ width: '100%' }} disabled={sending} onClick={sendOrder}>
-<<<<<<< HEAD
             {sending ? t('order.sending') : t('order.send', { n: cartCount })}
-=======
-            {sending ? 'Sending\u2026' : `Send order \u00b7 ${cartCount} ${cartCount === 1 ? 'item' : 'items'}`}
->>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
           </button>
         </div>
       )}

@@ -138,7 +138,6 @@ export function buddyElements(inputs: BuddyInputs): BuddyElement[] {
 /**
  * Honest, specific growth guidance: what would ACTUALLY strengthen the engine next.
  * Never "rate more!" — always the highest-value next action given the data.
-<<<<<<< HEAD
  * Returns a translation key + params so the client renders it in the user's language.
  */
 export function growthHint(inputs: BuddyInputs): { key: string; params?: Record<string, number> } {
@@ -149,15 +148,4 @@ export function growthHint(inputs: BuddyInputs): { key: string; params?: Record<
   if (unexplored > 10) return { key: 'buddy.hint.explore' };
   if (inputs.ratingCount < 25) return { key: 'buddy.hint.tune' };
   return { key: 'buddy.hint.sharp' };
-=======
- */
-export function growthHint(inputs: BuddyInputs): string {
-  if (inputs.ratingCount === 0) return 'Rate your first dish and I hatch. No pressure. (Some pressure.)';
-  if (inputs.ratingCount < 5) return `Rate ${5 - inputs.ratingCount} more ${5 - inputs.ratingCount === 1 ? 'dish' : 'dishes'} — early flicks teach me the most.`;
-  if (inputs.distinctCuisines < 3) return 'Rate a cuisine I haven\u2019t tried — new cuisines teach me 3\u00d7 more than repeats.';
-  const unexplored = DIMS.length - exploredDims(inputs.vector).length;
-  if (unexplored > 10) return 'Try something outside your usual — sour, bitter, or raw dishes would sharpen whole new senses.';
-  if (inputs.ratingCount < 25) return 'Keep flicking — every rating past this point is fine-tuning.';
-  return 'I\u2019m sharp. Now we hunt for hidden gems together.';
->>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
 }

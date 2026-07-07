@@ -84,10 +84,7 @@ export async function POST(req: NextRequest) {
       user_id: user.id,
       restaurant_id: restaurantId,
       name: vision.name,
-<<<<<<< HEAD
       name_zh: vision.name_zh,
-=======
->>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
       cuisine: vision.cuisine,
       photo_url: pub.publicUrl,
       attributes: vision.attributes,

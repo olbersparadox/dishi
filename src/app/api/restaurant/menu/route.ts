@@ -26,11 +26,7 @@ export async function GET(req: NextRequest) {
 
   const { data: items, error } = await supabase
     .from('restaurant_menu_items')
-<<<<<<< HEAD
     .select('id, name, name_zh, name_original, description, price, cuisine, available, position')
-=======
-    .select('id, name, name_original, description, price, cuisine, available, position')
->>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
     .eq('restaurant_id', restaurantId)
     .order('position', { ascending: true })
     .order('created_at', { ascending: true });
@@ -63,10 +59,7 @@ export async function POST(req: NextRequest) {
     const rows = scan.items.map((m, i) => ({
       restaurant_id: restaurantId,
       name: m.name,
-<<<<<<< HEAD
       name_zh: m.name_zh,
-=======
->>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
       name_original: m.name_original !== m.name ? m.name_original : null,
       description: m.description,
       price: m.price,

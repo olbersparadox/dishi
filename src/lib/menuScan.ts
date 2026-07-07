@@ -1,10 +1,5 @@
-<<<<<<< HEAD
 import { DIMS, DishVector } from './taste';
 import { callClaude, imagePart, textPart, parseJsonResponse } from './openrouter';
-=======
-import Anthropic from '@anthropic-ai/sdk';
-import { DIMS, DishVector } from './taste';
->>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
 
 // Menu Scanner perception layer.
 //
@@ -17,10 +12,7 @@ import { DIMS, DishVector } from './taste';
 
 export type MenuItem = {
   name: string;            // English name (translated if the menu isn't in English)
-<<<<<<< HEAD
   name_zh: string | null;  // Traditional Chinese name (translated if the menu isn't Chinese)
-=======
->>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
   name_original: string;   // exactly as printed, e.g. 麻婆豆腐
   section: string | null;  // menu section header if present, e.g. "Starters", 小菜
   description: string | null;
@@ -48,10 +40,7 @@ Respond with ONLY a JSON object, no markdown fences:
 {"menu_language": string, "restaurant_guess": string|null (from logo/header if visible),
  "items": [{
    "name": string (English; translate if needed),
-<<<<<<< HEAD
    "name_zh": string (Traditional Chinese; translate if needed),
-=======
->>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
    "name_original": string (exactly as printed),
    "section": string|null,
    "description": string|null (as printed, else null),
@@ -64,7 +53,6 @@ Respond with ONLY a JSON object, no markdown fences:
 Omit near-zero attributes to keep output compact. Extract at most 40 items; if the menu has more, prefer mains and signatures over drinks and sides.`;
 
 export async function scanMenu(base64: string, mediaType: string): Promise<MenuScanResult> {
-<<<<<<< HEAD
   const text = await callClaude(SYSTEM, [
     imagePart(base64, mediaType),
     textPart('Extract every dish from this menu.'),
@@ -81,40 +69,6 @@ export async function scanMenu(base64: string, mediaType: string): Promise<MenuS
     restaurant_guess: parsed.restaurant_guess ? String(parsed.restaurant_guess) : null,
     mock: false,
   };
-=======
-  if (!process.env.ANTHROPIC_API_KEY) return mockMenu();
-
-  const client = new Anthropic();
-  const msg = await client.messages.create({
-    model: 'claude-sonnet-4-6',
-    max_tokens: 4000,
-    system: SYSTEM,
-    messages: [
-      {
-        role: 'user',
-        content: [
-          { type: 'image', source: { type: 'base64', media_type: mediaType as any, data: base64 } },
-          { type: 'text', text: 'Extract every dish from this menu.' },
-        ],
-      },
-    ],
-  });
-
-  const text = msg.content.filter((b) => b.type === 'text').map((b: any) => b.text).join('');
-  try {
-    const parsed = JSON.parse(text.replace(/```json|```/g, '').trim());
-    const items: MenuItem[] = (parsed.items ?? []).map((raw: any) => sanitizeItem(raw)).filter(Boolean);
-    if (items.length === 0) return { items: [], menu_language: 'unknown', restaurant_guess: null, mock: false };
-    return {
-      items,
-      menu_language: String(parsed.menu_language ?? 'unknown'),
-      restaurant_guess: parsed.restaurant_guess ? String(parsed.restaurant_guess) : null,
-      mock: false,
-    };
-  } catch {
-    return { items: [], menu_language: 'unknown', restaurant_guess: null, mock: false };
-  }
->>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
 }
 
 function sanitizeItem(raw: any): MenuItem | null {
@@ -126,10 +80,7 @@ function sanitizeItem(raw: any): MenuItem | null {
   }
   return {
     name: String(raw.name),
-<<<<<<< HEAD
     name_zh: raw.name_zh ? String(raw.name_zh) : null,
-=======
->>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
     name_original: String(raw.name_original ?? raw.name),
     section: raw.section ? String(raw.section) : null,
     description: raw.description ? String(raw.description) : null,
@@ -144,11 +95,7 @@ function sanitizeItem(raw: any): MenuItem | null {
 /** Demo menu so the whole flow works with no API key — clearly flagged as mock. */
 function mockMenu(): MenuScanResult {
   const mk = (name: string, name_original: string, cuisine: string, hook: string, price: string, attrs: DishVector): MenuItem => ({
-<<<<<<< HEAD
     name, name_zh: name_original, name_original, section: 'Demo menu', description: null, price, cuisine, hook, attributes: attrs, confidence: 0.9,
-=======
-    name, name_original, section: 'Demo menu', description: null, price, cuisine, hook, attributes: attrs, confidence: 0.9,
->>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
   });
   return {
     mock: true,
@@ -172,7 +119,6 @@ function mockMenu(): MenuScanResult {
  * personalized; with a mock fallback of {} it ranks neutrally rather than wrongly.
  */
 export async function inferAttributesFromText(name: string, description?: string | null, cuisine?: string | null): Promise<DishVector> {
-<<<<<<< HEAD
   const system = `Estimate sensory attributes of a dish from its menu text using culinary knowledge. Respond ONLY with JSON: { <only dims with presence >= 0.15, from: ${DIMS.join(', ')}>: number 0..1 }`;
   const userText = `${name}${description ? ` — ${description}` : ''}${cuisine ? ` (${cuisine})` : ''}`;
   const text = await callClaude(system, userText, { maxTokens: 300 });
@@ -185,26 +131,4 @@ export async function inferAttributesFromText(name: string, description?: string
     if (Number.isFinite(v) && v > 0) attrs[d] = Math.min(1, Math.max(0, v));
   }
   return attrs;
-=======
-  if (!process.env.ANTHROPIC_API_KEY) return {};
-  const client = new Anthropic();
-  const msg = await client.messages.create({
-    model: 'claude-sonnet-4-6',
-    max_tokens: 300,
-    system: `Estimate sensory attributes of a dish from its menu text using culinary knowledge. Respond ONLY with JSON: { <only dims with presence >= 0.15, from: ${DIMS.join(', ')}>: number 0..1 }`,
-    messages: [{ role: 'user', content: `${name}${description ? ` — ${description}` : ''}${cuisine ? ` (${cuisine})` : ''}` }],
-  });
-  const text = msg.content.filter((b) => b.type === 'text').map((b: any) => b.text).join('');
-  try {
-    const parsed = JSON.parse(text.replace(/```json|```/g, '').trim());
-    const attrs: DishVector = {};
-    for (const d of DIMS) {
-      const v = Number(parsed?.[d]);
-      if (Number.isFinite(v) && v > 0) attrs[d] = Math.min(1, Math.max(0, v));
-    }
-    return attrs;
-  } catch {
-    return {};
-  }
->>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
 }
