@@ -1,0 +1,209 @@
+// Pure i18n data + helpers — no React, so tests can run it under plain node.
+
+export type Lang = 'zh' | 'en';
+
+export const dict: Record<string, { zh: string; en: string }> = {
+  // ---- shell ----
+  'nav.foryou': { zh: '為你推介', en: 'For you' },
+  'nav.scan': { zh: '掃菜牌', en: 'Scan' },
+  'nav.log': { zh: '+記錄', en: '+ Log' },
+  'nav.table': { zh: '開檯', en: 'Table' },
+  'nav.taste': { zh: '口味', en: 'Taste' },
+  'tagline': { zh: '食得近d · eat closer', en: 'eat closer · 食得近d' },
+
+  // ---- auth ----
+  'auth.title': { zh: '登入開始', en: 'Sign in to start' },
+  'auth.blurb': { zh: '一個電郵，唔使密碼。由你第一下滑動開始，Dishi 就學緊你嘅口味。', en: 'One email, no password. Dishi learns your taste from your first flick.' },
+  'auth.placeholder': { zh: 'you@example.com', en: 'you@example.com' },
+  'auth.send': { zh: '傳送連結', en: 'Send link' },
+  'auth.sent': { zh: '請查收電郵，撳登入連結。', en: 'Check your inbox for the sign-in link.' },
+  'auth.loading': { zh: '載入中…', en: 'Loading…' },
+
+  // ---- home ----
+  'home.title': { zh: '為你推介', en: 'For you' },
+  'home.stage.seed': { zh: '評幾道菜，呢個推介就會變成你嘅。', en: 'Rate a few dishes and this feed becomes yours.' },
+  'home.stage.content': { zh: '根據你鍾意嘅嘢揀。愈多人評分，推介愈準。', en: 'Picked from what you already loved. More raters, better picks.' },
+  'home.stage.collab': { zh: '由同你口味相近嘅人揀出嚟。', en: 'Chosen by people whose taste matches yours.' },
+  'home.stage.learned': { zh: 'Dishi 已有足夠社群數據，學識你嘅隱藏口味模式。', en: 'Dishi has enough community data to learn hidden taste patterns for you.' },
+  'home.empty.title': { zh: '菜單仲係空嘅。', en: 'Nothing on the menu yet.' },
+  'home.empty.blurb': { zh: '記錄你第一道菜 — 每下滑動都令推介更準。', en: 'Log your first dish — every flick sharpens your recommendations.' },
+  'home.helped': { zh: '幫我決定咗', en: 'This helped me decide' },
+  'home.helped.done': { zh: '✓ 幫我決定咗', en: '✓ Helped me decide' },
+  'home.rated': { zh: '滑得好！你隻夥伴大咗少少。', en: 'Nice flick — your buddy grew a little.' },
+  'home.rated.see': { zh: '去睇下', en: 'See it' },
+  'home.around': { zh: '城中各處', en: 'Around the city' },
+  'home.homecooking': { zh: '住家菜', en: 'Home cooking' },
+  'home.setting': { zh: '整緊檯…', en: 'Setting the table…' },
+
+  // ---- log ----
+  'log.title': { zh: '記錄一道菜', en: 'Log a dish' },
+  'log.photo': { zh: '相片', en: 'Photo' },
+  'log.where': { zh: '你喺邊度食緊？', en: 'Where are you eating?' },
+  'log.continue': { zh: '繼續', en: 'Continue' },
+  'log.reading': { zh: '讀緊你碟嘢…', en: 'Reading the plate…' },
+  'log.how': { zh: '好唔好食？', en: 'How was it?' },
+  'log.anything': { zh: '仲有咩想講？', en: 'Anything to add?' },
+  'log.note': { zh: '滑一下就評到分 — 語音係加分位。兩樣都教緊 Dishi 你嘅口味。', en: 'Rate with a flick — the note is extra credit. Both teach Dishi your taste.' },
+  'log.looks': { zh: '睇落係{cuisine}菜 · ', en: 'Looks {cuisine} · ' },
+  'log.lowconf': { zh: '唔太肯定 — ', en: 'Low-confidence guess — ' },
+  'log.notright': { zh: '唔啱？', en: 'not right?' },
+  'log.fixname': { zh: '改名', en: 'Fix the name' },
+  'log.uploadfail': { zh: '上載失敗。檢查下網絡再試。', en: 'The upload failed. Check your connection and try again.' },
+
+  // ---- flick rating ----
+  'flick.inhaled': { zh: '一掃而空', en: 'Inhaled it' },
+  'flick.loved': { zh: '超好味', en: 'Loved it' },
+  'flick.good': { zh: '幾好食', en: 'Pretty good' },
+  'flick.fine': { zh: '一般般', en: 'It was fine' },
+  'flick.notforme': { zh: '唔啱我', en: 'Not for me' },
+  'flick.never': { zh: '唔會再食', en: 'Never again' },
+  'flick.hint': { zh: '鍾意就向上滑 · 唔鍾意向下 · 滑得愈遠愈強烈', en: 'Drag up if you loved it · down if not · further = more' },
+  'flick.tap': { zh: '用撳嘅', en: 'Tap instead' },
+  'flick.hidetaps': { zh: '收埋', en: 'Hide taps' },
+  'flick.undo': { zh: '復原', en: 'Undo' },
+  'flick.aria': { zh: '向上或向下滑動嚟評分', en: 'Rate this dish by dragging up or down' },
+  'flick.notyet': { zh: '未評分', en: 'not rated yet' },
+
+  // ---- restaurant picker ----
+  'picker.finding': { zh: '搵緊你附近嘅餐廳…', en: 'Finding restaurants near you…' },
+  'picker.denied': { zh: '定位已關 — 可以自己輸入店名，或者跳過。', en: 'Location is off — add the place by name, or skip.' },
+  'picker.add': { zh: '+ 加間舖', en: '+ Add a place' },
+  'picker.skip': { zh: '唔喺餐廳', en: 'Not at a restaurant' },
+  'picker.name': { zh: '餐廳名', en: 'Restaurant name' },
+  'picker.confirm': { zh: '加入', en: 'Add' },
+  'picker.needloc': { zh: '新舖需要開定位，Dishi 先可以幫其他人釘住個位。', en: 'New places need location on, so Dishi can pin them for others.' },
+  'picker.new': { zh: '新', en: 'new' },
+
+  // ---- voice ----
+  'voice.listening': { zh: '● 聽緊 — 撳一下停止', en: '● Listening — tap to stop' },
+  'voice.start': { zh: '🎙 講句短評（可以唔講）', en: '🎙 Say a quick note (optional)' },
+  'voice.type': { zh: '或者打字 —「太鹹但係鑊氣好正」', en: 'or type it — "too salty but loved the char"' },
+  'voice.typeonly': { zh: '「太鹹但係鑊氣好正」', en: '"too salty but loved the char"' },
+
+  // ---- scan ----
+  'scan.title': { zh: '掃菜牌', en: 'Scan a menu' },
+  'scan.blurb': { zh: '影低成張菜牌 — Dishi 讀晒每道菜，再按你口味排名。', en: 'Photograph the whole menu — Dishi reads every dish and ranks it against your taste.' },
+  'scan.tip': { zh: '平放影全頁效果最好。中文、英文、中英夾雜都得。', en: 'Works best flat-on with the whole page in frame. Chinese, English, or both.' },
+  'scan.results': { zh: '你嘅最佳選擇', en: 'Your best bets' },
+  'scan.another': { zh: '再掃一張', en: 'Scan another' },
+  'scan.read': { zh: '讀到 {n} 道菜', en: '{n} dishes read' },
+  'scan.order': { zh: '就叫呢個', en: 'Order this' },
+  'scan.mock': { zh: '示範菜牌 — 加返 OPENROUTER_API_KEY 先可以掃真菜牌。', en: 'Demo menu — add an OPENROUTER_API_KEY to scan real menus.' },
+  'scan.noprofile': { zh: '仲未有口味檔案，所以排名未個人化。評幾道菜再掃過 — 排名就會變成你嘅。', en: 'No taste profile yet, so this is unpersonalized. Rate a few dishes and scan again — the ranking becomes yours.' },
+  'scan.logged': { zh: '叫咗嘢食？食完記得記錄 — 每次評分都令下次掃描更準。', en: 'Ordered something? Log it after — every rating sharpens the next scan.' },
+  'scan.stage.0': { zh: '讀緊張菜牌…', en: 'Reading the menu…' },
+  'scan.stage.1': { zh: '逐個部分睇緊…', en: 'Working through the sections…' },
+  'scan.stage.2': { zh: '用廚藝知識估緊味道…', en: 'Estimating flavors from dish knowledge…' },
+  'scan.stage.3': { zh: '對緊你嘅口味檔案…', en: 'Matching against your taste profile…' },
+  'scan.stage.4': { zh: '排緊你嘅最佳選擇…', en: 'Ranking your best bets…' },
+
+  // ---- table mode ----
+  'table.title': { zh: '一齊食', en: 'Eat together' },
+  'table.blurb': { zh: '大家用一個代碼入檯，菜式排名保證冇人被犧牲 — 唔係求其平均。', en: 'Everyone joins with a code, and the menu gets ranked so nobody at the table gets sacrificed — not just averaged.' },
+  'table.start': { zh: '開檯', en: 'Start a table' },
+  'table.start.blurb': { zh: '影低菜牌（可選）— 唔影就用 Dishi 上面嘅菜式嚟排。', en: 'Snap the menu (optional) — otherwise the table ranks dishes from around Dishi.' },
+  'table.starting': { zh: '整緊檯…', en: 'Setting the table…' },
+  'table.readingmenu': { zh: '讀緊菜牌…', en: 'Reading the menu…' },
+  'table.join': { zh: '入檯', en: 'Join a table' },
+  'table.joining': { zh: '入緊…', en: 'Joining…' },
+  'table.joinbtn': { zh: '加入', en: 'Join' },
+  'table.leave': { zh: '離開', en: 'Leave' },
+  'table.back': { zh: '返回', en: 'Back' },
+  'table.invite': { zh: '+ 邀請', en: '+ Invite' },
+  'table.noprofile': { zh: '未有檔案', en: 'no profile yet' },
+  'table.few': { zh: '有兩個或以上口味檔案入檯，排名先至好玩。', en: 'Rankings get interesting once two or more taste profiles are at the table.' },
+  'table.ranked': { zh: '為 {n} 種口味排名 — 要人人都啱先算贏。', en: 'Ranked for {n} palates — a dish only wins if it works for everyone.' },
+  'table.nomenu': { zh: '（未有菜牌 — 用 Dishi 上面嘅菜式排緊。）', en: '(No menu attached — ranking dishes from around Dishi.)' },
+  'table.unanimous': { zh: '全檯啱', en: 'whole table' },
+  'table.fairness': { zh: '公平之選', en: 'fairness call' },
+  'table.see': { zh: '睇下全檯點睇', en: 'See the table\u2019s take' },
+  'table.hide': { zh: '收埋', en: 'Hide the table\u2019s take' },
+  'table.pulling': { zh: '攞緊檯嘅資料…', en: 'Pulling up the table…' },
+  'table.copied': { zh: '連結已複製 — 發俾成檯人。', en: 'Link copied — send it to the table.' },
+  'table.sharetitle': { zh: '嚟我張檯 — Dishi', en: 'Join my table on Dishi' },
+
+  // ---- order (QR) ----
+  'order.session': { zh: '場次', en: 'session' },
+  'order.yourtable': { zh: '你張檯', en: 'Your table' },
+  'order.menu': { zh: '菜牌', en: 'Menu' },
+  'order.solo': { zh: '按你口味排名。同檯朋友掃同一個 QR 就可以一齊排。', en: 'Ranked for your taste. Friends at the table can scan the same QR to join the ranking.' },
+  'order.group': { zh: '為呢檯 {n} 種口味排名 — 朋友可以用代碼加入。', en: 'Ranked for {n} palates at this table — friends can join with the code.' },
+  'order.yours': { zh: '你叫咗嘅嘢', en: 'Your orders' },
+  'order.send': { zh: '落單 · {n} 樣', en: 'Send order · {n} items' },
+  'order.sending': { zh: '傳送緊…', en: 'Sending…' },
+  'order.sent': { zh: '已送去廚房。', en: 'Order sent to the kitchen.' },
+  'order.notsetup.title': { zh: '菜牌仲未設定好。', en: 'The menu isn\u2019t set up yet.' },
+  'order.notsetup.blurb': { zh: '問下店員 — 呢間餐廳仲未喺 Dishi 加菜式。', en: 'Ask the staff — the restaurant hasn\u2019t added dishes to Dishi ordering.' },
+  'order.status.pending': { zh: '已送出 — 等緊廚房', en: 'Sent — waiting for the kitchen' },
+  'order.status.confirmed': { zh: '已確認 — 整緊', en: 'Confirmed — being prepared' },
+  'order.status.done': { zh: '上咗菜', en: 'Served' },
+  'order.status.cancelled': { zh: '餐廳取消咗', en: 'Cancelled by the restaurant' },
+  'order.setting': { zh: '幫你開緊檯…', en: 'Setting your table…' },
+  'order.addone': { zh: '加一份{name}', en: 'Add one {name}' },
+  'order.removeone': { zh: '減一份{name}', en: 'Remove one {name}' },
+
+  // ---- profile / buddy ----
+  'profile.title': { zh: '我嘅口味', en: 'My taste' },
+  'profile.flicks': { zh: '{n} 次滑動 · {p} 有用積分', en: '{n} flicks · {p} usefulness points' },
+  'profile.helped': { zh: ' — 你嘅記錄幫過其他人決定', en: ' — your logs helped other people decide' },
+  'profile.learned': { zh: 'Dishi 學到嘅嘢', en: 'What Dishi has learned' },
+  'profile.blank': { zh: '一片空白。記錄同滑動一道菜，就開始建立檔案。', en: 'A blank palate. Log and flick a dish to start the profile.' },
+  'profile.cuisines': { zh: '菜系', en: 'Cuisines' },
+  'profile.owner': { zh: '開餐廳？', en: 'Own a restaurant?' },
+  'profile.owner.link': { zh: '開啟儀表板', en: 'Open the dashboard' },
+  'profile.owner.blurb': { zh: '睇下食客嘅口味點回應你嘅菜式。', en: 'to see how diners\u2019 palates respond to your menu.' },
+  'buddy.adopt': { zh: '領養一隻口味夥伴', en: 'Adopt a taste buddy' },
+  'buddy.switch': { zh: '轉夥伴', en: 'Switch your buddy' },
+  'buddy.switchbtn': { zh: '轉夥伴', en: 'Switch buddy' },
+  'buddy.adopt.blurb': { zh: '口味引擎愈學你愈多，佢就愈大隻 — 每下滑動都餵緊佢。', en: 'It grows as the taste engine learns you — every flick feeds it.' },
+  'buddy.switch.blurb': { zh: '進度會保留：成長係跟你嘅數據，唔係跟隻動物。', en: 'Progress carries over: growth lives in your data, not the animal.' },
+  'buddy.nevermind': { zh: '唔轉住', en: 'Never mind' },
+  'buddy.xpto': { zh: '仲差 {n} XP 就到{name}', en: '{n} XP to {name}' },
+  'buddy.max': { zh: '完全進化。餐檯上嘅傳說。', en: 'Fully evolved. A legend at every table.' },
+  'buddy.strength': { zh: '引擎強度', en: 'engine strength' },
+  'buddy.flicks': { zh: '滑動', en: 'flicks' },
+  'buddy.cuisines': { zh: '菜系', en: 'cuisines' },
+  'buddy.senses': { zh: '味覺調校', en: 'senses tuned' },
+  'buddy.honest': { zh: '引擎強度係真嘅：佢量度你嘅推介建基於幾多元化嘅訊號。新菜系值三倍 — 呢個係真嘅數學，唔係遊戲規則。', en: 'Engine strength is real: it measures how much varied signal your recommendations are built on. New cuisines are worth 3\u00d7 a repeat — that\u2019s the actual math, not a game rule.' },
+  'buddy.level.Hatchling': { zh: '初生蛋', en: 'Hatchling' },
+  'buddy.level.Nibbler': { zh: '小食客', en: 'Nibbler' },
+  'buddy.level.Taster': { zh: '品味生', en: 'Taster' },
+  'buddy.level.Gourmand': { zh: '為食鬼', en: 'Gourmand' },
+  'buddy.level.Connoisseur': { zh: '食家', en: 'Connoisseur' },
+  'buddy.level.Legend of the Table': { zh: '餐檯傳說', en: 'Legend of the Table' },
+  'buddy.hint.first': { zh: '評你第一道菜我就會孵化。冇壓力。（有少少。）', en: 'Rate your first dish and I hatch. No pressure. (Some pressure.)' },
+  'buddy.hint.early': { zh: '再評 {n} 道菜 — 頭幾下滑動教我最多嘢。', en: 'Rate {n} more dishes — early flicks teach me the most.' },
+  'buddy.hint.cuisine': { zh: '試評一個我未食過嘅菜系 — 新菜系教我嘅嘢係重複嘅三倍。', en: 'Rate a cuisine I haven\u2019t tried — new cuisines teach me 3\u00d7 more than repeats.' },
+  'buddy.hint.explore': { zh: '試下你唔常食嘅嘢 — 酸、苦或者刺身會幫我開發全新感官。', en: 'Try something outside your usual — sour, bitter, or raw dishes would sharpen whole new senses.' },
+  'buddy.hint.tune': { zh: '繼續滑 — 而家每一下都係微調。', en: 'Keep flicking — every rating past this point is fine-tuning.' },
+  'buddy.hint.sharp': { zh: '我夠晒精準。而家一齊搵隱世好菜。', en: 'I\u2019m sharp. Now we hunt for hidden gems together.' },
+  'buddy.shiba': { zh: '柴犬', en: 'Shiba' },
+  'buddy.shiba.blurb': { zh: '忠心。會用生命護住你啲餸尾。', en: 'Loyal. Will guard your leftovers with its life.' },
+  'buddy.redpanda': { zh: '小熊貓', en: 'Red Panda' },
+  'buddy.redpanda.blurb': { zh: '成日食零食。靜靜哋批判緊你。', en: 'Snacks constantly. Judges quietly.' },
+  'buddy.octo': { zh: '八爪魚', en: 'Octopus' },
+  'buddy.octo.blurb': { zh: '八隻手，同時食八碟。', en: 'Eight arms, eight simultaneous dishes.' },
+  'buddy.frog': { zh: '青蛙', en: 'Frog' },
+  'buddy.frog.blurb': { zh: '有耐性。等到啱嗰啖先食。', en: 'Patient. Waits for exactly the right bite.' },
+  'buddy.penguin': { zh: '企鵝', en: 'Penguin' },
+  'buddy.penguin.blurb': { zh: '餐餐着禮服。', en: 'Formal dress at every meal.' },
+
+  // ---- misc ----
+  'misc.rating': { zh: '個評分', en: 'rating' },
+  'misc.ratings': { zh: '個評分', en: 'ratings' },
+};
+
+const CJK = /[\u3400-\u9fff\u3040-\u30ff]/;
+
+/**
+ * Resolve a dish's bilingual name pair from whatever fields exist.
+ * name is English by convention (vision output); name_zh is the explicit Traditional
+ * Chinese; name_original (menus) fills the Chinese slot when it's actually CJK.
+ */
+export function pickNames(d: { name: string; name_zh?: string | null; name_original?: string | null }): { en?: string; zh?: string } {
+  const zh = d.name_zh ?? (d.name_original && CJK.test(d.name_original) ? d.name_original : undefined)
+    ?? (CJK.test(d.name) ? d.name : undefined);
+  const en = CJK.test(d.name) ? (d.name_original && !CJK.test(d.name_original) ? d.name_original : undefined) : d.name;
+  return { en, zh };
+}
+
