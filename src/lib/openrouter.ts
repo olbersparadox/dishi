@@ -1,24 +1,4 @@
-// Shared OpenRouter client for every LLM call in Dishi (menu scan, dish vision, voice
-// note extraction, hand-added menu item attributes).
-//
-// MODEL CHOICE: anthropic/claude-sonnet-5, deliberately, for every vision/reasoning
-// call in this file's callers:
-//  - Menu Scanner is fundamentally an OCR-under-adversarial-conditions problem —
-//    multi-column layouts, mixed Chinese/English, glare, handwriting — that ALSO
-//    requires real culinary judgment (estimating flavor attributes for a dish the
-//    model has never seen a photo of). That's precisely the profile Sonnet 5 is
-//    built for: frontier-tier reasoning at a fraction of Opus cost, with full
-//    multimodal (image) input.
-//  - Opus 4.8 would be overkill and ~2.5x the cost per token for a task that isn't
-//    bottlenecked on Opus-tier agentic planning.
-//  - Haiku 4.5 is fast and cheap but a meaningfully weaker OCR/reasoning combination
-//    for cluttered real-world menu photos — the failure mode (misread dishes, wrong
-//    attributes) is exactly what would erode trust in the taste engine.
-//  - Sonnet 5 is the deliberate middle: near-Opus quality on exactly this kind of
-//    messy multimodal task, at Sonnet pricing.
-// If OpenRouter deprecates this slug, check https://openrouter.ai/anthropic for the
-// current Sonnet-class identifier before changing MODEL below.
-const MODEL = 'anthropic/claude-sonnet-5';
+const MODEL = 'qwen/qwen3.7-plus';
 
 const ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
 
