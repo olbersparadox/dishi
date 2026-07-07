@@ -1,6 +1,9 @@
 'use client';
 import { useEffect, useState } from 'react';
+<<<<<<< HEAD
 import { useLang } from '@/lib/i18n';
+=======
+>>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
 
 type Nearby = {
   source: 'dishi' | 'google';
@@ -28,7 +31,10 @@ export type RestaurantChoice =
  * and it shows up as a fast, free "dishi" chip for everyone after that.
  */
 export default function RestaurantPicker({ onChange }: { onChange: (c: RestaurantChoice) => void }) {
+<<<<<<< HEAD
   const { t } = useLang();
+=======
+>>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [nearby, setNearby] = useState<Nearby[]>([]);
   const [status, setStatus] = useState<'locating' | 'ready' | 'denied'>('locating');
@@ -78,8 +84,13 @@ export default function RestaurantPicker({ onChange }: { onChange: (c: Restauran
 
   return (
     <div>
+<<<<<<< HEAD
       {status === 'locating' && <p className="card-meta">{t('picker.finding')}</p>}
       {status === 'denied' && <p className="card-meta">{t('picker.denied')}</p>}
+=======
+      {status === 'locating' && <p className="card-meta">Finding restaurants near you…</p>}
+      {status === 'denied' && <p className="card-meta">Location is off — add the place by name, or skip.</p>}
+>>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
 
       <div className="chips" style={{ marginTop: 8 }}>
         {nearby.map(r => {
@@ -88,15 +99,26 @@ export default function RestaurantPicker({ onChange }: { onChange: (c: Restauran
             <button key={key} className={`chip ${selectedKey === key ? 'on' : ''}`} onClick={() => pick(r)}>
               {r.name}
               {r.distance_m !== null && <span style={{ opacity: 0.55 }}> · {Math.round(r.distance_m)}m</span>}
+<<<<<<< HEAD
               {r.source === 'google' && <span style={{ opacity: 0.5 }}> · {t('picker.new')}</span>}
+=======
+              {r.source === 'google' && <span style={{ opacity: 0.5 }}> · new</span>}
+>>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
             </button>
           );
         })}
         <button className={`chip ${adding ? 'on' : ''}`} onClick={() => setAdding(a => !a)}>
+<<<<<<< HEAD
           {t('picker.add')}
         </button>
         <button className={`chip ${selectedKey === 'skip' ? 'on' : ''}`} onClick={skip}>
           {t('picker.skip')}
+=======
+          + Add a place
+        </button>
+        <button className={`chip ${selectedKey === 'skip' ? 'on' : ''}`} onClick={skip}>
+          Not at a restaurant
+>>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
         </button>
       </div>
 
@@ -104,16 +126,28 @@ export default function RestaurantPicker({ onChange }: { onChange: (c: Restauran
         <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
           <input
             className="field"
+<<<<<<< HEAD
             placeholder={t('picker.name')}
+=======
+            placeholder="Restaurant name"
+>>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
             value={newName}
             onChange={e => setNewName(e.target.value)}
           />
           <button className="btn small" onClick={confirmNew} disabled={!coords || !newName.trim()}>
+<<<<<<< HEAD
             {t('picker.confirm')}
           </button>
         </div>
       )}
       {adding && !coords && <p className="card-meta" style={{ marginTop: 6 }}>{t('picker.needloc')}</p>}
+=======
+            Add
+          </button>
+        </div>
+      )}
+      {adding && !coords && <p className="card-meta" style={{ marginTop: 6 }}>New places need location on, so Dishi can pin them for others.</p>}
+>>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
     </div>
   );
 }

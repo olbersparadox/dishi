@@ -116,6 +116,7 @@ describe('buddyElements — nothing worn without data to back it', () => {
 
 describe('growthHint — always the highest-value next action', () => {
   it('walks the priority ladder as data accumulates', () => {
+<<<<<<< HEAD
     expect(growthHint(inputs()).key).toBe('buddy.hint.first');
     expect(growthHint(inputs({ ratingCount: 3 })).key).toBe('buddy.hint.early');
     expect(growthHint(inputs({ ratingCount: 3 })).params!.n).toBe(2);
@@ -123,6 +124,14 @@ describe('growthHint — always the highest-value next action', () => {
     const manyDims = Object.fromEntries(Object.keys(emptyTaste()).map(d => [d, 0.3]));
     expect(growthHint(inputs({ ratingCount: 30, distinctCuisines: 5, vector: manyDims })).key)
       .toBe('buddy.hint.sharp');
+=======
+    expect(growthHint(inputs())).toContain('first dish');
+    expect(growthHint(inputs({ ratingCount: 3 }))).toContain('2 more');
+    expect(growthHint(inputs({ ratingCount: 8, distinctCuisines: 1 }))).toContain('cuisine');
+    const manyDims = Object.fromEntries(Object.keys(emptyTaste()).map(d => [d, 0.3]));
+    expect(growthHint(inputs({ ratingCount: 30, distinctCuisines: 5, vector: manyDims })))
+      .toContain('hidden gems');
+>>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
   });
 });
 

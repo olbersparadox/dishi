@@ -1,6 +1,9 @@
 'use client';
 import { useRef, useState } from 'react';
+<<<<<<< HEAD
 import { useLang } from '@/lib/i18n';
+=======
+>>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
 
 /**
  * The signature interaction. Three patterns were considered:
@@ -20,6 +23,7 @@ import { useLang } from '@/lib/i18n';
  *  "tap instead" row of five labeled chips (keyboard + screen-reader friendly).
  */
 
+<<<<<<< HEAD
 const WORD_KEYS: [number, string][] = [
   [0.85, 'flick.inhaled'],
   [0.5, 'flick.loved'],
@@ -40,6 +44,28 @@ const CHIPS: { key: string; value: number }[] = [
 export function wordKeyFor(score: number) {
   for (const [min, key] of WORD_KEYS) if (score >= min) return key;
   return 'flick.never';
+=======
+const WORDS: [number, string][] = [
+  [0.85, 'Inhaled it'],
+  [0.5, 'Loved it'],
+  [0.15, 'Pretty good'],
+  [-0.15, 'It was fine'],
+  [-0.5, 'Not for me'],
+  [-1.01, 'Never again'],
+];
+
+const CHIPS: { label: string; value: number }[] = [
+  { label: 'Never again', value: -0.9 },
+  { label: 'Not for me', value: -0.5 },
+  { label: 'Fine', value: 0.1 },
+  { label: 'Loved it', value: 0.6 },
+  { label: 'Inhaled it', value: 1 },
+];
+
+export function wordFor(score: number) {
+  for (const [min, word] of WORDS) if (score >= min) return word;
+  return 'Never again';
+>>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
 }
 
 export default function FlickRating({
@@ -49,7 +75,10 @@ export default function FlickRating({
   photoUrl: string;
   onCommit: (score: number) => void;
 }) {
+<<<<<<< HEAD
   const { t } = useLang();
+=======
+>>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
   const [drag, setDrag] = useState(0); // -1..1 live value
   const [active, setActive] = useState(false);
   const [pending, setPending] = useState<number | null>(null);
@@ -107,11 +136,19 @@ export default function FlickRating({
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
         role="slider"
+<<<<<<< HEAD
         aria-label={t('flick.aria')}
         aria-valuemin={-1}
         aria-valuemax={1}
         aria-valuenow={Number(v.toFixed(2))}
         aria-valuetext={Math.abs(v) >= 0.1 ? t(wordKeyFor(v)) : t('flick.notyet')}
+=======
+        aria-label="Rate this dish by dragging up or down"
+        aria-valuemin={-1}
+        aria-valuemax={1}
+        aria-valuenow={Number(v.toFixed(2))}
+        aria-valuetext={Math.abs(v) >= 0.1 ? wordFor(v) : 'not rated yet'}
+>>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
         tabIndex={0}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -125,27 +162,46 @@ export default function FlickRating({
         <div className="flick-gauge" aria-hidden>
           <div className="flick-fill" style={{ ...fillPos, height: fillHeight, background: fillColor }} />
         </div>
+<<<<<<< HEAD
         {Math.abs(v) >= 0.1 && <div className="flick-word">{t(wordKeyFor(v))}</div>}
         {!active && pending === null && Math.abs(v) < 0.1 && (
           <div className="flick-hint">{t('flick.hint')}</div>
+=======
+        {Math.abs(v) >= 0.1 && <div className="flick-word">{wordFor(v)}</div>}
+        {!active && pending === null && Math.abs(v) < 0.1 && (
+          <div className="flick-hint">Drag up if you loved it · down if not · further = more</div>
+>>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
         )}
       </div>
 
       <button className="btn ghost small" onClick={() => setShowChips(s => !s)}>
+<<<<<<< HEAD
         {showChips ? t('flick.hidetaps') : t('flick.tap')}
+=======
+        {showChips ? 'Hide taps' : 'Tap instead'}
+>>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
       </button>
       {showChips && (
         <div className="chips" style={{ marginTop: 10 }}>
           {CHIPS.map(c => (
+<<<<<<< HEAD
             <button key={c.key} className="chip" onClick={() => stage(c.value)}>{t(c.key)}</button>
+=======
+            <button key={c.label} className="chip" onClick={() => stage(c.value)}>{c.label}</button>
+>>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
           ))}
         </div>
       )}
 
       {pending !== null && (
         <div className="toast" role="status">
+<<<<<<< HEAD
           <span>{t(wordKeyFor(pending))}</span>
           <button onClick={undo}>{t('flick.undo')}</button>
+=======
+          <span>{wordFor(pending)}</span>
+          <button onClick={undo}>Undo</button>
+>>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
         </div>
       )}
     </div>

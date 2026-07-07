@@ -1,11 +1,17 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { supabaseBrowser } from '@/lib/supabase/client';
+<<<<<<< HEAD
 import { useLang } from '@/lib/i18n';
 
 /** Magic-link auth, deliberately minimal. Wrap any page that needs a session. */
 export default function AuthGate({ children }: { children: React.ReactNode }) {
   const { t } = useLang();
+=======
+
+/** Magic-link auth, deliberately minimal. Wrap any page that needs a session. */
+export default function AuthGate({ children }: { children: React.ReactNode }) {
+>>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
   const [ready, setReady] = useState(false);
   const [signedIn, setSignedIn] = useState(false);
   const [email, setEmail] = useState('');
@@ -34,11 +40,16 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     setSent(true);
   }
 
+<<<<<<< HEAD
   if (!ready) return <p className="card-meta">{t('auth.loading')}</p>;
+=======
+  if (!ready) return <p className="card-meta">Loading…</p>;
+>>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
   if (signedIn) return <>{children}</>;
 
   return (
     <div className="card"><div className="card-body">
+<<<<<<< HEAD
       <h2 style={{ marginBottom: 6 }}>{t('auth.title')}</h2>
       <p className="card-meta" style={{ marginBottom: 12 }}>
         {t('auth.blurb')}
@@ -49,6 +60,18 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
         <div style={{ display: 'flex', gap: 8 }}>
           <input className="field" type="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} />
           <button className="btn primary" onClick={sendLink} disabled={!email.includes('@')}>{t('auth.send')}</button>
+=======
+      <h2 style={{ marginBottom: 6 }}>Sign in to start</h2>
+      <p className="card-meta" style={{ marginBottom: 12 }}>
+        One email, no password. Dishi learns your taste from your first flick.
+      </p>
+      {sent ? (
+        <p>Check your inbox for the sign-in link.</p>
+      ) : (
+        <div style={{ display: 'flex', gap: 8 }}>
+          <input className="field" type="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} />
+          <button className="btn primary" onClick={sendLink} disabled={!email.includes('@')}>Send link</button>
+>>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
         </div>
       )}
     </div></div>

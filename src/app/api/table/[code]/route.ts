@@ -52,7 +52,11 @@ export async function GET(_req: NextRequest, { params }: { params: { code: strin
 
   // Candidate items: the scanned menu if the host attached one, else community dishes.
   type Candidate = {
+<<<<<<< HEAD
     key: string; name: string; name_zh?: string | null; name_original?: string; price?: string | null;
+=======
+    key: string; name: string; name_original?: string; price?: string | null;
+>>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
     hook?: string; cuisine: string | null; attributes: DishVector; photo_url?: string | null;
     menu_item_id?: string; // present only for orderable restaurant-menu candidates
   };
@@ -63,7 +67,11 @@ export async function GET(_req: NextRequest, { params }: { params: { code: strin
     // items only), so 86'd dishes vanish from every diner's ranking in real time.
     const [{ data: menuItems }, { data: tableRow }] = await Promise.all([
       admin.from('restaurant_menu_items')
+<<<<<<< HEAD
         .select('id, name, name_zh, name_original, description, price, cuisine, attributes')
+=======
+        .select('id, name, name_original, description, price, cuisine, attributes')
+>>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
         .eq('restaurant_id', session.restaurant_id)
         .eq('available', true)
         .order('position', { ascending: true }),
@@ -72,7 +80,11 @@ export async function GET(_req: NextRequest, { params }: { params: { code: strin
         .eq('id', session.table_id).maybeSingle(),
     ]);
     candidates = (menuItems ?? []).map(m => ({
+<<<<<<< HEAD
       key: m.id, menu_item_id: m.id, name: m.name, name_zh: m.name_zh,
+=======
+      key: m.id, menu_item_id: m.id, name: m.name,
+>>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
       name_original: m.name_original ?? undefined, price: m.price,
       hook: m.description ?? undefined, cuisine: m.cuisine, attributes: m.attributes,
     }));
@@ -82,15 +94,26 @@ export async function GET(_req: NextRequest, { params }: { params: { code: strin
     } : null;
   } else if (session.menu_items) {
     candidates = (session.menu_items as any[]).map((m, i) => ({
+<<<<<<< HEAD
       key: `menu-${i}`, name: m.name, name_zh: m.name_zh ?? null, name_original: m.name_original, price: m.price,
+=======
+      key: `menu-${i}`, name: m.name, name_original: m.name_original, price: m.price,
+>>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
       hook: m.hook, cuisine: m.cuisine, attributes: m.attributes, photo_url: null,
     }));
   } else {
     const { data: dishes } = await admin
+<<<<<<< HEAD
       .from('dishes').select('id, name, name_zh, cuisine, photo_url, attributes')
       .order('created_at', { ascending: false }).limit(100);
     candidates = (dishes ?? []).map(d => ({
       key: d.id, name: d.name, name_zh: d.name_zh, cuisine: d.cuisine, attributes: d.attributes, photo_url: d.photo_url,
+=======
+      .from('dishes').select('id, name, cuisine, photo_url, attributes')
+      .order('created_at', { ascending: false }).limit(100);
+    candidates = (dishes ?? []).map(d => ({
+      key: d.id, name: d.name, cuisine: d.cuisine, attributes: d.attributes, photo_url: d.photo_url,
+>>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
     }));
   }
 

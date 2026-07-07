@@ -11,9 +11,14 @@ Full product spec, schema rationale, and objections: **SPEC.md**.
 2. Create a Supabase project → SQL editor → run `supabase/schema.sql`, then `supabase/seed.sql`.
 3. Enable Email (magic link) auth in Supabase Auth settings.
 4. `cp .env.example .env.local` and fill in the Supabase URL + keys.
+<<<<<<< HEAD
    `OPENROUTER_API_KEY` is optional — without it, vision + voice extraction use mocks
    and the loop still works end to end. Get a key at openrouter.ai; calls use
    `anthropic/claude-sonnet-5` (see src/lib/openrouter.ts for the model reasoning).
+=======
+   `ANTHROPIC_API_KEY` is optional — without it, vision + voice extraction use mocks
+   and the loop still works end to end.
+>>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
    `GOOGLE_PLACES_API_KEY` is also optional — without it, the restaurant quick-pick
    only searches Dishi's own restaurant list. To get one: Google Cloud Console →
    enable "Places API (New)" → create an API key → **set a daily quota cap** under
@@ -52,6 +57,7 @@ for their taste (group-fairness ranked when friends scan too) → order to a kit
 queue (dashboard → Orders). No payments by design: staff confirm orders, payment
 happens however the restaurant already takes it. Menus bootstrap in one photo
 (dashboard → Menu → import) via the same scanner diners use.
+<<<<<<< HEAD
 
 ## Languages
 
@@ -62,3 +68,5 @@ Traditional Chinese name for every dish it reads, so bilingual names exist even 
 English-only menus. Known gap (next step): server-composed dynamic sentences — scan
 reason lines, API error messages — are English-only for now; the owner dashboard
 chrome likewise stays English this pass, though dish names in it are bilingual.
+=======
+>>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c

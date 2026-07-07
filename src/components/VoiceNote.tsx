@@ -1,6 +1,9 @@
 'use client';
 import { useRef, useState } from 'react';
+<<<<<<< HEAD
 import { useLang } from '@/lib/i18n';
+=======
+>>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
 
 /**
  * Optional spoken note, transcribed on-device with the Web Speech API (free, no upload).
@@ -8,7 +11,10 @@ import { useLang } from '@/lib/i18n';
  * Browsers without SpeechRecognition get a plain text field — same downstream pipeline.
  */
 export default function VoiceNote({ onTranscript }: { onTranscript: (t: string) => void }) {
+<<<<<<< HEAD
   const { t, lang } = useLang();
+=======
+>>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
   const [listening, setListening] = useState(false);
   const [text, setText] = useState('');
   const [supported] = useState(
@@ -20,7 +26,11 @@ export default function VoiceNote({ onTranscript }: { onTranscript: (t: string) 
     if (listening) { recRef.current?.stop(); return; }
     const SR: any = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     const rec = new SR();
+<<<<<<< HEAD
     rec.lang = lang === 'zh' ? 'yue-Hant-HK' : 'en-US'; // Cantonese speech recognition in zh mode
+=======
+    rec.lang = 'en-US';
+>>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
     rec.interimResults = true;
     rec.onresult = (e: any) => {
       const t = Array.from(e.results).map((r: any) => r[0].transcript).join(' ');

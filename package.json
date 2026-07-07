@@ -9,6 +9,10 @@
     "test": "vitest run"
   },
   "dependencies": {
+<<<<<<< HEAD
+=======
+    "@anthropic-ai/sdk": "^0.32.0",
+>>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.47.0",
     "next": "^14.2.15",

@@ -1,20 +1,31 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
 import Buddy from './Buddy';
+<<<<<<< HEAD
 import { SPECIES, type Species } from '@/lib/buddy';
 import { useLang } from '@/lib/i18n';
+=======
+import { SPECIES, SPECIES_INFO, type Species } from '@/lib/buddy';
+>>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
 
 type BuddyState = {
   xp: number;
   level: { name: string; level: number; size: number; progress: number; next: { name: string; remaining: number } | null };
   strength: number;
   elements: { kind: string; id: string; label: string }[];
+<<<<<<< HEAD
   hint: { key: string; params?: Record<string, number> };
+=======
+  hint: string;
+>>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
   stats: { ratings: number; cuisines: number; dims_explored: number; dims_total: number };
 };
 
 export default function BuddyCard() {
+<<<<<<< HEAD
   const { t } = useLang();
+=======
+>>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
   const [species, setSpecies] = useState<Species | null | 'loading'>('loading');
   const [state, setState] = useState<BuddyState | null>(null);
   const [switching, setSwitching] = useState(false);
@@ -45,21 +56,37 @@ export default function BuddyCard() {
   if (!species || switching) {
     return (
       <div className="card"><div className="card-body">
+<<<<<<< HEAD
         <h3 style={{ marginBottom: 4 }}>{switching ? t('buddy.switch') : t('buddy.adopt')}</h3>
         <p className="card-meta" style={{ marginBottom: 12 }}>
           {t('buddy.adopt.blurb')}
           {switching && ` ${t('buddy.switch.blurb')}`}
+=======
+        <h3 style={{ marginBottom: 4 }}>{switching ? 'Switch your buddy' : 'Adopt a taste buddy'}</h3>
+        <p className="card-meta" style={{ marginBottom: 12 }}>
+          It grows as the taste engine learns you — every flick feeds it.
+          {switching && ' Progress carries over: growth lives in your data, not the animal.'}
+>>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
         </p>
         <div className="buddy-picker">
           {SPECIES.map(s => (
             <button key={s} className="buddy-pick" onClick={() => adopt(s)}>
               <Buddy species={s} sizeStage={2} elements={[]} size={88} />
+<<<<<<< HEAD
               <strong>{t(`buddy.${s}`)}</strong>
               <span>{t(`buddy.${s}.blurb`)}</span>
             </button>
           ))}
         </div>
         {switching && <button className="btn ghost small" onClick={() => setSwitching(false)}>{t('buddy.nevermind')}</button>}
+=======
+              <strong>{SPECIES_INFO[s].name}</strong>
+              <span>{SPECIES_INFO[s].blurb}</span>
+            </button>
+          ))}
+        </div>
+        {switching && <button className="btn ghost small" onClick={() => setSwitching(false)}>Never mind</button>}
+>>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
       </div></div>
     );
   }
@@ -71,7 +98,11 @@ export default function BuddyCard() {
     <div className="card"><div className="card-body" style={{ textAlign: 'center' }}>
       <Buddy species={species} sizeStage={state.level.size} elements={state.elements} size={190} />
       <h3 style={{ marginTop: 4 }}>
+<<<<<<< HEAD
         {t(`buddy.${species}`)} · <span style={{ color: 'var(--jade)' }}>{t(`buddy.level.${state.level.name}`)}</span>
+=======
+        {SPECIES_INFO[species].name} · <span style={{ color: 'var(--jade)' }}>{state.level.name}</span>
+>>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
       </h3>
 
       <div className="xp-bar" role="progressbar" aria-valuenow={Math.round(state.level.progress * 100)}
@@ -81,11 +112,19 @@ export default function BuddyCard() {
       </div>
       <p className="card-meta" style={{ marginTop: 4 }}>
         {state.level.next
+<<<<<<< HEAD
           ? t('buddy.xpto', { n: state.level.next.remaining, name: t(`buddy.level.${state.level.next.name}`) })
           : t('buddy.max')}
       </p>
 
       <p className="buddy-hint">{t(state.hint.key, state.hint.params)}</p>
+=======
+          ? `${state.level.next.remaining} XP to ${state.level.next.name}`
+          : 'Fully evolved. A legend at every table.'}
+      </p>
+
+      <p className="buddy-hint">{state.hint}</p>
+>>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
 
       {state.elements.length > 0 && (
         <div className="chips" style={{ justifyContent: 'center', marginTop: 10 }}>
@@ -94,6 +133,7 @@ export default function BuddyCard() {
       )}
 
       <div className="stat-row" style={{ marginTop: 14, marginBottom: 4 }}>
+<<<<<<< HEAD
         <div className="stat"><div className="stat-num">{state.strength}%</div><div className="stat-label">{t('buddy.strength')}</div></div>
         <div className="stat"><div className="stat-num">{state.stats.ratings}</div><div className="stat-label">{t('buddy.flicks')}</div></div>
         <div className="stat"><div className="stat-num">{state.stats.cuisines}</div><div className="stat-label">{t('buddy.cuisines')}</div></div>
@@ -105,6 +145,20 @@ export default function BuddyCard() {
 
       <button className="btn ghost small" style={{ marginTop: 8 }} onClick={() => setSwitching(true)}>
         {t('buddy.switchbtn')}
+=======
+        <div className="stat"><div className="stat-num">{state.strength}%</div><div className="stat-label">engine strength</div></div>
+        <div className="stat"><div className="stat-num">{state.stats.ratings}</div><div className="stat-label">flicks</div></div>
+        <div className="stat"><div className="stat-num">{state.stats.cuisines}</div><div className="stat-label">cuisines</div></div>
+        <div className="stat"><div className="stat-num">{state.stats.dims_explored}/{state.stats.dims_total}</div><div className="stat-label">senses tuned</div></div>
+      </div>
+      <p className="card-meta" style={{ fontSize: 11.5 }}>
+        Engine strength is real: it measures how much varied signal your recommendations are built on.
+        New cuisines are worth 3× a repeat — that's the actual math, not a game rule.
+      </p>
+
+      <button className="btn ghost small" style={{ marginTop: 8 }} onClick={() => setSwitching(true)}>
+        Switch buddy
+>>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
       </button>
     </div></div>
   );

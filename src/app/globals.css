@@ -248,6 +248,7 @@ button { font: inherit; cursor: pointer; }
 .owner-tabs button.on { border-color: var(--ink); color: var(--ink); background: var(--glaze); }
 .order-ticket { border-left: 4px solid var(--egg-tart); }
 .order-ticket.confirmed { border-left-color: var(--jade); }
+<<<<<<< HEAD
 
 /* --- language + bilingual dish names --- */
 .lang-toggle { display: flex; border: 1px solid var(--line); border-radius: 99px; overflow: hidden; }
@@ -264,3 +265,5 @@ button { font: inherit; cursor: pointer; }
 }
 .dishname-lg .dishname-primary { font-family: var(--font-display), system-ui; font-size: 26px; font-weight: 800; }
 .dishname-lg .dishname-secondary { font-size: 14px; }
+=======
+>>>>>>> a5ab899ab9ea165d98b3124f2a73de9782080d1c
