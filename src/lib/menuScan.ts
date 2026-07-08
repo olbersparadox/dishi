@@ -73,6 +73,106 @@ export async function scanMenu(base64: string, mediaType: string): Promise<MenuS
   };
 }
 
+// ---------------------------------------------------------------------------
+// TWO-PHASE SCAN. A single call that OCRs a menu AND estimates 18 flavor numbers
+// per dish is fundamentally a 20-40+ second generation task once a menu has more
+// than a handful of items — no schema trick changes that. So the phases split:
+//   Phase 1 (scanMenuOCR): names/prices/cuisine/hook only. No attribute numbers.
+//            Much smaller output -> the fast, always-run step.
+//   Phase 2 (scoreOneDish, called once per dish, in parallel with a concurrency
+//            cap — see src/lib/concurrency.ts): flavor vectors only, TEXT-ONLY (no
+//            image, no vision preprocessing). Only runs when the user has enough
+//            ratings (>=5) for a score to mean anything — for new users this phase
+//            is skipped entirely, which is the single biggest real-world speed win,
+//            since a fresh account is exactly the common "someone's trying the demo"
+//            case. Per-dish (rather than one batched call for the whole menu) means
+//            total wait is roughly bounded by the SLOWEST single dish, not the sum
+//            of all of them, and each ring can light up the moment its own call
+//            finishes rather than everything appearing at once at the end.
+// ---------------------------------------------------------------------------
+
+const OCR_SYSTEM = `You read a photograph of a physical restaurant menu and extract EVERY legible dish.
+
+Menus are messy: multiple columns, section headers, prices in odd places, mixed languages (especially Chinese + English), specials taped on, glare, handwriting. Work systematically. Do not invent items; extract partially-legible ones with lower confidence.
+
+Respond with ONLY compact JSON, no markdown fences, minimal whitespace:
+{"menu_language": string, "restaurant_guess": string|null,
+ "items": [{
+   "n": string (English name; translate if needed),
+   "z": string (Traditional Chinese name; translate if needed),
+   "o": string (name exactly as printed),
+   "p": string|null (price exactly as printed),
+   "c": string (cuisine, lowercase),
+   "h": string (<=6 words, most distinctive sensory hook),
+   "f": number 0..1 (confidence)
+ }]}
+Extract at most 20 items; prefer mains and signatures over drinks and sides. No flavor scoring in this step.`;
+
+export type OcrMenuItem = Omit<MenuItem, 'attributes'>;
+
+export async function scanMenuOCR(base64: string, mediaType: string): Promise<MenuScanResult> {
+  // Mock includes attributes already (they're hardcoded, free) — the demo path
+  // stays a single complete response, no phase 2 needed.
+  if (!process.env.OPENROUTER_API_KEY) return mockMenu();
+
+  const text = await callClaude(OCR_SYSTEM, [
+    imagePart(base64, mediaType),
+    textPart('Extract every dish from this menu. Names, prices, cuisine, and a hook only — no flavor scoring.'),
+  ], { maxTokens: 1400 });
+
+  const parsed = parseJsonResponse<{ items?: any[]; menu_language?: string; restaurant_guess?: string }>(text);
+  if (!parsed) return { items: [], menu_language: 'unknown', restaurant_guess: null, mock: false };
+
+  const items = (parsed.items ?? []).map((raw: any) => sanitizeItem(raw)).filter(Boolean) as MenuItem[];
+  if (items.length === 0) return { items: [], menu_language: 'unknown', restaurant_guess: null, mock: false };
+  return {
+    items,
+    menu_language: String(parsed.menu_language ?? 'unknown'),
+    restaurant_guess: parsed.restaurant_guess ? String(parsed.restaurant_guess) : null,
+    mock: false,
+  };
+}
+
+const SCORE_ONE_SYSTEM = `You estimate sensory flavor attributes for ONE dish, using culinary knowledge only (no photo).
+Respond with ONLY compact JSON, no fences: {"a": [18 numbers 0..1, one decimal, in this exact order: ${DIMS.join(', ')}]}`;
+
+/**
+ * Score a SINGLE dish (name + cuisine in, 18 flavor numbers out). Deliberately not
+ * batched: the client fires one of these per dish, several in parallel (capped —
+ * see src/lib/concurrency.ts) — total wait time becomes roughly the slowest single
+ * call rather than the sum of every dish, and each dish's ring can light up the
+ * moment ITS call finishes instead of all-or-nothing at the end.
+ */
+export async function scoreOneDish(item: { name: string; cuisine: string }): Promise<DishVector> {
+  const userText = `${item.name} (${item.cuisine})`;
+  const text = await callClaude(SCORE_ONE_SYSTEM, userText, { maxTokens: 150 });
+  const parsed = parseJsonResponse<{ a?: unknown }>(text);
+  return mergeScoredAttributes(1, Array.isArray(parsed?.a) ? [parsed!.a] : null)[0];
+}
+
+/**
+ * Trust nothing from the model here either: wrong length, wrong types, extra/missing
+ * entries are all real possibilities. Maps by index up to the shorter of the two
+ * lengths; anything unmatched gets an empty (neutral) attribute set rather than a
+ * crash or a misaligned dish-to-flavor mapping.
+ */
+export function mergeScoredAttributes(itemCount: number, scores: unknown[] | null): DishVector[] {
+  const out: DishVector[] = Array.from({ length: itemCount }, () => ({}));
+  if (!Array.isArray(scores)) return out;
+  const n = Math.min(itemCount, scores.length);
+  for (let i = 0; i < n; i++) {
+    const arr = scores[i];
+    if (!Array.isArray(arr)) continue;
+    const attrs: DishVector = {};
+    DIMS.forEach((d, di) => {
+      const v = Number(arr[di]);
+      if (Number.isFinite(v) && v > 0) attrs[d] = Math.min(1, Math.max(0, v));
+    });
+    out[i] = attrs;
+  }
+  return out;
+}
+
 function sanitizeItem(raw: any): MenuItem | null {
   // Compact schema (short keys, fixed-order attr array) cuts output tokens ~55%,
   // which is the difference between finishing inside the serverless window and
