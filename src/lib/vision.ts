@@ -26,13 +26,20 @@ give your best guess and lower confidence.`;
  * anthropic/claude-sonnet-5 is the model used here.
  */
 export async function inferDish(base64: string, mediaType: string): Promise<VisionResult> {
+  if (!process.env.OPENROUTER_API_KEY) return mockResult();
+
   const text = await callClaude(SYSTEM, [
     imagePart(base64, mediaType),
     textPart('Identify this dish.'),
   ], { maxTokens: 500 });
 
   const parsed = parseJsonResponse(text);
-  if (!parsed) return mockResult();
+  // Call failed with a real key (timeout/model error): keep the log flow alive with
+  // an honest low-confidence Unknown — the user gets the "fix the name" chip — rather
+  // than fake demo data or a hard failure after they already took the photo.
+  if (!parsed) {
+    return { name: 'Unknown dish', name_zh: null, cuisine: 'unknown', attributes: {}, confidence: 0.1 };
+  }
   return sanitize(parsed);
 }
 

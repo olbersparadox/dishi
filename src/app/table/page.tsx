@@ -191,14 +191,15 @@ function Session({ code, onLeave }: { code: string; onLeave: () => void }) {
               <span>{item.group_match}</span>
             </div>
             <div style={{ minWidth: 0, flex: 1 }}>
-              <div className="card-title" style={{ fontSize: 15.5 }}>
-                <DishName name={item.name} name_zh={item.name_zh} name_original={item.name_original} />
-                {item.unanimous && <span className="badge-unanimous">{t('table.unanimous')}</span>}
-                {item.protected_by_fairness && <span className="badge-fair">{t('table.fairness')}</span>}
+              <div className="dish-row">
+                <div className="card-title" style={{ fontSize: 15.5 }}>
+                  <DishName name={item.name} name_zh={item.name_zh} name_original={item.name_original} />
+                  {item.unanimous && <span className="badge-unanimous">{t('table.unanimous')}</span>}
+                  {item.protected_by_fairness && <span className="badge-fair">{t('table.fairness')}</span>}
+                </div>
+                {item.price && <span className="dish-price">{item.price}</span>}
               </div>
-              <div className="card-meta">
-                {item.price ? `${item.price} · ` : ''}{item.hook ?? item.cuisine ?? ''}
-              </div>
+              <div className="card-meta">{item.hook ?? item.cuisine ?? ''}</div>
               <button className="btn ghost small" style={{ marginTop: 6 }}
                 onClick={() => setExpanded(expanded === item.key ? null : item.key)}>
                 {expanded === item.key ? t('table.hide') : t('table.see')}

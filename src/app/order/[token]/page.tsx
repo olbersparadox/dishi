@@ -181,13 +181,14 @@ function OrderFlow() {
               <span>{item.group_match}</span>
             </div>
             <div style={{ minWidth: 0, flex: 1 }}>
-              <div className="card-title" style={{ fontSize: 15.5 }}>
-                <DishName name={item.name} name_zh={item.name_zh} name_original={item.name_original} />
-                {item.unanimous && state.members.length > 1 && <span className="badge-unanimous">{t('table.unanimous')}</span>}
+              <div className="dish-row">
+                <div className="card-title" style={{ fontSize: 15.5 }}>
+                  <DishName name={item.name} name_zh={item.name_zh} name_original={item.name_original} />
+                  {item.unanimous && state.members.length > 1 && <span className="badge-unanimous">{t('table.unanimous')}</span>}
+                </div>
+                {item.price && <span className="dish-price">{item.price}</span>}
               </div>
-              <div className="card-meta">
-                {item.price ? `${item.price}` : ''}{item.price && item.hook ? ' · ' : ''}{item.hook ?? ''}
-              </div>
+              <div className="card-meta">{item.hook ?? ''}</div>
             </div>
             {item.menu_item_id && (
               <div className="qty-stepper">

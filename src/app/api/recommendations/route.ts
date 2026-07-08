@@ -54,6 +54,9 @@ export async function GET(_req: NextRequest) {
       rating_count: myCount,
       needed: TRAINING_THRESHOLD,
       recommendations: [],
+      // Browsable, explicitly NOT recommendations: other diners' dishes shown with a
+      // neutral 50 ring until the engine has earned the right to rank them.
+      browse: pool.slice(0, 12).map(d => card(d, null, '')),
     });
   }
 

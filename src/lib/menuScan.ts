@@ -51,13 +51,17 @@ Respond with ONLY compact JSON, no markdown fences, minimal whitespace:
 Keep output small: one decimal place everywhere, no extra fields. Extract at most 28 items; prefer mains and signatures over drinks and sides.`;
 
 export async function scanMenu(base64: string, mediaType: string): Promise<MenuScanResult> {
+  // Mock ONLY when no key is configured. A failed/timed-out call with a real key
+  // must surface as an error, never silently masquerade as the demo menu.
+  if (!process.env.OPENROUTER_API_KEY) return mockMenu();
+
   const text = await callClaude(SYSTEM, [
     imagePart(base64, mediaType),
     textPart('Extract every dish from this menu.'),
   ], { maxTokens: 3000 });
 
   const parsed = parseJsonResponse<{ items?: any[]; menu_language?: string; restaurant_guess?: string }>(text);
-  if (!parsed) return mockMenu();
+  if (!parsed) return { items: [], menu_language: 'unknown', restaurant_guess: null, mock: false };
 
   const items: MenuItem[] = (parsed.items ?? []).map((raw: any) => sanitizeItem(raw)).filter(Boolean) as MenuItem[];
   if (items.length === 0) return { items: [], menu_language: 'unknown', restaurant_guess: null, mock: false };

@@ -12,7 +12,7 @@ type ScannedItem = {
   match: number; reason: string | null; caution: string | null;
 };
 type ScanResponse = {
-  profile_ready: boolean; rating_count: number; menu_language: string;
+  profile_ready: boolean; rating_count: number; needed?: number; menu_language: string;
   restaurant_guess: string | null; mock: boolean; items: ScannedItem[];
 };
 
@@ -117,21 +117,40 @@ function Scanner() {
       )}
       {!result.profile_ready && (
         <p className="scan-banner">
-          {t('scan.noprofile')}
+          {t('scan.training', { n: (result.needed ?? 5) - result.rating_count })}
         </p>
       )}
 
+      {/* Training mode: an honest plain list — no rings, no reasons, no hero. The
+          engine hasn't earned the right to rank yet, so it doesn't pretend to. */}
+      {!result.profile_ready && result.items.map((item, i) => (
+        <article className="card" key={`plain-${i}`}>
+          <div className="card-body scan-row">
+            <div className="scan-rank">{i + 1}</div>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div className="dish-row">
+                <div className="card-title" style={{ fontSize: 15.5 }}><DishName name={item.name} name_zh={item.name_zh} name_original={item.name_original} /></div>
+                {item.price && <span className="dish-price">{item.price}</span>}
+              </div>
+              <div className="card-meta">{item.hook}</div>
+            </div>
+          </div>
+        </article>
+      ))}
+
+      {result.profile_ready && <>
       {/* Hero pick */}
       <article className="card scan-hero">
         <div className="card-body">
           <span className="reason collab">{t('scan.order')}</span>
           <div style={{ display: 'flex', gap: 14, alignItems: 'center', marginTop: 6 }}>
             <MatchRing value={top.match} size={64} />
-            <div style={{ minWidth: 0 }}>
-              <div className="card-title"><DishName name={top.name} name_zh={top.name_zh} name_original={top.name_original} /></div>
-              <div className="card-meta">
-                {top.price ?? ''}{top.price && top.hook ? ' · ' : ''}{top.hook}
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div className="dish-row">
+                <div className="card-title"><DishName name={top.name} name_zh={top.name_zh} name_original={top.name_original} /></div>
+                {top.price && <span className="dish-price">{top.price}</span>}
               </div>
+              <div className="card-meta">{top.hook}</div>
             </div>
           </div>
           {top.reason && <p className="scan-reason">{top.reason}</p>}
@@ -146,16 +165,18 @@ function Scanner() {
             <div className="scan-rank">{i + 2}</div>
             <MatchRing value={item.match} size={44} />
             <div style={{ minWidth: 0, flex: 1 }}>
-              <div className="card-title" style={{ fontSize: 15.5 }}><DishName name={item.name} name_zh={item.name_zh} name_original={item.name_original} /></div>
-              <div className="card-meta">
-                {item.price ?? ''}{item.price ? ' · ' : ''}{item.hook}
+              <div className="dish-row">
+                <div className="card-title" style={{ fontSize: 15.5 }}><DishName name={item.name} name_zh={item.name_zh} name_original={item.name_original} /></div>
+                {item.price && <span className="dish-price">{item.price}</span>}
               </div>
+              <div className="card-meta">{item.hook}</div>
               {item.reason && <p className="scan-reason" style={{ fontSize: 13 }}>{item.reason}</p>}
               {item.caution && <p className="scan-caution" style={{ fontSize: 13 }}>{item.caution}</p>}
             </div>
           </div>
         </article>
       ))}
+      </>}
 
       <p className="card-meta" style={{ margin: '4px 0 12px' }}>
         {t('scan.logged')}

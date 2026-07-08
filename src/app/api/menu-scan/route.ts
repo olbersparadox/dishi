@@ -31,11 +31,15 @@ export async function POST(req: NextRequest) {
   if (!photo) return NextResponse.json({ error: 'A menu photo is required.' }, { status: 400 });
 
   const bytes = Buffer.from(await photo.arrayBuffer());
+  const started = Date.now();
   const scan = await scanMenu(bytes.toString('base64'), safeMediaType(photo.type));
+  const elapsed_ms = Date.now() - started;
+  console.log(`menu-scan: ${scan.items.length} items in ${elapsed_ms}ms (mock=${scan.mock})`);
 
   if (scan.items.length === 0) {
     return NextResponse.json({
-      error: 'Could not read any dishes from that photo. Try getting closer, flattening the menu, or better light.',
+      error: 'The scan failed or took too long. Try again — closer, flatter, better light; or scan one page at a time.',
+      elapsed_ms,
     }, { status: 422 });
   }
 
@@ -52,15 +56,18 @@ export async function POST(req: NextRequest) {
         ...item,
         match: toMatchPercent(raw),
         raw_score: raw,
-        reason: ratingCount > 0 ? composeReason(item, taste, affinity) : null,
-        caution: ratingCount > 0 ? composeCaution(item, taste) : null,
+        reason: ratingCount >= 5 ? composeReason(item, taste, affinity) : null,
+        caution: ratingCount >= 5 ? composeCaution(item, taste) : null,
       };
     })
     .sort((a, b) => b.raw_score - a.raw_score);
 
+  const TRAINING_THRESHOLD = 5;
   return NextResponse.json({
-    profile_ready: ratingCount > 0,
+    profile_ready: ratingCount >= TRAINING_THRESHOLD,
     rating_count: ratingCount,
+    needed: TRAINING_THRESHOLD,
+    elapsed_ms,
     menu_language: scan.menu_language,
     restaurant_guess: scan.restaurant_guess,
     mock: scan.mock,

@@ -311,3 +311,15 @@ button { font: inherit; cursor: pointer; }
 .photo-picker.picked { border-style: solid; border-color: var(--jade); color: var(--jade); }
 .photo-picker:disabled { opacity: 0.5; cursor: default; }
 .photo-picker-icon { width: 26px; height: 26px; flex-shrink: 0; }
+
+/* --- training progress: lighter greens gradient + bigger blurb (+2pt) --- */
+.xp-fill.greens { background: linear-gradient(90deg, #cde9cf, #8fcf9f, #5aa876); }
+.training-blurb { font-size: 14.5px; color: var(--ink); font-weight: 600; }
+
+/* --- dish name row with right-aligned thin price --- */
+.dish-row { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.dish-row .card-title { min-width: 0; }
+.dish-price { font-size: 17px; font-weight: 300; color: var(--ink); white-space: nowrap; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+
+/* --- 6-digit sign-in code --- */
+.code-input { letter-spacing: 6px; font-variant-numeric: tabular-nums; font-weight: 700; max-width: 150px; text-align: center; }

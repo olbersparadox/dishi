@@ -3,24 +3,42 @@ import { useEffect, useState } from 'react';
 import { supabaseBrowser } from '@/lib/supabase/client';
 import { useLang } from '@/lib/i18n';
 
-/** Magic-link auth, deliberately minimal. Wrap any page that needs a session. */
+const EMAIL_KEY = 'dishi-email';
+
+/**
+ * Magic-link auth + 6-digit code fallback.
+ *
+ * Why the code path exists: on phones, tapping the email link often opens the app's
+ * in-app browser (Gmail, Outlook) — the session lands THERE, not in the browser the
+ * person started in, so they appear "signed out" when they return. Typing the 6-digit
+ * code from the same email into the ORIGINAL browser creates the session in the right
+ * place. (Requires adding {{ .Token }} to the Magic Link email template in Supabase.)
+ *
+ * The email address is remembered on-device so returning users are one tap from a
+ * fresh link — never retyping.
+ */
 export default function AuthGate({ children }: { children: React.ReactNode }) {
   const { t } = useLang();
   const [ready, setReady] = useState(false);
   const [signedIn, setSignedIn] = useState(false);
   const [email, setEmail] = useState('');
   const [sent, setSent] = useState(false);
+  const [code, setCode] = useState('');
+  const [verifying, setVerifying] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
+    try {
+      const saved = localStorage.getItem(EMAIL_KEY);
+      if (saved) setEmail(saved);
+    } catch { /* fine */ }
+
     const supabase = supabaseBrowser();
     supabase.auth.getSession().then(({ data }) => {
       setSignedIn(!!data.session);
       setReady(true);
       if (data.session?.user) ensureProfile(supabase, data.session.user);
     });
-    // Also ensure the profile on auth events: after a magic-link redirect the
-    // SIGNED_IN event can fire after getSession resolved null — without this,
-    // a first-time user could end up signed in with no profile row.
     const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
       setSignedIn(!!session);
       if (session?.user) ensureProfile(supabase, session.user);
@@ -29,9 +47,24 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   }, []);
 
   async function sendLink() {
+    setError('');
+    try { localStorage.setItem(EMAIL_KEY, email); } catch { /* fine */ }
     const supabase = supabaseBrowser();
-    await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: window.location.origin } });
+    const { error: err } = await supabase.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: window.location.origin },
+    });
+    if (err) { setError(err.message); return; }
     setSent(true);
+  }
+
+  async function verifyCode() {
+    setVerifying(true); setError('');
+    const supabase = supabaseBrowser();
+    const { error: err } = await supabase.auth.verifyOtp({ email, token: code.trim(), type: 'email' });
+    setVerifying(false);
+    if (err) setError(t('auth.codefail'));
+    // success flows through onAuthStateChange
   }
 
   if (!ready) return <p className="card-meta">{t('auth.loading')}</p>;
@@ -40,27 +73,36 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   return (
     <div className="card"><div className="card-body">
       <h2 style={{ marginBottom: 6 }}>{t('auth.title')}</h2>
-      <p className="card-meta" style={{ marginBottom: 12 }}>
-        {t('auth.blurb')}
-      </p>
-      {sent ? (
-        <p>{t('auth.sent')}</p>
-      ) : (
+      <p className="card-meta" style={{ marginBottom: 12 }}>{t('auth.blurb')}</p>
+
+      {!sent ? (
         <div style={{ display: 'flex', gap: 8 }}>
-          <input className="field" type="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} />
+          <input className="field" type="email" placeholder={t('auth.placeholder')}
+            value={email} onChange={e => setEmail(e.target.value)} autoComplete="email" />
           <button className="btn primary" onClick={sendLink} disabled={!email.includes('@')}>{t('auth.send')}</button>
         </div>
+      ) : (
+        <>
+          <p style={{ marginBottom: 10 }}>{t('auth.sent')}</p>
+          <p className="card-meta" style={{ marginBottom: 8 }}>{t('auth.codehint')}</p>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input className="field code-input" inputMode="numeric" maxLength={6} placeholder="000000"
+              value={code} onChange={e => setCode(e.target.value.replace(/\D/g, ''))} />
+            <button className="btn primary" onClick={verifyCode} disabled={code.length !== 6 || verifying}>
+              {verifying ? t('auth.verifying') : t('auth.verify')}
+            </button>
+          </div>
+          <button className="btn ghost small" style={{ marginTop: 10 }} onClick={() => { setSent(false); setCode(''); }}>
+            {t('auth.resend')}
+          </button>
+        </>
       )}
+      {error && <p style={{ color: 'var(--lacquer)', marginTop: 10 }}>{error}</p>}
     </div></div>
   );
 }
 
-/**
- * Create the profile row if missing, with collision-safe handles: profiles.handle is
- * UNIQUE, and two people can share an email prefix (jerry@gmail vs jerry@work). If the
- * preferred handle is taken (Postgres 23505), retry with a random suffix. Existing
- * profiles are never touched — no blind upsert that could clobber a chosen handle.
- */
+/** Create the profile row if missing, with collision-safe handles. */
 async function ensureProfile(supabase: ReturnType<typeof supabaseBrowser>, user: { id: string; email?: string }) {
   const { data: existing } = await supabase.from('profiles').select('id').eq('id', user.id).maybeSingle();
   if (existing) return;
@@ -70,10 +112,8 @@ async function ensureProfile(supabase: ReturnType<typeof supabaseBrowser>, user:
     const handle = attempt === 0 ? base : `${base}-${Math.random().toString(36).slice(2, 6)}`;
     const { error } = await supabase.from('profiles').insert({ id: user.id, handle });
     if (!error) return;
-    if (error.code === '23505' && error.message.includes('profiles_pkey')) return; // raced with ourselves — row exists
+    if (error.code === '23505' && error.message.includes('profiles_pkey')) return;
     if (error.code !== '23505') { console.error('profile create failed', error); return; }
-    // 23505 on handle -> loop and retry with a suffix
   }
-  // Last resort: a handle that cannot collide.
   await supabase.from('profiles').insert({ id: user.id, handle: `diner-${user.id.slice(0, 8)}` });
 }

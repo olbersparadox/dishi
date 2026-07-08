@@ -5,7 +5,8 @@
 // Requirement for any model in this slot: it MUST accept image input, since the menu
 // scanner and dish vision callers send photos. If scans start failing or returning
 // empty items, model capability is the first thing to check.
-const MODEL = 'qwen/qwen3.7-plus';
+// Overridable via Vercel env (no redeploy-with-code-change needed to A/B models).
+const MODEL = process.env.OPENROUTER_MODEL || 'qwen/qwen3.7-plus';
 
 const ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
 
@@ -30,9 +31,13 @@ export async function callClaude(
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) return null;
 
-  // Abort before Vercel's 60s function kill, so callers return a clean, actionable
-  // error instead of the platform severing the connection mid-response.
-  const res = await fetch(ENDPOINT, {
+  // Abort before Vercel's 60s function kill. CRITICAL: the abort THROWS — the
+  // try/catch below turns it into a null return. Without it, the exception crashed
+  // the whole route, Vercel served an HTML error page, and Safari surfaced it as
+  // "The string did not match the expected pattern" when the client parsed JSON.
+  let res: Response;
+  try {
+    res = await fetch(ENDPOINT, {
     signal: AbortSignal.timeout(50_000),
     method: 'POST',
     headers: {
@@ -51,15 +56,24 @@ export async function callClaude(
         { role: 'user', content: userContent },
       ],
     }),
-  });
+    });
+  } catch (e) {
+    console.error('OpenRouter call failed/timed out', e);
+    return null;
+  }
 
   if (!res.ok) {
     console.error('OpenRouter error', res.status, await res.text().catch(() => ''));
     return null;
   }
 
-  const json = await res.json();
-  return json?.choices?.[0]?.message?.content ?? null;
+  try {
+    const json = await res.json();
+    return json?.choices?.[0]?.message?.content ?? null;
+  } catch {
+    console.error('OpenRouter returned non-JSON');
+    return null;
+  }
 }
 
 /** Build an image content part from base64 + media type, OpenAI-style data URL. */
