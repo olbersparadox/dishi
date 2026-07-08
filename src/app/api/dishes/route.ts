@@ -67,16 +67,19 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Upload photo to storage.
   const bytes = Buffer.from(await photo.arrayBuffer());
   const mediaType = safeMediaType(photo.type);
   const path = `${user.id}/${Date.now()}-${(photo.name || 'photo.jpg').replace(/[^\w.\-]/g, '_')}`;
-  const { error: upErr } = await supabase.storage.from('dish-photos').upload(path, bytes, { contentType: mediaType });
+
+  // Storage upload and vision inference only need the bytes — run them in PARALLEL.
+  // They were sequential before, which added the full storage round-trip to every
+  // log's wait time for no reason.
+  const [{ error: upErr }, vision] = await Promise.all([
+    supabase.storage.from('dish-photos').upload(path, bytes, { contentType: mediaType }),
+    inferDish(bytes.toString('base64'), mediaType),
+  ]);
   if (upErr) return NextResponse.json({ error: upErr.message }, { status: 500 });
   const { data: pub } = supabase.storage.from('dish-photos').getPublicUrl(path);
-
-  // Vision inference (mocked if no API key).
-  const vision = await inferDish(bytes.toString('base64'), mediaType);
 
   const { data: dish, error: dishErr } = await supabase
     .from('dishes')

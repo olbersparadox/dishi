@@ -21,6 +21,8 @@ export default function Home() {
 
 function Feed() {
   const { t, lang } = useLang();
+  const [trainingCount, setTrainingCount] = useState(0);
+  const [trainingNeeded, setTrainingNeeded] = useState(5);
   const [buddy, setBuddy] = useState<{ species: Species; size: number; elements: { kind: string; id: string; label: string }[] } | null>(null);
   const [justRated, setJustRated] = useState(false);
   const [recs, setRecs] = useState<Rec[] | null>(null);
@@ -35,7 +37,11 @@ function Feed() {
     }
     fetch('/api/recommendations')
       .then(r => r.json())
-      .then(j => { setRecs(j.recommendations ?? []); setStage(j.stage ?? 'seed'); })
+      .then(j => {
+        setRecs(j.recommendations ?? []);
+        setStage(j.stage ?? 'seed');
+        if (j.stage === 'training') { setTrainingCount(j.rating_count ?? 0); setTrainingNeeded(j.needed ?? 5); }
+      })
       .catch(() => setRecs([]));
     // The buddy fronts the feed once adopted, presenting the engine's top pick.
     fetch('/api/buddy')
@@ -66,6 +72,23 @@ function Feed() {
         </div>
       )}
       <h1 style={{ marginBottom: 4 }}>{t('home.title')}</h1>
+
+      {stage === 'training' && (
+        <div className="card"><div className="card-body">
+          <h3 style={{ marginBottom: 6 }}>{t('home.training.title')}</h3>
+          <div className="xp-bar" role="progressbar" aria-valuenow={trainingCount} aria-valuemin={0} aria-valuemax={trainingNeeded}>
+            <div className="xp-fill" style={{ width: `${(trainingCount / trainingNeeded) * 100}%` }} />
+          </div>
+          <p className="card-meta" style={{ margin: '6px 0 10px' }}>
+            {trainingCount} / {trainingNeeded} · {t('home.training.blurb', { n: trainingNeeded - trainingCount })}
+          </p>
+          <p className="card-meta" style={{ marginBottom: 12 }}>{t('home.training.how')}</p>
+          <a className="btn primary" href="/log" style={{ display: 'block', textAlign: 'center', textDecoration: 'none' }}>
+            {t('home.training.cta')}
+          </a>
+        </div></div>
+      )}
+
       <p className="card-meta" style={{ marginBottom: 16 }}>
         {stage === 'seed' && t('home.stage.seed')}
         {stage === 'content' && t('home.stage.content')}
@@ -91,7 +114,7 @@ function Feed() {
         </div></div>
       )}
 
-      {recs.length === 0 && (
+      {recs.length === 0 && stage !== 'training' && (
         <div className="card"><div className="card-body">
           <p><strong>{t('home.empty.title')}</strong></p>
           <p className="card-meta">{t('home.empty.blurb')}</p>

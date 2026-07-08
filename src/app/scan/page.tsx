@@ -1,8 +1,9 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import AuthGate from '@/components/AuthGate';
 import { normalizePhoto } from '@/lib/image';
 import DishName from '@/components/DishName';
+import PhotoPicker from '@/components/PhotoPicker';
 import { useLang } from '@/lib/i18n';
 
 type ScannedItem = {
@@ -32,7 +33,6 @@ function Scanner() {
   const [stage, setStage] = useState(0);
   const [result, setResult] = useState<ScanResponse | null>(null);
   const [error, setError] = useState('');
-  const fileRef = useRef<HTMLInputElement>(null);
 
   // Cycle the status line while scanning so the wait feels alive, not stuck.
   useEffect(() => {
@@ -67,7 +67,6 @@ function Scanner() {
     setResult(null);
     setPreview(null);
     setError('');
-    if (fileRef.current) fileRef.current.value = '';
   }
 
   // ---- capture state ----
@@ -91,14 +90,7 @@ function Scanner() {
           <p className="scan-status" role="status">{t(SCAN_STAGE_KEYS[stage])}</p>
         ) : (
           <>
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              onChange={e => onPick(e.target.files?.[0] ?? null)}
-              className="field"
-            />
+            <PhotoPicker key={preview ?? 'fresh'} onPick={f => onPick(f)} />
             <p className="card-meta" style={{ marginTop: 8 }}>
               {t('scan.tip')}
             </p>

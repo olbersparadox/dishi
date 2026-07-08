@@ -7,6 +7,7 @@ import FlickRating from '@/components/FlickRating';
 import VoiceNote from '@/components/VoiceNote';
 import { normalizePhoto } from '@/lib/image';
 import DishName from '@/components/DishName';
+import PhotoPicker from '@/components/PhotoPicker';
 import { useLang, cuisineLabel } from '@/lib/i18n';
 
 type Dish = { id: string; name: string; name_zh?: string | null; cuisine: string; photo_url: string; vision_confidence: number };
@@ -43,9 +44,9 @@ function LogFlow() {
     if (!photo) return;
     setBusy(true); setError('');
     const form = new FormData();
-    // Downscale + convert to JPEG on-device: keeps uploads under serverless body
-    // limits and converts iPhone HEIC into a format the vision model accepts.
-    form.append('photo', await normalizePhoto(photo));
+    // 1024px is plenty for dish identification (1600 is only needed for menu TEXT)
+    // — roughly halves the upload, and converts iPhone HEIC to JPEG.
+    form.append('photo', await normalizePhoto(photo, 1024));
     if (restaurant?.kind === 'existing') form.append('restaurant_id', restaurant.id);
     if (restaurant?.kind === 'new') form.append('new_restaurant', JSON.stringify(restaurant));
     try {
@@ -85,13 +86,7 @@ function LogFlow() {
           // eslint-disable-next-line @next/next/no-img-element
           <img src={preview} alt="Dish preview" className="card-photo card" />
         ) : null}
-        <input
-          type="file"
-          accept="image/*"
-          capture="environment"
-          onChange={e => onPickPhoto(e.target.files?.[0] ?? null)}
-          className="field"
-        />
+        <PhotoPicker onPick={f => onPickPhoto(f)} />
 
         <label className="label">{t('log.where')}</label>
         <RestaurantPicker onChange={setRestaurant} />

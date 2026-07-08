@@ -30,7 +30,10 @@ export async function callClaude(
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) return null;
 
+  // Abort before Vercel's 60s function kill, so callers return a clean, actionable
+  // error instead of the platform severing the connection mid-response.
   const res = await fetch(ENDPOINT, {
+    signal: AbortSignal.timeout(50_000),
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

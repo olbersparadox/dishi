@@ -56,8 +56,14 @@ export default function FlickRating({
   const [showChips, setShowChips] = useState(false);
   const startY = useRef(0);
   const undoTimer = useRef<ReturnType<typeof setTimeout>>();
+  const rafId = useRef(0);
+  const pendingDrag = useRef(0);
 
   const RANGE = 180; // px of drag for full intensity
+  // Accidental-rating guard: below this, release is treated as a tap/tremor, not a
+  // rating. 0.18 * 180px = ~32px of deliberate travel (was 18px — too twitchy on
+  // real phones, per field testing).
+  const COMMIT_MIN = 0.18;
 
   function onPointerDown(e: React.PointerEvent) {
     (e.target as Element).setPointerCapture(e.pointerId);
@@ -67,28 +73,41 @@ export default function FlickRating({
   function onPointerMove(e: React.PointerEvent) {
     if (!active) return;
     const dy = startY.current - e.clientY; // up = positive
-    setDrag(Math.max(-1, Math.min(1, dy / RANGE)));
+    // rAF-throttle: at 120Hz pointer rates, a React re-render per event makes the
+    // drag visibly stutter on mid-range phones. One state update per frame, max.
+    pendingDrag.current = Math.max(-1, Math.min(1, dy / RANGE));
+    if (!rafId.current) {
+      rafId.current = requestAnimationFrame(() => {
+        rafId.current = 0;
+        setDrag(pendingDrag.current);
+      });
+    }
   }
   function onPointerUp() {
     if (!active) return;
     setActive(false);
-    if (Math.abs(drag) < 0.1) { setDrag(0); return; } // too small: treat as accidental
-    stage(drag);
+    if (rafId.current) { cancelAnimationFrame(rafId.current); rafId.current = 0; }
+    const final = pendingDrag.current || drag;
+    setDrag(final);
+    if (Math.abs(final) < COMMIT_MIN) { setDrag(0); pendingDrag.current = 0; return; } // tremor, not a rating
+    stage(final);
   }
 
   /** Commit after a short undo window. */
   function stage(score: number) {
+    try { navigator.vibrate?.(12); } catch { /* not supported */ }
     setPending(score);
     clearTimeout(undoTimer.current);
     undoTimer.current = setTimeout(() => {
       setPending(null);
       onCommit(score);
-    }, 2500);
+    }, 3000);
   }
   function undo() {
     clearTimeout(undoTimer.current);
     setPending(null);
     setDrag(0);
+    pendingDrag.current = 0;
   }
 
   const v = pending ?? drag;
@@ -101,7 +120,7 @@ export default function FlickRating({
   return (
     <div>
       <div
-        className="flick-stage card"
+        className={`flick-stage card ${active ? 'dragging' : ''}`}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}

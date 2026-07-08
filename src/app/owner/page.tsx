@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import AuthGate from '@/components/AuthGate';
 import TableQR from '@/components/TableQR';
 import DishName from '@/components/DishName';
+import PhotoPicker from '@/components/PhotoPicker';
 
 type ClaimableRestaurant = {
   id: string; name: string; address: string | null;
@@ -251,8 +252,7 @@ function MenuTab({ restaurantId }: { restaurantId: string }) {
         <p className="card-meta" style={{ marginBottom: 10 }}>
           Photograph your physical menu &mdash; every dish is read in with taste attributes, ready to personalize.
         </p>
-        <input type="file" accept="image/*" capture="environment" className="field"
-          disabled={busy !== null} onChange={e => importMenu(e.target.files?.[0] ?? null)} />
+        <PhotoPicker disabled={busy !== null} onPick={f => importMenu(f)} />
         {busy === 'import' && <p className="scan-status" style={{ marginTop: 8 }}>Reading the menu&hellip;</p>}
       </div></div>
 

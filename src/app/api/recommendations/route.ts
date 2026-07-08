@@ -43,11 +43,17 @@ export async function GET(_req: NextRequest) {
 
   const pool = (candidates ?? []).filter(d => !excluded.has(d.id));
 
-  // Stage 1: brand-new user — seed feed, no scoring pretense.
-  if (myCount === 0) {
+  // Training gate: below 5 ratings the vector is mostly noise (the EMA learning
+  // rate is deliberately steepest over exactly these first flicks). Rather than
+  // dressing up guesses as recommendations, return NO list and tell the client to
+  // show explicit progress — recommendations begin when they can be honest.
+  const TRAINING_THRESHOLD = 5;
+  if (myCount < TRAINING_THRESHOLD) {
     return NextResponse.json({
-      stage: 'seed',
-      recommendations: pool.slice(0, 12).map(d => card(d, null, 'Popular on Dishi')),
+      stage: 'training',
+      rating_count: myCount,
+      needed: TRAINING_THRESHOLD,
+      recommendations: [],
     });
   }
 

@@ -1,8 +1,9 @@
 'use client';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import AuthGate from '@/components/AuthGate';
 import { normalizePhoto } from '@/lib/image';
 import DishName from '@/components/DishName';
+import PhotoPicker from '@/components/PhotoPicker';
 import { useLang } from '@/lib/i18n';
 
 type Member = { handle: string; has_profile: boolean; rating_count: number };
@@ -45,7 +46,6 @@ function Landing({ onEnter }: { onEnter: (code: string) => void }) {
   const [joinCode, setJoinCode] = useState('');
   const [busy, setBusy] = useState<'create' | 'join' | null>(null);
   const [error, setError] = useState('');
-  const fileRef = useRef<HTMLInputElement>(null);
   const [menuFile, setMenuFile] = useState<File | null>(null);
 
   async function createTable() {
@@ -90,10 +90,7 @@ function Landing({ onEnter }: { onEnter: (code: string) => void }) {
         <p className="card-meta" style={{ margin: '4px 0 10px' }}>
           {t('table.start.blurb')}
         </p>
-        <input
-          ref={fileRef} type="file" accept="image/*" capture="environment"
-          className="field" onChange={e => setMenuFile(e.target.files?.[0] ?? null)}
-        />
+        <PhotoPicker onPick={f => setMenuFile(f)} />
         <button className="btn primary" style={{ width: '100%', marginTop: 10 }}
           disabled={busy !== null} onClick={createTable}>
           {busy === 'create' ? (menuFile ? t('table.readingmenu') : t('table.starting')) : t('table.start')}

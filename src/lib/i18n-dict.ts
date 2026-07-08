@@ -188,6 +188,12 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'buddy.penguin': { zh: '企鵝', en: 'Penguin' },
   'buddy.penguin.blurb': { zh: '餐餐着禮服。', en: 'Formal dress at every meal.' },
 
+  'upload.tap': { zh: '影相或者揀返張相', en: 'Take a photo or choose one' },
+  'upload.change': { zh: '已揀好 · 撳一下換相', en: 'Photo selected · tap to change' },
+  'home.training.title': { zh: '教緊 Dishi 你嘅口味', en: 'Teaching Dishi your taste' },
+  'home.training.blurb': { zh: '再評 {n} 道菜，Dishi 先開始推介。而家就估，等於呃你。', en: 'Rate {n} more dishes before Dishi starts recommending. Guessing now would be lying to you.' },
+  'home.training.how': { zh: '每一下滑動都會更新你 18 個味覺維度 — 頭 5 道菜教嘅嘢最多。想睇進度，去「口味」頁。', en: 'Every flick updates your 18 taste senses — the first 5 dishes teach the most. Watch it happen on the Taste page.' },
+  'home.training.cta': { zh: '去記錄一道菜', en: 'Log a dish' },
   'buddy.rec': { zh: '我諗你會啱食呢個：', en: 'I think you\u2019ll love this:' },
 
   // ---- misc ----
