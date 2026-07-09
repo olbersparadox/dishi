@@ -1,5 +1,6 @@
 import { DIMS, DishVector } from './taste';
 import { callClaude, imagePart, textPart, parseJsonResponse } from './openrouter';
+import { salvageJsonObjects } from './jsonSalvage';
 
 // Menu Scanner perception layer.
 //
@@ -128,16 +129,39 @@ export async function scanMenuOCR(base64: string, mediaType: string): Promise<Me
   ], { maxTokens: 3000 });
 
   const parsed = parseJsonResponse<{ items?: any[]; menu_language?: string; restaurant_guess?: string }>(text);
-  if (!parsed) return { items: [], menu_language: 'unknown', restaurant_guess: null, mock: false };
 
-  const items = (parsed.items ?? []).map((raw: any) => sanitizeItem(raw)).filter(Boolean) as MenuItem[];
-  if (items.length === 0) return { items: [], menu_language: 'unknown', restaurant_guess: null, mock: false };
-  return {
-    items,
-    menu_language: String(parsed.menu_language ?? 'unknown'),
-    restaurant_guess: parsed.restaurant_guess ? String(parsed.restaurant_guess) : null,
-    mock: false,
-  };
+  if (parsed) {
+    const items = (parsed.items ?? []).map((raw: any) => sanitizeItem(raw)).filter(Boolean) as MenuItem[];
+    if (items.length > 0) {
+      return {
+        items,
+        menu_language: String(parsed.menu_language ?? 'unknown'),
+        restaurant_guess: parsed.restaurant_guess ? String(parsed.restaurant_guess) : null,
+        mock: false,
+      };
+    }
+  }
+
+  // Clean parse failed (or parsed but had zero usable items) — almost certainly the
+  // response got cut off before the JSON closed. Try to salvage whatever complete
+  // dish objects exist before the cutoff point, rather than discarding a 45-of-50-
+  // dishes response as a total failure just because dish #46 didn't finish.
+  const salvaged = text ? salvageJsonObjects(text, 'items').map((raw: any) => sanitizeItem(raw)).filter(Boolean) as MenuItem[] : [];
+
+  if (salvaged.length > 0) {
+    console.log(`menu-scan/ocr: salvaged ${salvaged.length} items from a truncated/malformed response`);
+    return { items: salvaged, menu_language: 'unknown', restaurant_guess: null, mock: false };
+  }
+
+  // Total failure with nothing recoverable — log enough of the raw response that the
+  // NEXT occurrence is a definitive diagnosis instead of an inference from timing
+  // alone. (Deliberately capped snippet length — this is a log line, not a dump.)
+  if (text) {
+    console.error(`menu-scan/ocr: unparseable response, length=${text.length}, head="${text.slice(0, 200)}", tail="${text.slice(-200)}"`);
+  } else {
+    console.error('menu-scan/ocr: no response text at all (call failed/timed out before returning anything)');
+  }
+  return { items: [], menu_language: 'unknown', restaurant_guess: null, mock: false };
 }
 
 const SCORE_ONE_SYSTEM = `You estimate sensory flavor attributes for ONE dish, using culinary knowledge only (no photo).
