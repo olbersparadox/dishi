@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
     const places = await cachedNearbyPlaces(lat, lng);
     const deduped = dedupeAgainstDishi(places, dishi);
     google = deduped.slice(0, 8 - dishi.length).map(p => ({
-      place_id: p.place_id, name: p.name, lat: p.lat, lng: p.lng, address: p.address,
+      place_id: p.place_id, name: p.name, name_zh: p.name_zh, lat: p.lat, lng: p.lng, address: p.address,
       distance_m: null, source: 'google' as const,
     }));
   } catch (e) {

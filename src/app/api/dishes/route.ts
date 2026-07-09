@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
   let restaurantId = (form.get('restaurant_id') as string) || null;
   const newRestaurantRaw = form.get('new_restaurant') as string | null;
   if (!restaurantId && newRestaurantRaw) {
-    let parsed: { name?: unknown; lat?: unknown; lng?: unknown };
+    let parsed: { name?: unknown; lat?: unknown; lng?: unknown; area?: unknown; address?: unknown };
     try {
       parsed = JSON.parse(newRestaurantRaw);
     } catch {
@@ -43,6 +43,10 @@ export async function POST(req: NextRequest) {
     if (!name || !Number.isFinite(lat) || !Number.isFinite(lng)) {
       return NextResponse.json({ error: 'A new restaurant needs a name and location.' }, { status: 400 });
     }
+    // Optional, user-supplied (possibly reverse-geocode-prefilled, always editable) —
+    // never required, never invented if absent.
+    const area = typeof parsed.area === 'string' ? parsed.area.trim().slice(0, 80) || null : null;
+    const address = typeof parsed.address === 'string' ? parsed.address.trim().slice(0, 200) || null : null;
 
     // Dedupe before creating: when two people tap the same Google-sourced chip (or
     // type the same name at the same spot), reuse the existing entity instead of
@@ -59,7 +63,7 @@ export async function POST(req: NextRequest) {
     } else {
       const { data: r, error } = await supabase
         .from('restaurants')
-        .insert({ name, lat, lng, created_by: user.id })
+        .insert({ name, lat, lng, area, address, created_by: user.id })
         .select('id')
         .single();
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });

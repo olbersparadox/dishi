@@ -1,6 +1,7 @@
 'use client';
 import { useRef, useState } from 'react';
 import { useLang } from '@/lib/i18n';
+import { wordKeyFor, CHIPS } from '@/lib/flickWords';
 
 /**
  * The signature interaction. Three patterns were considered:
@@ -20,42 +21,24 @@ import { useLang } from '@/lib/i18n';
  *  "tap instead" row of five labeled chips (keyboard + screen-reader friendly).
  */
 
-const WORD_KEYS: [number, string][] = [
-  [0.85, 'flick.inhaled'],
-  [0.5, 'flick.loved'],
-  [0.15, 'flick.good'],
-  [-0.15, 'flick.fine'],
-  [-0.5, 'flick.notforme'],
-  [-1.01, 'flick.never'],
-];
-
-const CHIPS: { key: string; value: number }[] = [
-  { key: 'flick.never', value: -0.9 },
-  { key: 'flick.notforme', value: -0.5 },
-  { key: 'flick.fine', value: 0.1 },
-  { key: 'flick.loved', value: 0.6 },
-  { key: 'flick.inhaled', value: 1 },
-];
-
-export function wordKeyFor(score: number) {
-  for (const [min, key] of WORD_KEYS) if (score >= min) return key;
-  return 'flick.never';
-}
-
 export default function FlickRating({
   photoUrl,
-  onCommit,
+  onRate,
 }: {
   photoUrl: string;
-  onCommit: (score: number) => void;
+  // Fired every time the rating changes — first swipe, or a later swipe that
+  // revises it. There's no separate "final commit" step inside this component
+  // anymore: the parent decides when the rating is truly final (the Done button),
+  // so swiping again before that is just "change my mind," not something that
+  // needs an undo timer to catch.
+  onRate: (score: number) => void;
 }) {
   const { t } = useLang();
   const [drag, setDrag] = useState(0); // -1..1 live value
   const [active, setActive] = useState(false);
-  const [pending, setPending] = useState<number | null>(null);
+  const [rated, setRated] = useState<number | null>(null);
   const [showChips, setShowChips] = useState(false);
   const startY = useRef(0);
-  const undoTimer = useRef<ReturnType<typeof setTimeout>>();
   const rafId = useRef(0);
   const pendingDrag = useRef(0);
 
@@ -90,27 +73,17 @@ export default function FlickRating({
     const final = pendingDrag.current || drag;
     setDrag(final);
     if (Math.abs(final) < COMMIT_MIN) { setDrag(0); pendingDrag.current = 0; return; } // tremor, not a rating
-    stage(final);
+    rate(final);
   }
 
-  /** Commit after a short undo window. */
-  function stage(score: number) {
+  /** A swipe (or tap chip) lands on a value — reported immediately, every time. */
+  function rate(score: number) {
     try { navigator.vibrate?.(12); } catch { /* not supported */ }
-    setPending(score);
-    clearTimeout(undoTimer.current);
-    undoTimer.current = setTimeout(() => {
-      setPending(null);
-      onCommit(score);
-    }, 3000);
-  }
-  function undo() {
-    clearTimeout(undoTimer.current);
-    setPending(null);
-    setDrag(0);
-    pendingDrag.current = 0;
+    setRated(score);
+    onRate(score);
   }
 
-  const v = pending ?? drag;
+  const v = rated ?? drag;
   const saturation = 1 + Math.max(0, v) * 0.6 - Math.max(0, -v) * 0.85;
   const scale = 1 + Math.max(0, v) * 0.03;
   const fillColor = v >= 0 ? 'var(--lacquer)' : 'var(--ink-soft)';
@@ -145,7 +118,7 @@ export default function FlickRating({
           <div className="flick-fill" style={{ ...fillPos, height: fillHeight, background: fillColor }} />
         </div>
         {Math.abs(v) >= 0.1 && <div className="flick-word">{t(wordKeyFor(v))}</div>}
-        {!active && pending === null && Math.abs(v) < 0.1 && (
+        {!active && rated === null && Math.abs(v) < 0.1 && (
           <div className="flick-hint">{t('flick.hint')}</div>
         )}
       </div>
@@ -156,15 +129,8 @@ export default function FlickRating({
       {showChips && (
         <div className="chips" style={{ marginTop: 10 }}>
           {CHIPS.map(c => (
-            <button key={c.key} className="chip" onClick={() => stage(c.value)}>{t(c.key)}</button>
+            <button key={c.key} className="chip" onClick={() => rate(c.value)}>{t(c.key)}</button>
           ))}
-        </div>
-      )}
-
-      {pending !== null && (
-        <div className="toast" role="status">
-          <span>{t(wordKeyFor(pending))}</span>
-          <button onClick={undo}>{t('flick.undo')}</button>
         </div>
       )}
     </div>

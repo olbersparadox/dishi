@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AuthGate from '@/components/AuthGate';
 import RestaurantPicker, { RestaurantChoice } from '@/components/RestaurantPicker';
@@ -30,14 +30,22 @@ function LogFlow() {
   const [nameOverride, setNameOverride] = useState<string | null>(null);
   const [editingName, setEditingName] = useState(false);
   const [transcript, setTranscript] = useState('');
+  const [rating, setRating] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [finishing, setFinishing] = useState(false);
 
   function onPickPhoto(f: File | null) {
     setPhoto(f);
-    setPreview(f ? URL.createObjectURL(f) : null);
+    setPreview(prev => {
+      if (prev) URL.revokeObjectURL(prev); // release the old blob before making a new one
+      return f ? URL.createObjectURL(f) : null;
+    });
     setDish(null);
   }
+
+  // Release the object URL when the whole flow unmounts (e.g. navigating away).
+  useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
 
   /** Upload photo + restaurant, get vision result back. */
   async function logDish() {
@@ -61,14 +69,25 @@ function LogFlow() {
     }
   }
 
-  /** Flick committed: submit rating + voice transcript, taste profile updates server-side. */
-  async function commitRating(score: number) {
-    if (!dish) return;
+  /**
+   * A swipe (or tap chip) landed on a value. This does NOT submit or navigate —
+   * it just records the current rating and reveals the Done button, so the user
+   * has room to add a note before anything is final. Swiping again before Done is
+   * tapped simply revises this value; Done always applies whatever it currently is.
+   */
+  function onRate(score: number) {
+    setRating(score);
+  }
+
+  /** Done tapped: submit rating + voice transcript, THEN navigate. */
+  async function finishLogging() {
+    if (!dish || rating === null || finishing) return;
+    setFinishing(true);
     try {
       await fetch('/api/ratings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dish_id: dish.id, score, voice_transcript: transcript || undefined }),
+        body: JSON.stringify({ dish_id: dish.id, score: rating, voice_transcript: transcript || undefined }),
       });
     } finally {
       router.push('/?rated=1');
@@ -126,13 +145,33 @@ function LogFlow() {
       )}
 
       <label className="label">{t('log.how')}</label>
-      <FlickRating photoUrl={dish.photo_url} onCommit={commitRating} />
+      {/* Optimistic rendering: the photo the user just took is ALREADY in memory
+          (the object URL from step 1) — reuse it instantly instead of waiting on
+          dish.photo_url, a fresh network fetch of the exact same image the user
+          just looked at one screen ago. The server URL is only a fallback for the
+          (normally unreachable) case where the local preview isn't available. */}
+      <FlickRating photoUrl={preview ?? dish.photo_url} onRate={onRate} />
 
-      <label className="label">{t('log.anything')}</label>
-      <VoiceNote onTranscript={setTranscript} />
-      <p className="card-meta" style={{ marginTop: 8 }}>
-        {t('log.note')}
-      </p>
+      {/* No Done button before a rating exists — nothing to finish yet. It appears
+          the moment a swipe lands, and navigation only ever happens on tap: never
+          automatically, and never mid-swipe. */}
+      {rating !== null && (
+        <>
+          <label className="label">{t('log.anything')}</label>
+          <VoiceNote onTranscript={setTranscript} />
+          <p className="card-meta" style={{ marginTop: 8 }}>
+            {t('log.note')}
+          </p>
+          <button
+            className="btn primary"
+            style={{ width: '100%', marginTop: 16 }}
+            disabled={finishing}
+            onClick={finishLogging}
+          >
+            {finishing ? t('log.saving') : t('log.done')}
+          </button>
+        </>
+      )}
     </div>
   );
 }

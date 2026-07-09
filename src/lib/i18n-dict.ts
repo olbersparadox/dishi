@@ -44,6 +44,8 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'log.how': { zh: '好唔好食？', en: 'How was it?' },
   'log.anything': { zh: '仲有咩想講？', en: 'Anything to add?' },
   'log.note': { zh: '滑一下就評到分 — 語音係加分位。兩樣都教緊 Dishi 你嘅口味。', en: 'Rate with a flick — the note is extra credit. Both teach Dishi your taste.' },
+  'log.done': { zh: '搞掂', en: 'Done' },
+  'log.saving': { zh: '儲緊…', en: 'Saving…' },
   'log.looks': { zh: '睇落係{cuisine}菜 · ', en: 'Looks {cuisine} · ' },
   'log.lowconf': { zh: '唔太肯定 — ', en: 'Low-confidence guess — ' },
   'log.notright': { zh: '唔啱？', en: 'not right?' },
@@ -72,6 +74,11 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'picker.name': { zh: '餐廳名', en: 'Restaurant name' },
   'picker.confirm': { zh: '加入', en: 'Add' },
   'picker.needloc': { zh: '新舖需要開定位，Dishi 先可以幫其他人釘住個位。', en: 'New places need location on, so Dishi can pin them for others.' },
+  'picker.moredetails': { zh: '+ 更多資料', en: '+ Add more details' },
+  'picker.area': { zh: '地區（例如：銅鑼灣）', en: 'Area (e.g. Causeway Bay)' },
+  'picker.address': { zh: '地址', en: 'Address' },
+  'picker.locating': { zh: '搵緊你附近嘅地區…', en: 'Finding your area…' },
+  'picker.detailshint': { zh: '呢啲已經幫你估好，隨時可以改 — 想記番喺其他地方食過嘅嘢都得。', en: 'These are pre-filled guesses \u2014 edit freely, including to log a dish from somewhere else entirely.' },
   'picker.new': { zh: '新', en: 'new' },
 
   // ---- voice ----
