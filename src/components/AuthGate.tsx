@@ -6,12 +6,12 @@ import { useLang } from '@/lib/i18n';
 const EMAIL_KEY = 'dishi-email';
 
 /**
- * Magic-link auth + 6-digit code fallback.
+ * Magic-link auth + numeric-code fallback.
  *
  * Why the code path exists: on phones, tapping the email link often opens the app's
  * in-app browser (Gmail, Outlook) — the session lands THERE, not in the browser the
- * person started in, so they appear "signed out" when they return. Typing the 6-digit
- * code from the same email into the ORIGINAL browser creates the session in the right
+ * person started in, so they appear "signed out" when they return. Typing the code
+ * from the same email into the ORIGINAL browser creates the session in the right
  * place. (Requires adding {{ .Token }} to the Magic Link email template in Supabase.)
  *
  * The email address is remembered on-device so returning users are one tap from a
@@ -86,9 +86,15 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
           <p style={{ marginBottom: 10 }}>{t('auth.sent')}</p>
           <p className="card-meta" style={{ marginBottom: 8 }}>{t('auth.codehint')}</p>
           <div style={{ display: 'flex', gap: 8 }}>
-            <input className="field code-input" inputMode="numeric" maxLength={6} placeholder="000000"
+            {/* No hardcoded digit count: Supabase's actual default OTP length turned
+                out to be 8 digits, not the 6 originally assumed here — capping input
+                at the wrong length silently truncated every real code before it ever
+                reached the server. Accept whatever's typed; let verifyOtp reject a
+                genuinely wrong code rather than the input box pre-rejecting a right
+                one. */}
+            <input className="field code-input" inputMode="numeric" placeholder={t('auth.codeplaceholder')}
               value={code} onChange={e => setCode(e.target.value.replace(/\D/g, ''))} />
-            <button className="btn primary" onClick={verifyCode} disabled={code.length !== 6 || verifying}>
+            <button className="btn primary" onClick={verifyCode} disabled={code.trim().length === 0 || verifying}>
               {verifying ? t('auth.verifying') : t('auth.verify')}
             </button>
           </div>

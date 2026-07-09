@@ -195,7 +195,8 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'buddy.penguin': { zh: '企鵝', en: 'Penguin' },
   'buddy.penguin.blurb': { zh: '餐餐着禮服。', en: 'Formal dress at every meal.' },
 
-  'auth.codehint': { zh: '如果連結喺第二個瀏覽器打開咗，可以輸入電郵入面嘅 6 位數字碼：', en: 'If the link opened in a different browser, enter the 6-digit code from the same email:' },
+  'auth.codehint': { zh: '如果連結喺第二個瀏覽器打開咗，可以輸入電郵入面嘅數字碼：', en: 'If the link opened in a different browser, enter the code from the same email:' },
+  'auth.codeplaceholder': { zh: '數字碼', en: 'code' },
   'auth.verify': { zh: '確認', en: 'Verify' },
   'auth.verifying': { zh: '核對緊…', en: 'Verifying…' },
   'auth.codefail': { zh: '個碼唔啱或者過咗期 — 再試一次，或者重新傳送。', en: 'That code is wrong or expired — try again, or resend.' },
