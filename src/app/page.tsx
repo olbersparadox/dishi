@@ -192,38 +192,60 @@ function HeartButton({ marked, onMark, t }: { marked: boolean; onMark: () => voi
 type MyDish = {
   id: string; name: string; name_zh: string | null; cuisine: string | null;
   photo_url: string | null; restaurant: string | null; hearts: number; my_score: number | null;
+  locked: boolean;
 };
 
 /** The user's own logged dishes: photo, hearts received, inline rename, delete. */
 function MyDishes({ t, lang }: { t: (k: string, p?: Record<string, string | number>) => string; lang: 'zh' | 'en' }) {
   const [dishes, setDishes] = useState<MyDish[] | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
-  const [draft, setDraft] = useState('');
+  const [draftName, setDraftName] = useState('');
+  const [draftNameZh, setDraftNameZh] = useState('');
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     fetch('/api/my/dishes').then(r => r.json()).then(j => setDishes(j.dishes ?? [])).catch(() => setDishes([]));
   }, []);
 
+  function startEdit(d: MyDish) {
+    setEditing(d.id);
+    setDraftName(d.name);
+    setDraftNameZh(d.name_zh ?? '');
+    setSaveError(null);
+  }
+
+  // Two explicit fields, not one "smart" field: renaming used to silently patch
+  // only the English name, which was invisible whenever the app happened to be
+  // displaying the Chinese name as primary. Editing exactly what's on screen,
+  // labeled by language, removes that whole class of "my edit didn't show up" bug.
   async function rename(id: string) {
-    const name = draft.trim();
+    const name = draftName.trim();
+    const name_zh = draftNameZh.trim();
     if (!name) { setEditing(null); return; }
-    setDishes(prev => prev?.map(d => d.id === id ? { ...d, name } : d) ?? null);
-    setEditing(null);
-    await fetch('/api/my/dishes', {
+    setEditing(null); setSaveError(null);
+    setDishes(prev => prev?.map(d => d.id === id ? { ...d, name, name_zh: name_zh || null } : d) ?? null);
+    const res = await fetch('/api/my/dishes', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ dish_id: id, name }),
+      body: JSON.stringify({ dish_id: id, name, name_zh: name_zh || null }),
     });
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({}));
+      setSaveError(json.error ?? 'Could not save.');
+      fetch('/api/my/dishes').then(r => r.json()).then(j => setDishes(j.dishes ?? [])); // resync on failure
+    }
   }
 
   async function remove(id: string) {
     if (!confirm(t('home.delete.confirm'))) return;
+    const prevDishes = dishes;
     setDishes(prev => prev?.filter(d => d.id !== id) ?? null);
-    await fetch('/api/my/dishes', {
+    const res = await fetch('/api/my/dishes', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ dish_id: id }),
     });
+    if (!res.ok) setDishes(prevDishes); // server refused (e.g. became locked mid-air) — restore it
   }
 
   if (dishes === null || dishes.length === 0) return null;
@@ -240,9 +262,15 @@ function MyDishes({ t, lang }: { t: (k: string, p?: Record<string, string | numb
             ) : null}
             <div style={{ minWidth: 0, flex: 1 }}>
               {editing === d.id ? (
-                <div style={{ display: 'flex', gap: 6 }}>
-                  <input className="field" value={draft} onChange={e => setDraft(e.target.value)} autoFocus />
-                  <button className="btn primary small" onClick={() => rename(d.id)}>✓</button>
+                <div>
+                  <label className="label" style={{ fontSize: 11.5 }}>{t('home.name.en')}</label>
+                  <input className="field" style={{ marginBottom: 6 }} value={draftName} onChange={e => setDraftName(e.target.value)} autoFocus />
+                  <label className="label" style={{ fontSize: 11.5 }}>{t('home.name.zh')}</label>
+                  <input className="field" value={draftNameZh} onChange={e => setDraftNameZh(e.target.value)} />
+                  <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+                    <button className="btn primary small" onClick={() => rename(d.id)}>{t('home.save')}</button>
+                    <button className="btn ghost small" onClick={() => setEditing(null)}>{t('home.cancel')}</button>
+                  </div>
                 </div>
               ) : (
                 <div className="card-title"><DishName name={d.name} name_zh={d.name_zh} /></div>
@@ -252,10 +280,19 @@ function MyDishes({ t, lang }: { t: (k: string, p?: Record<string, string | numb
                 {cuisineLabel(d.cuisine, lang) ? ` · ${cuisineLabel(d.cuisine, lang)}` : ''}
                 {` · ♥ ${t('home.hearts', { n: d.hearts })}`}
               </div>
-              <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
-                <button className="btn ghost small" onClick={() => { setEditing(d.id); setDraft(d.name); }}>{t('home.edit')}</button>
-                <button className="btn ghost small" onClick={() => remove(d.id)}>{t('home.delete')}</button>
-              </div>
+              {editing !== d.id && (
+                d.locked ? (
+                  <p className="card-meta" style={{ marginTop: 6, fontSize: 12.5 }}>{t('home.locked')}</p>
+                ) : (
+                  <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+                    <button className="btn ghost small" onClick={() => startEdit(d)}>{t('home.edit')}</button>
+                    <button className="btn ghost small" onClick={() => remove(d.id)}>{t('home.delete')}</button>
+                  </div>
+                )
+              )}
+              {editing === d.id && saveError && (
+                <p style={{ color: 'var(--lacquer)', fontSize: 12.5, marginTop: 4 }}>{saveError}</p>
+              )}
             </div>
           </div>
         </article>

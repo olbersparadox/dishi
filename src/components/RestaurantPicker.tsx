@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { useLang, pickNames } from '@/lib/i18n';
+import { useLang } from '@/lib/i18n';
 
 type Nearby = {
   source: 'dishi' | 'google';
@@ -53,7 +53,7 @@ export default function RestaurantPicker({ onChange }: { onChange: (c: Restauran
         const { latitude: lat, longitude: lng } = pos.coords;
         setCoords({ lat, lng });
         try {
-          const res = await fetch(`/api/restaurants/nearby?lat=${lat}&lng=${lng}`);
+          const res = await fetch(`/api/restaurants/nearby?lat=${lat}&lng=${lng}&lang=${lang}`);
           const json = await res.json();
           setNearby(json.restaurants ?? []);
         } catch { /* empty list is handled below */ }
@@ -115,15 +115,14 @@ export default function RestaurantPicker({ onChange }: { onChange: (c: Restauran
       <div className="chips" style={{ marginTop: 8 }}>
         {nearby.map(r => {
           const key = r.source === 'dishi' ? r.id! : r.place_id!;
-          const { en, zh } = pickNames({ name: r.name, name_zh: r.name_zh });
-          const primary = lang === 'zh' ? (zh ?? en) : (en ?? zh);
-          const secondary = lang === 'zh' ? (primary === zh ? en : undefined) : (primary === en ? zh : undefined);
+          // Single name, in whichever language the app currently displays. Google
+          // results already come back in that language (requested server-side);
+          // Dishi's own restaurants fall back to the English name if no Chinese
+          // name happens to be on file for it — never a fabricated second line.
+          const label = lang === 'zh' ? (r.name_zh ?? r.name) : r.name;
           return (
             <button key={key} className={`chip ${selectedKey === key ? 'on' : ''}`} onClick={() => pick(r)}>
-              <span className="dishname">
-                <span className="dishname-primary">{primary}</span>
-                {secondary && <span className="dishname-secondary">{secondary}</span>}
-              </span>
+              {label}
               {r.distance_m !== null && <span style={{ opacity: 0.55 }}> · {Math.round(r.distance_m)}m</span>}
               {r.source === 'google' && <span style={{ opacity: 0.5 }}> · {t('picker.new')}</span>}
             </button>

@@ -21,6 +21,11 @@ import { dedupeAgainstDishi } from '@/lib/places';
 export async function GET(req: NextRequest) {
   const lat = Number(req.nextUrl.searchParams.get('lat'));
   const lng = Number(req.nextUrl.searchParams.get('lng'));
+  // Which language to ask Google for — no bilingual fetch/merge anymore (see
+  // places.ts for why that was dropped). Dishi's OWN restaurants still carry
+  // whatever name_zh they happen to have on file; only the Google half of the
+  // list is genuinely single-language by request.
+  const googleLang = req.nextUrl.searchParams.get('lang') === 'zh' ? 'zh-HK' : 'en';
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
     return NextResponse.json({ error: 'lat and lng are required.' }, { status: 400 });
   }
@@ -38,10 +43,10 @@ export async function GET(req: NextRequest) {
 
   let google: any[] = [];
   try {
-    const places = await cachedNearbyPlaces(lat, lng);
+    const places = await cachedNearbyPlaces(lat, lng, googleLang);
     const deduped = dedupeAgainstDishi(places, dishi);
     google = deduped.slice(0, 8 - dishi.length).map(p => ({
-      place_id: p.place_id, name: p.name, name_zh: p.name_zh, lat: p.lat, lng: p.lng, address: p.address,
+      place_id: p.place_id, name: p.name, lat: p.lat, lng: p.lng, address: p.address,
       distance_m: null, source: 'google' as const,
     }));
   } catch (e) {

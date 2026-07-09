@@ -15,7 +15,6 @@
 export type GooglePlace = {
   place_id: string;
   name: string;
-  name_zh: string | null;
   lat: number;
   lng: number;
   address: string | null;
@@ -23,7 +22,22 @@ export type GooglePlace = {
 
 const FIELD_MASK = 'places.id,places.displayName,places.location,places.formattedAddress';
 
-async function searchNearbyOnce(lat: number, lng: number, radiusMeters: number, languageCode: string, apiKey: string): Promise<any[]> {
+/**
+ * Nearby restaurants, named in whichever ONE language is requested. Simpler and
+ * cheaper than fetching both languages and merging by place id — that approach was
+ * tried and dropped: two independent Nearby Search calls don't reliably return the
+ * SAME set of places (each is capped at 10 results and ranked independently), so a
+ * place could rank just inside the English top-10 and just outside the Chinese
+ * top-10 — showing up as "no Chinese name" even when Google has one. Asking once,
+ * in the app's current display language, sidesteps that entirely: whatever Google
+ * returns is presented as-is, correctly, no fallback logic required.
+ */
+export async function searchNearbyRestaurants(
+  lat: number, lng: number, radiusMeters = 300, languageCode = 'en',
+): Promise<GooglePlace[]> {
+  const apiKey = process.env.GOOGLE_PLACES_API_KEY;
+  if (!apiKey) return []; // No key configured — Dishi's own restaurant list is used alone.
+
   const res = await fetch('https://places.googleapis.com/v1/places:searchNearby', {
     method: 'POST',
     headers: {
@@ -40,46 +54,19 @@ async function searchNearbyOnce(lat: number, lng: number, radiusMeters: number, 
       },
     }),
   });
+
   if (!res.ok) {
-    console.error('Places API error', languageCode, res.status, await res.text().catch(() => ''));
+    // Fail soft: a Places outage or quota error shouldn't break dish logging, just
+    // means the quick-pick falls back to Dishi's own restaurant list.
+    console.error('Places API error', res.status, await res.text().catch(() => ''));
     return [];
   }
+
   const json = await res.json();
-  return (json.places ?? []) as any[];
-}
-
-/**
- * Fetches BOTH English and Traditional Chinese names for nearby restaurants, so the
- * quick-pick can show them bilingually like everywhere else in the app.
- *
- * COST NOTE (read before changing): this issues TWO Nearby Search requests instead
- * of one — Google's API returns names in a single requested language per call, not
- * both at once, so getting both names means asking twice. Both calls stay in the
- * cheap "Essentials" tier (same minimal field mask as before), but this does double
- * the REQUEST COUNT for every cache-miss lookup. The cache in placesCache.ts (12h
- * TTL per ~111m area) is what keeps this affordable — most real lookups hit cache
- * and cost nothing. Google has no Chinese name on file for every place; when that
- * happens name_zh is simply left null (never fabricated) and the UI shows English
- * alone, matching the "no invented translations" rule used for dish names.
- */
-export async function searchNearbyRestaurants(lat: number, lng: number, radiusMeters = 300): Promise<GooglePlace[]> {
-  const apiKey = process.env.GOOGLE_PLACES_API_KEY;
-  if (!apiKey) return []; // No key configured — Dishi's own restaurant list is used alone.
-
-  const [enPlaces, zhPlaces] = await Promise.all([
-    searchNearbyOnce(lat, lng, radiusMeters, 'en', apiKey),
-    searchNearbyOnce(lat, lng, radiusMeters, 'zh-HK', apiKey),
-  ]);
-
-  const zhNameById = new Map<string, string>();
-  for (const p of zhPlaces) {
-    if (p.id && p.displayName?.text) zhNameById.set(p.id, p.displayName.text);
-  }
-
-  return enPlaces.map(p => ({
+  const places = (json.places ?? []) as any[];
+  return places.map(p => ({
     place_id: p.id,
     name: p.displayName?.text ?? 'Unknown restaurant',
-    name_zh: zhNameById.get(p.id) ?? null,
     lat: p.location?.latitude,
     lng: p.location?.longitude,
     address: p.formattedAddress ?? null,
