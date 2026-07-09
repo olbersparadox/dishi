@@ -12,10 +12,13 @@ type RankedItem = {
   hook?: string; cuisine: string | null; photo_url?: string | null;
   group_match: number; member_matches: { handle: string; match: number }[];
   unanimous: boolean; protected_by_fairness: boolean;
+  attributes?: Record<string, number>;
 };
+type TablePick = { name: string; name_zh: string | null; handle: string };
 type SessionState = {
-  code: string; status: string; is_host: boolean; has_menu: boolean;
-  members: Member[]; items: RankedItem[];
+  code: string; session_id: string; restaurant_id: string | null;
+  status: string; is_host: boolean; has_menu: boolean; orderable: boolean;
+  members: Member[]; items: RankedItem[]; table_picks: TablePick[];
 };
 
 export default function TablePage() {
@@ -121,6 +124,38 @@ function Session({ code, onLeave }: { code: string; onLeave: () => void }) {
   const [state, setState] = useState<SessionState | null>(null);
   const [error, setError] = useState('');
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [picking, setPicking] = useState<string | null>(null); // item.key currently saving
+  const [pickedKeys, setPickedKeys] = useState<Set<string>>(new Set());
+
+  /**
+   * "Order" (real registered table, orderable=true) vs "Picked" (a plain community
+   * table session) — the label alone tells the whole story, and it's not a client
+   * guess: `orderable` comes straight from whether this session has a table_id,
+   * i.e. whether it originated from a restaurant's own QR code.
+   *
+   * Honest scope note: for an ORDERABLE session joined here (via a code, not the
+   * QR scan itself), this still creates a PICK — an interest signal the owner's
+   * dashboard sees — not a live kitchen order through the cart/quantity-stepper
+   * flow that /order/[token] has. Unifying those two paths is a real follow-up,
+   * not something this pass silently pretends to already do.
+   */
+  async function pickDish(item: RankedItem, state: SessionState) {
+    setPicking(item.key);
+    try {
+      const res = await fetch('/api/dishes/pick', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          restaurant_id: state.restaurant_id ?? undefined,
+          table_session_id: state.session_id,
+          items: [{ name: item.name, name_zh: item.name_zh, cuisine: item.cuisine, attributes: item.attributes ?? {} }],
+        }),
+      });
+      if (res.ok) setPickedKeys(prev => new Set(prev).add(item.key));
+    } finally {
+      setPicking(null);
+    }
+  }
 
   const refresh = useCallback(async () => {
     try {
@@ -181,6 +216,19 @@ function Session({ code, onLeave }: { code: string; onLeave: () => void }) {
         {!state.has_menu && ` ${t('table.nomenu')}`}
       </p>
 
+      {state.table_picks.length > 0 && (
+        <div className="card" style={{ marginBottom: 14 }}><div className="card-body">
+          <p style={{ fontWeight: 700, marginBottom: 6, fontSize: 14 }}>{t('table.pickedsofar')}</p>
+          <div className="chips">
+            {state.table_picks.map((p, i) => (
+              <span className="chip" key={i}>
+                <DishName name={p.name} name_zh={p.name_zh} /> · {p.handle}
+              </span>
+            ))}
+          </div>
+        </div></div>
+      )}
+
       {state.items.map((item, i) => (
         <article className="card" key={item.key}>
           <div className="card-body scan-row">
@@ -200,10 +248,23 @@ function Session({ code, onLeave }: { code: string; onLeave: () => void }) {
                 {item.price && <span className="dish-price">{item.price}</span>}
               </div>
               <div className="card-meta">{item.hook ?? item.cuisine ?? ''}</div>
-              <button className="btn ghost small" style={{ marginTop: 6 }}
-                onClick={() => setExpanded(expanded === item.key ? null : item.key)}>
-                {expanded === item.key ? t('table.hide') : t('table.see')}
-              </button>
+              <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+                <button className="btn ghost small"
+                  onClick={() => setExpanded(expanded === item.key ? null : item.key)}>
+                  {expanded === item.key ? t('table.hide') : t('table.see')}
+                </button>
+                <button
+                  className={`btn small ${pickedKeys.has(item.key) ? '' : 'primary'}`}
+                  disabled={pickedKeys.has(item.key) || picking === item.key}
+                  onClick={() => pickDish(item, state)}
+                >
+                  {pickedKeys.has(item.key)
+                    ? t('table.pickeddone')
+                    : picking === item.key
+                      ? t('log.saving')
+                      : state.orderable ? t('table.orderbtn') : t('table.pickbtn')}
+                </button>
+              </div>
               {expanded === item.key && (
                 <div className="bars" style={{ marginTop: 8 }}>
                   {item.member_matches.map(mm => (

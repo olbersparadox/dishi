@@ -1,9 +1,11 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import AuthGate from '@/components/AuthGate';
 import { normalizePhoto } from '@/lib/image';
 import DishName from '@/components/DishName';
 import PhotoPicker from '@/components/PhotoPicker';
+import RestaurantPicker, { RestaurantChoice } from '@/components/RestaurantPicker';
 import { mapWithConcurrency } from '@/lib/concurrency';
 import { useLang } from '@/lib/i18n';
 
@@ -13,6 +15,9 @@ type ScannedItem = {
   // undefined = not yet requested/still scoring; null = this dish's scoring call
   // failed (degrade gracefully, don't block the rest); number = a real match.
   match?: number | null; reason?: string | null; caution?: string | null;
+  // Present once Phase 2 has scored the item — carried through so a "pick" can be
+  // created with its real taste attributes instead of an empty/neutral dish.
+  attributes?: Record<string, number>;
 };
 type ScanResponse = {
   phase?: 'done' | 'needs_scoring'; profile_ready: boolean; rating_count: number; needed?: number; menu_language: string;
@@ -41,6 +46,48 @@ function Scanner() {
   const [result, setResult] = useState<ScanResponse | null>(null);
   const [settled, setSettled] = useState(false);
   const [error, setError] = useState('');
+  const router = useRouter();
+
+  // "Pick" mode: tap a scanned dish to mark it for later rating (no photo needed —
+  // the taste engine already has its attributes from scoring). Keyed by the printed
+  // name, which stays stable even when the list re-sorts into ranked order.
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [confirmingPick, setConfirmingPick] = useState(false);
+  const [pickRestaurant, setPickRestaurant] = useState<RestaurantChoice>(null);
+  const [pickSaving, setPickSaving] = useState(false);
+  const [pickError, setPickError] = useState('');
+
+  function togglePick(key: string) {
+    setPicked(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  }
+
+  async function confirmPicks() {
+    if (!result) return;
+    setPickSaving(true); setPickError('');
+    const chosen = result.items.filter(i => picked.has(i.name_original));
+    try {
+      const res = await fetch('/api/dishes/pick', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          restaurant_id: pickRestaurant?.kind === 'existing' ? pickRestaurant.id : undefined,
+          new_restaurant: pickRestaurant?.kind === 'new' ? pickRestaurant : undefined,
+          items: chosen.map(i => ({ name: i.name, name_zh: i.name_zh, cuisine: i.cuisine, attributes: i.attributes ?? {} })),
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Could not save your picks.');
+      router.push('/log');
+    } catch (e: any) {
+      setPickError(e.message || 'Something went wrong saving those picks.');
+    } finally {
+      setPickSaving(false);
+    }
+  }
 
   // Cycle the status line while scanning so the wait feels alive, not stuck.
   useEffect(() => {
@@ -183,9 +230,11 @@ function Scanner() {
 
       {/* Under-threshold: an honest plain list — no rings, no reasons, no hero. */}
       {!result.profile_ready && result.items.map((item, i) => (
-        <article className="card" key={`plain-${i}`}>
+        <article className={`card scan-pickable ${picked.has(item.name_original) ? 'picked' : ''}`} key={`plain-${i}`}
+          onClick={() => togglePick(item.name_original)}>
           <div className="card-body scan-row">
             <div className="scan-rank">{i + 1}</div>
+            <PickCheck on={picked.has(item.name_original)} />
             <div style={{ minWidth: 0, flex: 1 }}>
               <div className="dish-row">
                 <div className="card-title" style={{ fontSize: 15.5 }}><DishName name={item.name} name_zh={item.name_zh} name_original={item.name_original} /></div>
@@ -200,9 +249,11 @@ function Scanner() {
       {/* Scoring in progress OR all failed: every dish visible immediately, in
           original order, each ring reflecting its own individual state. */}
       {result.profile_ready && !readyToRank && result.items.map((item, i) => (
-        <article className="card" key={`scoring-${i}`}>
+        <article className={`card scan-pickable ${picked.has(item.name_original) ? 'picked' : ''}`} key={`scoring-${i}`}
+          onClick={() => togglePick(item.name_original)}>
           <div className="card-body scan-row">
             <div className="scan-rank">{i + 1}</div>
+            <PickCheck on={picked.has(item.name_original)} />
             <MatchRing value={item.match} size={44} />
             <div style={{ minWidth: 0, flex: 1 }}>
               <div className="dish-row">
@@ -220,10 +271,12 @@ function Scanner() {
           every dish has a real outcome — the "satisfying settle" moment. */}
       {readyToRank && (
         <div className="scan-settle">
-          <article className="card scan-hero">
+          <article className={`card scan-hero scan-pickable ${picked.has(top.name_original) ? 'picked' : ''}`}
+            onClick={() => togglePick(top.name_original)}>
             <div className="card-body">
               <span className="reason collab">{t('scan.order')}</span>
               <div style={{ display: 'flex', gap: 14, alignItems: 'center', marginTop: 6 }}>
+                <PickCheck on={picked.has(top.name_original)} />
                 <MatchRing value={top.match} size={64} />
                 <div style={{ minWidth: 0, flex: 1 }}>
                   <div className="dish-row">
@@ -239,9 +292,11 @@ function Scanner() {
           </article>
 
           {rest.map((item, i) => (
-            <article className="card" key={`${item.name}-${i}`}>
+            <article className={`card scan-pickable ${picked.has(item.name_original) ? 'picked' : ''}`} key={`${item.name}-${i}`}
+              onClick={() => togglePick(item.name_original)}>
               <div className="card-body scan-row">
                 <div className="scan-rank">{i + 2}</div>
+                <PickCheck on={picked.has(item.name_original)} />
                 <MatchRing value={item.match} size={44} />
                 <div style={{ minWidth: 0, flex: 1 }}>
                   <div className="dish-row">
@@ -265,6 +320,50 @@ function Scanner() {
       <p className="card-meta" style={{ margin: '4px 0 12px' }}>
         {t('scan.logged')}
       </p>
+
+      {/* Pick-mode confirm: tapping any dish above marks it for later rating (no
+          photo needed — attributes already came from scoring). This works even
+          before profile_ready, since picking dishes to rate is exactly how a new
+          user reaches the 5-rating threshold fastest. */}
+      {picked.size > 0 && !confirmingPick && (
+        <div className="cart-bar">
+          <button className="btn primary" style={{ width: '100%' }} onClick={() => setConfirmingPick(true)}>
+            {t('scan.ratethese')} · {t('scan.pickcount', { n: picked.size })}
+          </button>
+        </div>
+      )}
+
+      {confirmingPick && (
+        <div className="cart-bar" style={{ bottom: 0, paddingBottom: 16 }}>
+          <div className="card" style={{ marginBottom: 8, maxHeight: '60vh', overflowY: 'auto' }}>
+            <div className="card-body">
+              <p style={{ fontWeight: 700, marginBottom: 8 }}>{t('scan.pickrestaurant')}</p>
+              <RestaurantPicker onChange={setPickRestaurant} />
+              {pickError && <p style={{ color: 'var(--lacquer)', marginTop: 8 }}>{pickError}</p>}
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn ghost" style={{ flex: 1 }} onClick={() => setConfirmingPick(false)} disabled={pickSaving}>
+              {t('home.cancel')}
+            </button>
+            <button className="btn primary" style={{ flex: 2 }} onClick={confirmPicks} disabled={pickSaving}>
+              {pickSaving ? t('log.saving') : `${t('scan.ratethese')} · ${picked.size}`}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PickCheck({ on }: { on: boolean }) {
+  return (
+    <div className={`pick-check ${on ? 'on' : ''}`} aria-hidden>
+      {on && (
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="3">
+          <path d="M4 12l5 5L20 6" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      )}
     </div>
   );
 }

@@ -23,9 +23,13 @@ import { wordKeyFor, CHIPS } from '@/lib/flickWords';
 
 export default function FlickRating({
   photoUrl,
+  dishName,
   onRate,
 }: {
-  photoUrl: string;
+  // null for a "pick" being rated later with no photo ever taken — the gesture
+  // surface still needs SOMETHING to show; falls back to a plain named card.
+  photoUrl: string | null;
+  dishName?: string;
   // Fired every time the rating changes — first swipe, or a later swipe that
   // revises it. There's no separate "final commit" step inside this component
   // anymore: the parent decides when the rating is truly final (the Done button),
@@ -106,14 +110,20 @@ export default function FlickRating({
         aria-valuetext={Math.abs(v) >= 0.1 ? t(wordKeyFor(v)) : t('flick.notyet')}
         tabIndex={0}
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={photoUrl}
-          alt="Your dish"
-          className="card-photo flick-photo"
-          style={{ filter: `saturate(${saturation})`, transform: `scale(${scale})` }}
-          draggable={false}
-        />
+        {photoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={photoUrl}
+            alt="Your dish"
+            className="card-photo flick-photo"
+            style={{ filter: `saturate(${saturation})`, transform: `scale(${scale})` }}
+            draggable={false}
+          />
+        ) : (
+          <div className="card-photo flick-photo flick-nophoto" style={{ filter: `saturate(${saturation})`, transform: `scale(${scale})` }}>
+            <span>{dishName ?? '🍽️'}</span>
+          </div>
+        )}
         <div className="flick-gauge" aria-hidden>
           <div className="flick-fill" style={{ ...fillPos, height: fillHeight, background: fillColor }} />
         </div>

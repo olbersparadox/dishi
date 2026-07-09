@@ -336,3 +336,31 @@ button { font: inherit; cursor: pointer; }
 @media (prefers-reduced-motion: reduce) {
   .match-ring-pending circle, .scan-settle { animation: none; }
 }
+
+/* --- flick rating: no-photo fallback for rating a "pick" later --- */
+.flick-nophoto {
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(160deg, var(--glaze), var(--porcelain));
+  font-family: var(--font-display), system-ui; font-weight: 800; font-size: 22px;
+  color: var(--ink); text-align: center; padding: 24px;
+}
+
+/* --- log page: dishes-to-rate placeholders --- */
+.pick-card {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  background: var(--glaze); border: 1px solid var(--line); border-radius: 14px;
+  padding: 10px 12px; margin-bottom: 8px;
+}
+.pick-card-name { font-weight: 650; font-size: 14.5px; }
+.pick-card-meta { font-size: 12.5px; color: var(--ink-soft); margin-top: 1px; }
+.pick-card-actions { display: flex; gap: 6px; flex-shrink: 0; }
+
+/* --- scan page: pick-mode selection state --- */
+.scan-pickable { cursor: pointer; transition: border-color 120ms, background 120ms; }
+.scan-pickable.picked { border-color: var(--jade); background: #33705f0d; }
+.pick-check {
+  width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--line);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  background: #fff; transition: all 120ms;
+}
+.pick-check.on { background: var(--jade); border-color: var(--jade); color: #fff; }

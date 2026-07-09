@@ -10,7 +10,8 @@ import DishName from '@/components/DishName';
 import PhotoPicker from '@/components/PhotoPicker';
 import { useLang, cuisineLabel } from '@/lib/i18n';
 
-type Dish = { id: string; name: string; name_zh?: string | null; cuisine: string; photo_url: string; vision_confidence: number };
+type Dish = { id: string; name: string; name_zh?: string | null; cuisine: string; photo_url: string | null; vision_confidence?: number };
+type Pick = { id: string; name: string; name_zh: string | null; cuisine: string; source: string; restaurant: string | null };
 
 export default function LogPage() {
   return (
@@ -34,6 +35,9 @@ function LogFlow() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [finishing, setFinishing] = useState(false);
+  const [picks, setPicks] = useState<Pick[] | null>(null);
+  const [ratingExistingPick, setRatingExistingPick] = useState(false);
+  const [addingPhoto, setAddingPhoto] = useState(false);
 
   function onPickPhoto(f: File | null) {
     setPhoto(f);
@@ -46,6 +50,53 @@ function LogFlow() {
 
   // Release the object URL when the whole flow unmounts (e.g. navigating away).
   useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
+
+  // Dishes picked off a scanned menu or during a Table Mode session, still waiting
+  // to be rated — same rating pipeline as a photographed dish, just entered a
+  // different way. Only relevant on the idle (pre-photo) screen.
+  useEffect(() => {
+    fetch('/api/my/dishes?unrated=1').then(r => r.json()).then(j => setPicks(j.dishes ?? [])).catch(() => setPicks([]));
+  }, []);
+
+  /** Jump straight into rating an already-picked dish — no photo step needed. */
+  function rateExistingPick(pick: Pick) {
+    setRatingExistingPick(true);
+    setDish({ id: pick.id, name: pick.name, name_zh: pick.name_zh, cuisine: pick.cuisine, photo_url: null });
+    setNameOverride(null); setRating(null); setTranscript('');
+  }
+
+  async function deletePick(id: string) {
+    setPicks(prev => prev?.filter(p => p.id !== id) ?? null);
+    await fetch('/api/my/dishes', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dish_id: id }),
+    });
+  }
+
+  /**
+   * Attaches a photo to a dish that doesn't have one yet — specifically for a pick
+   * (from a menu scan or Table Mode) being rated here for the first time. Entirely
+   * optional: rating with no photo at all keeps working exactly as before, this
+   * just closes the gap where there was previously no way to add one afterward.
+   */
+  async function addPhotoToPick(file: File | null) {
+    if (!file || !dish) return;
+    setAddingPhoto(true); setError('');
+    try {
+      const form = new FormData();
+      form.append('dish_id', dish.id);
+      form.append('photo', await normalizePhoto(file, 1024));
+      const res = await fetch('/api/dishes/photo', { method: 'POST', body: form });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Could not save that photo.');
+      setDish(prev => prev ? { ...prev, photo_url: json.dish.photo_url } : prev);
+    } catch (e: any) {
+      setError(e.message || 'Something went wrong saving that photo.');
+    } finally {
+      setAddingPhoto(false);
+    }
+  }
 
   /** Upload photo + restaurant, get vision result back. */
   async function logDish() {
@@ -107,6 +158,24 @@ function LogFlow() {
         ) : null}
         <PhotoPicker onPick={f => onPickPhoto(f)} />
 
+        {picks !== null && picks.length > 0 && (
+          <div style={{ margin: '16px 0' }}>
+            <label className="label">{t('log.toRate')}</label>
+            {picks.map(p => (
+              <div className="pick-card" key={p.id}>
+                <div style={{ minWidth: 0 }}>
+                  <div className="pick-card-name"><DishName name={p.name} name_zh={p.name_zh} /></div>
+                  <div className="pick-card-meta">{p.restaurant ?? t('home.homecooking')}</div>
+                </div>
+                <div className="pick-card-actions">
+                  <button className="btn primary small" onClick={() => rateExistingPick(p)}>{t('log.rateNow')}</button>
+                  <button className="btn ghost small" onClick={() => deletePick(p.id)}>{t('home.delete')}</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
         <label className="label">{t('log.where')}</label>
         <RestaurantPicker onChange={setRestaurant} />
 
@@ -128,12 +197,16 @@ function LogFlow() {
   return (
     <div>
       <h1 style={{ marginBottom: 4 }}><DishName name={shownName} name_zh={nameOverride ? undefined : dish.name_zh} size="lg" /></h1>
-      <p className="card-meta" style={{ marginBottom: 4 }}>
-        {dish.cuisine !== 'unknown' ? t('log.looks', { cuisine: cuisineLabel(dish.cuisine, lang) || dish.cuisine }) : ''}
-        {dish.vision_confidence < 0.5 ? t('log.lowconf') : ''}
-        {t('log.notright')}{' '}
-        <button className="btn ghost small" onClick={() => setEditingName(true)}>{t('log.fixname')}</button>
-      </p>
+      {/* A pick rated directly (no vision run, no photo) skips the "looks X, not
+          right?" line entirely — there's no vision guess here to second-guess. */}
+      {!ratingExistingPick && (
+        <p className="card-meta" style={{ marginBottom: 4 }}>
+          {dish.cuisine !== 'unknown' ? t('log.looks', { cuisine: cuisineLabel(dish.cuisine, lang) || dish.cuisine }) : ''}
+          {(dish.vision_confidence ?? 1) < 0.5 ? t('log.lowconf') : ''}
+          {t('log.notright')}{' '}
+          <button className="btn ghost small" onClick={() => setEditingName(true)}>{t('log.fixname')}</button>
+        </p>
+      )}
       {editingName && (
         <input
           className="field"
@@ -150,7 +223,17 @@ function LogFlow() {
           dish.photo_url, a fresh network fetch of the exact same image the user
           just looked at one screen ago. The server URL is only a fallback for the
           (normally unreachable) case where the local preview isn't available. */}
-      <FlickRating photoUrl={preview ?? dish.photo_url} onRate={onRate} />
+      <FlickRating photoUrl={preview ?? dish.photo_url} dishName={shownName} onRate={onRate} />
+
+      {/* Only offered when there's genuinely no photo yet (a pick rated without one)
+          — a normal photographed dish already has its photo from Step 1 and never
+          sees this. Purely optional: rating with no photo continues to work. */}
+      {!preview && !dish.photo_url && (
+        <div style={{ marginTop: 10 }}>
+          <PhotoPicker onPick={addPhotoToPick} disabled={addingPhoto} />
+          <p className="card-meta" style={{ marginTop: 4 }}>{t('log.addphotohint')}</p>
+        </div>
+      )}
 
       {/* No Done button before a rating exists — nothing to finish yet. It appears
           the moment a swipe lands, and navigation only ever happens on tap: never

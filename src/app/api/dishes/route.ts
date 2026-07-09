@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase/server';
 import { inferDish } from '@/lib/vision';
+import { resolveOrCreateRestaurant } from '@/lib/restaurant';
 
 export const maxDuration = 60;
 
@@ -38,37 +39,9 @@ export async function POST(req: NextRequest) {
     } catch {
       return NextResponse.json({ error: 'Malformed restaurant data.' }, { status: 400 });
     }
-    const name = String(parsed.name ?? '').trim();
-    const lat = Number(parsed.lat), lng = Number(parsed.lng);
-    if (!name || !Number.isFinite(lat) || !Number.isFinite(lng)) {
-      return NextResponse.json({ error: 'A new restaurant needs a name and location.' }, { status: 400 });
-    }
-    // Optional, user-supplied (possibly reverse-geocode-prefilled, always editable) —
-    // never required, never invented if absent.
-    const area = typeof parsed.area === 'string' ? parsed.area.trim().slice(0, 80) || null : null;
-    const address = typeof parsed.address === 'string' ? parsed.address.trim().slice(0, 200) || null : null;
-
-    // Dedupe before creating: when two people tap the same Google-sourced chip (or
-    // type the same name at the same spot), reuse the existing entity instead of
-    // fragmenting the restaurant's dish history across duplicates. "Same place" =
-    // same name (case-insensitive) within ~50m.
-    const { data: nearbySame } = await supabase.rpc('nearby_restaurants', {
-      user_lat: lat, user_lng: lng, radius_m: 50, max_results: 8,
-    });
-    const existing = (nearbySame ?? []).find(
-      (r: { id: string; name: string }) => r.name.trim().toLowerCase() === name.toLowerCase(),
-    );
-    if (existing) {
-      restaurantId = existing.id;
-    } else {
-      const { data: r, error } = await supabase
-        .from('restaurants')
-        .insert({ name, lat, lng, area, address, created_by: user.id })
-        .select('id')
-        .single();
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-      restaurantId = r.id;
-    }
+    const resolved = await resolveOrCreateRestaurant(supabase, user.id, null, parsed);
+    if (resolved.error) return NextResponse.json({ error: resolved.error }, { status: 400 });
+    restaurantId = resolved.id;
   }
 
   const bytes = Buffer.from(await photo.arrayBuffer());

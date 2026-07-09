@@ -78,7 +78,17 @@ export function similarity(a: TasteVector, b: TasteVector): number {
 export function contentScore(taste: TasteVector, dish: DishVector, cuisineAffinity: Record<string, number>, cuisine?: string | null): number {
   let s = 0;
   for (const dim of DIMS) {
-    s += (taste[dim] ?? 0) * ((dish[dim] ?? 0) - 0.5) * 2;
+    // Only score dims the dish ACTUALLY reports. scoreOneDish/sanitizeItem only ever
+    // add a key when a dim was detected with real positive presence (see
+    // menuScan.ts) — an absent key means "no evidence either way," never "confirmed
+    // not present." Defaulting missing dims to 0 here used to feed (0 - 0.5) * 2 =
+    // -1 into the formula — i.e. treat "not mentioned" as "definitely absent." For
+    // anyone with several strong DISLIKES (taste[dim] very negative), that silently
+    // manufactured a large POSITIVE match on any dish that simply never mentioned
+    // that attribute — including a dish with literally zero attributes at all,
+    // which was scoring a "perfect" 100% match before this fix.
+    if (!(dim in dish)) continue;
+    s += (taste[dim] ?? 0) * (dish[dim] - 0.5) * 2;
   }
   s /= DIMS.length;
   if (cuisine) s += 0.3 * (cuisineAffinity[cuisine.toLowerCase()] ?? 0);

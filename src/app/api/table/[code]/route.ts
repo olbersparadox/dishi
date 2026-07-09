@@ -100,8 +100,16 @@ export async function GET(_req: NextRequest, { params }: { params: { code: strin
     ? rankForGroup(candidates, members)
     : rankForGroup(candidates, members).slice(0, 15);
 
+  const { data: tablePicks } = await admin
+    .from('dishes')
+    .select('name, name_zh, profiles(handle)')
+    .eq('table_session_id', session.id)
+    .order('created_at', { ascending: false });
+
   return NextResponse.json({
     code,
+    session_id: session.id,
+    restaurant_id: session.restaurant_id ?? null,
     status: session.status,
     is_host: session.host_id === user.id,
     has_menu: !!session.menu_items || !!session.table_id,
@@ -111,6 +119,12 @@ export async function GET(_req: NextRequest, { params }: { params: { code: strin
       handle: m.handle,
       has_profile: !!m.vector && m.rating_count > 0,
       rating_count: m.rating_count,
+    })),
+    // Visible to everyone at the table: what's been picked so far, and by whom —
+    // shared awareness, not a shared cart. Each pick is still an individual dish
+    // row the picker rates on their own.
+    table_picks: (tablePicks ?? []).map((p: any) => ({
+      name: p.name, name_zh: p.name_zh, handle: p.profiles?.handle ?? 'someone',
     })),
     items: ranked.map(r => ({
       ...r.item,

@@ -16,6 +16,7 @@ type Dashboard = {
   dishes: { id: string; name: string; rating_count: number; avg_delight: number | null; helpful_marks: number }[];
   hidden_gems: { id: string; name: string; avg_delight: number | null; rating_count: number }[];
   loved_for: string[];
+  popular_picks: { name: string; picks: number; rated: number; avg_delight: number | null }[];
 };
 type OwnerTable = { id: string; label: string; qr_token: string };
 type OwnerMenuItem = {
@@ -132,6 +133,21 @@ function Owner() {
             {dash.hidden_gems.map(g => (
               <div key={g.id} className="card-meta" style={{ padding: '4px 0', fontSize: 14 }}>
                 <strong style={{ color: 'var(--ink)' }}>{g.name}</strong> &mdash; {g.avg_delight} delight, only {g.rating_count} {g.rating_count === 1 ? 'rating' : 'ratings'}
+              </div>
+            ))}
+          </div></div>
+        )}
+
+        {dash.popular_picks.length > 0 && (
+          <div className="card"><div className="card-body">
+            <h3 style={{ marginBottom: 4 }}>Popular from menu scans</h3>
+            <p className="card-meta" style={{ marginBottom: 10 }}>
+              How often diners pick a dish off your scanned menu or at a table here — an interest signal, separate from confirmed orders in the Orders tab.
+            </p>
+            {dash.popular_picks.map(p => (
+              <div key={p.name} className="card-meta" style={{ padding: '4px 0', fontSize: 14, display: 'flex', justifyContent: 'space-between' }}>
+                <span><strong style={{ color: 'var(--ink)' }}>{p.name}</strong> — picked by {p.picks} {p.picks === 1 ? 'person' : 'people'}</span>
+                <span>{p.avg_delight !== null ? `${p.avg_delight} delight (${p.rated} rated)` : 'not yet rated'}</span>
               </div>
             ))}
           </div></div>

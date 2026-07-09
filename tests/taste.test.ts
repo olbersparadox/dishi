@@ -152,3 +152,41 @@ describe('toMatchPercent', () => {
     }
   });
 });
+
+describe('contentScore — missing-attribute regression (the "everything scores 100%" bug)', () => {
+  // A profile with several strong DISLIKES sitting near -1 is exactly the real
+  // production case that exposed this: absent dims used to silently score as
+  // "confirmed not present," which for a strong dislike manufactured a large FAKE
+  // positive match on almost any dish — including one with zero real attributes.
+  const heavyDislikes = {
+    ...emptyTaste(),
+    bitter: -1, grilled: -0.999, fried: -0.98, crispy: -0.98,
+    sour: -0.98, spicy: -0.92, baked: -0.79, creamy: -0.85,
+    tender: 0.71, umami: 0.63, rich: 0.4,
+  };
+
+  it('a dish with ZERO attributes scores neutral (50%), never a fake "perfect match"', () => {
+    const raw = contentScore(heavyDislikes, {}, {});
+    expect(raw).toBe(0);
+    expect(toMatchPercent(raw)).toBe(50);
+  });
+
+  it('a dish matching the disliked attributes scores LOW, not saturated high', () => {
+    const raw = contentScore(heavyDislikes, { fried: 0.9, crispy: 0.9, sweet: 0.8 }, {});
+    expect(toMatchPercent(raw)).toBeLessThan(50);
+  });
+
+  it('a genuinely well-matched dish scores meaningfully higher than a badly-matched one', () => {
+    const good = contentScore(heavyDislikes, { tender: 0.6, umami: 0.5, fresh: 0.6 }, {});
+    const bad = contentScore(heavyDislikes, { fried: 0.8, crispy: 0.8 }, {});
+    expect(toMatchPercent(good)).toBeGreaterThan(toMatchPercent(bad));
+    // The critical assertion: they must NOT both be clamped to the same ceiling.
+    expect(toMatchPercent(good)).toBeLessThan(100);
+  });
+
+  it('sparse dishes with only 1-2 attributes are not artificially inflated by 16+ silently-absent dims', () => {
+    const raw = contentScore(heavyDislikes, { spicy: 0.7, umami: 0.6 }, {});
+    // Should be a modest, plausible value, not near the extremes either direction.
+    expect(Math.abs(raw)).toBeLessThan(0.3);
+  });
+});

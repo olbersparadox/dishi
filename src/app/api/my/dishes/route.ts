@@ -14,10 +14,39 @@ import { supabaseServer, supabaseAdmin } from '@/lib/supabase/server';
  * something another person's taste profile already learned from. Hearts never
  * lock anything — only ratings feed someone else's profile, hearts don't.
  */
-export async function GET() {
+export async function GET(req: NextRequest) {
   const supabase = supabaseServer();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Sign in first.' }, { status: 401 });
+
+  // Lightweight path for the Log page's "dishes to rate" placeholders: picks (or any
+  // dish) the user hasn't rated yet. No hearts/lock computation needed here — an
+  // unrated dish is never locked, and hearts on it aren't relevant to "rate this."
+  if (req.nextUrl.searchParams.get('unrated') === '1') {
+    const { data: mine } = await supabase
+      .from('dishes')
+      .select('id, name, name_zh, cuisine, source, created_at, restaurants(name)')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(30);
+
+    const ids = (mine ?? []).map(d => d.id);
+    let rated = new Set<string>();
+    if (ids.length) {
+      const { data: myRatings } = await supabase
+        .from('ratings').select('dish_id').eq('user_id', user.id).in('dish_id', ids);
+      rated = new Set((myRatings ?? []).map(r => r.dish_id));
+    }
+
+    return NextResponse.json({
+      dishes: (mine ?? [])
+        .filter(d => !rated.has(d.id))
+        .map((d: any) => ({
+          id: d.id, name: d.name, name_zh: d.name_zh, cuisine: d.cuisine,
+          source: d.source, restaurant: d.restaurants?.name ?? null,
+        })),
+    });
+  }
 
   const { data: dishes } = await supabase
     .from('dishes')

@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
   const admin = supabaseAdmin();
   const [{ data: restaurant }, { data: dishes }] = await Promise.all([
     admin.from('restaurants').select('id, name, address').eq('id', restaurantId).single(),
-    admin.from('dishes').select('id, name, cuisine, photo_url, attributes, created_at')
+    admin.from('dishes').select('id, name, cuisine, photo_url, attributes, created_at, source')
       .eq('restaurant_id', restaurantId),
   ]);
   if (!restaurant) return NextResponse.json({ error: 'Restaurant not found.' }, { status: 404 });
@@ -96,6 +96,41 @@ export async function GET(req: NextRequest) {
         .map(x => x.dim)
     : [];
 
+  // "Popular from menu scans" (A in the owner's two-metric ask): how many people
+  // picked each dish off a scanned menu or at a table session here, and how many of
+  // those have gone on to actually rate it. Grouped by NAME — five different people
+  // picking "Mapo Tofu" are five signals about ONE dish, not five different dishes.
+  // Pure interest signal; never conflated with the real kitchen order queue (B),
+  // which lives entirely in table_orders and the Orders tab.
+  const pickRows = (dishes ?? []).filter(d => d.source === 'scan' || d.source === 'table');
+  const pickIds = pickRows.map(d => d.id);
+  const pickRatingsByDish = new Map<string, number>();
+  if (pickIds.length) {
+    for (const id of pickIds) {
+      const agg = byDish.get(id);
+      if (agg && agg.n > 0) pickRatingsByDish.set(id, agg.sum / agg.n);
+    }
+  }
+  const byName = new Map<string, { picks: number; rated: number; sumScore: number }>();
+  for (const d of pickRows) {
+    const key = d.name.trim().toLowerCase();
+    const agg = byName.get(key) ?? { picks: 0, rated: 0, sumScore: 0 };
+    agg.picks += 1;
+    const score = pickRatingsByDish.get(d.id);
+    if (score !== undefined) { agg.rated += 1; agg.sumScore += score; }
+    byName.set(key, agg);
+  }
+  const nameById = new Map(pickRows.map(d => [d.name.trim().toLowerCase(), d.name]));
+  const popularPicks = Array.from(byName.entries())
+    .map(([key, agg]) => ({
+      name: nameById.get(key) ?? key,
+      picks: agg.picks,
+      rated: agg.rated,
+      avg_delight: agg.rated > 0 ? to100(agg.sumScore / agg.rated) : null,
+    }))
+    .sort((a, b) => b.picks - a.picks)
+    .slice(0, 8);
+
   return NextResponse.json({
     restaurant,
     claim_status: claim.status,
@@ -108,5 +143,6 @@ export async function GET(req: NextRequest) {
     dishes: dishStats.map(({ _avgRaw, ...d }) => d),
     hidden_gems: hiddenGems,
     loved_for: lovedFor,
+    popular_picks: popularPicks,
   });
 }
