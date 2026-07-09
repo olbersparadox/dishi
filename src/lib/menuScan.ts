@@ -118,7 +118,14 @@ export async function scanMenuOCR(base64: string, mediaType: string): Promise<Me
   const text = await callClaude(OCR_SYSTEM, [
     imagePart(base64, mediaType),
     textPart('Extract every dish from this menu. Names, prices, cuisine, and a hook only — no flavor scoring.'),
-  ], { maxTokens: 1400 });
+  // Was 1400 — too tight for large/dense menus. Real evidence: a genuine large-menu
+  // scan returned 0 items in ~16s (not a timeout — it finished fast, just got cut
+  // off mid-JSON before the array closed, which fails to parse and looks like total
+  // failure). CJK text and 20 items' worth of bilingual names/prices/hooks can
+  // genuinely need more room than that. Raised with real headroom rather than a
+  // minimal bump, since a truncated response is a silent full-scan failure, not a
+  // graceful degradation — worth erring generous here.
+  ], { maxTokens: 3000 });
 
   const parsed = parseJsonResponse<{ items?: any[]; menu_language?: string; restaurant_guess?: string }>(text);
   if (!parsed) return { items: [], menu_language: 'unknown', restaurant_guess: null, mock: false };
