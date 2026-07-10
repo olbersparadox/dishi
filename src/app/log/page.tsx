@@ -10,7 +10,7 @@ import DishName from '@/components/DishName';
 import PhotoPicker from '@/components/PhotoPicker';
 import { useLang, cuisineLabel } from '@/lib/i18n';
 
-type Dish = { id: string; name: string; name_zh?: string | null; cuisine: string; photo_url: string | null; vision_confidence?: number };
+type Dish = { id: string; name: string; name_zh?: string | null; cuisine: string; photo_url: string | null; vision_confidence?: number; is_dish?: boolean };
 type Pick = { id: string; name: string; name_zh: string | null; cuisine: string; source: string; restaurant: string | null };
 
 export default function LogPage() {
@@ -38,6 +38,7 @@ function LogFlow() {
   const [picks, setPicks] = useState<Pick[] | null>(null);
   const [ratingExistingPick, setRatingExistingPick] = useState(false);
   const [addingPhoto, setAddingPhoto] = useState(false);
+  const [confirmedAnyway, setConfirmedAnyway] = useState(false);
 
   function onPickPhoto(f: File | null) {
     setPhoto(f);
@@ -62,7 +63,16 @@ function LogFlow() {
   function rateExistingPick(pick: Pick) {
     setRatingExistingPick(true);
     setDish({ id: pick.id, name: pick.name, name_zh: pick.name_zh, cuisine: pick.cuisine, photo_url: null });
-    setNameOverride(null); setRating(null); setTranscript('');
+    setNameOverride(null); setRating(null); setTranscript(''); setConfirmedAnyway(false);
+  }
+
+  /** Back to the upload screen for a fresh photo — used when the person agrees this
+   * one probably isn't a dish and wants to try again rather than rate it anyway. */
+  function retakePhoto() {
+    setDish(null); setPhoto(null);
+    if (preview) URL.revokeObjectURL(preview);
+    setPreview(null);
+    setConfirmedAnyway(false);
   }
 
   async function deletePick(id: string) {
@@ -194,6 +204,32 @@ function LogFlow() {
 
   // --- Step 2: confirm + rate ---
   const shownName = nameOverride ?? dish.name;
+
+  // A genuine, explicit "this doesn't look like food at all" signal from vision —
+  // distinct from ordinary low-confidence identification (a blurry-but-real dish
+  // still has is_dish: true). Gate rating behind an actual tap, not just a caption
+  // easy to skim past: the taste engine genuinely can't learn anything real from a
+  // photo of, say, a receipt, so this is worth a deliberate speed bump, not a
+  // silent shrug.
+  if (dish.is_dish === false && !confirmedAnyway) {
+    return (
+      <div>
+        <div className="card" style={{ borderColor: 'var(--lacquer)' }}><div className="card-body">
+          {preview && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={preview} alt="" className="card-photo" style={{ marginBottom: 12, opacity: 0.85 }} />
+          )}
+          <p style={{ fontWeight: 800, fontSize: 17, marginBottom: 6 }}>{t('log.notdish.title')}</p>
+          <p className="card-meta" style={{ marginBottom: 14 }}>{t('log.notdish.blurb')}</p>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn ghost" style={{ flex: 1 }} onClick={retakePhoto}>{t('log.notdish.retake')}</button>
+            <button className="btn primary" style={{ flex: 1 }} onClick={() => setConfirmedAnyway(true)}>{t('log.notdish.anyway')}</button>
+          </div>
+        </div></div>
+      </div>
+    );
+  }
+
   return (
     <div>
       <h1 style={{ marginBottom: 4 }}><DishName name={shownName} name_zh={nameOverride ? undefined : dish.name_zh} size="lg" /></h1>

@@ -202,6 +202,7 @@ function MyDishes({ t, lang }: { t: (k: string, p?: Record<string, string | numb
   const [draftName, setDraftName] = useState('');
   const [draftNameZh, setDraftNameZh] = useState('');
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [translating, setTranslating] = useState<'en' | 'zh' | null>(null);
 
   useEffect(() => {
     fetch('/api/my/dishes').then(r => r.json()).then(j => setDishes(j.dishes ?? [])).catch(() => setDishes([]));
@@ -212,6 +213,35 @@ function MyDishes({ t, lang }: { t: (k: string, p?: Record<string, string | numb
     setDraftName(d.name);
     setDraftNameZh(d.name_zh ?? '');
     setSaveError(null);
+    setTranslating(null);
+  }
+
+  /**
+   * Auto-fill the OTHER language field on blur — a suggestion, never a forced
+   * overwrite. Only fills a field that's currently EMPTY: if the person already
+   * has something in the other field (their own correction, or a name that
+   * survived from before), this never clobbers it.
+   */
+  async function autoTranslate(edited: 'en' | 'zh', value: string, otherIsEmpty: boolean) {
+    if (!otherIsEmpty || !value.trim()) return;
+    setTranslating(edited === 'en' ? 'zh' : 'en');
+    try {
+      const res = await fetch('/api/translate/dishname', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: value }),
+      });
+      const json = await res.json();
+      if (json.translated) {
+        // Re-check emptiness at arrival time, not just at call time — the person
+        // may have started typing into the other field while this was in flight.
+        if (edited === 'en') setDraftNameZh(prev => prev.trim() ? prev : json.translated);
+        else setDraftName(prev => prev.trim() ? prev : json.translated);
+      }
+    } catch { /* a missed auto-fill is a minor inconvenience, not an error to surface */ }
+    finally {
+      setTranslating(null);
+    }
   }
 
   // Two explicit fields, not one "smart" field: renaming used to silently patch
@@ -263,10 +293,18 @@ function MyDishes({ t, lang }: { t: (k: string, p?: Record<string, string | numb
             <div style={{ minWidth: 0, flex: 1 }}>
               {editing === d.id ? (
                 <div>
-                  <label className="label" style={{ fontSize: 11.5 }}>{t('home.name.en')}</label>
-                  <input className="field" style={{ marginBottom: 6 }} value={draftName} onChange={e => setDraftName(e.target.value)} autoFocus />
-                  <label className="label" style={{ fontSize: 11.5 }}>{t('home.name.zh')}</label>
-                  <input className="field" value={draftNameZh} onChange={e => setDraftNameZh(e.target.value)} />
+                  <label className="label" style={{ fontSize: 11.5 }}>
+                    {t('home.name.en')}{translating === 'en' && <span className="card-meta"> · {t('home.translating')}</span>}
+                  </label>
+                  <input className="field" style={{ marginBottom: 6 }} value={draftName} autoFocus
+                    onChange={e => setDraftName(e.target.value)}
+                    onBlur={e => autoTranslate('en', e.target.value, !draftNameZh.trim())} />
+                  <label className="label" style={{ fontSize: 11.5 }}>
+                    {t('home.name.zh')}{translating === 'zh' && <span className="card-meta"> · {t('home.translating')}</span>}
+                  </label>
+                  <input className="field" value={draftNameZh}
+                    onChange={e => setDraftNameZh(e.target.value)}
+                    onBlur={e => autoTranslate('zh', e.target.value, !draftName.trim())} />
                   <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
                     <button className="btn primary small" onClick={() => rename(d.id)}>{t('home.save')}</button>
                     <button className="btn ghost small" onClick={() => setEditing(null)}>{t('home.cancel')}</button>

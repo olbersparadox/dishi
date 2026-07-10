@@ -46,6 +46,10 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'log.note': { zh: '滑一下就評到分 — 語音係加分位。兩樣都教緊 Dishi 你嘅口味。', en: 'Rate with a flick — the note is extra credit. Both teach Dishi your taste.' },
   'log.done': { zh: '搞掂', en: 'Done' },
   'log.saving': { zh: '儲緊…', en: 'Saving…' },
+  'log.notdish.title': { zh: '呢張...唔係幾似食物喎？', en: 'This... doesn\u2019t really look like a dish?' },
+  'log.notdish.blurb': { zh: '可能你口味係真係幾特別，又或者呢張相入面根本冇嘢食得。Dishi 老實同你講：唔係食物嘅相，學唔到你嘅口味 \u2014 評落去都係得個吉。真係要評落去？', en: 'Either your taste is wonderfully unusual, or there\u2019s nothing edible in this photo. Honest heads up: Dishi genuinely can\u2019t learn your taste from something that isn\u2019t food \u2014 rating it won\u2019t teach the engine anything. Still want to rate it anyway?' },
+  'log.notdish.retake': { zh: '換張相', en: 'Try another photo' },
+  'log.notdish.anyway': { zh: '照評，我口味係特別', en: 'Rate it anyway' },
   'log.addphotohint': { zh: '得閒影返張相都得，唔影都評到分。', en: 'Optional \u2014 add a photo whenever you like, rating works fine without one.' },
   'log.toRate': { zh: '待評嘅菜', en: 'Dishes to rate' },
   'log.rateNow': { zh: '而家評', en: 'Rate now' },
@@ -226,6 +230,7 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'home.save': { zh: '儲存', en: 'Save' },
   'home.cancel': { zh: '取消', en: 'Cancel' },
   'home.locked': { zh: '已經有其他人評過呢道菜 \u2014 為咗保護佢哋嘅記錄，鎖住咗唔可以改。', en: 'Someone else has rated this \u2014 locked to protect their history.' },
+  'home.translating': { zh: '譯緊…', en: 'translating\u2026' },
   'scan.training': { zh: '再評 {n} 道菜 Dishi 先可以開始推介 — 而家先列出菜式。', en: 'Rate {n} more dishes and Dishi can start recommending — for now, here\u2019s the menu.' },
   'scan.scoring': { zh: '啱緊你嘅口味…（菜式已經讀晒，你可以慢慢睇）', en: 'Matching your taste\u2026 (the menu\u2019s already read \u2014 browse while it finishes)' },
   'scan.scorefailed': { zh: '啱唔到口味，不過菜式讀晒喺度 \u2014 就當普通清單睇啦。', en: 'Couldn\u2019t match these to your taste \u2014 the menu\u2019s still fully read, just shown as a plain list.' },
@@ -243,7 +248,7 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'misc.ratings': { zh: '個評分', en: 'ratings' },
 };
 
-const CJK = /[\u3400-\u9fff\u3040-\u30ff]/;
+export const CJK = /[\u3400-\u9fff\u3040-\u30ff]/;
 
 /**
  * Resolve a dish's bilingual name pair from whatever fields exist.
