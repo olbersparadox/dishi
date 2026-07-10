@@ -7,6 +7,7 @@ import DishName from '@/components/DishName';
 import PhotoPicker from '@/components/PhotoPicker';
 import RestaurantPicker, { RestaurantChoice } from '@/components/RestaurantPicker';
 import { mapWithConcurrency } from '@/lib/concurrency';
+import { toRelativeMatchPercent } from '@/lib/taste';
 import { useLang } from '@/lib/i18n';
 
 type ScannedItem = {
@@ -15,6 +16,11 @@ type ScannedItem = {
   // undefined = not yet requested/still scoring; null = this dish's scoring call
   // failed (degrade gracefully, don't block the rest); number = a real match.
   match?: number | null; reason?: string | null; caution?: string | null;
+  // The Phase 2 endpoint scores ONE dish per call, in isolation — it has no way to
+  // know the other dishes' scores, so its OWN `match` field can't be relative to
+  // anything. raw_score is the real signal; the client recomputes a proper relative
+  // `match` once every dish's raw_score is in (see the settle step below).
+  raw_score?: number;
   // Present once Phase 2 has scored the item — carried through so a "pick" can be
   // created with its real taste attributes instead of an empty/neutral dish.
   attributes?: Record<string, number>;
@@ -199,8 +205,23 @@ function Scanner() {
   // an outcome — scored or failed. While anything is still pending, keep the
   // original menu order so nothing visually jumps around mid-scan.
   const readyToRank = result.profile_ready && settled && !allFailed;
+
+  // The relative-scaling fix: each dish was scored in its OWN isolated call, so its
+  // `match` (from the server) can't reflect how it compares to the rest of THIS
+  // menu. Now that every dish's raw_score is in, recompute `match` relative to the
+  // whole batch — this is what guarantees real visible spread instead of a menu
+  // full of dishes all legitimately clearing the old fixed ceiling and reading
+  // "100%" identically. Sorting uses raw_score directly; the recomputed match is
+  // purely what gets displayed.
+  const allRaw = readyToRank
+    ? result.items.map(i => i.raw_score).filter((r): r is number => r !== undefined)
+    : [];
   const ranked = readyToRank
-    ? [...result.items].sort((a, b) => (b.match ?? -1) - (a.match ?? -1))
+    ? [...result.items]
+        .map(item => item.raw_score !== undefined
+          ? { ...item, match: toRelativeMatchPercent(item.raw_score, allRaw) }
+          : item)
+        .sort((a, b) => (b.raw_score ?? -Infinity) - (a.raw_score ?? -Infinity))
     : result.items;
   const [top, ...rest] = ranked;
 

@@ -1,4 +1,4 @@
-import { contentScore, toMatchPercent, type TasteVector, type DishVector } from './taste';
+import { contentScore, toRelativeMatchPercent, type TasteVector, type DishVector } from './taste';
 import { DIMS } from './taste';
 
 // Extracted from the old single-phase route so Phase 2 (score/route.ts) can use it,
@@ -62,16 +62,15 @@ export function rankMenuItems<T extends ScorableItem>(
   affinity: Record<string, number>,
   includeReasons: boolean,
 ): (T & { match: number; raw_score: number; reason: string | null; caution: string | null })[] {
-  return items
-    .map(item => {
-      const raw = contentScore(taste, item.attributes, affinity, item.cuisine);
-      return {
-        ...item,
-        match: toMatchPercent(raw),
-        raw_score: raw,
-        reason: includeReasons ? composeReason(item, taste, affinity) : null,
-        caution: includeReasons ? composeCaution(item, taste) : null,
-      };
-    })
+  const withRaw = items.map(item => ({ item, raw: contentScore(taste, item.attributes, affinity, item.cuisine) }));
+  const allRaw = withRaw.map(x => x.raw);
+  return withRaw
+    .map(({ item, raw }) => ({
+      ...item,
+      match: toRelativeMatchPercent(raw, allRaw),
+      raw_score: raw,
+      reason: includeReasons ? composeReason(item, taste, affinity) : null,
+      caution: includeReasons ? composeCaution(item, taste) : null,
+    }))
     .sort((a, b) => b.raw_score - a.raw_score);
 }

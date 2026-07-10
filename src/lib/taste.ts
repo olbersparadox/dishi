@@ -121,6 +121,36 @@ export function toMatchPercent(raw: number, gain = 8): number {
   return Math.round(clamp((raw * gain + 1) * 50, 0, 100));
 }
 
+/**
+ * Map a raw score to a percent RELATIVE to the other raw scores in the same batch
+ * (the rest of a scanned menu, a feed page, a table's candidate list) — stretching
+ * whatever spread actually exists in this batch across a legible display range.
+ *
+ * Why this exists alongside the fixed-gain toMatchPercent: that function assumes a
+ * "typical" raw-score magnitude and saturates at its 100 clamp once real scores run
+ * bigger than expected — which happens for anyone with several strong preferences
+ * at once, or a menu that's unusually well-aligned with one person's taste. Real
+ * production case: a 20-dish menu where nearly every dish legitimately scored above
+ * the fixed ceiling, so every dish displayed "100%" even though the underlying
+ * reasons (and raw scores) were genuinely different per dish. Relative scaling
+ * can't run out of headroom — whatever the actual best and worst dishes in THIS
+ * batch are, they'll always show visible separation.
+ *
+ * Ranking/order is untouched by this — that always comes from raw scores directly.
+ * This function only affects what NUMBER gets displayed next to a dish.
+ */
+export function toRelativeMatchPercent(raw: number, allRaw: number[], floor = 15, ceiling = 95): number {
+  if (allRaw.length === 0) return 50;
+  const min = Math.min(...allRaw);
+  const max = Math.max(...allRaw);
+  const spread = max - min;
+  // Everything in the batch is (near-)identical — there's nothing real to spread
+  // across, so show an honest flat neutral rather than manufacturing fake variance.
+  if (spread < 1e-6) return 50;
+  const frac = (raw - min) / spread;
+  return Math.round(clamp(floor + frac * (ceiling - floor), floor, ceiling));
+}
+
 function clamp(x: number, lo: number, hi: number) {
   return Math.min(hi, Math.max(lo, x));
 }
