@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseServer, supabaseAdmin } from '@/lib/supabase/server';
+import { translateDishName, inferCuisineFromName } from '@/lib/translate';
 
 /**
  * The caller's own logged dishes, for the feed's "my dishes" section.
@@ -93,6 +94,27 @@ export async function GET(req: NextRequest) {
   });
 }
 
+/**
+ * PATCH { dish_id, name?, name_zh?, edited_en?, edited_zh? }
+ * -> rename, with translation and cuisine re-derivation (blocked server-side if locked)
+ *
+ * edited_en/edited_zh tell the server which field the PERSON actually typed this
+ * session, as opposed to text that's just sitting there from the original vision
+ * guess. This matters because the two must be treated differently:
+ *   - edited exactly one language -> the untouched field is stale machine text
+ *     (or empty); translate the edited value into it, overwriting freely.
+ *   - edited both -> both are the person's own words; never auto-translate over
+ *     either one.
+ * Previously auto-translate only checked "is the other field currently empty,"
+ * so correcting an already-named dish (the common case, since vision names BOTH
+ * languages at creation) never re-translated anything, silently leaving a stale,
+ * now-wrong name in whichever language wasn't touched.
+ *
+ * Cuisine is re-derived from whichever name the person actually corrected, since a
+ * wrong vision name usually means the cuisine guessed alongside it is wrong too.
+ * Best-effort throughout: any translate/infer failure keeps the existing value
+ * rather than blocking the rename itself.
+ */
 export async function PATCH(req: NextRequest) {
   const supabase = supabaseServer();
   const { data: { user } } = await supabase.auth.getUser();
@@ -108,13 +130,31 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: 'Others have rated this dish — it\u2019s locked to protect their history.' }, { status: 409 });
   }
 
+  const name = typeof body.name === 'string' ? body.name.trim().slice(0, 120) : undefined;
+  const nameZh = typeof body.name_zh === 'string' ? body.name_zh.trim().slice(0, 120) : undefined;
+  const editedEn = !!body.edited_en, editedZh = !!body.edited_zh;
+  if (name === undefined && nameZh === undefined) return NextResponse.json({ error: 'Nothing to update.' }, { status: 400 });
+
   const patch: Record<string, string | null> = {};
-  if (typeof body.name === 'string' && body.name.trim()) patch.name = body.name.trim().slice(0, 120);
-  if (typeof body.name_zh === 'string') patch.name_zh = body.name_zh.trim().slice(0, 120) || null;
-  if (Object.keys(patch).length === 0) return NextResponse.json({ error: 'Nothing to update.' }, { status: 400 });
+  if (name) patch.name = name;
+  if (nameZh !== undefined) patch.name_zh = nameZh || null;
+
+  if (editedEn && !editedZh && name) {
+    const translated = await translateDishName(name);
+    if (translated) patch.name_zh = translated;
+  } else if (editedZh && !editedEn && nameZh) {
+    const translated = await translateDishName(nameZh);
+    if (translated) patch.name = translated;
+  }
+
+  const correctedName = editedEn ? name : editedZh ? nameZh : undefined;
+  if (correctedName) {
+    const cuisine = await inferCuisineFromName(correctedName);
+    if (cuisine) patch.cuisine = cuisine;
+  }
 
   const { data, error } = await supabase
-    .from('dishes').update(patch).eq('id', dishId).select('id, name, name_zh').single();
+    .from('dishes').update(patch).eq('id', dishId).select('id, name, name_zh, cuisine').single();
   if (error || !data) return NextResponse.json({ error: 'Not found or not yours.' }, { status: 403 });
   return NextResponse.json({ dish: data });
 }

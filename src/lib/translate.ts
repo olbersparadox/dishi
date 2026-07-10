@@ -30,3 +30,24 @@ export async function translateDishName(text: string): Promise<string | null> {
   const cleaned = result?.trim().replace(/^["']|["']$/g, '');
   return cleaned || null;
 }
+
+const CUISINE_SYSTEM = `You identify the cuisine of a single restaurant dish from its name, for a
+food app's dish record. Respond with ONLY a lowercase cuisine word (e.g. cantonese,
+sichuan, japanese, thai, italian, korean, vietnamese, western, fusion) — no quotes,
+no explanation. If the name gives genuinely no cultural signal, respond with exactly:
+unknown`;
+
+/**
+ * Re-derives cuisine from a (possibly corrected) dish name. Used whenever a person
+ * fixes a wrong vision-guessed name: the cuisine vision guessed alongside that wrong
+ * name is frozen and wrong too unless something re-derives it from the corrected
+ * text. Returns null on any failure — a missed re-derivation keeps the existing
+ * cuisine rather than blocking the name save the user actually asked for.
+ */
+export async function inferCuisineFromName(name: string): Promise<string | null> {
+  const trimmed = name.trim();
+  if (!trimmed) return null;
+  const result = await callClaude(CUISINE_SYSTEM, `Dish name: ${trimmed}`, { maxTokens: 10 });
+  const cleaned = result?.trim().toLowerCase().replace(/[^a-z]/g, '');
+  return cleaned || null;
+}

@@ -44,6 +44,10 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'log.how': { zh: '好唔好食？', en: 'How was it?' },
   'log.anything': { zh: '仲有咩想講？', en: 'Anything to add?' },
   'log.note': { zh: '滑一下就評到分 — 語音係加分位。兩樣都教緊 Dishi 你嘅口味。', en: 'Rate with a flick — the note is extra credit. Both teach Dishi your taste.' },
+  'voice.err.permission': { zh: '冇到麥克風權限 — 可以打字代替', en: 'Microphone access was denied — you can type instead' },
+  'voice.err.language': { zh: '呢部機唔支援語音辨識廣東話 — 可以打字代替', en: "This device doesn't support speech recognition for this language — you can type instead" },
+  'voice.err.nospeech': { zh: '冇聽到聲音 — 可以再試或者打字', en: "Didn't catch any speech — try again or type instead" },
+  'voice.err.generic': { zh: '語音錄唔到 — 可以打字代替', en: "Voice recording isn't working right now — you can type instead" },
   'log.done': { zh: '搞掂', en: 'Done' },
   'log.saving': { zh: '儲緊…', en: 'Saving…' },
   'log.notdish.title': { zh: '呢張...唔係幾似食物喎？', en: 'This... doesn\u2019t really look like a dish?' },
@@ -66,6 +70,7 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'log.lowconf': { zh: '唔太肯定 — ', en: 'Low-confidence guess — ' },
   'log.notright': { zh: '唔啱？', en: 'not right?' },
   'log.fixname': { zh: '改名', en: 'Fix the name' },
+  'log.confirmName': { zh: '確認', en: 'Confirm' },
   'log.uploadfail': { zh: '上載失敗。檢查下網絡再試。', en: 'The upload failed. Check your connection and try again.' },
 
   // ---- flick rating ----
@@ -230,7 +235,8 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'home.save': { zh: '儲存', en: 'Save' },
   'home.cancel': { zh: '取消', en: 'Cancel' },
   'home.locked': { zh: '已經有其他人評過呢道菜 \u2014 為咗保護佢哋嘅記錄，鎖住咗唔可以改。', en: 'Someone else has rated this \u2014 locked to protect their history.' },
-  'home.translating': { zh: '譯緊…', en: 'translating\u2026' },
+  'home.saving': { zh: '儲存緊…', en: 'Saving\u2026' },
+  'home.translateOnSave': { zh: '得閒填一種語言就得 — 儲存嗰陣自動幫你譯埋另一種', en: 'Fill in just one language if you like — the other translates automatically on save' },
   'home.loadingmore': { zh: '載入緊更多…', en: 'Loading more\u2026' },
   'scan.training': { zh: '再評 {n} 道菜 Dishi 先可以開始推介 — 而家先列出菜式。', en: 'Rate {n} more dishes and Dishi can start recommending — for now, here\u2019s the menu.' },
   'scan.scoring': { zh: '啱緊你嘅口味…（菜式已經讀晒，你可以慢慢睇）', en: 'Matching your taste\u2026 (the menu\u2019s already read \u2014 browse while it finishes)' },

@@ -28,8 +28,13 @@ function LogFlow() {
   const [preview, setPreview] = useState<string | null>(null);
   const [restaurant, setRestaurant] = useState<RestaurantChoice>(null);
   const [dish, setDish] = useState<Dish | null>(null);
-  const [nameOverride, setNameOverride] = useState<string | null>(null);
   const [editingName, setEditingName] = useState(false);
+  const [draftName, setDraftName] = useState('');
+  const [draftNameZh, setDraftNameZh] = useState('');
+  const [editedEn, setEditedEn] = useState(false);
+  const [editedZh, setEditedZh] = useState(false);
+  const [savingName, setSavingName] = useState(false);
+  const [nameSaveError, setNameSaveError] = useState<string | null>(null);
   const [transcript, setTranscript] = useState('');
   const [rating, setRating] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
@@ -63,7 +68,8 @@ function LogFlow() {
   function rateExistingPick(pick: Pick) {
     setRatingExistingPick(true);
     setDish({ id: pick.id, name: pick.name, name_zh: pick.name_zh, cuisine: pick.cuisine, photo_url: null });
-    setNameOverride(null); setRating(null); setTranscript(''); setConfirmedAnyway(false);
+    setRating(null); setTranscript(''); setConfirmedAnyway(false);
+    setEditingName(false); setNameSaveError(null);
   }
 
   /** Back to the upload screen for a fresh photo — used when the person agrees this
@@ -108,7 +114,53 @@ function LogFlow() {
     }
   }
 
-  /** Upload photo + restaurant, get vision result back. */
+  /** Open the two-field name editor, seeded with the current (vision-guessed) names. */
+  function startEditName() {
+    if (!dish) return;
+    setDraftName(dish.name);
+    setDraftNameZh(dish.name_zh ?? '');
+    setEditedEn(false); setEditedZh(false);
+    setNameSaveError(null);
+    setEditingName(true);
+  }
+
+  /**
+   * Confirm tapped: saves the corrected name(s) to the dish BEFORE rating, via the
+   * same endpoint the home page's rename form uses. This replaces the old
+   * blur-to-commit behavior, which only ever changed what was on screen for that
+   * screen visit — the correction was never actually sent to the server, so it
+   * silently vanished the moment you rated and moved on, and the cuisine vision
+   * guessed alongside the wrong name was never revisited either. Confirming here
+   * updates the dish's real name AND its cuisine (the server re-derives it from
+   * whichever name you corrected), and fills in a translation for the language you
+   * didn't touch.
+   */
+  async function saveName() {
+    if (!dish) return;
+    const name = draftName.trim();
+    if (!name) return;
+    setSavingName(true); setNameSaveError(null);
+    try {
+      const res = await fetch('/api/my/dishes', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          dish_id: dish.id, name, name_zh: draftNameZh.trim() || null,
+          edited_en: editedEn, edited_zh: editedZh,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Could not save that name.');
+      setDish(prev => prev ? { ...prev, name: json.dish.name, name_zh: json.dish.name_zh, cuisine: json.dish.cuisine } : prev);
+      setEditingName(false);
+    } catch (e: any) {
+      setNameSaveError(e.message || 'Something went wrong saving that name.');
+    } finally {
+      setSavingName(false);
+    }
+  }
+
+
   async function logDish() {
     if (!photo) return;
     setBusy(true); setError('');
@@ -202,8 +254,9 @@ function LogFlow() {
     );
   }
 
-  // --- Step 2: confirm + rate ---
-  const shownName = nameOverride ?? dish.name;
+  // dish.name/dish.cuisine are now always the source of truth — saveName() updates
+  // them for real (server-side, including cuisine re-derivation) rather than a
+  // client-only override that vanished on navigation and never touched cuisine.
 
   // A genuine, explicit "this doesn't look like food at all" signal from vision —
   // distinct from ordinary low-confidence identification (a blurry-but-real dish
@@ -232,25 +285,36 @@ function LogFlow() {
 
   return (
     <div>
-      <h1 style={{ marginBottom: 4 }}><DishName name={shownName} name_zh={nameOverride ? undefined : dish.name_zh} size="lg" /></h1>
+      <h1 style={{ marginBottom: 4 }}><DishName name={dish.name} name_zh={dish.name_zh} size="lg" /></h1>
       {/* A pick rated directly (no vision run, no photo) skips the "looks X, not
           right?" line entirely — there's no vision guess here to second-guess. */}
-      {!ratingExistingPick && (
+      {!ratingExistingPick && !editingName && (
         <p className="card-meta" style={{ marginBottom: 4 }}>
           {dish.cuisine !== 'unknown' ? t('log.looks', { cuisine: cuisineLabel(dish.cuisine, lang) || dish.cuisine }) : ''}
           {(dish.vision_confidence ?? 1) < 0.5 ? t('log.lowconf') : ''}
           {t('log.notright')}{' '}
-          <button className="btn ghost small" onClick={() => setEditingName(true)}>{t('log.fixname')}</button>
+          <button className="btn ghost small" onClick={startEditName}>{t('log.fixname')}</button>
         </p>
       )}
       {editingName && (
-        <input
-          className="field"
-          style={{ margin: '8px 0' }}
-          defaultValue={shownName}
-          onBlur={e => { setNameOverride(e.target.value); setEditingName(false); }}
-          autoFocus
-        />
+        <div style={{ margin: '8px 0' }}>
+          <label className="label" style={{ fontSize: 11.5 }}>{t('home.name.en')}</label>
+          <input className="field" style={{ marginBottom: 6 }} value={draftName} autoFocus
+            onChange={e => { setDraftName(e.target.value); setEditedEn(true); }} />
+          <label className="label" style={{ fontSize: 11.5 }}>{t('home.name.zh')}</label>
+          <input className="field" value={draftNameZh}
+            onChange={e => { setDraftNameZh(e.target.value); setEditedZh(true); }} />
+          <p className="card-meta" style={{ marginTop: 4 }}>{t('home.translateOnSave')}</p>
+          {nameSaveError && <p style={{ color: 'var(--lacquer)', fontSize: 12.5, marginTop: 4 }}>{nameSaveError}</p>}
+          <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+            <button className="btn primary" style={{ flex: 1 }} disabled={savingName || !draftName.trim()} onClick={saveName}>
+              {savingName ? t('home.saving') : t('log.confirmName')}
+            </button>
+            <button className="btn ghost" style={{ flex: 1 }} disabled={savingName} onClick={() => { setEditingName(false); setNameSaveError(null); }}>
+              {t('home.cancel')}
+            </button>
+          </div>
+        </div>
       )}
 
       <label className="label">{t('log.how')}</label>
@@ -259,7 +323,7 @@ function LogFlow() {
           dish.photo_url, a fresh network fetch of the exact same image the user
           just looked at one screen ago. The server URL is only a fallback for the
           (normally unreachable) case where the local preview isn't available. */}
-      <FlickRating photoUrl={preview ?? dish.photo_url} dishName={shownName} onRate={onRate} />
+      <FlickRating photoUrl={preview ?? dish.photo_url} dishName={dish.name} onRate={onRate} />
 
       {/* Only offered when there's genuinely no photo yet (a pick rated without one)
           — a normal photographed dish already has its photo from Step 1 and never

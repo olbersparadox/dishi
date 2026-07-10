@@ -201,8 +201,14 @@ function MyDishes({ t, lang }: { t: (k: string, p?: Record<string, string | numb
   const [editing, setEditing] = useState<string | null>(null);
   const [draftName, setDraftName] = useState('');
   const [draftNameZh, setDraftNameZh] = useState('');
+  // Which field the person actually typed into THIS edit session, as opposed to
+  // text just sitting there from the original vision guess. Sent to the server so
+  // it knows which language is "corrected" (re-translate + re-derive cuisine from
+  // it) versus untouched (safe to overwrite with a fresh translation).
+  const [editedEn, setEditedEn] = useState(false);
+  const [editedZh, setEditedZh] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [translating, setTranslating] = useState<'en' | 'zh' | null>(null);
+  const [saving, setSaving] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
@@ -249,58 +255,41 @@ function MyDishes({ t, lang }: { t: (k: string, p?: Record<string, string | numb
     setEditing(d.id);
     setDraftName(d.name);
     setDraftNameZh(d.name_zh ?? '');
+    setEditedEn(false); setEditedZh(false);
     setSaveError(null);
-    setTranslating(null);
-  }
-
-  /**
-   * Auto-fill the OTHER language field on blur — a suggestion, never a forced
-   * overwrite. Only fills a field that's currently EMPTY: if the person already
-   * has something in the other field (their own correction, or a name that
-   * survived from before), this never clobbers it.
-   */
-  async function autoTranslate(edited: 'en' | 'zh', value: string, otherIsEmpty: boolean) {
-    if (!otherIsEmpty || !value.trim()) return;
-    setTranslating(edited === 'en' ? 'zh' : 'en');
-    try {
-      const res = await fetch('/api/translate/dishname', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: value }),
-      });
-      const json = await res.json();
-      if (json.translated) {
-        // Re-check emptiness at arrival time, not just at call time — the person
-        // may have started typing into the other field while this was in flight.
-        if (edited === 'en') setDraftNameZh(prev => prev.trim() ? prev : json.translated);
-        else setDraftName(prev => prev.trim() ? prev : json.translated);
-      }
-    } catch { /* a missed auto-fill is a minor inconvenience, not an error to surface */ }
-    finally {
-      setTranslating(null);
-    }
   }
 
   // Two explicit fields, not one "smart" field: renaming used to silently patch
   // only the English name, which was invisible whenever the app happened to be
   // displaying the Chinese name as primary. Editing exactly what's on screen,
   // labeled by language, removes that whole class of "my edit didn't show up" bug.
+  //
+  // Translation and cuisine re-derivation now happen server-side, atomically with
+  // the save (see the PATCH handler) rather than on blur: a blur-triggered call
+  // used to race the save itself, and only ever filled a field that was already
+  // empty — so correcting an existing wrong name never re-translated the other
+  // language or revisited the cuisine vision guessed alongside the wrong name.
   async function rename(id: string) {
     const name = draftName.trim();
     const name_zh = draftNameZh.trim();
     if (!name) { setEditing(null); return; }
-    setEditing(null); setSaveError(null);
-    setDishes(prev => prev?.map(d => d.id === id ? { ...d, name, name_zh: name_zh || null } : d) ?? null);
+    setSaving(true); setSaveError(null);
     const res = await fetch('/api/my/dishes', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ dish_id: id, name, name_zh: name_zh || null }),
+      body: JSON.stringify({ dish_id: id, name, name_zh: name_zh || null, edited_en: editedEn, edited_zh: editedZh }),
     });
+    setSaving(false);
     if (!res.ok) {
       const json = await res.json().catch(() => ({}));
       setSaveError(json.error ?? 'Could not save.');
-      fetch('/api/my/dishes').then(r => r.json()).then(j => setDishes(j.dishes ?? [])); // resync on failure
+      return;
     }
+    // Applied from the server's response, not optimistically — the server may have
+    // filled in a translation or re-derived cuisine, so its answer is the real one.
+    const { dish } = await res.json();
+    setDishes(prev => prev?.map(d => d.id === id ? { ...d, name: dish.name, name_zh: dish.name_zh, cuisine: dish.cuisine } : d) ?? null);
+    setEditing(null);
   }
 
   async function remove(id: string) {
@@ -330,21 +319,18 @@ function MyDishes({ t, lang }: { t: (k: string, p?: Record<string, string | numb
             <div style={{ minWidth: 0, flex: 1 }}>
               {editing === d.id ? (
                 <div>
-                  <label className="label" style={{ fontSize: 11.5 }}>
-                    {t('home.name.en')}{translating === 'en' && <span className="card-meta"> · {t('home.translating')}</span>}
-                  </label>
+                  <label className="label" style={{ fontSize: 11.5 }}>{t('home.name.en')}</label>
                   <input className="field" style={{ marginBottom: 6 }} value={draftName} autoFocus
-                    onChange={e => setDraftName(e.target.value)}
-                    onBlur={e => autoTranslate('en', e.target.value, !draftNameZh.trim())} />
-                  <label className="label" style={{ fontSize: 11.5 }}>
-                    {t('home.name.zh')}{translating === 'zh' && <span className="card-meta"> · {t('home.translating')}</span>}
-                  </label>
+                    onChange={e => { setDraftName(e.target.value); setEditedEn(true); }} />
+                  <label className="label" style={{ fontSize: 11.5 }}>{t('home.name.zh')}</label>
                   <input className="field" value={draftNameZh}
-                    onChange={e => setDraftNameZh(e.target.value)}
-                    onBlur={e => autoTranslate('zh', e.target.value, !draftName.trim())} />
+                    onChange={e => { setDraftNameZh(e.target.value); setEditedZh(true); }} />
+                  <p className="card-meta" style={{ marginTop: 4 }}>{t('home.translateOnSave')}</p>
                   <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
-                    <button className="btn primary small" onClick={() => rename(d.id)}>{t('home.save')}</button>
-                    <button className="btn ghost small" onClick={() => setEditing(null)}>{t('home.cancel')}</button>
+                    <button className="btn primary small" disabled={saving} onClick={() => rename(d.id)}>
+                      {saving ? t('home.saving') : t('home.save')}
+                    </button>
+                    <button className="btn ghost small" disabled={saving} onClick={() => setEditing(null)}>{t('home.cancel')}</button>
                   </div>
                 </div>
               ) : (

@@ -1,7 +1,7 @@
 'use client';
 import { useRef, useState } from 'react';
 import { useLang } from '@/lib/i18n';
-import { wordKeyFor, CHIPS } from '@/lib/flickWords';
+import { wordKeyFor, CHIPS, WORD_MIN } from '@/lib/flickWords';
 
 /**
  * The signature interaction. Three patterns were considered:
@@ -48,9 +48,9 @@ export default function FlickRating({
 
   const RANGE = 180; // px of drag for full intensity
   // Accidental-rating guard: below this, release is treated as a tap/tremor, not a
-  // rating. 0.18 * 180px = ~32px of deliberate travel (was 18px — too twitchy on
-  // real phones, per field testing).
-  const COMMIT_MIN = 0.18;
+  // rating. MUST equal WORD_MIN (where a rating word starts showing) — see
+  // flickWords.ts for why a mismatch here silently swallows the lowest band.
+  const COMMIT_MIN = WORD_MIN;
 
   function onPointerDown(e: React.PointerEvent) {
     (e.target as Element).setPointerCapture(e.pointerId);
@@ -107,7 +107,7 @@ export default function FlickRating({
         aria-valuemin={-1}
         aria-valuemax={1}
         aria-valuenow={Number(v.toFixed(2))}
-        aria-valuetext={Math.abs(v) >= 0.1 ? t(wordKeyFor(v)) : t('flick.notyet')}
+        aria-valuetext={Math.abs(v) >= WORD_MIN ? t(wordKeyFor(v)) : t('flick.notyet')}
         tabIndex={0}
       >
         {photoUrl ? (
@@ -127,7 +127,7 @@ export default function FlickRating({
         <div className="flick-gauge" aria-hidden>
           <div className="flick-fill" style={{ ...fillPos, height: fillHeight, background: fillColor }} />
         </div>
-        {Math.abs(v) >= 0.1 && <div className="flick-word">{t(wordKeyFor(v))}</div>}
+        {Math.abs(v) >= WORD_MIN && <div className="flick-word">{t(wordKeyFor(v))}</div>}
         {!active && rated === null && Math.abs(v) < 0.1 && (
           <div className="flick-hint">{t('flick.hint')}</div>
         )}
