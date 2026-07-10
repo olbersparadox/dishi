@@ -48,12 +48,20 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  const { data: dishes } = await supabase
+  const PAGE_SIZE = 12;
+  const before = req.nextUrl.searchParams.get('before');
+
+  let query = supabase
     .from('dishes')
     .select('id, name, name_zh, cuisine, photo_url, created_at, restaurant_id, restaurants(name)')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
-    .limit(12);
+    .limit(PAGE_SIZE);
+  // Cursor pagination (not offset): stays correct even if new dishes get added
+  // between page loads, which a simple page-number/offset scheme would silently
+  // skip or duplicate around.
+  if (before) query = query.lt('created_at', before);
+  const { data: dishes } = await query;
 
   const ids = (dishes ?? []).map(d => d.id);
   const admin = supabaseAdmin();
@@ -79,7 +87,9 @@ export async function GET(req: NextRequest) {
       hearts: hearts.get(d.id) ?? 0,
       my_score: myScores.get(d.id) ?? null,
       locked: locked.get(d.id) ?? false,
+      created_at: d.created_at, // used as the next page's `before` cursor
     })),
+    has_more: (dishes ?? []).length === PAGE_SIZE,
   });
 }
 

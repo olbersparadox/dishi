@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import AuthGate from '@/components/AuthGate';
 import DishName from '@/components/DishName';
 import Buddy from '@/components/Buddy';
@@ -192,7 +192,7 @@ function HeartButton({ marked, onMark, t }: { marked: boolean; onMark: () => voi
 type MyDish = {
   id: string; name: string; name_zh: string | null; cuisine: string | null;
   photo_url: string | null; restaurant: string | null; hearts: number; my_score: number | null;
-  locked: boolean;
+  locked: boolean; created_at: string;
 };
 
 /** The user's own logged dishes: photo, hearts received, inline rename, delete. */
@@ -203,10 +203,47 @@ function MyDishes({ t, lang }: { t: (k: string, p?: Record<string, string | numb
   const [draftNameZh, setDraftNameZh] = useState('');
   const [saveError, setSaveError] = useState<string | null>(null);
   const [translating, setTranslating] = useState<'en' | 'zh' | null>(null);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    fetch('/api/my/dishes').then(r => r.json()).then(j => setDishes(j.dishes ?? [])).catch(() => setDishes([]));
+    fetch('/api/my/dishes')
+      .then(r => r.json())
+      .then(j => { setDishes(j.dishes ?? []); setHasMore(!!j.has_more); })
+      .catch(() => setDishes([]));
   }, []);
+
+  /**
+   * Infinite scroll, Instagram/Facebook-style: a sentinel div sits just past the
+   * last card. IntersectionObserver (not a scroll listener) fires once it enters
+   * the viewport, fetches the next page keyed off the last dish's created_at, and
+   * appends. Cheap — the browser handles the "is this near the bottom" check
+   * natively, no per-scroll-event JS running.
+   */
+  const loadMore = useCallback(async () => {
+    if (loadingMore || !hasMore || !dishes || dishes.length === 0) return;
+    setLoadingMore(true);
+    try {
+      const cursor = dishes[dishes.length - 1].created_at;
+      const res = await fetch(`/api/my/dishes?before=${encodeURIComponent(cursor)}`);
+      const json = await res.json();
+      setDishes(prev => [...(prev ?? []), ...(json.dishes ?? [])]);
+      setHasMore(!!json.has_more);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [dishes, hasMore, loadingMore]);
+
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting) loadMore();
+    }, { rootMargin: '400px' }); // start loading a bit before it's actually visible
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [loadMore]);
 
   function startEdit(d: MyDish) {
     setEditing(d.id);
@@ -335,6 +372,10 @@ function MyDishes({ t, lang }: { t: (k: string, p?: Record<string, string | numb
           </div>
         </article>
       ))}
+      {/* Invisible trigger for the next page — IntersectionObserver above watches
+          this, not the scroll position, so nothing runs per-scroll-event. */}
+      <div ref={sentinelRef} style={{ height: 1 }} aria-hidden />
+      {loadingMore && <p className="card-meta" style={{ textAlign: 'center', padding: '8px 0' }}>{t('home.loadingmore')}</p>}
     </>
   );
 }

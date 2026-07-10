@@ -4,6 +4,7 @@ import AuthGate from '@/components/AuthGate';
 import { supabaseBrowser } from '@/lib/supabase/client';
 import { DIMS } from '@/lib/taste';
 import BuddyCard from '@/components/BuddyCard';
+import TasteRadar from '@/components/TasteRadar';
 import { useLang, cuisineLabel } from '@/lib/i18n';
 
 export default function ProfilePage() {
@@ -56,7 +57,11 @@ function TasteProfile() {
         {count === 0 ? (
           <p className="card-meta">{t('profile.blank')}</p>
         ) : (
-          <div className="bars">
+          <>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+              <TasteRadar vector={vector} />
+            </div>
+            <div className="bars">
             {DIMS.map(dim => {
               const v = vector[dim] ?? 0;
               const width = Math.abs(v) * 50;
@@ -77,6 +82,7 @@ function TasteProfile() {
               );
             })}
           </div>
+          </>
         )}
       </div></div>
 

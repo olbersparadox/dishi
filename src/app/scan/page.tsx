@@ -290,7 +290,7 @@ function Scanner() {
           every dish has a real outcome — the "satisfying settle" moment. */}
       {readyToRank && (
         <div className="scan-settle">
-          <article className={`card scan-hero scan-pickable ${picked.has(top.name_original) ? 'picked' : ''}`}
+          <article className={`card scan-hero scan-pickable scan-settle-row ${picked.has(top.name_original) ? 'picked' : ''}`}
             onClick={() => togglePick(top.name_original)}>
             <div className="card-body">
               <span className="reason collab">{t('scan.order')}</span>
@@ -310,7 +310,7 @@ function Scanner() {
           </article>
 
           {rest.map((item, i) => (
-            <article className={`card scan-pickable ${picked.has(item.name_original) ? 'picked' : ''}`} key={`${item.name}-${i}`}
+            <article className={`card scan-pickable scan-settle-row ${picked.has(item.name_original) ? 'picked' : ''}`} key={`${item.name}-${i}`}
               onClick={() => togglePick(item.name_original)}>
               <div className="card-body scan-row">
                 <div className="scan-rank">{i + 2}</div>
@@ -384,9 +384,16 @@ function MatchRing({ value, size }: { value: number | null | undefined; size: nu
   const c = 2 * Math.PI * r;
 
   if (value === undefined) {
+    // A true rotating spinner, not just a pulsing dashed ring — the dashed-pulse
+    // version read as "already at some static state" rather than "actively working"
+    // to real users. A short arc that visibly SPINS is the unambiguous version.
     return (
-      <svg width={size} height={size} role="img" aria-label="Matching…" style={{ flexShrink: 0 }} className="match-ring-pending">
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--line)" strokeWidth={5} strokeDasharray={`${c * 0.28} ${c * 0.14}`} />
+      <svg width={size} height={size} role="img" aria-label="Matching…" style={{ flexShrink: 0 }} className="match-ring-spinner">
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--line)" strokeWidth={5} opacity={0.35} />
+        <circle
+          cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--egg-tart)" strokeWidth={5}
+          strokeLinecap="round" strokeDasharray={`${c * 0.22} ${c}`}
+        />
       </svg>
     );
   }
