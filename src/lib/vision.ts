@@ -1,4 +1,4 @@
-import { DIMS, DishVector } from './taste';
+import { DIMS, DishVector, LEARN_CUTOFF } from './taste';
 import { callClaude, imagePart, textPart, parseJsonResponse } from './openrouter';
 
 export type VisionResult = {
@@ -56,8 +56,18 @@ export async function inferDish(base64: string, mediaType: string): Promise<Visi
 }
 
 function sanitize(raw: any): VisionResult {
+  // Keep only dims the model reported with real presence (>= LEARN_CUTOFF). The old
+  // loop wrote a value for EVERY dim, defaulting missing ones to 0 — which densified
+  // the stored vector and reintroduced the missing-vs-confirmed-absent bug through
+  // the back door: a stored murmur 0.1 is indistinguishable from confirmed
+  // near-absence at both scoring and learning time. Live production rows (all 18
+  // keys present on a photo-logged dish) confirmed this was happening. Sparse
+  // storage makes the data match the epistemology the engine already commits to.
   const attributes: DishVector = {};
-  for (const d of DIMS) attributes[d] = clamp01(Number(raw?.attributes?.[d] ?? 0));
+  for (const d of DIMS) {
+    const v = clamp01(Number(raw?.attributes?.[d] ?? 0));
+    if (v >= LEARN_CUTOFF) attributes[d] = v;
+  }
   return {
     name: String(raw?.name ?? 'Unknown dish'),
     name_zh: raw?.name_zh ? String(raw.name_zh) : null,

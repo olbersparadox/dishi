@@ -26,39 +26,97 @@ export function emptyTaste(): TasteVector {
 }
 
 /**
+ * Evidence: how many ratings have actually TAUGHT each dimension. Powers three
+ * things: (1) the per-dim learning rate below, (2) honest reason text — never
+ * claim "because you love umami" about a dim no rating ever taught, (3) which
+ * dims the Buddy should target for exploration. Deliberately NOT used to gate
+ * or adjust recommendation scores: simulation showed evidence-based confidence
+ * has no real power to predict which predictions are wrong, and a confidence
+ * gate that can't discriminate is credibility theater.
+ */
+export type EvidenceMap = Record<string, number>;
+
+/**
+ * Below this presence, a VISION-reported attribute teaches nothing. Live production
+ * data showed the vision model reports murmur values (0.05-0.15) for attributes it
+ * has no real opinion on; the centering transform reads those as near-confirmed
+ * absence, so loving the dish pushed every murmured dim negative — the same class
+ * of corruption as the original missing-dim bug, sneaking in through low values
+ * instead of missing keys. Simulation (30-trial ground-truth runs through this real
+ * code): murmur-learning compounds phantom preferences as ratings accumulate
+ * (0.26 -> 0.47 mean fake preference), thresholding holds them near zero; the exact
+ * cutoff barely matters (0.25 vs 0.35 indistinguishable). Voice values are EXEMPT —
+ * "barely spicy" spoken by the eater is genuine testimony, not model murmur.
+ */
+export const LEARN_CUTOFF = 0.3;
+
+/** Which dims a rating teaches, and with what presence. The single source of truth
+ * shared by updateTaste and bumpEvidence so the vector and its evidence counters can
+ * never disagree about what was learned. */
+export function taughtDims(dish: DishVector, voiceAttrs?: DishVector | null): { dim: Dim; presence: number }[] {
+  const out: { dim: Dim; presence: number }[] = [];
+  for (const dim of DIMS) {
+    const fromVoice = voiceAttrs?.[dim];
+    if (fromVoice !== undefined) { out.push({ dim, presence: fromVoice }); continue; }
+    const fromDish = dish[dim];
+    // Missing = no evidence either way (the original bug fix); below-cutoff = model
+    // murmur, equally not evidence. Both teach nothing — never a phantom signal.
+    if (fromDish === undefined || fromDish < LEARN_CUTOFF) continue;
+    out.push({ dim, presence: fromDish });
+  }
+  return out;
+}
+
+/**
  * Update a user's taste vector after a rating.
- * EMA with a learning rate that decays as ratings accumulate: early ratings move the
- * profile a lot (fast cold start), later ratings refine it. Voice-extracted attributes
- * override vision attributes where present — the user's own words beat a photo guess.
+ * EMA with a PER-DIMENSION learning rate that decays as that dimension accumulates
+ * evidence: the first few ratings that teach a dim move it a lot, later ones refine.
+ * Previously the rate decayed with the user's TOTAL rating count — so a preference
+ * first encountered at rating #30 (say, the first genuinely spicy dish) learned at
+ * the floor rate forever. Simulation against ground truth: per-dim rate learns
+ * late-discovered preferences ~3.3x better and slightly improves normal-case
+ * ranking, with no cold-start cost. Voice-extracted attributes override vision
+ * attributes where present — the user's own words beat a photo guess.
  */
 export function updateTaste(
   taste: TasteVector,
-  count: number,
+  evidence: EvidenceMap,
   dish: DishVector,
   score: number, // -1..1 from the flick
   voiceAttrs?: DishVector | null,
 ): TasteVector {
-  const alpha = Math.max(0.08, 1 / (count + 2));
   const next: TasteVector = { ...emptyTaste(), ...taste };
-  for (const dim of DIMS) {
-    // Only learn from dims the dish (or the voice note) ACTUALLY reports. This is
-    // the same fix as contentScore, applied on the LEARNING side instead of the
-    // reading side — and it turned out to be the more important half of the bug.
-    // `presence ?? 0` used to mean: every one of the ~14-16 dims a typical dish
-    // DOESN'T mention got treated as "confirmed absent" — and loving a dish that's
-    // "confirmed absent" in some attribute pushes that attribute NEGATIVE. Every
-    // positive rating was silently teaching the profile to dislike whatever the
-    // dish just didn't happen to be tagged with, whether or not the user has ever
-    // actually encountered it. Over a handful of ratings this manufactures deep
-    // "dislikes" for dimensions nobody ever confirmed an opinion on — exactly what
-    // showed up as suspiciously extreme, oddly-specific cautions on real dishes.
-    // No evidence either way now means no movement at all — never a phantom signal.
-    const presence = voiceAttrs?.[dim] ?? dish[dim];
-    if (presence === undefined) continue;
+  for (const { dim, presence } of taughtDims(dish, voiceAttrs)) {
+    const alpha = Math.max(0.08, 1 / ((evidence[dim] ?? 0) + 2));
     const centered = (presence - 0.5) * 2;
     next[dim] = clamp(next[dim] + alpha * score * centered, -1, 1);
   }
   return next;
+}
+
+/** Increment evidence counters for exactly the dims this rating taught. Call AFTER
+ * updateTaste (which reads pre-rating evidence for its learning rate), and skip on
+ * re-rates — correcting a slip-flick must not age the profile, mirroring how
+ * rating_count already works. */
+export function bumpEvidence(evidence: EvidenceMap, dish: DishVector, voiceAttrs?: DishVector | null): EvidenceMap {
+  const next = { ...evidence };
+  for (const { dim } of taughtDims(dish, voiceAttrs)) next[dim] = (next[dim] ?? 0) + 1;
+  return next;
+}
+
+/**
+ * Strip model murmur from VISION-derived attributes at ingestion: keep only dims
+ * reported at or above the cutoff. Applies ONLY to vision output — hand-authored
+ * seed dishes keep their explicit zeros, because a curated `fried: 0` on sashimi is
+ * genuinely confirmed absence and remains valuable at SCORING time (a fried-hater
+ * deserves credit for it). Learning-time protection is separate and universal
+ * (taughtDims' cutoff), so seed zeros inform scores without ever teaching phantom
+ * dislikes.
+ */
+export function thresholdVisionAttrs(attrs: DishVector, cutoff = LEARN_CUTOFF): DishVector {
+  const out: DishVector = {};
+  for (const [d, v] of Object.entries(attrs)) if (v >= cutoff) out[d] = v;
+  return out;
 }
 
 export function updateCuisineAffinity(

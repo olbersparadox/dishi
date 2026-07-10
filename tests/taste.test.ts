@@ -1,12 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import {
-  DIMS, emptyTaste, updateTaste, updateCuisineAffinity,
+  DIMS, emptyTaste, updateTaste, updateCuisineAffinity, bumpEvidence,
+  thresholdVisionAttrs, LEARN_CUTOFF,
   similarity, contentScore, blendScores, toMatchPercent, toRelativeMatchPercent,
 } from '../src/lib/taste';
 
 describe('updateTaste', () => {
   it('moves preference toward attributes the dish actually reports', () => {
-    const t = updateTaste(emptyTaste(), 0, { spicy: 1 }, 1);
+    const t = updateTaste(emptyTaste(), {}, { spicy: 1 }, 1);
     expect(t.spicy).toBeGreaterThan(0);
   });
 
@@ -15,7 +16,7 @@ describe('updateTaste', () => {
     // simply never mentioned) used to silently manufacture a "dislike" on every one
     // of the ~14-16 unmentioned dims. No evidence about a dimension must mean
     // EXACTLY zero movement on it — not neutral-ish, not mildly negative, zero.
-    const t = updateTaste(emptyTaste(), 0, { spicy: 1 }, 1);
+    const t = updateTaste(emptyTaste(), {}, { spicy: 1 }, 1);
     expect(t.sweet).toBe(0);
     expect(t.umami).toBe(0);
     expect(t.grilled).toBe(0);
@@ -31,30 +32,63 @@ describe('updateTaste', () => {
     // ratings into a "deep dislike" of something never actually explored. Confirm a
     // dimension genuinely never mentioned across 10 ratings stays at exactly zero.
     let t = emptyTaste();
-    for (let i = 0; i < 10; i++) t = updateTaste(t, i, { umami: 0.8 }, 1);
+    let ev = {};
+    for (let i = 0; i < 10; i++) { t = updateTaste(t, ev, { umami: 0.8 }, 1); ev = bumpEvidence(ev, { umami: 0.8 }); }
     expect(t.grilled).toBe(0);
     expect(t.fried).toBe(0);
     expect(t.bitter).toBe(0);
     expect(t.umami).toBeGreaterThan(0);
   });
 
-  it('a genuinely reported LOW-but-nonzero presence still counts as real evidence', () => {
-    // Different from the omitted case: the dish DOES report this dimension, just
-    // weakly. That's real signal (loving a dish confirmed only mildly spicy), not a
-    // phantom absence, and should still move the preference.
-    const t = updateTaste(emptyTaste(), 0, { spicy: 0.1 }, 1);
-    expect(t.spicy).toBeLessThan(0); // confirmed barely-there -> loving it reads as "doesn't need much"
-    expect(t.spicy).not.toBe(0);
+  it('REGRESSION: below-cutoff VISION presence is model murmur and teaches nothing', () => {
+    // This test previously asserted the opposite — that a low reported value was
+    // "real signal." That was written believing vision only emits dims it actually
+    // detected. Live production rows proved otherwise: the model reports murmur
+    // values (0.05-0.15) for every dim it has no opinion on, and the centering
+    // transform reads those as near-confirmed absence — so loving a dish pushed
+    // every murmured dim negative. Same corruption class as the missing-key bug,
+    // arriving through low values instead of absent keys. Ground-truth simulation:
+    // murmur-learning COMPOUNDS phantom preferences as ratings accumulate
+    // (0.26 -> 0.47); cutoff holds them near zero.
+    const t = updateTaste(emptyTaste(), {}, { spicy: 0.1 }, 1);
+    expect(t.spicy).toBe(0);
+  });
+
+  it('VOICE low presence is exempt from the cutoff — spoken words are testimony, not murmur', () => {
+    // "It was barely spicy" from the eater's own mouth is genuinely confirmed
+    // low presence, unlike a vision model's 0.1 shrug. Loving a dish confirmed
+    // barely-spicy legitimately reads as "doesn't need much heat."
+    const t = updateTaste(emptyTaste(), {}, {}, 1, { spicy: 0.1 });
+    expect(t.spicy).toBeLessThan(0);
+  });
+
+  it('bumpEvidence counts exactly the dims that taught, and nothing else', () => {
+    // Vision murmur (below cutoff) and omitted dims must not accrue evidence;
+    // taught vision dims and ALL voice dims must. Evidence powers the per-dim
+    // learning rate and gates written claims about the user's history, so it has
+    // to agree exactly with what updateTaste actually learned from.
+    const ev = bumpEvidence({}, { spicy: 0.9, sweet: 0.1 }, { salty: 0.2 });
+    expect(ev.spicy).toBe(1);       // vision, above cutoff -> taught
+    expect(ev.sweet).toBe(undefined); // vision murmur -> not evidence
+    expect(ev.salty).toBe(1);       // voice, any value -> testimony
+    expect(ev.umami).toBe(undefined); // never mentioned anywhere
+  });
+
+  it('thresholdVisionAttrs strips murmur but keeps genuine presence', () => {
+    const cleaned = thresholdVisionAttrs({ spicy: 0.9, umami: 0.45, fried: 0.1, baked: 0.05 });
+    expect(cleaned).toEqual({ spicy: 0.9, umami: 0.45 });
+    expect(LEARN_CUTOFF).toBeGreaterThan(0.1); // murmur band stays below the cutoff
   });
 
   it('moves preference away from attributes of hated dishes', () => {
-    const t = updateTaste(emptyTaste(), 0, { spicy: 1 }, -1);
+    const t = updateTaste(emptyTaste(), {}, { spicy: 1 }, -1);
     expect(t.spicy).toBeLessThan(0);
   });
 
   it('never escapes [-1, 1] no matter how many extreme ratings', () => {
     let t = emptyTaste();
-    for (let i = 0; i < 500; i++) t = updateTaste(t, i, { umami: 1 }, 1);
+    let ev = {};
+    for (let i = 0; i < 500; i++) { t = updateTaste(t, ev, { umami: 1 }, 1); ev = bumpEvidence(ev, { umami: 1 }); }
     expect(t.umami).toBeLessThanOrEqual(1);
     expect(t.umami).toBeGreaterThan(0.5);
     for (const d of DIMS) {
@@ -63,27 +97,42 @@ describe('updateTaste', () => {
     }
   });
 
-  it('learning rate decays: rating #1 moves the profile more than rating #100', () => {
-    const early = updateTaste(emptyTaste(), 0, { spicy: 1 }, 1).spicy;
-    const late = updateTaste(emptyTaste(), 100, { spicy: 1 }, 1).spicy;
+  it('learning rate decays PER DIMENSION as that dim accumulates evidence', () => {
+    const early = updateTaste(emptyTaste(), {}, { spicy: 1 }, 1).spicy;
+    const late = updateTaste(emptyTaste(), { spicy: 100 }, { spicy: 1 }, 1).spicy;
     expect(early).toBeGreaterThan(late);
     expect(late).toBeGreaterThan(0); // but never fully stops learning
   });
 
+  it('REGRESSION: a preference first encountered LATE still learns fast', () => {
+    // The old rate decayed with the user's TOTAL rating count, so a dimension first
+    // taught at rating #30 (e.g. the first genuinely spicy dish a cautious eater
+    // tries) learned at the floor rate forever. Per-dim decay means a fresh
+    // dimension always starts at the fast cold-start rate, no matter how mature the
+    // rest of the profile is. Ground-truth simulation: ~3.3x better recovery of
+    // late-discovered preferences, no cold-start cost.
+    const matureProfileEvidence = { umami: 30, tender: 30, rich: 30 }; // spicy: never taught
+    const t = updateTaste(emptyTaste(), matureProfileEvidence, { spicy: 1 }, 1);
+    const fresh = updateTaste(emptyTaste(), {}, { spicy: 1 }, 1);
+    expect(t.spicy).toBeCloseTo(fresh.spicy, 10); // identical to a first-ever rating
+  });
+
   it('voice-extracted attributes override the photo guess', () => {
-    // Photo said barely-salty; the eater said very salty. Eater wins.
-    const noVoice = updateTaste(emptyTaste(), 0, { salty: 0.1 }, 1);
-    const withVoice = updateTaste(emptyTaste(), 0, { salty: 0.1 }, 1, { salty: 0.9 });
+    // Photo murmured barely-salty (teaches nothing, post-cutoff); the eater said
+    // very salty. The eater's word wins outright.
+    const noVoice = updateTaste(emptyTaste(), {}, { salty: 0.1 }, 1);
+    const withVoice = updateTaste(emptyTaste(), {}, { salty: 0.1 }, 1, { salty: 0.9 });
+    expect(noVoice.salty).toBe(0);
     expect(withVoice.salty).toBeGreaterThan(noVoice.salty);
   });
 
   it('voice notes can report a dim the photo omitted entirely — that still counts as evidence', () => {
-    const t = updateTaste(emptyTaste(), 0, { spicy: 1 }, 1, { fresh: 0.8 });
+    const t = updateTaste(emptyTaste(), {}, { spicy: 1 }, 1, { fresh: 0.8 });
     expect(t.fresh).toBeGreaterThan(0); // voice mentioned it -> real evidence, unlike a silent photo omission
   });
 
   it('a neutral rating (0) leaves the profile untouched', () => {
-    const t = updateTaste(emptyTaste(), 0, { spicy: 1, crispy: 1 }, 0);
+    const t = updateTaste(emptyTaste(), {}, { spicy: 1, crispy: 1 }, 0);
     for (const d of DIMS) expect(t[d]).toBe(0);
   });
 });

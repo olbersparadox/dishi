@@ -37,6 +37,6 @@ export async function POST(req: NextRequest) {
   const taste: TasteVector = profile?.vector ?? emptyTaste();
   const affinity: Record<string, number> = profile?.cuisine_affinity ?? {};
 
-  const [ranked] = rankMenuItems([{ ...item, attributes }], taste, affinity, true);
+  const [ranked] = rankMenuItems([{ ...item, attributes }], taste, affinity, true, profile?.evidence ?? undefined);
   return NextResponse.json({ item: ranked });
 }

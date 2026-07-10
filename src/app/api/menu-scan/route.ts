@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
   if (scan.mock) {
     const taste: TasteVector = profile?.vector ?? emptyTaste();
     const affinity: Record<string, number> = profile?.cuisine_affinity ?? {};
-    const ranked = rankMenuItems(scan.items, taste, affinity, profileReady);
+    const ranked = rankMenuItems(scan.items, taste, affinity, profileReady, profile?.evidence ?? undefined);
     return NextResponse.json({
       phase: 'done', profile_ready: profileReady, rating_count: ratingCount, needed: TRAINING_THRESHOLD,
       elapsed_ms, menu_language: scan.menu_language, restaurant_guess: scan.restaurant_guess,

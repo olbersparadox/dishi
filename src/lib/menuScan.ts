@@ -1,4 +1,4 @@
-import { DIMS, DishVector } from './taste';
+import { DIMS, DishVector, LEARN_CUTOFF } from './taste';
 import { callClaude, imagePart, textPart, parseJsonResponse } from './openrouter';
 import { salvageJsonObjects } from './jsonSalvage';
 
@@ -215,12 +215,15 @@ function sanitizeItem(raw: any): MenuItem | null {
   if (Array.isArray(arr)) {
     DIMS.forEach((d, i) => {
       const v = Number(arr[i]);
-      if (Number.isFinite(v) && v > 0) attributes[d] = Math.min(1, Math.max(0, v));
+      // >= LEARN_CUTOFF, not > 0: keep only genuinely detected presence. Sub-cutoff
+      // values are model murmur — storing them distorts contentScore at menu-ranking
+      // time and, if the item becomes a pick, ships murmur into a real dish row.
+      if (Number.isFinite(v) && v >= LEARN_CUTOFF) attributes[d] = Math.min(1, v);
     });
   } else {
     for (const d of DIMS) {
       const v = Number(raw?.attributes?.[d]);
-      if (Number.isFinite(v) && v > 0) attributes[d] = Math.min(1, Math.max(0, v));
+      if (Number.isFinite(v) && v >= LEARN_CUTOFF) attributes[d] = Math.min(1, v);
     }
   }
   return {

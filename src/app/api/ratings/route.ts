@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase/server';
 import { extractVoiceSignal } from '@/lib/voice';
-import { updateTaste, updateCuisineAffinity, emptyTaste } from '@/lib/taste';
+import { updateTaste, updateCuisineAffinity, bumpEvidence, emptyTaste } from '@/lib/taste';
 
 export const maxDuration = 30;
 
@@ -52,19 +52,27 @@ export async function POST(req: NextRequest) {
     .from('taste_profiles').select('*').eq('user_id', user.id).maybeSingle();
   const currentVector = profile?.vector ?? emptyTaste();
   const count = profile?.rating_count ?? 0;
+  const evidence = profile?.evidence ?? {};
 
-  const nextVector = updateTaste(
-    currentVector, count, dish.attributes, effectiveScore,
-    Object.keys(voice.attributes).length ? { ...dish.attributes, ...voice.attributes } : null,
-  );
+  // Voice attributes are passed UNMERGED (updateTaste already falls back per-dim to
+  // the dish's vision attributes). Merging them used to make the eater's words
+  // indistinguishable from model output inside the engine — and the two are treated
+  // differently now: a spoken "barely spicy" is genuine low-presence testimony and
+  // teaches, while a vision murmur of the same value is noise and doesn't.
+  const voiceAttrs = Object.keys(voice.attributes).length ? voice.attributes : null;
+  const nextVector = updateTaste(currentVector, evidence, dish.attributes, effectiveScore, voiceAttrs);
   const nextAffinity = updateCuisineAffinity(profile?.cuisine_affinity ?? {}, dish.cuisine, effectiveScore);
 
+  // Evidence bumps mirror rating_count semantics exactly: a re-rate corrects the
+  // vector but must not age the per-dim learning rate.
+  const nextEvidence = isRerate ? evidence : bumpEvidence(evidence, dish.attributes, voiceAttrs);
   const nextCount = isRerate ? count : count + 1;
   const { error: tasteErr } = await supabase.from('taste_profiles').upsert({
     user_id: user.id,
     vector: nextVector,
     cuisine_affinity: nextAffinity,
     rating_count: nextCount,
+    evidence: nextEvidence,
     updated_at: new Date().toISOString(),
   });
   if (tasteErr) return NextResponse.json({ error: tasteErr.message }, { status: 500 });

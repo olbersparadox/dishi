@@ -1,4 +1,4 @@
-import { contentScore, toRelativeMatchPercent, type TasteVector, type DishVector } from './taste';
+import { contentScore, toRelativeMatchPercent, type TasteVector, type DishVector, type EvidenceMap } from './taste';
 import { DIMS } from './taste';
 
 // Extracted from the old single-phase route so Phase 2 (score/route.ts) can use it,
@@ -18,10 +18,20 @@ const DIM_PHRASES: Record<string, string> = {
 
 export type ScorableItem = { attributes: DishVector; cuisine: string };
 
-export function composeReason(item: ScorableItem, taste: TasteVector, affinity: Record<string, number>): string {
+/** A dim may be CITED in a reason/caution only if at least this many ratings have
+ * actually taught it. Scores are untouched by this — simulation showed evidence
+ * gating has no power to improve predictions — but a written claim like "deep
+ * umami, squarely what you keep rating up" is a factual statement about the
+ * user's history, and it must never be composed from a dim the history never
+ * actually touched. Explanations are held to a stricter honesty bar than numbers. */
+export const MIN_CITE_EVIDENCE = 2;
+const citable = (d: string, evidence?: EvidenceMap) =>
+  evidence === undefined || (evidence[d] ?? 0) >= MIN_CITE_EVIDENCE;
+
+export function composeReason(item: ScorableItem, taste: TasteVector, affinity: Record<string, number>, evidence?: EvidenceMap): string {
   const hits = DIMS
     .map(d => ({ d, strength: (taste[d] ?? 0) * (item.attributes[d] ?? 0) }))
-    .filter(h => h.strength > 0.12 && (taste[h.d] ?? 0) > 0.15)
+    .filter(h => h.strength > 0.12 && (taste[h.d] ?? 0) > 0.15 && citable(h.d, evidence))
     .sort((a, b) => b.strength - a.strength)
     .slice(0, 2);
 
@@ -39,10 +49,10 @@ export function composeReason(item: ScorableItem, taste: TasteVector, affinity: 
     : `${core} — squarely what you keep rating up`;
 }
 
-export function composeCaution(item: ScorableItem, taste: TasteVector): string | null {
+export function composeCaution(item: ScorableItem, taste: TasteVector, evidence?: EvidenceMap): string | null {
   const warn = DIMS
     .map(d => ({ d, strength: -(taste[d] ?? 0) * (item.attributes[d] ?? 0) }))
-    .filter(h => h.strength > 0.2)
+    .filter(h => h.strength > 0.2 && citable(h.d, evidence))
     .sort((a, b) => b.strength - a.strength)[0];
   if (!warn) return null;
   return `Heads up: ${DIM_PHRASES[warn.d] ?? warn.d} — historically not your thing`;
@@ -61,6 +71,7 @@ export function rankMenuItems<T extends ScorableItem>(
   taste: TasteVector,
   affinity: Record<string, number>,
   includeReasons: boolean,
+  evidence?: EvidenceMap,
 ): (T & { match: number; raw_score: number; reason: string | null; caution: string | null })[] {
   const withRaw = items.map(item => ({ item, raw: contentScore(taste, item.attributes, affinity, item.cuisine) }));
   const allRaw = withRaw.map(x => x.raw);
@@ -69,8 +80,8 @@ export function rankMenuItems<T extends ScorableItem>(
       ...item,
       match: toRelativeMatchPercent(raw, allRaw),
       raw_score: raw,
-      reason: includeReasons ? composeReason(item, taste, affinity) : null,
-      caution: includeReasons ? composeCaution(item, taste) : null,
+      reason: includeReasons ? composeReason(item, taste, affinity, evidence) : null,
+      caution: includeReasons ? composeCaution(item, taste, evidence) : null,
     }))
     .sort((a, b) => b.raw_score - a.raw_score);
 }
