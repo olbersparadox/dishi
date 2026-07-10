@@ -358,9 +358,4 @@ button { font: inherit; cursor: pointer; }
 /* --- scan page: pick-mode selection state --- */
 .scan-pickable { cursor: pointer; transition: border-color 120ms, background 120ms; }
 .scan-pickable.picked { border-color: var(--jade); background: #33705f0d; }
-.pick-check {
-  width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--line);
-  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-  background: #fff; transition: all 120ms;
-}
-.pick-check.on { background: var(--jade); border-color: var(--jade); color: #fff; }
+/* .pick-check removed: whole-card background/border on .scan-pickable.picked is the sole indicator now */

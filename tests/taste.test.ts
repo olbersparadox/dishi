@@ -1,14 +1,50 @@
 import { describe, it, expect } from 'vitest';
 import {
   DIMS, emptyTaste, updateTaste, updateCuisineAffinity,
-  similarity, contentScore, blendScores, toMatchPercent,
+  similarity, contentScore, blendScores, toMatchPercent, toRelativeMatchPercent,
 } from '../src/lib/taste';
 
 describe('updateTaste', () => {
-  it('moves preference toward attributes of loved dishes', () => {
-    const t = updateTaste(emptyTaste(), 0, { spicy: 1, sweet: 0 }, 1);
+  it('moves preference toward attributes the dish actually reports', () => {
+    const t = updateTaste(emptyTaste(), 0, { spicy: 1 }, 1);
     expect(t.spicy).toBeGreaterThan(0);
-    expect(t.sweet).toBeLessThan(0); // loved a dish that ISN'T sweet -> mild negative evidence
+  });
+
+  it('REGRESSION: a dish omitting a dimension entirely must NOT move that dimension at all', () => {
+    // The real production bug: rating a sparse dish (spicy present, everything else
+    // simply never mentioned) used to silently manufacture a "dislike" on every one
+    // of the ~14-16 unmentioned dims. No evidence about a dimension must mean
+    // EXACTLY zero movement on it — not neutral-ish, not mildly negative, zero.
+    const t = updateTaste(emptyTaste(), 0, { spicy: 1 }, 1);
+    expect(t.sweet).toBe(0);
+    expect(t.umami).toBe(0);
+    expect(t.grilled).toBe(0);
+    expect(t.bitter).toBe(0);
+    for (const d of DIMS) {
+      if (d === 'spicy') continue;
+      expect(t[d]).toBe(0);
+    }
+  });
+
+  it('REGRESSION: this holds over MANY ratings, not just one — no slow drift on unexplored dims', () => {
+    // The original bug compounded: even a slow per-rating nudge adds up over several
+    // ratings into a "deep dislike" of something never actually explored. Confirm a
+    // dimension genuinely never mentioned across 10 ratings stays at exactly zero.
+    let t = emptyTaste();
+    for (let i = 0; i < 10; i++) t = updateTaste(t, i, { umami: 0.8 }, 1);
+    expect(t.grilled).toBe(0);
+    expect(t.fried).toBe(0);
+    expect(t.bitter).toBe(0);
+    expect(t.umami).toBeGreaterThan(0);
+  });
+
+  it('a genuinely reported LOW-but-nonzero presence still counts as real evidence', () => {
+    // Different from the omitted case: the dish DOES report this dimension, just
+    // weakly. That's real signal (loving a dish confirmed only mildly spicy), not a
+    // phantom absence, and should still move the preference.
+    const t = updateTaste(emptyTaste(), 0, { spicy: 0.1 }, 1);
+    expect(t.spicy).toBeLessThan(0); // confirmed barely-there -> loving it reads as "doesn't need much"
+    expect(t.spicy).not.toBe(0);
   });
 
   it('moves preference away from attributes of hated dishes', () => {
@@ -35,10 +71,15 @@ describe('updateTaste', () => {
   });
 
   it('voice-extracted attributes override the photo guess', () => {
-    // Photo said not-salty; the eater said very salty. Eater wins.
+    // Photo said barely-salty; the eater said very salty. Eater wins.
     const noVoice = updateTaste(emptyTaste(), 0, { salty: 0.1 }, 1);
     const withVoice = updateTaste(emptyTaste(), 0, { salty: 0.1 }, 1, { salty: 0.9 });
     expect(withVoice.salty).toBeGreaterThan(noVoice.salty);
+  });
+
+  it('voice notes can report a dim the photo omitted entirely — that still counts as evidence', () => {
+    const t = updateTaste(emptyTaste(), 0, { spicy: 1 }, 1, { fresh: 0.8 });
+    expect(t.fresh).toBeGreaterThan(0); // voice mentioned it -> real evidence, unlike a silent photo omission
   });
 
   it('a neutral rating (0) leaves the profile untouched', () => {
@@ -188,5 +229,53 @@ describe('contentScore — missing-attribute regression (the "everything scores 
     const raw = contentScore(heavyDislikes, { spicy: 0.7, umami: 0.6 }, {});
     // Should be a modest, plausible value, not near the extremes either direction.
     expect(Math.abs(raw)).toBeLessThan(0.3);
+  });
+});
+
+describe('toRelativeMatchPercent — the fixed-ceiling saturation fix', () => {
+  it('stretches a batch of scores that would ALL clamp to 100 under the fixed gain', () => {
+    // Real production shape: every raw score well above the fixed formula's ceiling.
+    const rawScores = [0.15, 0.22, 0.18, 0.30, 0.25];
+    const percents = rawScores.map(r => toRelativeMatchPercent(r, rawScores));
+    // Every fixed-gain equivalent would have been 100 — these must NOT all be equal.
+    expect(new Set(percents).size).toBeGreaterThan(1);
+    // The best dish in the batch should read meaningfully higher than the worst.
+    expect(Math.max(...percents)).toBeGreaterThan(Math.min(...percents) + 20);
+  });
+
+  it('preserves relative ORDER exactly — never reorders what raw scores already decided', () => {
+    const rawScores = [0.3, -0.1, 0.5, 0.05, -0.4];
+    const percents = rawScores.map(r => toRelativeMatchPercent(r, rawScores));
+    const orderByRaw = [...rawScores].sort((a, b) => b - a);
+    const orderByPercent = [...percents].sort((a, b) => b - a);
+    // Sorting either array gives the same relative sequence of original indices.
+    const rawRanked = rawScores.map((r, i) => i).sort((a, b) => rawScores[b] - rawScores[a]);
+    const pctRanked = rawScores.map((r, i) => i).sort((a, b) => percents[b] - percents[a]);
+    expect(pctRanked).toEqual(rawRanked);
+  });
+
+  it('the best and worst in the batch land at (or very near) the floor/ceiling', () => {
+    const rawScores = [0.1, 0.5, 0.9];
+    expect(toRelativeMatchPercent(0.1, rawScores)).toBe(15);
+    expect(toRelativeMatchPercent(0.9, rawScores)).toBe(95);
+  });
+
+  it('an identical batch (no real spread) shows an honest flat 50, not fake variance', () => {
+    const rawScores = [0.4, 0.4, 0.4];
+    expect(toRelativeMatchPercent(0.4, rawScores)).toBe(50);
+  });
+
+  it('handles a single-item batch as neutral (nothing to compare against)', () => {
+    expect(toRelativeMatchPercent(0.7, [0.7])).toBe(50);
+  });
+
+  it('handles an empty batch without crashing', () => {
+    expect(toRelativeMatchPercent(0.5, [])).toBe(50);
+  });
+
+  it('respects custom floor/ceiling bounds', () => {
+    const rawScores = [0, 1];
+    expect(toRelativeMatchPercent(0, rawScores, 20, 80)).toBe(20);
+    expect(toRelativeMatchPercent(1, rawScores, 20, 80)).toBe(80);
   });
 });

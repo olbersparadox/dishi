@@ -255,7 +255,6 @@ function Scanner() {
           onClick={() => togglePick(item.name_original)}>
           <div className="card-body scan-row">
             <div className="scan-rank">{i + 1}</div>
-            <PickCheck on={picked.has(item.name_original)} />
             <div style={{ minWidth: 0, flex: 1 }}>
               <div className="dish-row">
                 <div className="card-title" style={{ fontSize: 15.5 }}><DishName name={item.name} name_zh={item.name_zh} name_original={item.name_original} /></div>
@@ -274,7 +273,6 @@ function Scanner() {
           onClick={() => togglePick(item.name_original)}>
           <div className="card-body scan-row">
             <div className="scan-rank">{i + 1}</div>
-            <PickCheck on={picked.has(item.name_original)} />
             <MatchRing value={item.match} size={44} />
             <div style={{ minWidth: 0, flex: 1 }}>
               <div className="dish-row">
@@ -297,7 +295,6 @@ function Scanner() {
             <div className="card-body">
               <span className="reason collab">{t('scan.order')}</span>
               <div style={{ display: 'flex', gap: 14, alignItems: 'center', marginTop: 6 }}>
-                <PickCheck on={picked.has(top.name_original)} />
                 <MatchRing value={top.match} size={64} />
                 <div style={{ minWidth: 0, flex: 1 }}>
                   <div className="dish-row">
@@ -317,8 +314,7 @@ function Scanner() {
               onClick={() => togglePick(item.name_original)}>
               <div className="card-body scan-row">
                 <div className="scan-rank">{i + 2}</div>
-                <PickCheck on={picked.has(item.name_original)} />
-                <MatchRing value={item.match} size={44} />
+                    <MatchRing value={item.match} size={44} />
                 <div style={{ minWidth: 0, flex: 1 }}>
                   <div className="dish-row">
                     <div className="card-title" style={{ fontSize: 15.5 }}><DishName name={item.name} name_zh={item.name_zh} name_original={item.name_original} /></div>
@@ -377,17 +373,7 @@ function Scanner() {
   );
 }
 
-function PickCheck({ on }: { on: boolean }) {
-  return (
-    <div className={`pick-check ${on ? 'on' : ''}`} aria-hidden>
-      {on && (
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="3">
-          <path d="M4 12l5 5L20 6" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      )}
-    </div>
-  );
-}
+
 
 /**
  * Circular match gauge. Three states: pending (undefined — dashed, pulsing, no

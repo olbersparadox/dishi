@@ -41,10 +41,20 @@ export function updateTaste(
   const alpha = Math.max(0.08, 1 / (count + 2));
   const next: TasteVector = { ...emptyTaste(), ...taste };
   for (const dim of DIMS) {
-    const presence = voiceAttrs?.[dim] ?? dish[dim] ?? 0;
-    // centered presence: attributes strongly present push preference in the score's
-    // direction; absent attributes push weakly the other way (you loved a dish that
-    // isn't spicy — mild negative evidence on spicy).
+    // Only learn from dims the dish (or the voice note) ACTUALLY reports. This is
+    // the same fix as contentScore, applied on the LEARNING side instead of the
+    // reading side — and it turned out to be the more important half of the bug.
+    // `presence ?? 0` used to mean: every one of the ~14-16 dims a typical dish
+    // DOESN'T mention got treated as "confirmed absent" — and loving a dish that's
+    // "confirmed absent" in some attribute pushes that attribute NEGATIVE. Every
+    // positive rating was silently teaching the profile to dislike whatever the
+    // dish just didn't happen to be tagged with, whether or not the user has ever
+    // actually encountered it. Over a handful of ratings this manufactures deep
+    // "dislikes" for dimensions nobody ever confirmed an opinion on — exactly what
+    // showed up as suspiciously extreme, oddly-specific cautions on real dishes.
+    // No evidence either way now means no movement at all — never a phantom signal.
+    const presence = voiceAttrs?.[dim] ?? dish[dim];
+    if (presence === undefined) continue;
     const centered = (presence - 0.5) * 2;
     next[dim] = clamp(next[dim] + alpha * score * centered, -1, 1);
   }
