@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseServer, supabaseAdmin } from '@/lib/supabase/server';
 import { translateDishName, inferCuisineFromName } from '@/lib/translate';
+import { reanalyzeAnchored } from '@/lib/vision';
+import { scoreOneDish } from '@/lib/menuScan';
+import { replayProfile } from '@/lib/replay';
 
 /**
  * The caller's own logged dishes, for the feed's "my dishes" section.
@@ -96,7 +99,12 @@ export async function GET(req: NextRequest) {
 
 /**
  * PATCH { dish_id, name?, name_zh?, edited_en?, edited_zh? }
- * -> rename, with translation and cuisine re-derivation (blocked server-side if locked)
+ * -> rename, with the FULL correction cascade (blocked server-side if locked):
+ *    translation of the untouched language, cuisine re-derivation, attribute
+ *    re-derivation (photo-anchored when a photo exists), and — if the owner already
+ *    rated this dish — a full profile replay so the learning heals retroactively.
+ *    Returns { dish, relearned } so the client can tell the person their taste
+ *    profile was re-learned from the correction.
  *
  * edited_en/edited_zh tell the server which field the PERSON actually typed this
  * session, as opposed to text that's just sitting there from the original vision
@@ -147,16 +155,73 @@ export async function PATCH(req: NextRequest) {
     if (translated) patch.name = translated;
   }
 
+  // A corrected name invalidates the whole vision bundle that came with the wrong
+  // guess — not just cuisine, but the ATTRIBUTES the taste engine learns from.
+  // (Real case: vision misread a dish, its bundled attributes included braised:0.9,
+  // the person corrected the name to "Lobster sashimi", and the wrong attributes
+  // stayed — one loved rating then taught a phantom "loves braised" preference.)
+  // Photo available -> re-analyze the photo anchored on the person's name (the
+  // photo still carries preparation/sauce/portion information a name alone loses).
+  // No photo -> text-only rescoring, same path menu scanning uses.
   const correctedName = editedEn ? name : editedZh ? nameZh : undefined;
+  let relearned = false;
   if (correctedName) {
-    const cuisine = await inferCuisineFromName(correctedName);
-    if (cuisine) patch.cuisine = cuisine;
+    const { data: current } = await supabase
+      .from('dishes').select('photo_url').eq('id', dishId).eq('user_id', user.id).maybeSingle();
+    if (!current) return NextResponse.json({ error: 'Not found or not yours.' }, { status: 403 });
+
+    let rederived: { attributes: Record<string, number>; cuisine: string } | null = null;
+    if (current.photo_url) {
+      try {
+        const imgRes = await fetch(current.photo_url);
+        if (imgRes.ok) {
+          const buf = Buffer.from(await imgRes.arrayBuffer());
+          const mediaType = imgRes.headers.get('content-type') ?? 'image/jpeg';
+          rederived = await reanalyzeAnchored(correctedName, buf.toString('base64'), mediaType);
+        }
+      } catch { /* fall through to text-only below */ }
+    }
+    if (!rederived) {
+      const [attributes, cuisine] = await Promise.all([
+        scoreOneDish({ name: correctedName, cuisine: patch.cuisine ?? 'unknown' }),
+        inferCuisineFromName(correctedName),
+      ]);
+      rederived = { attributes, cuisine: cuisine ?? 'unknown' };
+    }
+    if (rederived) {
+      if (Object.keys(rederived.attributes).length) (patch as any).attributes = rederived.attributes;
+      if (rederived.cuisine && rederived.cuisine !== 'unknown') patch.cuisine = rederived.cuisine;
+    }
   }
 
   const { data, error } = await supabase
-    .from('dishes').update(patch).eq('id', dishId).select('id, name, name_zh, cuisine').single();
+    .from('dishes').update(patch).eq('id', dishId).select('id, name, name_zh, cuisine, attributes').single();
   if (error || !data) return NextResponse.json({ error: 'Not found or not yours.' }, { status: 403 });
-  return NextResponse.json({ dish: data });
+
+  // If the person has RATED this dish, their profile learned from the old (wrong)
+  // attributes — replay the whole rating history through the real engine against
+  // current attributes so the correction retroactively heals the learning too.
+  // Only the owner's profile can be stale here: the lock check above guarantees
+  // nobody else has rated this dish, or we'd never have gotten this far.
+  if (correctedName && (patch as any).attributes) {
+    const { count } = await supabase
+      .from('ratings').select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id).eq('dish_id', dishId);
+    if ((count ?? 0) > 0) {
+      const rebuilt = await replayProfile(supabase, user.id);
+      if (rebuilt) {
+        await supabase.from('taste_profiles').update({
+          vector: rebuilt.vector,
+          evidence: rebuilt.evidence,
+          cuisine_affinity: rebuilt.cuisine_affinity,
+          updated_at: new Date().toISOString(),
+        }).eq('user_id', user.id);
+        relearned = true;
+      }
+    }
+  }
+
+  return NextResponse.json({ dish: data, relearned });
 }
 
 export async function DELETE(req: NextRequest) {

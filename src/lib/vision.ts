@@ -88,4 +88,38 @@ function mockResult(): VisionResult {
   return { name: 'Logged dish (vision key not set)', name_zh: null, cuisine: 'unknown', attributes, confidence: 0.2, is_dish: true };
 }
 
+const ANCHORED_SYSTEM = `You re-analyze a dish photo. The eater has told you what the dish
+ACTUALLY is — their identification is ground truth and overrides whatever the photo
+might suggest on its own. Your job is to estimate the dish's sensory attributes and
+cuisine, consistent with BOTH the given name and what is visible in the photo
+(portion, preparation, sauce, char, garnish all still carry real information).
+Respond with ONLY a JSON object, no markdown fences:
+{"cuisine": string (lowercase, e.g. "cantonese", "japanese", "thai"),
+ "attributes": { ${DIMS.map((d) => `"${d}": number 0..1`).join(', ')} }}
+Attributes are presence/intensity, not quality. Only report attributes you are
+genuinely confident about; leave uncertain ones near 0.`;
+
+/**
+ * Re-derives a dish's attributes (and cuisine) from its photo, ANCHORED on the name
+ * the person corrected it to. This exists because a dish record is a bundle derived
+ * from vision's original guess: when the guess was wrong and the person fixes the
+ * name, the attributes that came bundled with the wrong guess are wrong too — and
+ * they're what the taste engine learns from. Name-only rescoring would work, but the
+ * photo still carries real information the name alone doesn't (a fried vs steamed
+ * preparation of the same dish, sauce, portion), so when a photo exists it stays in
+ * the loop. Returns null on any failure so the caller keeps existing attributes
+ * rather than blocking the rename.
+ */
+export async function reanalyzeAnchored(name: string, base64: string, mediaType: string): Promise<{ attributes: DishVector; cuisine: string } | null> {
+  if (!process.env.OPENROUTER_API_KEY) return null;
+  const text = await callClaude(ANCHORED_SYSTEM, [
+    imagePart(base64, mediaType),
+    textPart(`The eater says this dish is: ${name}`),
+  ], { maxTokens: 400 });
+  const parsed = parseJsonResponse<any>(text);
+  if (!parsed) return null;
+  const s = sanitize({ ...parsed, name });
+  return { attributes: s.attributes, cuisine: s.cuisine };
+}
+
 const clamp01 = (x: number) => (Number.isFinite(x) ? Math.min(1, Math.max(0, x)) : 0);

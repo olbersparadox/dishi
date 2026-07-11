@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase/server';
 import { scanMenuOCR } from '@/lib/menuScan';
-import { rankMenuItems } from '@/lib/menuScoring';
+import { rankMenuItems, markFires } from '@/lib/menuScoring';
 import { emptyTaste, type TasteVector } from '@/lib/taste';
 
 export const maxDuration = 60;
@@ -54,7 +54,10 @@ export async function POST(req: NextRequest) {
   if (scan.mock) {
     const taste: TasteVector = profile?.vector ?? emptyTaste();
     const affinity: Record<string, number> = profile?.cuisine_affinity ?? {};
-    const ranked = rankMenuItems(scan.items, taste, affinity, profileReady, profile?.evidence ?? undefined);
+    const ranked = markFires(
+      rankMenuItems(scan.items, taste, affinity, profileReady, profile?.evidence ?? undefined),
+      taste, profile?.evidence ?? {},
+    );
     return NextResponse.json({
       phase: 'done', profile_ready: profileReady, rating_count: ratingCount, needed: TRAINING_THRESHOLD,
       elapsed_ms, menu_language: scan.menu_language, restaurant_guess: scan.restaurant_guess,

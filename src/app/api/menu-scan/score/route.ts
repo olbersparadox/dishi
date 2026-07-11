@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase/server';
 import { scoreOneDish, type OcrMenuItem } from '@/lib/menuScan';
-import { rankMenuItems } from '@/lib/menuScoring';
+import { rankMenuItems, deservesFire } from '@/lib/menuScoring';
 import { emptyTaste, type TasteVector } from '@/lib/taste';
 
 export const maxDuration = 30;
@@ -38,5 +38,9 @@ export async function POST(req: NextRequest) {
   const affinity: Record<string, number> = profile?.cuisine_affinity ?? {};
 
   const [ranked] = rankMenuItems([{ ...item, attributes }], taste, affinity, true, profile?.evidence ?? undefined);
-  return NextResponse.json({ item: ranked });
+  // Fire QUALIFICATION only — this route sees one dish at a time, so the batch cap
+  // (at most 2 fires shown per scan) is applied client-side at settle, when every
+  // dish's outcome is known. Server stays the sole authority on qualification.
+  const fire = deservesFire({ ...item, attributes }, taste, profile?.evidence ?? {});
+  return NextResponse.json({ item: { ...ranked, fire } });
 }

@@ -379,3 +379,7 @@ button { font: inherit; cursor: pointer; }
 .scan-pickable { cursor: pointer; transition: border-color 120ms, background 120ms; }
 .scan-pickable.picked { border-color: var(--jade); background: #33705f0d; }
 /* .pick-check removed: whole-card background/border on .scan-pickable.picked is the sole indicator now */
+
+/* Fire — the single confident mark on scanned menus. Sized to read as a mark,
+   not a decoration; the highlighted card border (scan-hero) does the rest. */
+.scan-fire { font-size: 22px; flex-shrink: 0; line-height: 1; }

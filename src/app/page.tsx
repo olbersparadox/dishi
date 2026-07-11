@@ -209,6 +209,7 @@ function MyDishes({ t, lang }: { t: (k: string, p?: Record<string, string | numb
   const [editedZh, setEditedZh] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [relearnedId, setRelearnedId] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
@@ -287,9 +288,16 @@ function MyDishes({ t, lang }: { t: (k: string, p?: Record<string, string | numb
     }
     // Applied from the server's response, not optimistically — the server may have
     // filled in a translation or re-derived cuisine, so its answer is the real one.
-    const { dish } = await res.json();
+    const { dish, relearned } = await res.json();
     setDishes(prev => prev?.map(d => d.id === id ? { ...d, name: dish.name, name_zh: dish.name_zh, cuisine: dish.cuisine } : d) ?? null);
     setEditing(null);
+    if (relearned) {
+      // The correction changed this dish's attributes AND the profile was rebuilt
+      // from the full rating history against them. Saying so is part of the
+      // visible-learning mechanic: corrections visibly matter.
+      setRelearnedId(id);
+      setTimeout(() => setRelearnedId(null), 4000);
+    }
   }
 
   async function remove(id: string) {
@@ -321,10 +329,10 @@ function MyDishes({ t, lang }: { t: (k: string, p?: Record<string, string | numb
                 <div>
                   <label className="label" style={{ fontSize: 11.5 }}>{t('home.name.en')}</label>
                   <input className="field" style={{ marginBottom: 6 }} value={draftName} autoFocus
-                    onChange={e => { setDraftName(e.target.value); setEditedEn(true); }} />
+                    onChange={e => { setDraftName(e.target.value); setEditedEn(true); if (!editedZh) setDraftNameZh(''); }} />
                   <label className="label" style={{ fontSize: 11.5 }}>{t('home.name.zh')}</label>
-                  <input className="field" value={draftNameZh}
-                    onChange={e => { setDraftNameZh(e.target.value); setEditedZh(true); }} />
+                  <input className="field" value={draftNameZh} placeholder={editedEn && !editedZh ? t('log.willTranslate') : undefined}
+                    onChange={e => { setDraftNameZh(e.target.value); setEditedZh(true); if (!editedEn) setDraftName(''); }} />
                   <p className="card-meta" style={{ marginTop: 4 }}>{t('home.translateOnSave')}</p>
                   <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
                     <button className="btn primary small" disabled={saving} onClick={() => rename(d.id)}>
@@ -350,6 +358,9 @@ function MyDishes({ t, lang }: { t: (k: string, p?: Record<string, string | numb
                     <button className="btn ghost small" onClick={() => remove(d.id)}>{t('home.delete')}</button>
                   </div>
                 )
+              )}
+              {relearnedId === d.id && (
+                <p className="card-meta" style={{ color: 'var(--jade)', fontSize: 12.5, marginTop: 4 }}>{t('log.relearned')}</p>
               )}
               {editing === d.id && saveError && (
                 <p style={{ color: 'var(--lacquer)', fontSize: 12.5, marginTop: 4 }}>{saveError}</p>

@@ -7,7 +7,6 @@ import DishName from '@/components/DishName';
 import PhotoPicker from '@/components/PhotoPicker';
 import RestaurantPicker, { RestaurantChoice } from '@/components/RestaurantPicker';
 import { mapWithConcurrency } from '@/lib/concurrency';
-import { toRelativeMatchPercent } from '@/lib/taste';
 import { useLang } from '@/lib/i18n';
 
 type ScannedItem = {
@@ -16,6 +15,10 @@ type ScannedItem = {
   // undefined = not yet requested/still scoring; null = this dish's scoring call
   // failed (degrade gracefully, don't block the rest); number = a real match.
   match?: number | null; reason?: string | null; caution?: string | null;
+  // Server-side fire QUALIFICATION (the honest confident mark). The batch cap —
+  // at most 2 fires actually shown per scan — is applied client-side at settle,
+  // since Phase 2 scores dishes in isolated calls.
+  fire?: boolean;
   // The Phase 2 endpoint scores ONE dish per call, in isolation — it has no way to
   // know the other dishes' scores, so its OWN `match` field can't be relative to
   // anything. raw_score is the real signal; the client recomputes a proper relative
@@ -206,24 +209,26 @@ function Scanner() {
   // original menu order so nothing visually jumps around mid-scan.
   const readyToRank = result.profile_ready && settled && !allFailed;
 
-  // The relative-scaling fix: each dish was scored in its OWN isolated call, so its
-  // `match` (from the server) can't reflect how it compares to the rest of THIS
-  // menu. Now that every dish's raw_score is in, recompute `match` relative to the
-  // whole batch — this is what guarantees real visible spread instead of a menu
-  // full of dishes all legitimately clearing the old fixed ceiling and reading
-  // "100%" identically. Sorting uses raw_score directly; the recomputed match is
-  // purely what gets displayed.
-  const allRaw = readyToRank
-    ? result.items.map(i => i.raw_score).filter((r): r is number => r !== undefined)
-    : [];
-  const ranked = readyToRank
-    ? [...result.items]
-        .map(item => item.raw_score !== undefined
-          ? { ...item, match: toRelativeMatchPercent(item.raw_score, allRaw) }
-          : item)
-        .sort((a, b) => (b.raw_score ?? -Infinity) - (a.raw_score ?? -Infinity))
-    : result.items;
-  const [top, ...rest] = ranked;
+  // No displayed numbers, no reordering. Match percentages felt like confident
+  // claims the engine couldn't back at low maturity — the raw spread across a menu
+  // is often tiny, and any visual stretch of it manufactures differentiation out of
+  // noise. The math still runs in the background (raw_score ranks fire candidates);
+  // the only user-facing claim is FIRE, and only when it's earned. Everything else:
+  // an honest menu in its own original order, fully pickable.
+  //
+  // Fire cap applied here at settle: the server qualifies each dish in isolation
+  // (Phase 2 is one call per dish), the client keeps only the top 2 qualifiers by
+  // background raw score — scarcity is part of what makes the mark credible.
+  const fireWinners = new Set(
+    readyToRank
+      ? result.items
+          .filter(i => i.fire && i.raw_score !== undefined)
+          .sort((a, b) => (b.raw_score ?? 0) - (a.raw_score ?? 0))
+          .slice(0, 2)
+          .map(i => i.name_original)
+      : [],
+  );
+  const displayItems = result.items;
 
   return (
     <div>
@@ -273,64 +278,47 @@ function Scanner() {
           onClick={() => togglePick(item.name_original)}>
           <div className="card-body scan-row">
             <div className="scan-rank">{i + 1}</div>
-            <MatchRing value={item.match} size={44} />
+            {item.match === undefined && <Spinner size={22} />}
             <div style={{ minWidth: 0, flex: 1 }}>
               <div className="dish-row">
                 <div className="card-title" style={{ fontSize: 15.5 }}><DishName name={item.name} name_zh={item.name_zh} name_original={item.name_original} /></div>
                 {item.price && <span className="dish-price">{item.price}</span>}
               </div>
               <div className="card-meta">{item.hook}</div>
-              {item.match === null && <p className="scan-caution" style={{ fontSize: 12.5 }}>{t('scan.itemfailed')}</p>}
             </div>
           </div>
         </article>
       ))}
 
-      {/* Settled: ranked order, hero promoted, reasons shown. Fades/scales in once
-          every dish has a real outcome — the "satisfying settle" moment. */}
+      {/* Settled: same original menu order — the engine speaks ONLY through fire.
+          A fire dish gets the mark, a highlighted card, and its plain-words reason;
+          every other dish is presented without any claim at all. Silence about a
+          dish means "not confident enough to say," which is the honest default. */}
       {readyToRank && (
         <div className="scan-settle">
-          <article className={`card scan-hero scan-pickable scan-settle-row ${picked.has(top.name_original) ? 'picked' : ''}`}
-            onClick={() => togglePick(top.name_original)}>
-            <div className="card-body">
-              <span className="reason collab">{t('scan.order')}</span>
-              <div style={{ display: 'flex', gap: 14, alignItems: 'center', marginTop: 6 }}>
-                <MatchRing value={top.match} size={64} />
-                <div style={{ minWidth: 0, flex: 1 }}>
-                  <div className="dish-row">
-                    <div className="card-title"><DishName name={top.name} name_zh={top.name_zh} name_original={top.name_original} /></div>
-                    {top.price && <span className="dish-price">{top.price}</span>}
+          {displayItems.map((item, i) => {
+            const fire = fireWinners.has(item.name_original);
+            return (
+              <article
+                className={`card scan-pickable scan-settle-row ${fire ? 'scan-hero' : ''} ${picked.has(item.name_original) ? 'picked' : ''}`}
+                key={`${item.name}-${i}`}
+                onClick={() => togglePick(item.name_original)}
+              >
+                <div className="card-body scan-row">
+                  <div className="scan-rank">{i + 1}</div>
+                  {fire && <div className="scan-fire" aria-label={t('scan.fire')}>{'\uD83D\uDD25'}</div>}
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div className="dish-row">
+                      <div className="card-title" style={{ fontSize: 15.5 }}><DishName name={item.name} name_zh={item.name_zh} name_original={item.name_original} /></div>
+                      {item.price && <span className="dish-price">{item.price}</span>}
+                    </div>
+                    <div className="card-meta">{item.hook}</div>
+                    {fire && item.reason && <p className="scan-reason" style={{ fontSize: 13 }}>{item.reason}</p>}
                   </div>
-                  <div className="card-meta">{top.hook}</div>
                 </div>
-              </div>
-              {top.reason && <p className="scan-reason">{top.reason}</p>}
-              {top.caution && <p className="scan-caution">{top.caution}</p>}
-            </div>
-          </article>
-
-          {rest.map((item, i) => (
-            <article className={`card scan-pickable scan-settle-row ${picked.has(item.name_original) ? 'picked' : ''}`} key={`${item.name}-${i}`}
-              onClick={() => togglePick(item.name_original)}>
-              <div className="card-body scan-row">
-                <div className="scan-rank">{i + 2}</div>
-                    <MatchRing value={item.match} size={44} />
-                <div style={{ minWidth: 0, flex: 1 }}>
-                  <div className="dish-row">
-                    <div className="card-title" style={{ fontSize: 15.5 }}><DishName name={item.name} name_zh={item.name_zh} name_original={item.name_original} /></div>
-                    {item.price && <span className="dish-price">{item.price}</span>}
-                  </div>
-                  <div className="card-meta">{item.hook}</div>
-                  {item.match === null ? (
-                    <p className="scan-caution" style={{ fontSize: 12.5 }}>{t('scan.itemfailed')}</p>
-                  ) : <>
-                    {item.reason && <p className="scan-reason" style={{ fontSize: 13 }}>{item.reason}</p>}
-                    {item.caution && <p className="scan-caution" style={{ fontSize: 13 }}>{item.caution}</p>}
-                  </>}
-                </div>
-              </div>
-            </article>
-          ))}
+              </article>
+            );
+          })}
         </div>
       )}
 
@@ -375,51 +363,15 @@ function Scanner() {
 
 
 
-/**
- * Circular match gauge. Three states: pending (undefined — dashed, pulsing, no
- * number), failed (null — flat grey, a quiet dash), scored (a number — real ring).
- */
-function MatchRing({ value, size }: { value: number | null | undefined; size: number }) {
-  const r = (size - 8) / 2;
+/** Small in-progress spinner shown while a dish's background scoring is running. */
+function Spinner({ size }: { size: number }) {
+  const r = (size - 6) / 2;
   const c = 2 * Math.PI * r;
-
-  if (value === undefined) {
-    // A true rotating spinner, not just a pulsing dashed ring — the dashed-pulse
-    // version read as "already at some static state" rather than "actively working"
-    // to real users. A short arc that visibly SPINS is the unambiguous version.
-    return (
-      <svg width={size} height={size} role="img" aria-label="Matching…" style={{ flexShrink: 0 }} className="match-ring-spinner">
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--line)" strokeWidth={5} opacity={0.35} />
-        <circle
-          cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--egg-tart)" strokeWidth={5}
-          strokeLinecap="round" strokeDasharray={`${c * 0.22} ${c}`}
-        />
-      </svg>
-    );
-  }
-  if (value === null) {
-    return (
-      <svg width={size} height={size} role="img" aria-label="Couldn't match" style={{ flexShrink: 0 }}>
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--line)" strokeWidth={5} />
-        <text x="50%" y="50%" dominantBaseline="central" textAnchor="middle" fontSize={size * 0.4} fill="var(--ink-soft)">&ndash;</text>
-      </svg>
-    );
-  }
-
-  const frac = Math.min(100, Math.max(0, value)) / 100;
-  const color = value >= 70 ? 'var(--jade)' : value >= 45 ? 'var(--egg-tart)' : 'var(--ink-soft)';
   return (
-    <svg width={size} height={size} role="img" aria-label={`${value}% match`} style={{ flexShrink: 0 }}>
-      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--line)" strokeWidth={5} />
-      <circle
-        cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={5}
-        strokeLinecap="round" strokeDasharray={`${c * frac} ${c}`}
-        transform={`rotate(-90 ${size / 2} ${size / 2})`}
-      />
-      <text x="50%" y="50%" dominantBaseline="central" textAnchor="middle"
-        fontSize={size * 0.28} fontWeight={800} fill="var(--ink)">
-        {value}
-      </text>
+    <svg width={size} height={size} role="img" aria-label="Thinking\u2026" style={{ flexShrink: 0 }} className="match-ring-spinner">
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--line)" strokeWidth={4} opacity={0.35} />
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--egg-tart)" strokeWidth={4}
+        strokeLinecap="round" strokeDasharray={`${c * 0.22} ${c}`} />
     </svg>
   );
 }

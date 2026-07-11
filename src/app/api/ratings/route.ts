@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase/server';
 import { extractVoiceSignal } from '@/lib/voice';
-import { updateTaste, updateCuisineAffinity, bumpEvidence, emptyTaste } from '@/lib/taste';
+import { updateTaste, updateCuisineAffinity, bumpEvidence, emptyTaste, taughtDims } from '@/lib/taste';
 
 export const maxDuration = 30;
 
@@ -77,5 +77,13 @@ export async function POST(req: NextRequest) {
   });
   if (tasteErr) return NextResponse.json({ error: tasteErr.message }, { status: 500 });
 
-  return NextResponse.json({ ok: true, taste: nextVector, rating_count: nextCount });
+  // What this specific rating actually taught — from the same taughtDims source of
+  // truth the learning itself uses, so the feedback can never claim learning that
+  // didn't happen. dir is the direction the preference moved: the rating's sign
+  // times the attribute's centered presence.
+  const taught = taughtDims(dish.attributes, voiceAttrs).map(({ dim, presence }) => ({
+    dim,
+    dir: Math.sign(effectiveScore * (presence - 0.5)) as -1 | 0 | 1,
+  })).filter(x => x.dir !== 0);
+  return NextResponse.json({ ok: true, taste: nextVector, rating_count: nextCount, taught });
 }

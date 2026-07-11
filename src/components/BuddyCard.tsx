@@ -10,6 +10,8 @@ type BuddyState = {
   strength: number;
   elements: { kind: string; id: string; label: string }[];
   hint: { key: string; params?: Record<string, number> };
+  knows: string[];
+  learning: string[];
   stats: { ratings: number; cuisines: number; dims_explored: number; dims_total: number };
 };
 
@@ -86,6 +88,18 @@ export default function BuddyCard() {
       </p>
 
       <p className="buddy-hint">{t(state.hint.key, state.hint.params)}</p>
+
+      {/* Capability honesty, in the Buddy's voice: what it can genuinely read about
+          this person's taste already (dims taught by 3+ ratings) and what it's
+          still figuring out. Derived entirely from real per-dim evidence — the
+          Buddy under-promises and visibly grows, instead of implying an accuracy
+          it doesn't have. Shown only once there's something real to say. */}
+      {state.knows.length > 0 && (
+        <p className="card-meta" style={{ marginTop: 6 }}>
+          {t('buddy.knows')}{state.knows.slice(0, 4).map(d => t(`dim.${d}`)).join('\u3001')}
+          {state.learning.length > 0 && <>{' \u00B7 '}{t('buddy.learning')}{state.learning.slice(0, 3).map(d => t(`dim.${d}`)).join('\u3001')}</>}
+        </p>
+      )}
 
       {state.elements.length > 0 && (
         <div className="chips" style={{ justifyContent: 'center', marginTop: 10 }}>

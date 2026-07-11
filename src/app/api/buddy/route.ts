@@ -51,6 +51,14 @@ export async function GET() {
       strength: engineStrength(inputs),
       elements: buddyElements(inputs),
       hint: growthHint(inputs),
+      // Capability honesty: which dimensions the engine genuinely knows (>= 3
+      // ratings taught them) vs is still learning. Lets the Buddy speak in terms
+      // of what it CAN and CAN'T do yet — under-promise, visibly grow — instead of
+      // implying an accuracy it doesn't have.
+      knows: Object.entries((profile?.evidence ?? {}) as Record<string, number>)
+        .filter(([, n]) => n >= 3).map(([d]) => d),
+      learning: Object.entries((profile?.evidence ?? {}) as Record<string, number>)
+        .filter(([, n]) => n > 0 && n < 3).map(([d]) => d),
       stats: {
         ratings: inputs.ratingCount,
         cuisines: distinctCuisines,

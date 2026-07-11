@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { composeReason, composeCaution, rankMenuItems } from '../src/lib/menuScoring';
+import { composeReason, composeCaution, rankMenuItems, deservesFire, markFires, MIN_CITE_ATTR } from '../src/lib/menuScoring';
 import { mergeScoredAttributes } from '../src/lib/menuScan';
 import { emptyTaste } from '../src/lib/taste';
 
@@ -101,5 +101,52 @@ describe('rankMenuItems', () => {
   it('preserves all original fields on each item (spread, not replace)', () => {
     const ranked = rankMenuItems(items, taste, {}, true);
     expect(ranked.find(r => r.name === 'Mild soup')?.cuisine).toBe('x');
+  });
+});
+
+
+describe('deservesFire — the single confident mark', () => {
+  const taste: any = { umami: 0.5, tender: 0.6, sweet: -0.4, spicy: 0.5 };
+  const ev = { umami: 5, tender: 5, sweet: 3, spicy: 1 };
+
+  it('fires on two well-evidenced strong matches with no turn-offs', () => {
+    expect(deservesFire({ attributes: { umami: 0.8, tender: 0.7 }, cuisine: 'x' }, taste, ev)).toBe(true);
+  });
+
+  it('one match is not enough — fire means multiple named reasons', () => {
+    expect(deservesFire({ attributes: { umami: 0.8 }, cuisine: 'x' }, taste, ev)).toBe(false);
+  });
+
+  it('an evidenced turn-off vetoes regardless of matches', () => {
+    // the real case: a sweet dessert against an evidenced sweet-dislike must never
+    // carry the mark, however strong its other matches look
+    expect(deservesFire({ attributes: { umami: 0.8, tender: 0.7, sweet: 0.9 }, cuisine: 'x' }, taste, ev)).toBe(false);
+  });
+
+  it('thin evidence cannot produce fire (needs >= 3 teachings per cited dim)', () => {
+    // spicy pref is strong but taught only once — a phantom-prone signal (the
+    // braised-lobster-sashimi case was exactly one bad teaching) must not fire
+    expect(deservesFire({ attributes: { spicy: 0.9, umami: 0.8 }, cuisine: 'x' }, taste, ev)).toBe(false);
+  });
+
+  it('markFires caps at 2 even when a whole menu qualifies, picking by raw score', () => {
+    const items = [0.1, 0.3, 0.2, 0.15].map(raw => ({ attributes: { umami: 0.8, tender: 0.7 }, cuisine: 'x', raw_score: raw }));
+    const marked = markFires(items, taste, ev);
+    expect(marked.filter(i => i.fire).length).toBe(2);
+    const fired = marked.filter(i => i.fire).map(i => i.raw_score).sort();
+    expect(fired).toEqual([0.2, 0.3]);
+  });
+});
+
+describe('dish-side citation bar', () => {
+  it('never writes a claim about an attribute the dish only weakly has', () => {
+    // the real case: a dessert given umami 0.3 by the scoring model was praised
+    // for "deep umami" — a false claim about the DISH even though the preference
+    // side was well-evidenced. Both sides now carry an honesty bar.
+    const taste: any = { umami: 0.6 };
+    const weak = composeReason({ attributes: { umami: MIN_CITE_ATTR - 0.1 }, cuisine: 'x' }, taste, {}, { umami: 5 });
+    const strong = composeReason({ attributes: { umami: MIN_CITE_ATTR + 0.1 }, cuisine: 'x' }, taste, {}, { umami: 5 });
+    expect(weak.toLowerCase().includes('umami')).toBe(false);
+    expect(strong.toLowerCase().includes('umami')).toBe(true);
   });
 });
