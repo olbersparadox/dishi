@@ -73,4 +73,28 @@ describe('analyzeGrounding / groundingUsable — the overlay go/no-go', () => {
   it('empty scan is never usable', () => {
     expect(groundingUsable(analyzeGrounding([]).stats)).toBe(false);
   });
+
+  it('REGRESSION: cumulative drift is detected even when no single overlap is heavy', () => {
+    // From real-photo validation (menu 2): the model's boxes progressively slid up
+    // a 12-dish column until neighbors crowded together and the last dish had no
+    // box on it — yet heavyOverlapShare read 0% and the old gate said usable.
+    // crowdedPairShare exists to catch exactly this: each neighbor overlap is
+    // small, but the SEQUENCE has lost correspondence with the dishes.
+    const drifted = Array.from({ length: 12 }, (_, i) => {
+      const trueY = 50 + i * 75;
+      const y = Math.max(0, trueY - i * 26); // compounding upward drift
+      return [100, y, 900, y + 70];
+    });
+    const { stats } = analyzeGrounding(drifted);
+    expect(stats.heavyOverlapShare).toBeLessThan(0.15); // the old gate's blind spot
+    expect(stats.crowdedPairShare).toBeGreaterThan(0.5); // the new detector fires
+    expect(groundingUsable(stats)).toBe(false);
+  });
+
+  it('density is NOT drift: tight-but-clean and multi-line boxes stay usable', () => {
+    const tight = Array.from({ length: 15 }, (_, i) => [100, 50 + i * 61, 900, 110 + i * 61]);
+    expect(groundingUsable(analyzeGrounding(tight).stats)).toBe(true);
+    const tall = Array.from({ length: 8 }, (_, i) => [100, 50 + i * 115, 900, 160 + i * 115]);
+    expect(groundingUsable(analyzeGrounding(tall).stats)).toBe(true);
+  });
 });

@@ -28,6 +28,24 @@ export async function callClaude(
   userContent: string | ContentPart[],
   opts: { maxTokens?: number } = {},
 ): Promise<string | null> {
+  const started = Date.now();
+  const first = await callClaudeOnce(system, userContent, opts);
+  if (first !== null) return first;
+  // Retry exactly once on any FAST gateway-level failure (non-2xx, mangled body).
+  // Validation on real menus hit this live: OpenRouter returned a non-JSON body
+  // once and the identical request succeeded seconds later. A retry after a slow
+  // failure (a genuine ~50s timeout) is skipped — it would stack past Vercel's
+  // function budget and die mid-flight anyway.
+  if (Date.now() - started > 15_000) return null;
+  await new Promise(r => setTimeout(r, 800));
+  return callClaudeOnce(system, userContent, opts);
+}
+
+async function callClaudeOnce(
+  system: string,
+  userContent: string | ContentPart[],
+  opts: { maxTokens?: number } = {},
+): Promise<string | null> {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) return null;
 

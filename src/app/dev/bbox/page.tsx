@@ -71,7 +71,15 @@ export default function BBoxHarness() {
                 background: highlight === i ? 'rgba(200,60,40,0.15)' : 'transparent',
                 cursor: 'pointer', boxSizing: 'border-box',
               }}>
-              <span style={{ position: 'absolute', top: -18, left: 0, fontSize: 11, fontWeight: 700, background: 'var(--jade)', color: '#fff', padding: '0 4px', borderRadius: 3 }}>{i + 1}</span>
+              {/* Chip sits INSIDE its own box: rendered above, it visually lands on
+                  the PREVIOUS menu row at phone scale and reads as labeling the
+                  wrong dish — exactly the 19-vs-20 confusion from validation. */}
+              <span style={{ position: 'absolute', top: 0, left: 0, fontSize: 11, fontWeight: 700, background: 'var(--jade)', color: '#fff', padding: '0 4px', borderRadius: '0 0 3px 0' }}>{i + 1}</span>
+              {highlight === i && (
+                <span style={{ position: 'absolute', bottom: '100%', left: 0, marginBottom: 2, fontSize: 12, fontWeight: 700, background: 'var(--lacquer)', color: '#fff', padding: '1px 6px', borderRadius: 3, whiteSpace: 'nowrap', maxWidth: '90vw', overflow: 'hidden', textOverflow: 'ellipsis', zIndex: 2 }}>
+                  {result!.items[i].name_zh ?? result!.items[i].name}
+                </span>
+              )}
             </div>
           ))}
         </div>

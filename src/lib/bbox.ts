@@ -77,7 +77,43 @@ export type GroundingStats = {
   /** share of valid boxes that overlap another valid box by more than half of the
    * smaller box — a high value signals column confusion or whole-section boxes. */
   heavyOverlapShare: number;
+  /** share of ADJACENT box pairs (within a column) that vertically overlap by more
+   * than a quarter of the smaller box's height. This is the cumulative-drift
+   * detector: real-photo testing showed the model's boxes progressively sliding up
+   * a long column until neighbors crowd into each other — each individual overlap
+   * too small for heavyOverlapShare to see, but the SEQUENCE loses correspondence
+   * with the dishes entirely (menu 2 in validation showed exactly this and still
+   * scored overlap 0%). Synthetic separation test: healthy/tight/multi-line
+   * patterns all score 0.0, cumulative drift scores 1.0. */
+  crowdedPairShare: number;
 };
+
+function columnClusters(boxes: NormalizedBox[]): NormalizedBox[][] {
+  const cols: NormalizedBox[][] = [];
+  for (const b of [...boxes].sort((a, c) => a.x - c.x)) {
+    const col = cols.find(c => {
+      const cx = c[0];
+      const ov = Math.min(cx.x + cx.w, b.x + b.w) - Math.max(cx.x, b.x);
+      return ov > 0.5 * Math.min(cx.w, b.w);
+    });
+    if (col) col.push(b); else cols.push([b]);
+  }
+  return cols;
+}
+
+function crowdedPairShare(boxes: NormalizedBox[]): number {
+  let pairs = 0, crowded = 0;
+  for (const col of columnClusters(boxes)) {
+    const sorted = [...col].sort((a, b) => a.y - b.y);
+    for (let i = 1; i < sorted.length; i++) {
+      const a = sorted[i - 1], b = sorted[i];
+      const ov = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
+      pairs++;
+      if (ov > 0.25 * Math.min(a.h, b.h)) crowded++;
+    }
+  }
+  return pairs ? crowded / pairs : 0;
+}
 
 /** Validate a whole batch and compute the health stats the go/no-go criteria use. */
 export function analyzeGrounding(rawBoxes: unknown[], imageDims?: { w: number; h: number }): { results: BoxResult[]; stats: GroundingStats } {
@@ -104,6 +140,7 @@ export function analyzeGrounding(rawBoxes: unknown[], imageDims?: { w: number; h
       valid: valid.length,
       rejected,
       heavyOverlapShare: valid.length ? heavy / valid.length : 0,
+      crowdedPairShare: crowdedPairShare(valid.map(v => v.box)),
     },
   };
 }
@@ -113,5 +150,7 @@ export function analyzeGrounding(rawBoxes: unknown[], imageDims?: { w: number; h
  * validation criteria agreed before any real-photo testing. */
 export function groundingUsable(stats: GroundingStats): boolean {
   if (stats.total === 0) return false;
-  return stats.valid / stats.total >= 0.8 && stats.heavyOverlapShare < 0.15;
+  return stats.valid / stats.total >= 0.8
+    && stats.heavyOverlapShare < 0.15
+    && stats.crowdedPairShare < 0.2; // systematic drift -> the sequence can't be trusted
 }
