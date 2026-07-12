@@ -11,7 +11,7 @@ import { useLang } from '@/lib/i18n';
 
 type ScannedItem = {
   name: string; name_zh?: string | null; name_original: string; section: string | null; description: string | null;
-  price: string | null; cuisine: string; hook: string; confidence: number;
+  price: string | null; cuisine: string; hook: string; hook_zh?: string; confidence: number;
   // undefined = not yet requested/still scoring; null = this dish's scoring call
   // failed (degrade gracefully, don't block the rest); number = a real match.
   match?: number | null; reason?: string | null; caution?: string | null;
@@ -27,6 +27,15 @@ type ScannedItem = {
   // Present once Phase 2 has scored the item — carried through so a "pick" can be
   // created with its real taste attributes instead of an empty/neutral dish.
   attributes?: Record<string, number>;
+  // Day-0 utility, filled in by Stage 2 (/api/menu-scan/enrich) — useful before any
+  // taste learning has happened, unlike match/fire which need evidence. Starts
+  // empty/null (NOT yet enriched); `enriched` distinguishes "pending" from
+  // "enriched and genuinely has none" so the UI never shows a false empty state.
+  diet: string[];
+  cooking_method: string | null;
+  heaviness: 'light' | 'medium' | 'heavy' | null;
+  ingredients: string[];
+  enriched?: boolean;
 };
 type ScanResponse = {
   phase?: 'done' | 'needs_scoring'; profile_ready: boolean; rating_count: number; needed?: number; menu_language: string;
@@ -34,9 +43,12 @@ type ScanResponse = {
 };
 
 const SCAN_STAGE_KEYS = ['scan.stage.0', 'scan.stage.1', 'scan.stage.2', 'scan.stage.3', 'scan.stage.4'];
-// Concurrency cap for parallel per-dish scoring: fast enough that total wait is
-// close to "one dish's worth of latency," conservative enough to stay well clear
-// of provider rate limits on a typical 15-20 item menu.
+// Concurrency cap for parallel per-dish calls (both enrichment and scoring):
+// fast enough that total wait is close to "one dish's worth of latency,"
+// conservative enough to stay well clear of provider rate limits on a typical
+// 15-20 item menu. The two stages each get their own cap of this many at once,
+// so worst case ~2x this many concurrent calls in flight together — comfortably
+// inside normal rate limits.
 const SCORE_CONCURRENCY = 6;
 
 export default function ScanPage() {
@@ -48,7 +60,7 @@ export default function ScanPage() {
 }
 
 function Scanner() {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const [preview, setPreview] = useState<string | null>(null);
   const [scanning, setScanning] = useState(false);
   const [stage, setStage] = useState(0);
@@ -117,42 +129,148 @@ function Scanner() {
       const form = new FormData();
       form.append('photo', await normalizePhoto(file));
       const res = await fetch('/api/menu-scan', { method: 'POST', body: form });
-      const json: ScanResponse = await res.json();
-      if (!res.ok) throw new Error((json as any).error || 'Scan failed.');
-      if (!json.items?.length) throw new Error('No dishes could be read from that photo.');
-      setResult(json);
-      setScanning(false);
-      if (json.phase !== 'needs_scoring') setSettled(true); // already complete (mock / under threshold)
-
-      // Phase 2: one small call PER DISH, several in parallel (capped). Each ring
-      // lights up the moment ITS call finishes — no waiting for the slowest dish
-      // to unblock everyone else's result. Original menu order is preserved while
-      // any dish is still pending; once every dish has an outcome (scored or
-      // failed), the view "settles" into ranked order with the hero promoted.
-      if (json.phase === 'needs_scoring') {
-        await mapWithConcurrency(
-          json.items,
-          SCORE_CONCURRENCY,
-          async (item) => {
-            const r = await fetch('/api/menu-scan/score', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ item }),
-            });
-            if (!r.ok) throw new Error('score failed');
-            return (await r.json()).item as ScannedItem;
-          },
-          (scored, index) => {
-            setResult(prev => {
-              if (!prev) return prev;
-              const items = [...prev.items];
-              items[index] = scored ?? { ...items[index], match: null }; // null = failed, shown gracefully
-              return { ...prev, items };
-            });
-          },
-        );
-        setSettled(true);
+      if (!res.ok || !res.body) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error((errJson as any).error || 'Scan failed.');
       }
+
+      // Consume the NDJSON stream one line at a time. 'item' events append a dish
+      // to the visible list the MOMENT its own JSON object closed in the model's
+      // response — this is what makes dishes appear one by one instead of all at
+      // once after one long wait. 'start' arrives first (profile info is already
+      // known before the model call even begins) and switches the screen to the
+      // results view immediately, with an empty list that fills in live.
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let lineBuffer = '';
+      let items: ScannedItem[] = [];
+      let meta: { profile_ready: boolean; rating_count: number; needed: number; mock: boolean; phase: 'done' | 'needs_scoring' } | null = null;
+      let done: { menu_language: string; restaurant_guess: string | null } | null = null;
+
+      while (true) {
+        const { done: streamDone, value } = await reader.read();
+        if (streamDone) break;
+        lineBuffer += decoder.decode(value, { stream: true });
+        // \r?\n rather than a strict '\n': any intermediary (proxy, CDN edge)
+        // between the server and the browser could normalize line endings to
+        // CRLF, and a strict split would then leave a stray \r glued onto every
+        // line, breaking JSON.parse on every single event.
+        const lines = lineBuffer.split(/\r?\n/);
+        lineBuffer = lines.pop() ?? ''; // last element may be a partial line — carry over
+
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          // One malformed line must never take down an otherwise-successful
+          // scan — real evidence from earlier truncation bugs is exactly this
+          // shape of failure (a good response ruined by treating one bad
+          // fragment as fatal). Skip it, keep reading; the stream is line-
+          // delimited, so the NEXT line is unaffected by this one being bad.
+          let ev: any;
+          try {
+            ev = JSON.parse(line);
+          } catch (parseErr) {
+            console.error('menu-scan stream: skipped an unparseable line', parseErr, line.slice(0, 200));
+            continue;
+          }
+          if (ev.kind === 'start') {
+            meta = ev;
+            setScanning(false);
+            setResult({
+              phase: ev.phase, profile_ready: ev.profile_ready, rating_count: ev.rating_count, needed: ev.needed,
+              mock: ev.mock, menu_language: 'unknown', restaurant_guess: null, items: [],
+            });
+          } else if (ev.kind === 'item') {
+            items = [...items, ev.item as ScannedItem];
+            const snapshot = items;
+            setResult(prev => prev ? { ...prev, items: snapshot } : prev);
+          } else if (ev.kind === 'done') {
+            done = ev;
+          } else if (ev.kind === 'error') {
+            throw new Error(ev.error);
+          }
+        }
+      }
+
+      if (!meta) throw new Error('Scan ended unexpectedly.');
+      if (items.length === 0) throw new Error('No dishes could be read from that photo.');
+
+      // Finalize with the terminal metadata (menu_language/restaurant_guess) now
+      // that the stream has ended.
+      setResult(prev => prev ? { ...prev, items, menu_language: done?.menu_language ?? 'unknown', restaurant_guess: done?.restaurant_guess ?? null } : prev);
+      if (meta.phase !== 'needs_scoring') setSettled(true); // already complete (mock / under threshold)
+
+      // Stage 2 (enrichment: hook/diet/cooking/heaviness/ingredients) always runs,
+      // for every user, regardless of profile maturity — day-0 utility needs no
+      // taste learning. Stage 3 (flavor scoring) only runs once profile_ready. The
+      // two are INDEPENDENT, so they run concurrently rather than one waiting on
+      // the other.
+      //
+      // Each stage's server response echoes back the item snapshot it was CALLED
+      // with, which — because the two calls fire at the same time — can be stale
+      // by the time the response lands (the other stage may have already updated
+      // that same item). Merging only the specific fields each stage OWNS, rather
+      // than replacing the whole item, makes the merge order-independent: whichever
+      // response arrives first or last, neither stage can ever clobber the other's
+      // work.
+      const enrichPromise = meta.mock ? Promise.resolve() : mapWithConcurrency(
+        items,
+        SCORE_CONCURRENCY,
+        async (item) => {
+          const r = await fetch('/api/menu-scan/enrich', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ item }),
+          });
+          if (!r.ok) throw new Error('enrich failed');
+          return (await r.json()).item as ScannedItem;
+        },
+        (enriched, index) => {
+          setResult(prev => {
+            if (!prev) return prev;
+            const nextItems = [...prev.items];
+            nextItems[index] = enriched
+              ? { ...nextItems[index], hook: enriched.hook, hook_zh: enriched.hook_zh, diet: enriched.diet, cooking_method: enriched.cooking_method, heaviness: enriched.heaviness, ingredients: enriched.ingredients, enriched: true }
+              : { ...nextItems[index], enriched: true }; // failed enrichment: stop showing the shimmer, stay honestly empty
+            return { ...prev, items: nextItems };
+          });
+        },
+      ).catch(() => {}); // best-effort: a failed enrichment batch must never block scoring or settle
+
+      // Phase 2 (scoring): one small call PER DISH, several in parallel (capped).
+      // Each ring lights up the moment ITS call finishes — no waiting for the
+      // slowest dish to unblock everyone else's result. Original menu order is
+      // preserved while any dish is still pending; once every dish has an outcome
+      // (scored or failed), the view "settles" into ranked order with the hero
+      // promoted.
+      const scorePromise = meta.phase === 'needs_scoring'
+        ? mapWithConcurrency(
+            items,
+            SCORE_CONCURRENCY,
+            async (item) => {
+              const r = await fetch('/api/menu-scan/score', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ item }),
+              });
+              if (!r.ok) throw new Error('score failed');
+              return (await r.json()).item as ScannedItem;
+            },
+            (scored, index) => {
+              setResult(prev => {
+                if (!prev) return prev;
+                const nextItems = [...prev.items];
+                nextItems[index] = scored
+                  ? { ...nextItems[index], match: scored.match, reason: scored.reason, caution: scored.caution, fire: scored.fire, raw_score: scored.raw_score, attributes: scored.attributes }
+                  : { ...nextItems[index], match: null }; // null = failed, shown gracefully
+                return { ...prev, items: nextItems };
+              });
+            },
+          )
+        : Promise.resolve();
+
+      await scorePromise;
+      setSettled(true);
+      await enrichPromise; // usually already resolved by now; awaited so this function doesn't return early
       return;
     } catch (e: any) {
       setError(e.message || 'Something went wrong reading that menu.');
@@ -237,7 +355,9 @@ function Scanner() {
         <button className="btn ghost small" onClick={reset}>{t('scan.another')}</button>
       </div>
       <p className="card-meta" style={{ marginBottom: 4 }}>
-        {t('scan.read', { n: result.items.length })}{result.restaurant_guess ? ` \u00b7 ${result.restaurant_guess}` : ''}
+        {result.items.length > 0
+          ? <>{t('scan.read', { n: result.items.length })}{result.restaurant_guess ? ` \u00b7 ${result.restaurant_guess}` : ''}</>
+          : <span role="status">{t('scan.reading')}</span>}
       </p>
       {result.mock && (
         <p className="scan-banner">{t('scan.mock')}</p>
@@ -254,7 +374,8 @@ function Scanner() {
         <p className="scan-banner">{t('scan.scorefailed')}</p>
       )}
 
-      {/* Under-threshold: an honest plain list — no rings, no reasons, no hero. */}
+      {/* Under-threshold: an honest plain list — no rings, no reasons, no hero.
+          Hook + day-0 chips still fill in progressively via Stage 2 enrichment. */}
       {!result.profile_ready && result.items.map((item, i) => (
         <article className={`card scan-pickable ${picked.has(item.name_original) ? 'picked' : ''}`} key={`plain-${i}`}
           onClick={() => togglePick(item.name_original)}>
@@ -265,7 +386,7 @@ function Scanner() {
                 <div className="card-title" style={{ fontSize: 15.5 }}><DishName name={item.name} name_zh={item.name_zh} name_original={item.name_original} /></div>
                 {item.price && <span className="dish-price">{item.price}</span>}
               </div>
-              <div className="card-meta">{item.hook}</div>
+              <DishDetails item={item} t={t} lang={lang} />
             </div>
           </div>
         </article>
@@ -284,7 +405,7 @@ function Scanner() {
                 <div className="card-title" style={{ fontSize: 15.5 }}><DishName name={item.name} name_zh={item.name_zh} name_original={item.name_original} /></div>
                 {item.price && <span className="dish-price">{item.price}</span>}
               </div>
-              <div className="card-meta">{item.hook}</div>
+              <DishDetails item={item} t={t} lang={lang} />
             </div>
           </div>
         </article>
@@ -305,15 +426,17 @@ function Scanner() {
                 onClick={() => togglePick(item.name_original)}
               >
                 <div className="card-body scan-row">
-                  <div className="scan-rank">{i + 1}</div>
-                  {fire && <div className="scan-fire" aria-label={t('scan.fire')}>{'\uD83D\uDD25'}</div>}
+                  <div className="scan-rank-col">
+                    <div className="scan-rank">{i + 1}</div>
+                    {fire && <div className="scan-fire scan-fire-pop" aria-label={t('scan.fire')}>{'\uD83D\uDD25'}</div>}
+                  </div>
                   <div style={{ minWidth: 0, flex: 1 }}>
                     <div className="dish-row">
                       <div className="card-title" style={{ fontSize: 15.5 }}><DishName name={item.name} name_zh={item.name_zh} name_original={item.name_original} /></div>
                       {item.price && <span className="dish-price">{item.price}</span>}
                     </div>
-                    <div className="card-meta">{item.hook}</div>
-                    {fire && item.reason && <p className="scan-reason" style={{ fontSize: 13 }}>{item.reason}</p>}
+                    <DishDetails item={item} t={t} lang={lang} />
+                    {fire && item.reason && <p className="scan-reason fade-in" style={{ fontSize: 13 }}>{item.reason}</p>}
                   </div>
                 </div>
               </article>
@@ -362,6 +485,59 @@ function Scanner() {
 }
 
 
+
+const DIET_ICON: Record<string, string> = {
+  veg: '\u{1F331}', pork: '\u{1F416}', beef: '\u{1F404}', seafood: '\u{1F41F}',
+  shellfish: '\u{1F990}', peanut: '\u{1F95C}', spicy: '\u{1F336}\uFE0F',
+};
+
+/**
+ * Hook line + day-0 utility chips (diet/cooking/heaviness) for one dish card.
+ * These arrive from Stage 2 enrichment progressively, in concurrency-capped
+ * waves, independent of whether taste scoring is even running — a shimmer
+ * placeholder holds the hook's space (so cards don't visibly jump in height as
+ * enrichment lands) and everything fades in once `enriched` flips true, rather
+ * than popping in abruptly.
+ */
+function DishDetails({ item, t, lang }: { item: ScannedItem; t: (key: string, params?: Record<string, string | number>) => string; lang: 'zh' | 'en' }) {
+  if (!item.enriched) {
+    return <div className="hook-shimmer" aria-hidden />;
+  }
+  const hasChips = item.diet.length > 0 || item.cooking_method || item.heaviness;
+  // Bilingual hook, mirroring the same name/name_zh pattern used everywhere else
+  // in Dishi: prefer the current UI language, fall back to whichever exists if
+  // the other came back empty (never show a blank hook when SOME text exists).
+  const hookText = lang === 'zh' ? (item.hook_zh || item.hook) : (item.hook || item.hook_zh);
+  return (
+    <>
+      {/* text-transform:capitalize is a no-op on Chinese characters (no case to
+          transform), so this one class safely handles both languages: Title Case
+          in English, untouched in Chinese — rather than trusting the model to be
+          consistent about capitalization on every single call. */}
+      {hookText && <div className="card-meta fade-in dish-hook">{hookText}</div>}
+      {hasChips && (
+        <div className="fade-in" style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 5 }}>
+          {item.diet.map(d => (
+            <span key={d} className="chip scan-chip">
+              <span className="scan-chip-icon">{DIET_ICON[d] ?? ''}</span>
+              <span className="scan-chip-label">{t(`scan.diet.${d}`)}</span>
+            </span>
+          ))}
+          {item.cooking_method && (
+            <span className="chip scan-chip">
+              <span className="scan-chip-label">{t(`scan.cooking.${item.cooking_method}`)}</span>
+            </span>
+          )}
+          {item.heaviness && (
+            <span className="chip scan-chip">
+              <span className="scan-chip-label">{t(`scan.heaviness.${item.heaviness}`)}</span>
+            </span>
+          )}
+        </div>
+      )}
+    </>
+  );
+}
 
 /** Small in-progress spinner shown while a dish's background scoring is running. */
 function Spinner({ size }: { size: number }) {

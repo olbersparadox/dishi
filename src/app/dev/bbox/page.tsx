@@ -1,8 +1,7 @@
 'use client';
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { normalizePhoto } from '@/lib/image';
-import { groupIndicesByColumn } from '@/lib/bbox';
-import { detectRowBands, envelopeFilter, partitionByLargestGaps, matchBandsToBoxes, applySnap } from '@/lib/rowSnap';
+import { useRowSnap } from '@/lib/useRowSnap';
 
 /**
  * VALIDATION HARNESS UI (dev tool, not linked from anywhere) — /dev/bbox
@@ -24,66 +23,13 @@ export default function BBoxHarness() {
   // Row-snapped boxes, keyed by item index — computed client-side after the
   // photo loads (needs real pixel data, see rowSnap.ts). null box = unsnapped
   // (either snapping hasn't run yet, or it found no confident correction).
-  const [snapped, setSnapped] = useState<Record<number, { x: number; y: number; w: number; h: number }>>({});
   const [snapEnabled, setSnapEnabled] = useState(true);
   const imgRef = useRef<HTMLImageElement>(null);
+  // Delegates to the SAME hook the real overlay uses — a fix proven here is
+  // automatically live in production, and vice versa; the two can't drift apart.
+  const snapped = useRowSnap(result?.items.map(it => it.box) ?? [], imgRef.current, !!result);
 
-  /**
-   * Row snapping — corrects box y-positions using real pixel data instead of
-   * trusting the model's assumed grid. Runs client-side (Canvas), grouped by
-   * column so unrelated columns' sequences never get matched against each other,
-   * scaled to THIS photo's own average box height (offline-validated to adapt
-   * across resolutions rather than hardcoding pixel constants). Purely a
-   * rendering-time correction: does not change the server's usable/fallback
-   * verdict, which is already final by the time this runs.
-   */
-  useEffect(() => {
-    const img = imgRef.current;
-    if (!img || !result) { setSnapped({}); return; }
-    const run = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-      ctx.drawImage(img, 0, 0);
-      let imageData: ImageData;
-      try { imageData = ctx.getImageData(0, 0, canvas.width, canvas.height); }
-      catch { return; } // e.g. CORS-tainted canvas — degrade to unsnapped, never crash
-
-      const boxed = result.items
-        .map((it, i) => ({ i, box: it.box }))
-        .filter((x): x is { i: number; box: NonNullable<Item['box']> } => x.box !== null);
-      if (boxed.length === 0) return;
-
-      const avgBoxHeightPx = (boxed.reduce((s, x) => s + x.box.h, 0) / boxed.length) * canvas.height;
-      const rawBandsPx = detectRowBands(imageData, avgBoxHeightPx);
-
-      const normBoxes = boxed.map(x => x.box);
-      const columns = groupIndicesByColumn(normBoxes); // indices into `boxed`, not `result.items`
-      const next: Record<number, { x: number; y: number; w: number; h: number }> = {};
-      for (const col of columns) {
-        const sorted = [...col].sort((a, b) => normBoxes[a].y - normBoxes[b].y);
-        const modelYsPx = sorted.map(idx => (normBoxes[idx].y + normBoxes[idx].h / 2) * canvas.height);
-        // Per-column pipeline: envelope from THIS column's own boxes (keeps header
-        // bands out), then parameter-free grouping into exactly this column's dish
-        // count — which is what lets the ordinal path engage on multi-line menus.
-        const envLo = Math.min(...modelYsPx) - avgBoxHeightPx;
-        const envHi = Math.max(...modelYsPx) + avgBoxHeightPx;
-        const groupedPx = partitionByLargestGaps(envelopeFilter(rawBandsPx, envLo, envHi), sorted.length);
-        const matchedPx = matchBandsToBoxes(modelYsPx, groupedPx, avgBoxHeightPx * 0.7);
-        sorted.forEach((idx, k) => {
-          const itemIndex = boxed[idx].i;
-          const boxPx = { x: normBoxes[idx].x * canvas.width, y: normBoxes[idx].y * canvas.height, w: normBoxes[idx].w * canvas.width, h: normBoxes[idx].h * canvas.height };
-          const snappedPx = applySnap(boxPx, matchedPx[k]);
-          next[itemIndex] = { x: snappedPx.x / canvas.width, y: snappedPx.y / canvas.height, w: snappedPx.w / canvas.width, h: snappedPx.h / canvas.height };
-        });
-      }
-      setSnapped(next);
-    };
-    if (img.complete) run(); else img.onload = run;
-  }, [result]);
-
-  async function run(file: File) {
+    async function run(file: File) {
     setBusy(true); setError(''); setResult(null); setRawSample('');
     // Same normalization as the real scan flow: converts HEIC/AVIF/WebP to JPEG
     // and caps size. Validation hit this live — an .avif menu photo went straight

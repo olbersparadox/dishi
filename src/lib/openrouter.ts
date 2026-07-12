@@ -103,6 +103,105 @@ export function textPart(text: string): ContentPart {
   return { type: 'text', text };
 }
 
+/**
+ * Streaming variant of callClaude: same request, but with `stream: true`. Yields
+ * the ACCUMULATED response text after every SSE chunk (not just the delta) — this
+ * is what lets a caller re-run a tolerant partial-JSON parser (see
+ * jsonSalvage.ts) against the growing buffer on every yield and discover complete
+ * objects the moment they close, without needing any custom incremental-parser
+ * state of its own.
+ *
+ * Standard OpenAI-compatible SSE framing (`data: {...}\n\n`, terminated by
+ * `data: [DONE]\n\n`) — OpenRouter documents this exact format regardless of which
+ * underlying model is selected, so this isn't model-specific parsing.
+ *
+ * Yields nothing (empty generator) if no API key is set, mirroring callClaude's
+ * "no key -> caller's mock path" contract. A single malformed SSE frame is
+ * skipped rather than aborting the whole stream — the downstream salvage parser
+ * already tolerates a text buffer that isn't valid JSON at any given instant, so
+ * losing one frame just delays that content fractionally, it doesn't break it.
+ */
+export async function* callClaudeStream(
+  system: string,
+  userContent: string | ContentPart[],
+  opts: { maxTokens?: number } = {},
+): AsyncGenerator<string, void, unknown> {
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) return;
+
+  let res: Response;
+  try {
+    res = await fetch(ENDPOINT, {
+      signal: AbortSignal.timeout(50_000),
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+        'HTTP-Referer': 'https://dishi.app',
+        'X-Title': 'Dishi',
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        max_tokens: opts.maxTokens ?? 1000,
+        stream: true,
+        messages: [
+          { role: 'system', content: system },
+          { role: 'user', content: userContent },
+        ],
+      }),
+    });
+  } catch (e) {
+    console.error('OpenRouter stream call failed/timed out', e);
+    return;
+  }
+
+  if (!res.ok || !res.body) {
+    console.error('OpenRouter stream error', res.status, await res.text().catch(() => ''));
+    return;
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let lineBuffer = '';
+  let accumulated = '';
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      lineBuffer += decoder.decode(value, { stream: true });
+
+      const lines = lineBuffer.split('\n');
+      lineBuffer = lines.pop() ?? ''; // last element may be a partial line — carry over
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed.startsWith('data:')) continue;
+        const payload = trimmed.slice(5).trim();
+        if (payload === '[DONE]' || payload === '') continue;
+        try {
+          const chunk = JSON.parse(payload);
+          const delta = chunk?.choices?.[0]?.delta?.content;
+          if (typeof delta === 'string' && delta.length > 0) {
+            accumulated += delta;
+            yield accumulated;
+          }
+        } catch {
+          // malformed frame — skip it, keep reading (see docstring)
+        }
+      }
+    }
+  } catch (e) {
+    console.error('OpenRouter stream read failed mid-stream', e);
+    // Fall through: whatever was already yielded stays valid. The caller's
+    // partial-JSON parser will have already surfaced any complete items found
+    // before this failure — a mid-stream drop degrades to "fewer dishes," not
+    // "nothing," matching the existing truncation-handling philosophy.
+  } finally {
+    reader.releaseLock();
+  }
+}
+
 /** Strip markdown fences and parse JSON, returning null on any failure. */
 export function parseJsonResponse<T = any>(raw: string | null): T | null {
   if (!raw) return null;

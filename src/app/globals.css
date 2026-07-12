@@ -131,11 +131,17 @@ button { font: inherit; cursor: pointer; }
   border-radius: 12px; padding: 9px 12px; margin: 10px 0; color: var(--ink);
 }
 .scan-hero { border-color: var(--lacquer); border-width: 1.5px; }
-.scan-row { display: flex; gap: 12px; align-items: center; }
+.scan-row { display: flex; gap: 12px; align-items: flex-start; }
 .scan-rank {
   font-family: var(--font-display); font-weight: 800; font-size: 15px;
   color: var(--ink-soft); width: 20px; text-align: center; flex-shrink: 0;
 }
+/* Rank number + fire mark stack vertically, both pinned to the TOP of the card
+   (next to the dish name) rather than centering against the whole card's height
+   — which grew tall and pulled them down once hook/chips/reason text stacked up
+   underneath. */
+.scan-rank-col { display: flex; flex-direction: column; align-items: center; gap: 3px; flex-shrink: 0; width: 20px; }
+.scan-fire { font-size: 26px; line-height: 1; }
 .scan-reason { font-size: 14px; margin-top: 8px; color: var(--jade); font-weight: 550; }
 .scan-caution { font-size: 14px; margin-top: 4px; color: var(--lacquer); font-weight: 550; }
 
@@ -382,4 +388,28 @@ button { font: inherit; cursor: pointer; }
 
 /* Fire — the single confident mark on scanned menus. Sized to read as a mark,
    not a decoration; the highlighted card border (scan-hero) does the rest. */
-.scan-fire { font-size: 22px; flex-shrink: 0; line-height: 1; }
+/* .scan-fire size lives with .scan-rank-col above (kept together since they're
+   now a single visual unit: rank number stacked above the fire mark) */
+
+/* --- scan: enrichment shimmer + fade-in, fire pop --- */
+.hook-shimmer {
+  height: 13px; width: 68%; margin-top: 6px; border-radius: 4px;
+  background: linear-gradient(90deg, var(--line) 25%, #ffffff90 50%, var(--line) 75%);
+  background-size: 200% 100%; animation: hook-shimmer-sweep 1.4s ease-in-out infinite;
+}
+@keyframes hook-shimmer-sweep { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+.fade-in { animation: fade-in-up 0.32s ease-out both; }
+@keyframes fade-in-up { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: translateY(0); } }
+.scan-fire-pop { animation: fire-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+@keyframes fire-pop { 0% { transform: scale(0.3); opacity: 0; } 60% { transform: scale(1.25); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
+
+/* --- scan: day-0 chips (diet/cooking/heaviness) --- */
+.scan-chip {
+  padding: 3px 10px; display: inline-flex; align-items: center; gap: 4px;
+}
+.scan-chip-icon { font-size: 17px; line-height: 1; color: #000; } /* icon glyph stays black/native color */
+.scan-chip-label { font-size: 13px; font-weight: 650; color: var(--jade); }
+
+/* Hook line: Title Case in English (text-transform is a no-op on Chinese
+   characters, so this is safe to apply unconditionally regardless of language). */
+.dish-hook { text-transform: capitalize; }

@@ -105,14 +105,27 @@ function spearmanAbs(gaps: number[]): number {
   const n = gaps.length;
   // Midranks for ties. Without this, constant gaps (exact ties — common with
   // integer 0-1000 coordinates) get ranked in insertion order and score a FALSE
-  // perfect trend, flagging perfectly healthy menus as drift. Caught by the
-  // verification suite on integer-coordinate synthetics.
+  // perfect trend, flagging perfectly healthy menus as drift.
+  //
+  // REGRESSION (caught by real npm test, not just this project's own harness):
+  // bitwise equality (`===`) is the wrong tie test for floating-point gaps. Two
+  // conceptually-identical gaps (e.g. exactly 1px apart in the source photo) can
+  // arrive as 0.0010000000000000009 vs 0.0009999999999999731 purely from IEEE 754
+  // rounding when different integer y-coordinates are each divided by 1000 — real
+  // values seen on a perfectly regular 15-row synthetic. Bitwise `===` treated
+  // that as a genuine difference, split one gap into its own rank, and manufactured
+  // a spurious "trend" (0.38) out of pure floating-point noise on a menu with zero
+  // actual drift. Fix: group as tied when they differ by less than a relative
+  // epsilon tighter than any REAL drift this detector needs to catch, but looser
+  // than float rounding error (~1e-10 relative, vs rounding noise around 1e-14).
+  const EPS = 1e-9;
   const order = gaps.map((v, i) => [v, i] as const).sort((p, q) => p[0] - q[0]);
   const r = new Array<number>(n);
   let k = 0;
   while (k < n) {
     let j = k;
-    while (j + 1 < n && order[j + 1][0] === order[k][0]) j++;
+    const scale = Math.max(1e-12, Math.abs(order[k][0]));
+    while (j + 1 < n && Math.abs(order[j + 1][0] - order[k][0]) <= EPS * scale) j++;
     const mid = (k + j) / 2;
     for (let t = k; t <= j; t++) r[order[t][1]] = mid;
     k = j + 1;
@@ -180,17 +193,18 @@ function crowdedPairShare(boxes: NormalizedBox[]): number {
   return pairs ? crowded / pairs : 0;
 }
 
-/** Validate a whole batch and compute the health stats the go/no-go criteria use. */
-export function analyzeGrounding(rawBoxes: unknown[], imageDims?: { w: number; h: number }): { results: BoxResult[]; stats: GroundingStats } {
-  const results = rawBoxes.map(b => normalizeBox(b, imageDims));
-  const valid = results.filter(r => r.ok) as { ok: true; box: NormalizedBox }[];
-  const rejected: Record<string, number> = {};
-  for (const r of results) if (!r.ok) rejected[r.reason] = (rejected[r.reason] ?? 0) + 1;
-
+/** Core stats computation, given boxes ALREADY normalized (or null for missing/
+ * rejected). Shared by analyzeGrounding (raw model output, e.g. the /dev/bbox
+ * harness) and analyzeNormalizedGrounding (already-sanitized boxes, e.g. a
+ * MenuItem[] where sanitizeItem normalized each box at parse time) — these MUST
+ * share one implementation, because re-running normalizeBox on an already-
+ * normalized {x,y,w,h} object would misparse it as a malformed 4-number array. */
+function computeStats(boxes: (NormalizedBox | null)[], rejectedCounts: Record<string, number>): GroundingStats {
+  const valid = boxes.filter((b): b is NormalizedBox => b !== null);
   let heavy = 0;
   for (let i = 0; i < valid.length; i++) {
     for (let j = i + 1; j < valid.length; j++) {
-      const a = valid[i].box, b = valid[j].box;
+      const a = valid[i], b = valid[j];
       const ix = Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x));
       const iy = Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y));
       const inter = ix * iy;
@@ -199,16 +213,33 @@ export function analyzeGrounding(rawBoxes: unknown[], imageDims?: { w: number; h
     }
   }
   return {
-    results,
-    stats: {
-      total: results.length,
-      valid: valid.length,
-      rejected,
-      heavyOverlapShare: valid.length ? heavy / valid.length : 0,
-      crowdedPairShare: crowdedPairShare(valid.map(v => v.box)),
-      gapTrendMax: gapTrendMax(valid.map(v => v.box)),
-    },
+    total: boxes.length,
+    valid: valid.length,
+    rejected: rejectedCounts,
+    heavyOverlapShare: valid.length ? heavy / valid.length : 0,
+    crowdedPairShare: crowdedPairShare(valid),
+    gapTrendMax: gapTrendMax(valid),
   };
+}
+
+/** Validate a whole batch of RAW (un-normalized) model output and compute the
+ * health stats the go/no-go criteria use. */
+export function analyzeGrounding(rawBoxes: unknown[], imageDims?: { w: number; h: number }): { results: BoxResult[]; stats: GroundingStats } {
+  const results = rawBoxes.map(b => normalizeBox(b, imageDims));
+  const rejected: Record<string, number> = {};
+  for (const r of results) if (!r.ok) rejected[r.reason] = (rejected[r.reason] ?? 0) + 1;
+  const boxes = results.map(r => r.ok ? r.box : null);
+  return { results, stats: computeStats(boxes, rejected) };
+}
+
+/** Same health stats, for boxes that are ALREADY normalized — e.g. a MenuItem[]
+ * whose `box` field sanitizeItem already ran through normalizeBox at parse time.
+ * A null entry means grounding wasn't confidently located for that item (never a
+ * parse failure to diagnose further, since sanitizeItem already made that call). */
+export function analyzeNormalizedGrounding(boxes: (NormalizedBox | null)[]): { stats: GroundingStats } {
+  const rejected = { missing: boxes.filter(b => b === null).length };
+  if (rejected.missing === 0) delete (rejected as any).missing;
+  return { stats: computeStats(boxes, rejected) };
 }
 
 /** The go/no-go the overlay UI applies per scan: enough trustworthy boxes, low
