@@ -91,6 +91,41 @@ describe('analyzeGrounding / groundingUsable — the overlay go/no-go', () => {
     expect(groundingUsable(stats)).toBe(false);
   });
 
+  it('REGRESSION: menu-2-magnitude GRADUAL compression is caught (redeploy-confirmed miss)', () => {
+    // The first gate required 25%-deep pairwise overlap and real gradual drift
+    // (~1 row of cumulative offset across 12 rows, 3-18% per-pair overlap) slid
+    // under it — confirmed live after redeploy. Any-overlap share catches it.
+    const gentle = Array.from({ length: 12 }, (_, i) => {
+      const y = Math.max(0, 50 + i * 75 - i * i * 0.52);
+      return [100, y, 900, y + 70];
+    });
+    const { stats } = analyzeGrounding(gentle);
+    expect(stats.crowdedPairShare).toBeGreaterThan(0.3);
+    expect(groundingUsable(stats)).toBe(false);
+  });
+
+  it('REGRESSION: menu-1 STRETCHING drift (boxes sliding down, gaps growing) is caught', () => {
+    // The opposite direction: no overlap ever forms, so crowding stays silent —
+    // the gap-trend detector fires on the accumulating spacing instead.
+    const onset = Array.from({ length: 20 }, (_, i) => {
+      const y = 30 + i * 45 + (i > 14 ? (i - 14) * (i - 14) * 4 : 0);
+      return [100, y, 900, y + 40];
+    });
+    const { stats } = analyzeGrounding(onset);
+    expect(stats.gapTrendMax).toBeGreaterThan(0.5);
+    expect(groundingUsable(stats)).toBe(false);
+  });
+
+  it('REGRESSION: exactly-constant gaps (integer-coordinate ties) are NOT a trend', () => {
+    // Spearman without midranks ranks tied values in insertion order, scoring a
+    // false perfect trend on perfectly regular menus — every healthy
+    // integer-coordinate synthetic failed the gate until midranks were added.
+    const regular = Array.from({ length: 15 }, (_, i) => [100, 50 + i * 61, 900, 110 + i * 61]);
+    const { stats } = analyzeGrounding(regular);
+    expect(stats.gapTrendMax).toBeLessThan(0.1);
+    expect(groundingUsable(stats)).toBe(true);
+  });
+
   it('density is NOT drift: tight-but-clean and multi-line boxes stay usable', () => {
     const tight = Array.from({ length: 15 }, (_, i) => [100, 50 + i * 61, 900, 110 + i * 61]);
     expect(groundingUsable(analyzeGrounding(tight).stats)).toBe(true);

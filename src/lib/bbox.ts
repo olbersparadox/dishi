@@ -77,18 +77,83 @@ export type GroundingStats = {
   /** share of valid boxes that overlap another valid box by more than half of the
    * smaller box — a high value signals column confusion or whole-section boxes. */
   heavyOverlapShare: number;
-  /** share of ADJACENT box pairs (within a column) that vertically overlap by more
-   * than a quarter of the smaller box's height. This is the cumulative-drift
-   * detector: real-photo testing showed the model's boxes progressively sliding up
-   * a long column until neighbors crowd into each other — each individual overlap
-   * too small for heavyOverlapShare to see, but the SEQUENCE loses correspondence
-   * with the dishes entirely (menu 2 in validation showed exactly this and still
-   * scored overlap 0%). Synthetic separation test: healthy/tight/multi-line
-   * patterns all score 0.0, cumulative drift scores 1.0. */
+  /** share of ADJACENT box pairs (within a column) with ANY real vertical overlap
+   * (beyond a 2%-of-height rendering-noise epsilon). This is the COMPRESSING-drift
+   * detector. Calibration history matters here: the first version required 25%-deep
+   * overlap per pair, calibrated on a synthetic — and real-photo re-testing (menu 2,
+   * redeployed and confirmed) showed genuine gradual drift producing only 3-18%
+   * overlaps per pair, sliding cleanly under that bar while the box sequence lost
+   * correspondence with the dishes. The honest insight: healthy menu rows
+   * essentially NEVER overlap at all, so ANY-overlap share is the right signal —
+   * gradual real drift scores ~0.45, heavy drift 1.0, worst legitimate case
+   * (single-jitter) 0.07, tight/tall/sectioned/healthy all 0.0. Gated at 0.25. */
   crowdedPairShare: number;
+  /** max over columns of |Spearman rho| between gap position and gap size — the
+   * STRETCHING-drift detector. Real-photo testing (menu 1) showed the opposite
+   * drift direction: boxes progressively sliding DOWN, which stretches gaps apart
+   * so no overlap ever forms and crowdedPairShare stays silent. Accumulating drift
+   * makes gaps trend with position; healthy menus (including ones with randomly
+   * placed section-header gaps) don't. Synthetic separation: healthy 0.19,
+   * sectioned 0.11, noisy 0.01 vs drift-onset patterns 0.63+. Residual limitation,
+   * stated honestly: whole-column UNIFORM linear drift is geometrically identical
+   * to a wider-spaced menu and cannot be caught here — overlay chips carry dish
+   * names precisely so that failure mode is self-evident to the person. */
+  gapTrendMax: number;
 };
 
-function columnClusters(boxes: NormalizedBox[]): NormalizedBox[][] {
+function spearmanAbs(gaps: number[]): number {
+  const n = gaps.length;
+  // Midranks for ties. Without this, constant gaps (exact ties — common with
+  // integer 0-1000 coordinates) get ranked in insertion order and score a FALSE
+  // perfect trend, flagging perfectly healthy menus as drift. Caught by the
+  // verification suite on integer-coordinate synthetics.
+  const order = gaps.map((v, i) => [v, i] as const).sort((p, q) => p[0] - q[0]);
+  const r = new Array<number>(n);
+  let k = 0;
+  while (k < n) {
+    let j = k;
+    while (j + 1 < n && order[j + 1][0] === order[k][0]) j++;
+    const mid = (k + j) / 2;
+    for (let t = k; t <= j; t++) r[order[t][1]] = mid;
+    k = j + 1;
+  }
+  const m = (n - 1) / 2;
+  let num = 0, da = 0, db = 0;
+  for (let i = 0; i < n; i++) { num += (i - m) * (r[i] - m); da += (i - m) ** 2; db += (r[i] - m) ** 2; }
+  return da && db ? Math.abs(num / Math.sqrt(da * db)) : 0;
+}
+
+function gapTrendMax(boxes: NormalizedBox[]): number {
+  let worst = 0;
+  for (const col of columnClusters(boxes)) {
+    if (col.length < 6) continue; // too short to judge a trend
+    const sorted = [...col].sort((a, b) => a.y - b.y);
+    const gaps: number[] = [];
+    for (let i = 1; i < sorted.length; i++) gaps.push(sorted[i].y - (sorted[i - 1].y + sorted[i - 1].h));
+    worst = Math.max(worst, spearmanAbs(gaps));
+  }
+  return worst;
+}
+
+/** Same column-clustering rule as columnClusters, but returns ORIGINAL INDICES
+ * instead of boxes — needed by callers (like row-snapping) that must map a
+ * per-column result back to the right item in the caller's own array. */
+export function groupIndicesByColumn(boxes: NormalizedBox[]): number[][] {
+  const cols: number[][] = [];
+  const order = boxes.map((b, i) => i).sort((a, b) => boxes[a].x - boxes[b].x);
+  for (const i of order) {
+    const b = boxes[i];
+    const col = cols.find(c => {
+      const cx = boxes[c[0]];
+      const ov = Math.min(cx.x + cx.w, b.x + b.w) - Math.max(cx.x, b.x);
+      return ov > 0.5 * Math.min(cx.w, b.w);
+    });
+    if (col) col.push(i); else cols.push([i]);
+  }
+  return cols;
+}
+
+export function columnClusters(boxes: NormalizedBox[]): NormalizedBox[][] {
   const cols: NormalizedBox[][] = [];
   for (const b of [...boxes].sort((a, c) => a.x - c.x)) {
     const col = cols.find(c => {
@@ -109,7 +174,7 @@ function crowdedPairShare(boxes: NormalizedBox[]): number {
       const a = sorted[i - 1], b = sorted[i];
       const ov = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
       pairs++;
-      if (ov > 0.25 * Math.min(a.h, b.h)) crowded++;
+      if (ov > 0.02 * Math.min(a.h, b.h)) crowded++;
     }
   }
   return pairs ? crowded / pairs : 0;
@@ -141,6 +206,7 @@ export function analyzeGrounding(rawBoxes: unknown[], imageDims?: { w: number; h
       rejected,
       heavyOverlapShare: valid.length ? heavy / valid.length : 0,
       crowdedPairShare: crowdedPairShare(valid.map(v => v.box)),
+      gapTrendMax: gapTrendMax(valid.map(v => v.box)),
     },
   };
 }
@@ -152,5 +218,6 @@ export function groundingUsable(stats: GroundingStats): boolean {
   if (stats.total === 0) return false;
   return stats.valid / stats.total >= 0.8
     && stats.heavyOverlapShare < 0.15
-    && stats.crowdedPairShare < 0.2; // systematic drift -> the sequence can't be trusted
+    && stats.crowdedPairShare < 0.25 // compressing drift -> sequence untrustworthy
+    && stats.gapTrendMax < 0.5; // stretching drift -> sequence untrustworthy
 }
