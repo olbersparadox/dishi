@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseServer } from '@/lib/supabase/server';
+import { supabaseServer, supabaseAdmin } from '@/lib/supabase/server';
 import { scanMenu, inferAttributesFromText } from '@/lib/menuScan';
+import { applyOwnerMenuAuthority, propagateIdentityNameToDishes } from '@/lib/ownerMenuReconcile';
 
 export const maxDuration = 60;
 
@@ -73,6 +74,12 @@ export async function POST(req: NextRequest) {
       const msg = error.code === '42501' ? 'Claim this restaurant first.' : error.message;
       return NextResponse.json({ error: msg }, { status: error.code === '42501' ? 403 : 500 });
     }
+    // The owner's menu is now the authoritative name source for this restaurant.
+    // Reconcile existing diner dish_identities against it: exact matches adopt the
+    // owner's name, fuzzy ones go through the LLM adjudicator (the owner authored
+    // these names, so no human confirm is needed). Admin client because
+    // dish_identities are diner-owned. Awaited — serverless kills post-response work.
+    await applyOwnerMenuAuthority(supabaseAdmin(), restaurantId, { useLLM: true });
     return NextResponse.json({ imported: inserted?.length ?? 0, mock: scan.mock });
   }
 
@@ -104,6 +111,10 @@ export async function POST(req: NextRequest) {
     const msg = error.code === '42501' ? 'Claim this restaurant first.' : error.message;
     return NextResponse.json({ error: msg }, { status: error.code === '42501' ? 403 : 500 });
   }
+  // One newly-published item: adopt it onto any diner identity that exactly matches
+  // it. Exact-only (no LLM) — a single hand-typed dish doesn't warrant a fuzzy sweep,
+  // and the owner can bulk-import for the full fuzzy reconcile.
+  await applyOwnerMenuAuthority(supabaseAdmin(), restaurantId, { useLLM: false });
   return NextResponse.json({ item });
 }
 
@@ -126,8 +137,27 @@ export async function PATCH(req: NextRequest) {
     .from('restaurant_menu_items')
     .update(patch)
     .eq('id', body.item_id)
-    .select('id, name, price, available')
+    .select('id, name, name_zh, price, available, restaurant_id')
     .single();
   if (error || !item) return NextResponse.json({ error: error?.message ?? 'Item not found or not yours.' }, { status: 403 });
+
+  // Owner renamed this item: (1) re-point every identity that had adopted its name
+  // (linked via owner_menu_item_id) to the NEW name — the gap the owner-authority
+  // tier shipped with — and (2) run an exact reconcile so any identity that now
+  // matches the new spelling adopts it too.
+  if (typeof patch.name === 'string' && item.restaurant_id) {
+    const admin = supabaseAdmin();
+    // Re-point identities that had adopted this item, then push the new name onto
+    // their member dish rows so linked occurrences follow the rename too.
+    const { data: repointed } = await admin
+      .from('dish_identities')
+      .update({ name: item.name, name_zh: item.name_zh ?? null })
+      .eq('owner_menu_item_id', item.id)
+      .select('id');
+    for (const ident of repointed ?? []) {
+      await propagateIdentityNameToDishes(admin, ident.id, item.name, item.name_zh ?? null);
+    }
+    await applyOwnerMenuAuthority(admin, item.restaurant_id, { useLLM: false });
+  }
   return NextResponse.json({ item });
 }

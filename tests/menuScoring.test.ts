@@ -76,6 +76,21 @@ describe('composeReason / composeCaution', () => {
     expect(warning!.toLowerCase()).toContain('acidity');
     expect(composeCaution({ attributes: {}, cuisine: 'x' }, dislikes)).toBeNull();
   });
+
+  it('composes the reason in Traditional Chinese when lang=zh', () => {
+    const r = composeReason({ attributes: { spicy: 0.9, umami: 0.6 }, cuisine: 'sichuan' }, taste, {}, { spicy: 5, umami: 5 }, 'zh');
+    // No Latin letters — the whole line is Chinese, and it names a real matched dim.
+    expect(/[a-z]/i.test(r)).toBe(false);
+    expect(r).toContain('辣');
+  });
+
+  it('composes the caution in Traditional Chinese when lang=zh', () => {
+    const dislikes = { ...emptyTaste(), sour: -0.7 };
+    const warning = composeCaution({ attributes: { sour: 0.8 }, cuisine: 'x' }, dislikes, { sour: 5 }, 'zh');
+    expect(warning).not.toBeNull();
+    expect(/[a-z]/i.test(warning!)).toBe(false);
+    expect(warning).toContain('留意');
+  });
 });
 
 describe('rankMenuItems', () => {

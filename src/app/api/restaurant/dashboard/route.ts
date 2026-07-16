@@ -28,11 +28,13 @@ export async function GET(req: NextRequest) {
   if (!claim) return NextResponse.json({ error: 'Claim this restaurant first.' }, { status: 403 });
 
   const admin = supabaseAdmin();
-  const [{ data: restaurant }, { data: dishes }] = await Promise.all([
+  const [{ data: restaurant }, { data: dishes }, { data: identities }] = await Promise.all([
     admin.from('restaurants').select('id, name, address').eq('id', restaurantId).single(),
-    admin.from('dishes').select('id, name, cuisine, photo_url, attributes, created_at, source')
+    admin.from('dishes').select('id, name, cuisine, photo_url, attributes, created_at, source, dish_identity_id')
       .eq('restaurant_id', restaurantId),
+    admin.from('dish_identities').select('id, name, name_zh').eq('restaurant_id', restaurantId),
   ]);
+  const identityNames = new Map((identities ?? []).map(i => [i.id, i.name]));
   if (!restaurant) return NextResponse.json({ error: 'Restaurant not found.' }, { status: 404 });
 
   const dishIds = (dishes ?? []).map(d => d.id);
@@ -111,19 +113,36 @@ export async function GET(req: NextRequest) {
       if (agg && agg.n > 0) pickRatingsByDish.set(id, agg.sum / agg.n);
     }
   }
-  const byName = new Map<string, { picks: number; rated: number; sumScore: number }>();
+  // Grouping key, strongest signal first:
+  //   1. dish_identity_id — a human confirmed these rows are one real dish, even
+  //      when the names diverge (蝦餃 / 水晶鮮蝦餃). Displayed under the identity's
+  //      canonical name.
+  //   2. normalised name — the legacy path, still correct for the many rows that
+  //      were never linked (nothing is linked retroactively; identities only form
+  //      when someone actually confirms one at log time).
+  // An unlinked dish therefore behaves exactly as it did before this change, and a
+  // linked one stops being double-counted. Never the reverse: a wrong merge here
+  // would corrupt an owner's read of their own menu.
+  const groupKeyOf = (d: { name: string; dish_identity_id?: string | null }) =>
+    d.dish_identity_id ? `id:${d.dish_identity_id}` : `name:${d.name.trim().toLowerCase()}`;
+
+  const byGroup = new Map<string, { picks: number; rated: number; sumScore: number }>();
+  const labelByGroup = new Map<string, string>();
   for (const d of pickRows) {
-    const key = d.name.trim().toLowerCase();
-    const agg = byName.get(key) ?? { picks: 0, rated: 0, sumScore: 0 };
+    const key = groupKeyOf(d);
+    const agg = byGroup.get(key) ?? { picks: 0, rated: 0, sumScore: 0 };
     agg.picks += 1;
     const score = pickRatingsByDish.get(d.id);
     if (score !== undefined) { agg.rated += 1; agg.sumScore += score; }
-    byName.set(key, agg);
+    byGroup.set(key, agg);
+    if (!labelByGroup.has(key)) {
+      const canonical = d.dish_identity_id ? identityNames.get(d.dish_identity_id) : null;
+      labelByGroup.set(key, canonical ?? d.name);
+    }
   }
-  const nameById = new Map(pickRows.map(d => [d.name.trim().toLowerCase(), d.name]));
-  const popularPicks = Array.from(byName.entries())
+  const popularPicks = Array.from(byGroup.entries())
     .map(([key, agg]) => ({
-      name: nameById.get(key) ?? key,
+      name: labelByGroup.get(key) ?? key,
       picks: agg.picks,
       rated: agg.rated,
       avg_delight: agg.rated > 0 ? to100(agg.sumScore / agg.rated) : null,

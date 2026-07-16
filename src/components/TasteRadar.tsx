@@ -6,15 +6,24 @@ import { DIMS } from '@/lib/taste';
  * view of the engine's current understanding, alongside the bar list (which is
  * better for reading exact values; this is better for feeling the overall shape
  * at a glance). Hand-drawn SVG, not a charting library — matches how every other
- * visual in this app (Buddy, MatchRing) is built, keeping the bundle light.
+ * visual in this app (taste form, MatchRing) is built, keeping the bundle light.
  *
  * Values run -1..1 per dimension; the chart maps that to a 0..1 radius fraction
  * (a genuine dislike sits near the center, a strong like sits near the rim) so a
  * completely blank profile correctly renders as a flat point, not a lopsided shape.
+ *
+ * The user's strongest preferences (top few positive dims) are called out: their
+ * labels are enlarged, bolded and drawn in full ink — so at a glance you can READ
+ * what you most like without squinting at 18 identical tiny labels. This is the one
+ * thing the radar is for that the blob can't do.
  */
-export default function TasteRadar({ vector, size = 280 }: { vector: Record<string, number>; size?: number }) {
+export default function TasteRadar({ vector, size = 280, labelFor }: {
+  vector: Record<string, number>; size?: number; labelFor?: (dim: string) => string;
+}) {
   const cx = size / 2, cy = size / 2;
-  const maxR = size * 0.36;
+  // Chart sits well inside the SVG so the (now larger) labels have a clear ring
+  // of margin and never clip against the edge.
+  const maxR = size * 0.30;
   const n = DIMS.length;
   const angleFor = (i: number) => (Math.PI * 2 * i) / n - Math.PI / 2;
 
@@ -28,6 +37,20 @@ export default function TasteRadar({ vector, size = 280 }: { vector: Record<stri
 
   const dataPoints = DIMS.map((dim, i) => pointFor(i, vector[dim] ?? 0));
   const dataPath = dataPoints.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
+
+  // Strongest preferences: the top (up to) 3 clearly-positive dimensions. Only
+  // meaningfully-liked dims qualify (> 0.12), so a sparse/neutral profile calls
+  // out fewer — or nothing — rather than shouting about a near-flat dimension.
+  const strongSet = new Set(
+    DIMS.map((dim, i) => ({ i, v: vector[dim] ?? 0 }))
+      .filter(e => e.v > 0.12)
+      .sort((a, b) => b.v - a.v)
+      .slice(0, 3)
+      .map(e => e.i),
+  );
+
+  const baseFont = Math.max(11, size * 0.043);
+  const strongFont = size * 0.06;
 
   // Faint reference rings at 25/50/75/100% so the shape has something to read against.
   const rings = [0.25, 0.5, 0.75, 1];
@@ -57,25 +80,34 @@ export default function TasteRadar({ vector, size = 280 }: { vector: Record<stri
           />
         );
       })}
-      <polygon points={dataPath} fill="var(--jade)" fillOpacity={0.18} stroke="var(--jade)" strokeWidth={2} strokeLinejoin="round" />
+      <polygon points={dataPath} fill="var(--ink)" fillOpacity={0.12} stroke="var(--ink)" strokeWidth={2} strokeLinejoin="round" />
       {dataPoints.map(([x, y], i) => (
-        <circle key={i} cx={x} cy={y} r={2.5} fill="var(--jade)" />
+        <circle key={i} cx={x} cy={y} r={strongSet.has(i) ? 4 : 2.5} fill="var(--ink)" />
       ))}
       {DIMS.map((dim, i) => {
         const a = angleFor(i);
-        const labelR = maxR + 16;
+        const strong = strongSet.has(i);
+        const fontSize = strong ? strongFont : baseFont;
+        const labelR = maxR + (strong ? size * 0.058 : size * 0.05);
         const x = cx + Math.cos(a) * labelR;
         const y = cy + Math.sin(a) * labelR;
+        const label = labelFor ? labelFor(dim) : dim;
+        const anchor = Math.abs(Math.cos(a)) < 0.15 ? 'middle' : Math.cos(a) > 0 ? 'start' : 'end';
+
+        // Strongest preferences are called out by weight + size + ink colour only —
+        // no ring. Bolder/bigger/darker reads as "these are your top tastes" without
+        // the pill chrome, and stays legible against the light chart behind it.
         return (
           <text
             key={dim}
             x={x} y={y}
-            textAnchor={Math.abs(Math.cos(a)) < 0.15 ? 'middle' : Math.cos(a) > 0 ? 'start' : 'end'}
+            textAnchor={anchor}
             dominantBaseline="middle"
-            fontSize={9.5}
-            fill="var(--ink-soft)"
+            fontSize={fontSize}
+            fontWeight={strong ? 700 : 400}
+            fill={strong ? 'var(--ink)' : 'var(--ink-soft)'}
           >
-            {dim}
+            {label}
           </text>
         );
       })}

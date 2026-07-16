@@ -7,6 +7,11 @@ import DishName from '@/components/DishName';
 import PhotoPicker from '@/components/PhotoPicker';
 import RestaurantPicker, { RestaurantChoice } from '@/components/RestaurantPicker';
 import { mapWithConcurrency } from '@/lib/concurrency';
+import DishInfoDisplay from '@/components/DishInfoDisplay';
+import { sumPrices } from '@/lib/price';
+import { CameraIcon, ArrowRightIcon, CloseIcon } from '@/components/icons';
+import { sameDishInSession, restaurantKeptNote } from '@/lib/menuMerge';
+import { getScanSession, setScanSession, clearScanSession } from '@/lib/scanSession';
 import { useLang } from '@/lib/i18n';
 
 type ScannedItem = {
@@ -23,6 +28,10 @@ type ScannedItem = {
   // know the other dishes' scores, so its OWN `match` field can't be relative to
   // anything. raw_score is the real signal; the client recomputes a proper relative
   // `match` once every dish's raw_score is in (see the settle step below).
+  // Transient client-only flag: set on dishes added by an "add a page" append this
+  // session, so they can animate in and carry a brief 新 tag. Cleared when a further
+  // page is appended (only the newest page is tagged) — never sent to any endpoint.
+  isNew?: boolean;
   raw_score?: number;
   // Present once Phase 2 has scored the item — carried through so a "pick" can be
   // created with its real taste attributes instead of an empty/neutral dish.
@@ -61,22 +70,147 @@ export default function ScanPage() {
 
 function Scanner() {
   const { t, lang } = useLang();
+  // Restore a scan left behind when the user switched tabs (Feed/Taste) and came
+  // back. Read once, synchronously, so the very first render already shows the
+  // menu instead of flashing the capture screen. `scanning`/`preview` are
+  // deliberately NOT restored: the SSE stream and the blob URL both died with the
+  // previous mount, and the results view doesn't need either — it renders from
+  // `result`. See scanSession.ts for why this is in-memory (survives tab switch,
+  // clears on refresh) rather than Web Storage.
+  const restored = getScanSession<ScanResponse | null, RestaurantChoice>();
   const [preview, setPreview] = useState<string | null>(null);
   const [scanning, setScanning] = useState(false);
+  // Appending a second page ("加掃一版"): the existing results stay on screen with a
+  // small inline indicator, rather than the full capture screen taking over.
+  const [appending, setAppending] = useState(false);
+  // Set to the kept restaurant name when an appended page guessed a strongly-
+  // different place — a quiet "kept 〈restaurant〉" note, not a blocking dialog.
+  const [keptNote, setKeptNote] = useState<string | null>(restored?.keptNote ?? null);
   const [stage, setStage] = useState(0);
-  const [result, setResult] = useState<ScanResponse | null>(null);
-  const [settled, setSettled] = useState(false);
+  const [result, setResult] = useState<ScanResponse | null>(restored?.result ?? null);
+  const [settled, setSettled] = useState(restored?.settled ?? false);
   const [error, setError] = useState('');
   const router = useRouter();
+
+  // Sharing an already-in-progress scan as a table session. Deliberately reuses
+  // the SAME session model, join code, and pick pipeline the standalone Table
+  // page runs on — this creates one, it doesn't invent a second one. Once active,
+  // members who join via the code land on /table (real ranked view, fairness
+  // math, picks-so-far) — what lives HERE is a lightweight glance: the code
+  // itself, who's joined, and a quiet "X also picked this" on matching cards, so
+  // the value of doing this together is visible without leaving the scan screen.
+  const [tableSession, setTableSession] = useState<{ code: string; session_id: string } | null>(restored?.tableSession ?? null);
+  const [tableMemberCount, setTableMemberCount] = useState(0);
+  const [tablePicks, setTablePicks] = useState<{ name: string; name_zh: string | null; handle: string; identity_name?: string | null; identity_name_zh?: string | null }[]>([]);
+
+  /**
+   * Every successful scan gets a table code, automatically — there's no longer a
+   * "share with friends" button to press first.
+   *
+   * The reasoning: the code costs the solo user nothing (it's one line of UI, and
+   * an unused session simply expires), but requiring a decision UP FRONT — before
+   * anyone has even seen the dishes — gets it wrong in the common case. People
+   * don't know they want to share until a friend leans over and asks what's good.
+   * By then the moment has passed if the code doesn't already exist.
+   *
+   * Called with the FINAL item list once the stream completes, not from an effect
+   * watching `result` — result.items grows during streaming, and a session created
+   * mid-stream would snapshot a half-read menu for everyone who joined.
+   */
+  async function createTableSession(items: ScannedItem[]) {
+    try {
+      const res = await fetch('/api/table', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Could not create a table code.');
+      setTableSession({ code: json.code, session_id: json.session_id });
+    } catch {
+      /* A missing table code must never break a scan that otherwise worked. The
+         dishes are the point; sharing is a bonus. Silently absent is correct. */
+    }
+  }
+
+  async function copyTableLink() {
+    if (!tableSession) return;
+    const url = `${window.location.origin}/table?code=${tableSession.code}`;
+    try {
+      if (navigator.share) { await navigator.share({ title: t('table.sharetitle'), url }); return; }
+      await navigator.clipboard.writeText(url);
+      alert(t('table.copied'));
+    } catch { /* share/clipboard can be cancelled or unavailable — not an error */ }
+  }
+
+  // Poll the same endpoint /table itself polls, at the same interval — this is
+  // genuinely the same shared state, just glanced at from a second screen.
+  useEffect(() => {
+    if (!tableSession) return;
+    let cancelled = false;
+    async function poll() {
+      try {
+        const res = await fetch(`/api/table/${tableSession!.code}`);
+        const json = await res.json();
+        if (!res.ok || cancelled) return;
+        setTableMemberCount(json.members?.length ?? 0);
+        setTablePicks(json.table_picks ?? []);
+      } catch { /* a missed poll just means slightly stale numbers next tick */ }
+    }
+    poll();
+    const timer = setInterval(poll, 5000);
+    return () => { cancelled = true; clearInterval(timer); };
+  }, [tableSession]);
+
+  // Joining a table from here reuses the exact same endpoint/session model the
+  // standalone /table page already uses — this is purely a second entry point
+  // into it, not a new join mechanism, so nothing about table sessions themselves
+  // changes. Landing someone straight on the results screen there (rather than a
+  // splash) is what ?code= is for.
+  const [joinCode, setJoinCode] = useState('');
+  const [joinBusy, setJoinBusy] = useState(false);
+  const [joinError, setJoinError] = useState('');
+  async function joinTable() {
+    const code = joinCode.trim().toUpperCase();
+    if (code.length !== 5) return;
+    setJoinBusy(true); setJoinError('');
+    try {
+      const res = await fetch('/api/table/join', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || t('table.joining'));
+      router.push(`/table?code=${json.code}`);
+    } catch (e: any) {
+      setJoinError(e.message || t('table.joining'));
+      setJoinBusy(false);
+    }
+  }
 
   // "Pick" mode: tap a scanned dish to mark it for later rating (no photo needed —
   // the taste engine already has its attributes from scoring). Keyed by the printed
   // name, which stays stable even when the list re-sorts into ranked order.
-  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [picked, setPicked] = useState<Set<string>>(() => new Set(restored?.picked ?? []));
   const [confirmingPick, setConfirmingPick] = useState(false);
-  const [pickRestaurant, setPickRestaurant] = useState<RestaurantChoice>(null);
+  const [pickRestaurant, setPickRestaurant] = useState<RestaurantChoice>(restored?.pickRestaurant ?? null);
   const [pickSaving, setPickSaving] = useState(false);
   const [pickError, setPickError] = useState('');
+
+  // Keep the module-level store in sync with the on-screen menu, so leaving and
+  // returning to this tab restores it. Only mirrors once a scan exists — with no
+  // result there's nothing to preserve, and reset()/the X clears the store
+  // directly. Not persisted: scanning, preview, and the transient confirm sheet,
+  // none of which can (or should) be resurrected on a remount.
+  useEffect(() => {
+    if (!result) return;
+    setScanSession({
+      result, settled, keptNote, tableSession,
+      picked: Array.from(picked),
+      pickRestaurant,
+    });
+  }, [result, settled, keptNote, tableSession, picked, pickRestaurant]);
 
   function togglePick(key: string) {
     setPicked(prev => {
@@ -97,7 +231,11 @@ function Scanner() {
         body: JSON.stringify({
           restaurant_id: pickRestaurant?.kind === 'existing' ? pickRestaurant.id : undefined,
           new_restaurant: pickRestaurant?.kind === 'new' ? pickRestaurant : undefined,
-          items: chosen.map(i => ({ name: i.name, name_zh: i.name_zh, cuisine: i.cuisine, attributes: i.attributes ?? {} })),
+          table_session_id: tableSession?.session_id,
+          items: chosen.map(i => ({
+            name: i.name, name_zh: i.name_zh, cuisine: i.cuisine, attributes: i.attributes ?? {},
+            cooking_method: i.cooking_method, heaviness: i.heaviness, diet: i.diet,
+          })),
         }),
       });
       const json = await res.json();
@@ -118,16 +256,37 @@ function Scanner() {
     return () => clearInterval(timer);
   }, [scanning]);
 
-  async function onPick(file: File | null) {
+  async function onPick(file: File | null, opts: { append?: boolean } = {}) {
     if (!file) return;
+    const append = !!opts.append && !!result;
     setError('');
-    setResult(null);
-    setSettled(false);
-    setPreview(URL.createObjectURL(file));
-    setScanning(true);
+    if (!append) {
+      // Fresh scan: a new photo is a new menu. Also reachable WITHOUT reset()
+      // (e.g. after a failed scan leaves the capture screen up), so the previous
+      // menu's picks are cleared here rather than relying on reset() having run.
+      clearScanSession(); // a new menu supersedes any restored one
+      setResult(null);
+      setSettled(false);
+      setPicked(new Set());
+      setConfirmingPick(false);
+      setPickError('');
+      setPreview(URL.createObjectURL(file));
+      setScanning(true);
+    } else {
+      // Append (加掃一版): keep the current menu, restaurant, picks, and table
+      // session on screen. Only the incremental capture UI changes. Clear any
+      // prior 新 tags so only THIS newest page ends up marked new.
+      setSettled(false);
+      setAppending(true);
+      setKeptNote(null);
+      setResult(prev => prev ? { ...prev, items: prev.items.map(it => it.isNew ? { ...it, isNew: false } : it) } : prev);
+    }
+    // The dish list this scan started from — append merges onto it; fresh starts empty.
+    const baseItems: ScannedItem[] = append && result ? result.items : [];
     try {
       const form = new FormData();
       form.append('photo', await normalizePhoto(file));
+      form.append('lang', lang);
       const res = await fetch('/api/menu-scan', { method: 'POST', body: form });
       if (!res.ok || !res.body) {
         const errJson = await res.json().catch(() => ({}));
@@ -138,8 +297,9 @@ function Scanner() {
       // to the visible list the MOMENT its own JSON object closed in the model's
       // response — this is what makes dishes appear one by one instead of all at
       // once after one long wait. 'start' arrives first (profile info is already
-      // known before the model call even begins) and switches the screen to the
-      // results view immediately, with an empty list that fills in live.
+      // known before the model call even begins), but the screen deliberately
+      // does NOT switch to the results view yet — see below. Only the FIRST
+      // 'item' event does that, once there is something real to show.
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let lineBuffer = '';
@@ -173,30 +333,81 @@ function Scanner() {
             continue;
           }
           if (ev.kind === 'start') {
+            // Stash the terminal metadata for later; DON'T transition the screen
+            // yet. Real evidence: flipping to the results view here used to show
+            // an empty shell for up to ~50s on a not-a-menu photo — the scanning
+            // animation (still running, since scanning stays true) is the only
+            // thing telling the person anything is happening, and an inert empty
+            // "results" screen looked exactly like a hang.
             meta = ev;
-            setScanning(false);
-            setResult({
-              phase: ev.phase, profile_ready: ev.profile_ready, rating_count: ev.rating_count, needed: ev.needed,
-              mock: ev.mock, menu_language: 'unknown', restaurant_guess: null, items: [],
-            });
           } else if (ev.kind === 'item') {
-            items = [...items, ev.item as ScannedItem];
-            const snapshot = items;
-            setResult(prev => prev ? { ...prev, items: snapshot } : prev);
+            const incoming = ev.item as ScannedItem;
+            if (append) {
+              // Merge onto the accumulated menu. Dedup incrementally against the
+              // page-1 set AND anything already accepted this page, so an
+              // overlapping photo or a dish printed twice folds instead of
+              // doubling. Duplicates are dropped here (the existing, possibly
+              // already-scored row stays); only genuinely new dishes are kept and
+              // will be scored below.
+              const combined = [...baseItems, ...items];
+              if (!combined.some(e => sameDishInSession(e, incoming))) {
+                items = [...items, { ...incoming, isNew: true }];
+                const snapshot = [...baseItems, ...items];
+                setResult(prev => prev ? { ...prev, items: snapshot } : prev);
+              }
+            } else {
+              const isFirst = items.length === 0;
+              items = [...items, incoming];
+              const snapshot = items;
+              if (isFirst && meta) {
+                // First real content: NOW switch to the results view.
+                setScanning(false);
+                setResult({
+                  phase: meta.phase, profile_ready: meta.profile_ready, rating_count: meta.rating_count, needed: meta.needed,
+                  mock: meta.mock, menu_language: 'unknown', restaurant_guess: null, items: snapshot,
+                });
+              } else {
+                setResult(prev => prev ? { ...prev, items: snapshot } : prev);
+              }
+            }
           } else if (ev.kind === 'done') {
             done = ev;
           } else if (ev.kind === 'error') {
-            throw new Error(ev.error);
+            // No items ever arrived (or the server gave up before any did), so
+            // we're still on the capture screen — result was never set. Throwing
+            // here surfaces a clean, single message there, with the camera ready
+            // for another attempt, instead of an error bolted onto an empty
+            // results shell.
+            const err: any = new Error(ev.error);
+            err.reason = ev.reason;
+            throw err;
           }
         }
       }
 
       if (!meta) throw new Error('Scan ended unexpectedly.');
-      if (items.length === 0) throw new Error('No dishes could be read from that photo.');
+      if (!append && items.length === 0) throw new Error('No dishes could be read from that photo.');
 
-      // Finalize with the terminal metadata (menu_language/restaurant_guess) now
-      // that the stream has ended.
-      setResult(prev => prev ? { ...prev, items, menu_language: done?.menu_language ?? 'unknown', restaurant_guess: done?.restaurant_guess ?? null } : prev);
+      const offset = baseItems.length; // where this page's new dishes sit in the combined list (0 when fresh)
+
+      if (append) {
+        // Page-1's restaurant wins for the session. If the new page guessed a
+        // strongly-different place, note it quietly (likely a wrong-menu scan) —
+        // never block; the dishes are added regardless.
+        const decision = restaurantKeptNote(result?.restaurant_guess ?? null, done?.restaurant_guess ?? null);
+        if (decision?.noteMismatch) setKeptNote(decision.keep);
+        // Combined menu; restaurant/menu_language stay as page 1's.
+        setResult(prev => prev ? { ...prev, items: [...baseItems, ...items] } : prev);
+        setAppending(false);
+        if (items.length === 0) { setSettled(true); return; } // nothing new to score
+      } else {
+        // Fire-and-forget: the table code appears when it appears, and never
+        // blocks scoring or the dishes already on screen. Only the FIRST scan
+        // creates the session — an appended page extends this person's local menu,
+        // not the shared session (per-person menu, pooled picks).
+        void createTableSession(items);
+        setResult(prev => prev ? { ...prev, items, menu_language: done?.menu_language ?? 'unknown', restaurant_guess: done?.restaurant_guess ?? null } : prev);
+      }
       if (meta.phase !== 'needs_scoring') setSettled(true); // already complete (mock / under threshold)
 
       // Stage 2 (enrichment: hook/diet/cooking/heaviness/ingredients) always runs,
@@ -227,10 +438,11 @@ function Scanner() {
         (enriched, index) => {
           setResult(prev => {
             if (!prev) return prev;
+            const at = offset + index;
             const nextItems = [...prev.items];
-            nextItems[index] = enriched
-              ? { ...nextItems[index], hook: enriched.hook, hook_zh: enriched.hook_zh, diet: enriched.diet, cooking_method: enriched.cooking_method, heaviness: enriched.heaviness, ingredients: enriched.ingredients, enriched: true }
-              : { ...nextItems[index], enriched: true }; // failed enrichment: stop showing the shimmer, stay honestly empty
+            nextItems[at] = enriched
+              ? { ...nextItems[at], hook: enriched.hook, hook_zh: enriched.hook_zh, diet: enriched.diet, cooking_method: enriched.cooking_method, heaviness: enriched.heaviness, ingredients: enriched.ingredients, enriched: true }
+              : { ...nextItems[at], enriched: true }; // failed enrichment: stop showing the shimmer, stay honestly empty
             return { ...prev, items: nextItems };
           });
         },
@@ -250,7 +462,7 @@ function Scanner() {
               const r = await fetch('/api/menu-scan/score', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ item }),
+                body: JSON.stringify({ item, lang }),
               });
               if (!r.ok) throw new Error('score failed');
               return (await r.json()).item as ScannedItem;
@@ -258,10 +470,11 @@ function Scanner() {
             (scored, index) => {
               setResult(prev => {
                 if (!prev) return prev;
+                const at = offset + index;
                 const nextItems = [...prev.items];
-                nextItems[index] = scored
-                  ? { ...nextItems[index], match: scored.match, reason: scored.reason, caution: scored.caution, fire: scored.fire, raw_score: scored.raw_score, attributes: scored.attributes }
-                  : { ...nextItems[index], match: null }; // null = failed, shown gracefully
+                nextItems[at] = scored
+                  ? { ...nextItems[at], match: scored.match, reason: scored.reason, caution: scored.caution, fire: scored.fire, raw_score: scored.raw_score, attributes: scored.attributes }
+                  : { ...nextItems[at], match: null }; // null = failed, shown gracefully
                 return { ...prev, items: nextItems };
               });
             },
@@ -273,24 +486,49 @@ function Scanner() {
       await enrichPromise; // usually already resolved by now; awaited so this function doesn't return early
       return;
     } catch (e: any) {
-      setError(e.message || 'Something went wrong reading that menu.');
-      setScanning(false);
+      // Known reasons get localized copy (this app is zh-first by default, and a
+      // hardcoded English server string would be unreadable to most users here).
+      const localized = e?.reason === 'not_menu' ? t('scan.err.notmenu')
+        : e?.reason === 'unreadable' ? t('scan.err.unreadable')
+        : null;
+      setError(localized || e.message || 'Something went wrong reading that menu.');
+      if (append) {
+        // A bad second-page photo must NOT wipe the good menu already on screen —
+        // the whole point of accumulating is that page 1 survives. Just surface
+        // the error inline and drop back to the (intact) results view.
+        setAppending(false);
+      } else {
+        setScanning(false);
+      }
     }
   }
 
   function reset() {
+    clearScanSession(); // the X dismisses the menu for real — don't resurrect it on the next visit
     setResult(null);
     setPreview(null);
     setError('');
     setSettled(false);
+    // Everything below is state about the PREVIOUS menu and must not survive into
+    // the next one. `picked` is keyed by printed dish name, so a leftover set kept
+    // the cart bar showing the old menu's pick count while none of those dishes
+    // exist in the new scan; and the table session kept polling a session that no
+    // longer relates to what's on screen.
+    setPicked(new Set());
+    setConfirmingPick(false);
+    setPickRestaurant(null);
+    setPickError('');
+    setTableSession(null);
+    setTableMemberCount(0);
+    setTablePicks([]);
   }
 
   // ---- capture state ----
   if (!result) {
     return (
       <div>
-        <h1 style={{ marginBottom: 4 }}>{t('scan.title')}</h1>
-        <p className="card-meta" style={{ marginBottom: 16 }}>
+        <h1 style={{ marginBottom: 6 }}>{t('scan.title')}</h1>
+        <p className="card-meta" style={{ marginBottom: 18 }}>
           {t('scan.blurb')}
         </p>
 
@@ -302,17 +540,57 @@ function Scanner() {
           </div>
         )}
 
+        {/* SCANNING A MENU IS THE PRIMARY ACTION and now comes first, before the
+            table-join box. Solo scanning is by far the more common path; joining a
+            friend's table is the occasional one, so it sits below and deliberately
+            reads quieter. The dropzone is icon-only (thin camera, no label) to
+            match the design mock — the scan.tip line under it carries the words. */}
         {scanning ? (
           <p className="scan-status" role="status">{t(SCAN_STAGE_KEYS[stage])}</p>
         ) : (
           <>
-            <PhotoPicker key={preview ?? 'fresh'} onPick={f => onPick(f)} />
-            <p className="card-meta" style={{ marginTop: 8 }}>
+            <PhotoPicker
+              key={preview ?? 'fresh'}
+              onPick={f => onPick(f)}
+              icon={<CameraIcon size={38} strokeWidth={1.1} />}
+              hideLabel
+            />
+            <p className="card-meta" style={{ marginTop: 10 }}>
               {t('scan.tip')}
             </p>
           </>
         )}
         {error && <p style={{ color: 'var(--lacquer)', marginTop: 12 }}>{error}</p>}
+
+        {/* Secondary path, intentionally low-key: under a divider, quieter type.
+            Matches the mock: serif heading, grey blurb, a large letter-spaced
+            code input + a single round arrow submit button. */}
+        {!preview && !scanning && (
+          <div className="join-table">
+            <h3 className="join-table-title">{t('table.join')}</h3>
+            <p className="join-table-blurb">{t('table.join.blurb')}</p>
+            <div className="join-row">
+              <input
+                className="field join-code-input" placeholder="ABCDE" maxLength={5}
+                value={joinCode}
+                onChange={e => { setJoinCode(e.target.value.toUpperCase()); setJoinError(''); }}
+                aria-label={t('table.joinbtn')}
+              />
+              <button className="join-go" disabled={joinBusy || joinCode.trim().length !== 5} onClick={joinTable}
+                aria-label={t('table.joinbtn')} title={t('table.joinbtn')}>
+                <ArrowRightIcon size={22} />
+              </button>
+            </div>
+            {joinError && <p style={{ color: 'var(--lacquer)', fontSize: 12.5, marginTop: 6 }}>{joinError}</p>}
+            {/* /table's create-a-table flow lost its nav tab in the restructure
+                and had ZERO inbound links — this quiet line is its front door.
+                (Creating a table without scanning a menu is a real capability:
+                the table ranks dishes from around Dishi instead.) */}
+            <p className="card-meta" style={{ marginTop: 12 }}>
+              <a href="/table" style={{ color: 'var(--ink)' }}>{t('table.open.full')}</a>
+            </p>
+          </div>
+        )}
       </div>
     );
   }
@@ -350,15 +628,60 @@ function Scanner() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-        <h1 style={{ marginBottom: 4 }}>{t('scan.results')}</h1>
-        <button className="btn ghost small" onClick={reset}>{t('scan.another')}</button>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6, gap: 8 }}>
+        <h1 style={{ margin: 0 }}>{t('scan.results')}</h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+          {/* 加掃一版 (add a page): scans another page and MERGES its dishes onto
+              this menu, so the ranking spans everything orderable. Disabled while a
+              page is being read. */}
+          <label className={`btn ghost small ${appending ? 'is-disabled' : ''}`} style={{ cursor: appending ? 'default' : 'pointer' }}>
+            <input type="file" accept="image/*" hidden disabled={appending}
+              onChange={e => { const f = e.target.files?.[0] ?? null; e.target.value = ''; onPick(f, { append: true }); }} />
+            {appending ? t('scan.addingpage') : t('scan.addpage')}
+          </label>
+          {/* X: close the results and return to the fresh Scan landing. Not a lock
+              — the menu simply stays put until the user closes it or leaves. */}
+          <button className="icon-btn" onClick={reset} aria-label={t('scan.close')} title={t('scan.close')}>
+            <CloseIcon />
+          </button>
+        </div>
       </div>
-      <p className="card-meta" style={{ marginBottom: 4 }}>
+      <p className="card-meta" style={{ marginBottom: keptNote ? 6 : 18 }}>
         {result.items.length > 0
           ? <>{t('scan.read', { n: result.items.length })}{result.restaurant_guess ? ` \u00b7 ${result.restaurant_guess}` : ''}</>
           : <span role="status">{t('scan.reading')}</span>}
       </p>
+      {keptNote && (
+        <p className="card-meta" style={{ marginBottom: 18, color: 'var(--ink-soft)' }} role="status">
+          {t('scan.kept', { name: keptNote })}
+        </p>
+      )}
+      {appending && (
+        <div className="scan-appending" role="status">
+          <span className="scan-appending-dot" aria-hidden />
+          {t('scan.addingpage')}
+        </div>
+      )}
+
+      {/* Table sharing: a lightweight glance, not a duplicate of /table's full
+          ranked view. Before a session exists, one tap turns this exact scan
+          into a shared one; once it does, the code/member-count/pick-count here
+          are the SAME live numbers /table itself polls — just visible without
+          leaving the scan screen. */}
+      {tableSession && (
+        <div className="table-bar">
+          <span className="table-bar-code">{tableSession.code}</span>
+          {/* Headcount + dishes picked as one quiet meta line ("2 人 · 3 已揀")
+              per the handoff's session bar — status, not a dashboard. */}
+          <span className="table-bar-stat">
+            {t('scan.tablestatus', { n: tableMemberCount, m: tablePicks.length })}
+          </span>
+          <button className="btn small" onClick={copyTableLink}>
+            {t('table.invite')}
+          </button>
+        </div>
+      )}
+
       {result.mock && (
         <p className="scan-banner">{t('scan.mock')}</p>
       )}
@@ -379,15 +702,12 @@ function Scanner() {
       {!result.profile_ready && result.items.map((item, i) => (
         <article className={`card scan-pickable ${picked.has(item.name_original) ? 'picked' : ''}`} key={`plain-${i}`}
           onClick={() => togglePick(item.name_original)}>
-          <div className="card-body scan-row">
-            <div className="scan-rank">{i + 1}</div>
-            <div style={{ minWidth: 0, flex: 1 }}>
-              <div className="dish-row">
-                <div className="card-title" style={{ fontSize: 15.5 }}><DishName name={item.name} name_zh={item.name_zh} name_original={item.name_original} /></div>
-                {item.price && <span className="dish-price">{item.price}</span>}
-              </div>
-              <DishDetails item={item} t={t} lang={lang} />
+          <div className="card-body">
+            <div className="dish-row">
+              <div className="card-title"><DishName prefix={`${i + 1}. `} name={item.name} name_zh={item.name_zh} name_original={item.name_original} />{item.isNew && <span className="scan-new-tag">{t('scan.new')}</span>}</div>
+              {item.price && <span className="dish-price">{item.price}</span>}
             </div>
+            <DishDetails item={item} t={t} lang={lang} pickedBy={pickersFor(item, tablePicks)} />
           </div>
         </article>
       ))}
@@ -397,16 +717,15 @@ function Scanner() {
       {result.profile_ready && !readyToRank && result.items.map((item, i) => (
         <article className={`card scan-pickable ${picked.has(item.name_original) ? 'picked' : ''}`} key={`scoring-${i}`}
           onClick={() => togglePick(item.name_original)}>
-          <div className="card-body scan-row">
-            <div className="scan-rank">{i + 1}</div>
-            {item.match === undefined && <Spinner size={22} />}
-            <div style={{ minWidth: 0, flex: 1 }}>
-              <div className="dish-row">
-                <div className="card-title" style={{ fontSize: 15.5 }}><DishName name={item.name} name_zh={item.name_zh} name_original={item.name_original} /></div>
+          <div className="card-body">
+            <div className="dish-row">
+              <div className="card-title"><DishName prefix={`${i + 1}. `} name={item.name} name_zh={item.name_zh} name_original={item.name_original} />{item.isNew && <span className="scan-new-tag">{t('scan.new')}</span>}</div>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                {item.match === undefined && <Spinner size={16} />}
                 {item.price && <span className="dish-price">{item.price}</span>}
-              </div>
-              <DishDetails item={item} t={t} lang={lang} />
+              </span>
             </div>
+            <DishDetails item={item} t={t} lang={lang} pickedBy={pickersFor(item, tablePicks)} />
           </div>
         </article>
       ))}
@@ -425,19 +744,17 @@ function Scanner() {
                 key={`${item.name}-${i}`}
                 onClick={() => togglePick(item.name_original)}
               >
-                <div className="card-body scan-row">
-                  <div className="scan-rank-col">
-                    <div className="scan-rank">{i + 1}</div>
-                    {fire && <div className="scan-fire scan-fire-pop" aria-label={t('scan.fire')}>{'\uD83D\uDD25'}</div>}
-                  </div>
-                  <div style={{ minWidth: 0, flex: 1 }}>
-                    <div className="dish-row">
-                      <div className="card-title" style={{ fontSize: 15.5 }}><DishName name={item.name} name_zh={item.name_zh} name_original={item.name_original} /></div>
-                      {item.price && <span className="dish-price">{item.price}</span>}
+                <div className="card-body">
+                  <div className="dish-row">
+                    <div className="card-title" style={{ display: 'flex', alignItems: 'baseline', gap: 7, minWidth: 0 }}>
+                      <DishName prefix={`${i + 1}. `} name={item.name} name_zh={item.name_zh} name_original={item.name_original} />
+                      {item.isNew && <span className="scan-new-tag">{t('scan.new')}</span>}
+                      {fire && <span className="scan-fire scan-fire-pop" aria-label={t('scan.fire')}>{'\uD83D\uDD25'}</span>}
                     </div>
-                    <DishDetails item={item} t={t} lang={lang} />
-                    {fire && item.reason && <p className="scan-reason fade-in" style={{ fontSize: 13 }}>{item.reason}</p>}
+                    {item.price && <span className="dish-price">{item.price}</span>}
                   </div>
+                  <DishDetails item={item} t={t} lang={lang} pickedBy={pickersFor(item, tablePicks)} />
+                  {fire && item.reason && <p className="scan-reason fade-in">{item.reason}</p>}
                 </div>
               </article>
             );
@@ -453,89 +770,114 @@ function Scanner() {
           photo needed — attributes already came from scoring). This works even
           before profile_ready, since picking dishes to rate is exactly how a new
           user reaches the 5-rating threshold fastest. */}
-      {picked.size > 0 && !confirmingPick && (
-        <div className="cart-bar">
-          <button className="btn primary" style={{ width: '100%' }} onClick={() => setConfirmingPick(true)}>
-            {t('scan.ratethese')} · {t('scan.pickcount', { n: picked.size })}
-          </button>
-        </div>
-      )}
+      {(() => {
+        const pickedItems = result.items.filter(i => picked.has(i.name_original));
+        const priceSummary = sumPrices(pickedItems.map(i => i.price));
+        // Only worth showing once at least one picked dish has a real price —
+        // otherwise this would just be a count with extra steps. When some (but
+        // not all) picked prices are unreadable/missing, the "+" is load-bearing:
+        // it's an honest floor, not the real total, and must never be shown as one.
+        const priceLabel = priceSummary.parsedCount > 0
+          ? `${priceSummary.currency}${priceSummary.total}${priceSummary.complete ? '' : '+'}`
+          : null;
+        // "揀咗 X 碟" on the left, running total hard-right — the two are different
+        // KINDS of information (what you did vs what it costs), so they're pushed to
+        // opposite ends rather than run together into one comma-joined string.
+        const countLabel = t('scan.pickcount', { n: picked.size });
 
-      {confirmingPick && (
-        <div className="cart-bar" style={{ bottom: 0, paddingBottom: 16 }}>
-          <div className="card" style={{ marginBottom: 8, maxHeight: '60vh', overflowY: 'auto' }}>
-            <div className="card-body">
-              <p style={{ fontWeight: 700, marginBottom: 8 }}>{t('scan.pickrestaurant')}</p>
-              <RestaurantPicker onChange={setPickRestaurant} />
-              {pickError && <p style={{ color: 'var(--lacquer)', marginTop: 8 }}>{pickError}</p>}
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button className="btn ghost" style={{ flex: 1 }} onClick={() => setConfirmingPick(false)} disabled={pickSaving}>
-              {t('home.cancel')}
-            </button>
-            <button className="btn primary" style={{ flex: 2 }} onClick={confirmPicks} disabled={pickSaving}>
-              {pickSaving ? t('log.saving') : `${t('scan.ratethese')} · ${picked.size}`}
-            </button>
-          </div>
-        </div>
-      )}
+        return (
+          <>
+            {picked.size > 0 && !confirmingPick && (
+              <div className="cart-bar">
+                <button className="btn primary cart-btn" onClick={() => setConfirmingPick(true)}>
+                  <span>{countLabel}</span>
+                  {priceLabel && <span className="cart-total">{priceLabel}</span>}
+                </button>
+              </div>
+            )}
+
+            {confirmingPick && (
+              <div className="cart-bar" style={{ bottom: 0, paddingBottom: 16 }}>
+                <div className="card" style={{ marginBottom: 8, maxHeight: '60vh', overflowY: 'auto' }}>
+                  <div className="card-body">
+                    <p style={{ fontWeight: 700, marginBottom: 8 }}>{t('scan.pickrestaurant')}</p>
+                    <RestaurantPicker onChange={setPickRestaurant} />
+                    {pickError && <p style={{ color: 'var(--lacquer)', marginTop: 8 }}>{pickError}</p>}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button className="btn ghost" style={{ flex: 1 }} onClick={() => setConfirmingPick(false)} disabled={pickSaving}>
+                    {t('home.cancel')}
+                  </button>
+                  <button className="btn primary cart-btn" style={{ flex: 2 }} onClick={confirmPicks} disabled={pickSaving}>
+                    {pickSaving ? <span>{t('log.saving')}</span> : (
+                      <>
+                        <span>{countLabel}</span>
+                        {priceLabel && <span className="cart-total">{priceLabel}</span>}
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
+        );
+      })()}
     </div>
   );
 }
 
 
 
-const DIET_ICON: Record<string, string> = {
-  veg: '\u{1F331}', pork: '\u{1F416}', beef: '\u{1F404}', seafood: '\u{1F41F}',
-  shellfish: '\u{1F990}', peanut: '\u{1F95C}', spicy: '\u{1F336}\uFE0F',
-};
 
 /**
- * Hook line + day-0 utility chips (diet/cooking/heaviness) for one dish card.
+ * Cooking-bucket line + day-0 utility chips (diet/heaviness) for one dish card.
  * These arrive from Stage 2 enrichment progressively, in concurrency-capped
  * waves, independent of whether taste scoring is even running — a shimmer
- * placeholder holds the hook's space (so cards don't visibly jump in height as
+ * placeholder holds the line's space (so cards don't visibly jump in height as
  * enrichment lands) and everything fades in once `enriched` flips true, rather
  * than popping in abruptly.
  */
-function DishDetails({ item, t, lang }: { item: ScannedItem; t: (key: string, params?: Record<string, string | number>) => string; lang: 'zh' | 'en' }) {
+/** Which table members (if any) also picked this exact dish. Matches on name/
+ * name_zh directly rather than fuzzy identity resolution — everyone at a shared
+ * table is picking from the SAME stored item list (session.menu_items, seeded
+ * once when sharing started), so an exact match is the correct comparison here,
+ * not an approximation of one. */
+function pickersFor(
+  item: ScannedItem,
+  tablePicks: { name: string; name_zh: string | null; handle: string; identity_name?: string | null; identity_name_zh?: string | null }[],
+): string[] {
+  const norm = (s: string | null | undefined) => (s ?? '').trim().toLowerCase();
+  const target = norm(item.name);
+  const targetZh = norm(item.name_zh);
+  return tablePicks
+    // Match the menu's printed name against the pick's own names AND its
+    // canonical identity's names — so a pick renamed after logging (or linked
+    // to a canonical identity under a different spelling) still shows as
+    // "also picked" instead of silently fragmenting.
+    .filter(p => {
+      const aliases = [p.name, p.name_zh, p.identity_name, p.identity_name_zh].map(norm).filter(Boolean);
+      return aliases.includes(target) || (!!targetZh && aliases.includes(targetZh));
+    })
+    .map(p => p.handle);
+}
+
+function DishDetails({ item, t, lang, pickedBy }: { item: ScannedItem; t: (key: string, params?: Record<string, string | number>) => string; lang: 'zh' | 'en'; pickedBy?: string[] }) {
   if (!item.enriched) {
     return <div className="hook-shimmer" aria-hidden />;
   }
-  const hasChips = item.diet.length > 0 || item.cooking_method || item.heaviness;
-  // Bilingual hook, mirroring the same name/name_zh pattern used everywhere else
-  // in Dishi: prefer the current UI language, fall back to whichever exists if
-  // the other came back empty (never show a blank hook when SOME text exists).
-  const hookText = lang === 'zh' ? (item.hook_zh || item.hook) : (item.hook || item.hook_zh);
+  // Cooking style + diet/heaviness now render through the SHARED DishInfoDisplay,
+  // so a dish read off a menu and the same dish once rated (on the Taste tab) show
+  // identical information rather than differing by which screen you met it on.
   return (
-    <>
-      {/* text-transform:capitalize is a no-op on Chinese characters (no case to
-          transform), so this one class safely handles both languages: Title Case
-          in English, untouched in Chinese — rather than trusting the model to be
-          consistent about capitalization on every single call. */}
-      {hookText && <div className="card-meta fade-in dish-hook">{hookText}</div>}
-      {hasChips && (
-        <div className="fade-in" style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 5 }}>
-          {item.diet.map(d => (
-            <span key={d} className="chip scan-chip">
-              <span className="scan-chip-icon">{DIET_ICON[d] ?? ''}</span>
-              <span className="scan-chip-label">{t(`scan.diet.${d}`)}</span>
-            </span>
-          ))}
-          {item.cooking_method && (
-            <span className="chip scan-chip">
-              <span className="scan-chip-label">{t(`scan.cooking.${item.cooking_method}`)}</span>
-            </span>
-          )}
-          {item.heaviness && (
-            <span className="chip scan-chip">
-              <span className="scan-chip-label">{t(`scan.heaviness.${item.heaviness}`)}</span>
-            </span>
-          )}
+    <div className="fade-in">
+      <DishInfoDisplay info={item} />
+      {!!pickedBy?.length && (
+        <div className="card-meta" style={{ color: 'var(--ink)', fontWeight: 600, marginTop: 2 }}>
+          {t('scan.share.alsopicked', { handles: pickedBy.join('、') })}
         </div>
       )}
-    </>
+    </div>
   );
 }
 
@@ -546,7 +888,7 @@ function Spinner({ size }: { size: number }) {
   return (
     <svg width={size} height={size} role="img" aria-label="Thinking\u2026" style={{ flexShrink: 0 }} className="match-ring-spinner">
       <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--line)" strokeWidth={4} opacity={0.35} />
-      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--egg-tart)" strokeWidth={4}
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--ink-faint)" strokeWidth={4}
         strokeLinecap="round" strokeDasharray={`${c * 0.22} ${c}`} />
     </svg>
   );

@@ -82,6 +82,30 @@ describe('rankForGroup — the fairness guarantee', () => {
   it('handles an empty item list', () => {
     expect(rankForGroup([], [member('a', { spicy: 1 })])).toEqual([]);
   });
+
+  it('shows visible separation across an all-aligned menu instead of saturating at 100', () => {
+    // Two people who love umami + tender + rich; a menu where every dish is a strong
+    // match. The OLD fixed-gain display clamped these all to 100; relative display
+    // must spread them so the best and worst still differ.
+    const members = [
+      member('a', { umami: 0.9, tender: 0.9, rich: 0.9 }),
+      member('b', { umami: 0.8, tender: 0.8, rich: 0.8 }),
+    ];
+    const dishes = [
+      { key: 'best', attributes: { umami: 0.95, tender: 0.95, rich: 0.95 }, cuisine: null },
+      { key: 'mid', attributes: { umami: 0.9, tender: 0.7, rich: 0.6 }, cuisine: null },
+      { key: 'least', attributes: { umami: 0.6, tender: 0.5, rich: 0.4 }, cuisine: null },
+    ];
+    const ranked = rankForGroup(dishes, members);
+    const matches = ranked.map(r => r.group_match);
+    // Not all identical — the display actually separates them.
+    expect(new Set(matches).size).toBeGreaterThan(1);
+    // Nothing pinned at a saturated 100.
+    expect(Math.max(...matches)).toBeLessThanOrEqual(95);
+    // Order still reflects true strength (best first, least last).
+    expect(ranked[0].item.key).toBe('best');
+    expect(ranked[ranked.length - 1].item.key).toBe('least');
+  });
 });
 
 describe('generateTableCode', () => {

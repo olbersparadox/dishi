@@ -23,9 +23,9 @@ describe('translation dictionary', () => {
   });
 
   it('zh strings are actually Chinese where they should be (spot check)', () => {
-    expect(dict['nav.foryou'].zh).toBe('為你推介');
+    expect(dict['nav.scan'].zh).toBe('掃餐牌');
     expect(dict['flick.inhaled'].zh).toBe('一掃而空');
-    expect(/[\u4e00-\u9fff]/.test(dict['home.stage.seed'].zh)).toBe(true);
+    expect(/[\u4e00-\u9fff]/.test(dict['scan.results'].zh)).toBe(true);
   });
 });
 

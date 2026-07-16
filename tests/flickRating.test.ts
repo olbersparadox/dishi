@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { wordKeyFor, WORD_MIN, WORD_KEYS } from '../src/lib/flickWords';
+import { wordKeyFor, WORD_MIN, WORD_KEYS, CHIPS } from '../src/lib/flickWords';
 
 describe('wordKeyFor', () => {
   it('maps the full range of scores to the right word key', () => {
@@ -31,5 +31,31 @@ describe('wordKeyFor', () => {
     // And the band must have genuine reachable room above WORD_MIN, not just
     // touch it at a single point.
     expect(lowestBandCeiling - WORD_MIN).toBeGreaterThan(0.01);
+  });
+});
+
+/**
+ * Every rating band must be reachable by TAP, not only by swipe.
+ *
+ * Real bug: 'flick.good' (幾好食 / "Pretty good") had no chip, so the 0.15..0.5 band
+ * — the most-used part of the scale — was swipe-only. Someone rating by tap jumped
+ * straight from 一般般 (0.1) to 超好味 (0.6), silently forced into a verdict they
+ * didn't mean. A tap scale that can't say what the swipe scale can say isn't an
+ * accessibility fallback, it's a different, lossier instrument.
+ */
+describe('tap chips cover the whole rating scale', () => {
+  it('every word band has a chip', () => {
+    const chipKeys = new Set(CHIPS.map(c => c.key));
+    for (const [, band] of WORD_KEYS) expect(chipKeys.has(band)).toBe(true);
+  });
+
+  it('每個 chip 落返自己嗰個 band — a chip must mean what it says', () => {
+    // A chip whose value resolves to a DIFFERENT word than its own label would show
+    // one thing and record another. Catches an off-by-one on a band boundary.
+    for (const c of CHIPS) expect(wordKeyFor(c.value)).toBe(c.key);
+  });
+
+  it('every chip is above the commit threshold — no chip can be silently discarded', () => {
+    for (const c of CHIPS) expect(Math.abs(c.value)).toBeGreaterThanOrEqual(WORD_MIN);
   });
 });

@@ -21,12 +21,17 @@ create policy "own profile insertable" on profiles for insert with check (auth.u
 create table restaurants (
   id uuid primary key default uuid_generate_v4(),
   name text not null,
+  name_zh text,                    -- added later in prod; live schema is source of truth
   lat double precision not null,
   lng double precision not null,
   address text,
+  area text,                       -- added later in prod
+  place_id text,                   -- Google Places canonical id; null for manually-typed places
   created_by uuid references profiles(id),
   created_at timestamptz not null default now()
 );
+-- One row per real Google place; nulls (manual entries) unrestricted.
+create unique index restaurants_place_id_key on restaurants (place_id) where place_id is not null;
 create index restaurants_lat_lng on restaurants (lat, lng);
 
 alter table restaurants enable row level security;
@@ -132,3 +137,50 @@ insert into storage.buckets (id, name, public) values ('dish-photos', 'dish-phot
 on conflict do nothing;
 create policy "photos readable" on storage.objects for select using (bucket_id = 'dish-photos');
 create policy "photos uploadable" on storage.objects for insert with check (bucket_id = 'dish-photos' and auth.uid() is not null);
+
+-- ---------- dish identities (Phase 2: dish identity resolution) ----------
+-- The shared, real-world dish that one or more user-owned `dishes` rows refer to.
+-- NOT a self-reference on dishes: anchoring a shared identity to one user's row
+-- would fragment the whole group the moment that user deleted it (FK cascade), and
+-- is_dish_locked would quietly stop protecting rows it previously protected.
+create table dish_identities (
+  id uuid primary key default uuid_generate_v4(),
+  restaurant_id uuid references restaurants(id) on delete cascade,
+  -- Canonical display name, chosen by AUTHORITY, not arrival order: the restaurant's
+  -- own printed menu (an unedited scan) > a human rename > a vision guess.
+  name text not null,
+  name_zh text,
+  name_authority smallint not null default 0,  -- see nameAuthority() in dishIdentity.ts
+  created_at timestamptz not null default now()
+);
+create index dish_identities_restaurant on dish_identities (restaurant_id);
+alter table dish_identities enable row level security;
+create policy "dish identities readable" on dish_identities for select using (true);
+create policy "dish identities insertable" on dish_identities for insert with check (auth.uid() is not null);
+
+alter table dishes add column dish_identity_id uuid references dish_identities(id) on delete set null;
+create index dishes_identity on dishes (dish_identity_id);
+
+-- Set whenever a user renames a dish. A scan-sourced row whose name a human
+-- overwrote is no longer the menu's words, and must stop claiming menu authority.
+alter table dishes add column name_edited_at timestamptz;
+
+-- Locking recognises a dish identity as the strongest "same real dish" signal, while
+-- KEEPING the original restaurant+name match as a fallback — nothing is linked at
+-- deploy time, so an identity-only predicate would silently unlock every locked dish.
+create or replace function public.is_dish_locked(p_dish_id uuid)
+returns boolean language sql stable as $$
+  select exists (
+    select 1
+    from ratings r
+    join dishes d2 on d2.id = r.dish_id
+    join dishes d1 on d1.id = p_dish_id
+    where r.user_id <> d1.user_id
+      and (
+        (d1.dish_identity_id is not null and d2.dish_identity_id = d1.dish_identity_id)
+        or (d1.restaurant_id is not null and d2.restaurant_id = d1.restaurant_id
+            and lower(trim(d2.name)) = lower(trim(d1.name)))
+        or (d1.restaurant_id is null and d2.id = d1.id)
+      )
+  );
+$$;

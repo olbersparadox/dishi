@@ -24,12 +24,17 @@ import { wordKeyFor, CHIPS, WORD_MIN } from '@/lib/flickWords';
 export default function FlickRating({
   photoUrl,
   dishName,
+  dishNameZh,
   onRate,
 }: {
   // null for a "pick" being rated later with no photo ever taken — the gesture
   // surface still needs SOMETHING to show; falls back to a plain named card.
+  // Rating without a photo is a fully supported path, not a degraded one: a dish
+  // picked off a menu has real attributes from the scan, so it teaches the engine
+  // exactly as much as a photographed one does.
   photoUrl: string | null;
   dishName?: string;
+  dishNameZh?: string | null;
   // Fired every time the rating changes — first swipe, or a later swipe that
   // revises it. There's no separate "final commit" step inside this component
   // anymore: the parent decides when the rating is truly final (the Done button),
@@ -37,11 +42,10 @@ export default function FlickRating({
   // needs an undo timer to catch.
   onRate: (score: number) => void;
 }) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const [drag, setDrag] = useState(0); // -1..1 live value
   const [active, setActive] = useState(false);
   const [rated, setRated] = useState<number | null>(null);
-  const [showChips, setShowChips] = useState(false);
   const startY = useRef(0);
   const rafId = useRef(0);
   const pendingDrag = useRef(0);
@@ -87,10 +91,14 @@ export default function FlickRating({
     onRate(score);
   }
 
+  // Prefer the current UI language, falling back to whichever name exists — never
+  // show a blank surface just because one language is missing.
+  const displayName = lang === 'zh' ? (dishNameZh || dishName) : (dishName || dishNameZh);
+
   const v = rated ?? drag;
   const saturation = 1 + Math.max(0, v) * 0.6 - Math.max(0, -v) * 0.85;
   const scale = 1 + Math.max(0, v) * 0.03;
-  const fillColor = v >= 0 ? 'var(--lacquer)' : 'var(--ink-soft)';
+  const fillColor = v >= 0 ? 'var(--ink)' : 'var(--ink-soft)';
   const fillHeight = `${Math.abs(v) * 50}%`;
   const fillPos = v >= 0 ? { bottom: '50%' } : { top: '50%' };
 
@@ -120,29 +128,46 @@ export default function FlickRating({
             draggable={false}
           />
         ) : (
+          // No photo: the dish's own NAME becomes the surface you flick. Shown in
+          // the current display language (Chinese by default), large — it's the
+          // title of what you're rating, not a caption.
           <div className="card-photo flick-photo flick-nophoto" style={{ filter: `saturate(${saturation})`, transform: `scale(${scale})` }}>
-            <span>{dishName ?? '🍽️'}</span>
+            <span>{displayName ?? '🍽️'}</span>
           </div>
         )}
+        <svg className="flick-arrow flick-arrow-up" viewBox="0 0 24 24" width="14" height="14" aria-hidden>
+          <path d="M12 5l6 7h-4v7h-4v-7H6z" fill="currentColor" />
+        </svg>
         <div className="flick-gauge" aria-hidden>
           <div className="flick-fill" style={{ ...fillPos, height: fillHeight, background: fillColor }} />
         </div>
+        <svg className="flick-arrow flick-arrow-down" viewBox="0 0 24 24" width="14" height="14" aria-hidden>
+          <path d="M12 19l-6-7h4V5h4v7h4z" fill="currentColor" />
+        </svg>
         {Math.abs(v) >= WORD_MIN && <div className="flick-word">{t(wordKeyFor(v))}</div>}
         {!active && rated === null && Math.abs(v) < 0.1 && (
           <div className="flick-hint">{t('flick.hint')}</div>
         )}
       </div>
 
-      <button className="btn ghost small" onClick={() => setShowChips(s => !s)}>
-        {showChips ? t('flick.hidetaps') : t('flick.tap')}
-      </button>
-      {showChips && (
-        <div className="chips" style={{ marginTop: 10 }}>
-          {CHIPS.map(c => (
-            <button key={c.key} className="chip" onClick={() => rate(c.value)}>{t(c.key)}</button>
-          ))}
-        </div>
-      )}
+      {/* The tap chips are shown BY DEFAULT now, not hidden behind a "tap instead"
+          toggle. The toggle made the whole scale invisible until you went looking
+          for it — so the rating vocabulary (and the fact that rating is
+          bidirectional at all) was discoverable only by dragging and seeing what
+          happened. Showing the full scale up front makes the gesture legible: you
+          can see exactly what you're aiming at before you flick. */}
+      <p className="card-meta" style={{ marginTop: 10 }}>{t('flick.howto')}</p>
+      <div className="chips" style={{ marginTop: 8 }}>
+        {CHIPS.map(c => (
+          <button
+            key={c.key}
+            className={`chip ${rated !== null && wordKeyFor(rated) === c.key ? 'on' : ''}`}
+            onClick={() => rate(c.value)}
+          >
+            {t(c.key)}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

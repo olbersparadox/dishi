@@ -11,13 +11,11 @@ import { salvageJsonObjects } from './jsonSalvage';
 // as it does everywhere else in Dishi, and every recommendation is explainable from
 // the user's real taste vector rather than model vibes.
 //
-// Photo-overlay grounding (bbox) was built, validated across six real-photo rounds,
-// and ultimately retired: the vision model doesn't truly localize text, it emits
-// plausible-looking tilings that pass every geometric self-consistency check while
-// still landing on the wrong dish — undetectable from the inside. src/lib/bbox.ts
-// and rowSnap.ts remain as validated, documented R&D (still exercised by the
-// /dev/bbox harness) in case a real OCR-based grounding approach is worth revisiting
-// later, but nothing in the product scan flow depends on them anymore.
+// Photo-overlay grounding (bbox) R&D was built, validated across six real-photo
+// rounds, and STOPPED at Jerry's 50% go/no-go bar (estimated 25-30% success).
+// The harness and libs were removed in cleanup; full history lives in git
+// (src/lib/bbox.ts, rowSnap.ts, /dev/bbox) if OCR-based grounding is revisited;
+// nothing in the product scan flow depends on them.
 
 /** Fixed, closed vocabularies for diet/cooking flags — never free text. A closed
  * set keeps the UI's icon mapping exhaustive and makes "likely-contains" framing
@@ -29,6 +27,35 @@ export const COOKING_METHODS = ['fried', 'steamed', 'grilled', 'braised', 'baked
 export type CookingMethod = typeof COOKING_METHODS[number];
 export const HEAVINESS = ['light', 'medium', 'heavy'] as const;
 export type Heaviness = typeof HEAVINESS[number];
+
+// A coarser, 5-bucket cooking-style category, used as the scan card's featured
+// "how it's cooked" line — deliberately coarser than the 9-value COOKING_METHODS
+// above (which stays as-is for the enrichment schema and stays available for
+// anyone who wants the finer value later). Real product feedback: the previous
+// featured line was a per-dish sensory "hook" (e.g. "Wok-Charred, Numbing Heat")
+// that often just restated the dish name in different words. A cooking-style
+// category is a genuinely different axis of information at a glance.
+export const COOKING_BUCKETS = ['fresh_raw', 'steamed_poached', 'grilled_roasted', 'braised_stewed', 'rich_fried'] as const;
+export type CookingBucket = typeof COOKING_BUCKETS[number];
+
+const COOKING_BUCKET_MAP: Record<CookingMethod, CookingBucket | null> = {
+  raw: 'fresh_raw',
+  steamed: 'steamed_poached',
+  boiled: 'steamed_poached',   // closest existing value to "poached"
+  grilled: 'grilled_roasted',
+  baked: 'grilled_roasted',    // closest existing value to "roasted"
+  braised: 'braised_stewed',
+  fried: 'rich_fried',
+  'stir-fried': 'rich_fried',  // oil-cooked, groups with fried rather than alone
+  other: null,                 // no honest bucket to put it in — show nothing
+};
+
+/** Maps a dish's specific cooking method onto the coarser 5-bucket category, or
+ * null when there's nothing honest to show (no method known, or 'other'). */
+export function cookingBucket(method: CookingMethod | null | undefined): CookingBucket | null {
+  if (!method) return null;
+  return COOKING_BUCKET_MAP[method] ?? null;
+}
 
 export type MenuItem = {
   name: string;            // English name (translated if the menu isn't in English)
@@ -60,6 +87,15 @@ export type MenuScanResult = {
   menu_language: string;
   restaurant_guess: string | null;
   mock: boolean;
+  // Whether the photo was recognisably a menu at all. Only populated by the
+  // skeleton scan path (scanMenuSkeleton/scanMenuSkeletonStream) — the older
+  // one-shot scanMenu (used by owner menu upload and Table Mode) doesn't ask for
+  // this signal, so it's simply absent there. Absent/missing is treated as true
+  // downstream (a missing signal shouldn't invent a false "not a menu" verdict —
+  // it just falls back to the pre-existing generic failure message). Only ever
+  // meaningfully false when items is also empty; a real menu with zero readable
+  // items still has is_menu: true (it's a menu, just an unreadable one).
+  is_menu?: boolean;
 };
 
 const SYSTEM = `You read a photograph of a physical restaurant menu and extract EVERY legible dish as structured data.
@@ -136,12 +172,15 @@ export async function scanMenu(base64: string, mediaType: string): Promise<MenuS
 // infrastructure under time pressure.
 // ---------------------------------------------------------------------------
 
-const SKELETON_SYSTEM = `You read a photograph of a physical restaurant menu and extract EVERY legible dish's IDENTITY only — not its flavor or details.
+const SKELETON_SYSTEM = `You read a photograph and extract EVERY legible restaurant menu dish's IDENTITY only — not its flavor or details.
+
+FIRST decide whether this photo is actually of a restaurant menu (printed, handwritten, or a chalkboard/digital menu display) — as opposed to a receipt, a dish itself, a random object, a person, a street scene, or anything else that isn't a menu. Be generous: a partial menu, a single page, a photo of a menu on a phone screen, and a badly-lit or angled menu are ALL still menus. Only mark "im": false when the photo genuinely shows something that is not a menu at all.
 
 Menus are messy: multiple columns, section headers, prices in odd places, mixed languages (especially Chinese + English), specials taped on, glare, handwriting. Work systematically. Do not invent items; extract partially-legible ones with lower confidence.
 
 Respond with ONLY compact JSON, no markdown fences, minimal whitespace:
-{"menu_language": string, "restaurant_guess": string|null,
+{"im": boolean (true if this is a photo of a menu at all, false if it clearly is not),
+ "menu_language": string, "restaurant_guess": string|null,
  "items": [{
    "n": string (English name; translate if needed),
    "z": string (Traditional Chinese name; translate if needed),
@@ -150,6 +189,7 @@ Respond with ONLY compact JSON, no markdown fences, minimal whitespace:
    "c": string (cuisine, lowercase),
    "f": number 0..1 (confidence)
  }]}
+If "im" is false, "items" MUST be an empty array — do not guess dishes out of a non-menu photo.
 Extract at most 20 items; prefer mains and signatures over drinks and sides. Names, prices, and cuisine ONLY — no hooks, no flavor scoring, no diet flags, no cooking method, nothing else. Keep this fast.`;
 
 export type OcrMenuItem = Omit<MenuItem, 'attributes'>;
@@ -167,24 +207,32 @@ export async function scanMenuSkeleton(base64: string, mediaType: string): Promi
   // full-scan failure, not a graceful one — erring generous here too.
   ], { maxTokens: 1800 });
 
-  const parsed = parseJsonResponse<{ items?: any[]; menu_language?: string; restaurant_guess?: string }>(text);
+  const parsed = parseJsonResponse<{ im?: boolean; items?: any[]; menu_language?: string; restaurant_guess?: string }>(text);
 
   if (parsed) {
     const items = (parsed.items ?? []).map((raw: any) => sanitizeSkeletonItem(raw)).filter(Boolean) as MenuItem[];
+    // "im": false is only trusted when the model also returned zero items — a
+    // model that both flags "not a menu" AND extracts real dishes is contradicting
+    // itself, and extracted dishes are the stronger, more concrete signal.
+    const isMenu = !(parsed.im === false && items.length === 0);
     if (items.length > 0) {
       return {
         items,
         menu_language: String(parsed.menu_language ?? 'unknown'),
         restaurant_guess: parsed.restaurant_guess ? String(parsed.restaurant_guess) : null,
         mock: false,
+        is_menu: isMenu,
       };
+    }
+    if (!isMenu) {
+      return { items: [], menu_language: 'unknown', restaurant_guess: null, mock: false, is_menu: false };
     }
   }
 
   const salvaged = text ? salvageJsonObjects(text, 'items').map((raw: any) => sanitizeSkeletonItem(raw)).filter(Boolean) as MenuItem[] : [];
   if (salvaged.length > 0) {
     console.log(`menu-scan/skeleton: salvaged ${salvaged.length} items from a truncated/malformed response`);
-    return { items: salvaged, menu_language: 'unknown', restaurant_guess: null, mock: false };
+    return { items: salvaged, menu_language: 'unknown', restaurant_guess: null, mock: false, is_menu: true };
   }
 
   if (text) {
@@ -192,12 +240,12 @@ export async function scanMenuSkeleton(base64: string, mediaType: string): Promi
   } else {
     console.error('menu-scan/skeleton: no response text at all (call failed/timed out before returning anything)');
   }
-  return { items: [], menu_language: 'unknown', restaurant_guess: null, mock: false };
+  return { items: [], menu_language: 'unknown', restaurant_guess: null, mock: false, is_menu: true };
 }
 
 export type SkeletonStreamEvent =
   | { kind: 'item'; item: MenuItem }
-  | { kind: 'meta'; menu_language: string; restaurant_guess: string | null };
+  | { kind: 'meta'; menu_language: string; restaurant_guess: string | null; is_menu: boolean };
 
 /**
  * STREAMING Stage 1: yields each dish the MOMENT its own JSON object closes in
@@ -240,17 +288,26 @@ export async function* scanMenuSkeletonStream(base64: string, mediaType: string)
   // Stream ended. Try a clean parse of the final buffer first (the common case:
   // the response closed normally); fall back to one more salvage pass for
   // anything a clean parse would reject outright (truncation, trailing garbage).
-  const parsed = parseJsonResponse<{ items?: any[]; menu_language?: string; restaurant_guess?: string }>(lastText);
+  const parsed = parseJsonResponse<{ im?: boolean; items?: any[]; menu_language?: string; restaurant_guess?: string }>(lastText);
   const finalItems = parsed?.items ?? salvageJsonObjects(lastText, 'items');
   for (let i = emitted; i < finalItems.length; i++) {
     const item = sanitizeSkeletonItem(finalItems[i]);
     if (item) yield { kind: 'item', item };
   }
 
+  // Same rule as the non-stream path: "im": false is only trusted when the model
+  // ALSO produced zero items overall (emitted so far + any final salvage). A
+  // model that flags "not a menu" but still extracted real dishes is
+  // contradicting itself — the extracted dishes are the stronger signal, and
+  // trusting "im" over them would wrongly discard a real, if partial, scan.
+  const totalItems = Math.max(emitted, finalItems.length);
+  const isMenu = !(parsed?.im === false && totalItems === 0);
+
   yield {
     kind: 'meta',
     menu_language: String(parsed?.menu_language ?? 'unknown'),
     restaurant_guess: parsed?.restaurant_guess ? String(parsed.restaurant_guess) : null,
+    is_menu: isMenu,
   };
 }
 

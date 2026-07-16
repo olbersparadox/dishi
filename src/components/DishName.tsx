@@ -13,11 +13,15 @@ export default function DishName({
   name_zh,
   name_original,
   size = 'md',
+  prefix,
 }: {
   name: string;
   name_zh?: string | null;
   name_original?: string | null;
   size?: 'lg' | 'md';
+  /** Rendered inline before the primary name at the same size/weight —
+   * used for the rank ("1. ") in scan results per the design handoff. */
+  prefix?: string;
 }) {
   const { lang } = useLang();
   const { en, zh } = pickNames({ name, name_zh, name_original });
@@ -28,7 +32,7 @@ export default function DishName({
 
   return (
     <span className={`dishname ${size === 'lg' ? 'dishname-lg' : ''}`}>
-      <span className="dishname-primary">{primary}</span>
+      <span className="dishname-primary">{prefix}{primary}</span>
       {secondary && <span className="dishname-secondary">{secondary}</span>}
     </span>
   );

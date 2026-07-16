@@ -1,5 +1,9 @@
 import { DIMS, DishVector, LEARN_CUTOFF } from './taste';
 import { callClaude, imagePart, textPart, parseJsonResponse } from './openrouter';
+import {
+  sanitizeDietFlags, sanitizeCookingMethod, sanitizeHeaviness,
+  type DietFlag, type CookingMethod, type Heaviness,
+} from './menuScan';
 
 export type VisionResult = {
   name: string;
@@ -13,6 +17,12 @@ export type VisionResult = {
   // Defaults to true everywhere a real judgment isn't available (mock, no-key, a
   // failed call) so a missing signal never falsely accuses a real dish photo.
   is_dish: boolean;
+  // Same closed vocabularies and sanitizers menu scanning uses (menuScan.ts) —
+  // deliberately reused rather than reinvented, so a photographed dish and a
+  // menu-scanned dish that later gets rated show up identically on the Taste tab.
+  diet: DietFlag[];
+  cooking_method: CookingMethod | null;
+  heaviness: Heaviness | null;
 };
 
 const SYSTEM = `You identify a dish from a photo and estimate its sensory attributes.
@@ -24,6 +34,9 @@ Respond with ONLY a JSON object, no markdown fences, in this exact shape:
  "cuisine": string (lowercase, e.g. "cantonese", "japanese", "italian"),
  "confidence": number 0..1 (how sure you are about the IDENTIFICATION — this can be
  low for a real but blurry/ambiguous dish; it's independent of is_dish),
+ "diet": [string] (diet/allergen flags this dish LIKELY has, from EXACTLY this set: veg, pork, beef, seafood, shellfish, peanut, spicy — omit any you're not reasonably confident about; empty array if none apply),
+ "cooking_method": string|null (EXACTLY one of: fried, steamed, grilled, braised, baked, raw, stir-fried, boiled, other — your best culinary judgment from how it looks; null if unclear),
+ "heaviness": string|null (light, medium, or heavy — your best culinary judgment; null if unclear),
  "attributes": { ${DIMS.map((d) => `"${d}": number 0..1`).join(', ')} }}
 Attributes are presence/intensity, not quality. A tonkotsu ramen might be
 umami 0.9, rich 0.85, salty 0.7, chewy 0.6, spicy 0.1. If is_dish is false, still
@@ -50,7 +63,7 @@ export async function inferDish(base64: string, mediaType: string): Promise<Visi
   // an honest low-confidence Unknown — the user gets the "fix the name" chip — rather
   // than fake demo data or a hard failure after they already took the photo.
   if (!parsed) {
-    return { name: 'Unknown dish', name_zh: null, cuisine: 'unknown', attributes: {}, confidence: 0.1, is_dish: true };
+    return { name: 'Unknown dish', name_zh: null, cuisine: 'unknown', attributes: {}, confidence: 0.1, is_dish: true, diet: [], cooking_method: null, heaviness: null };
   }
   return sanitize(parsed);
 }
@@ -77,7 +90,11 @@ function sanitize(raw: any): VisionResult {
     // Default true on any ambiguous/missing value — benefit of the doubt always
     // goes to "this is a real dish," never the other way.
     is_dish: raw?.is_dish !== false,
+    diet: sanitizeDietFlags(raw?.diet),
+    cooking_method: sanitizeCookingMethod(raw?.cooking_method),
+    heaviness: sanitizeHeaviness(raw?.heaviness),
   };
+
 }
 
 function mockResult(): VisionResult {
@@ -85,7 +102,7 @@ function mockResult(): VisionResult {
   for (const d of DIMS) attributes[d] = 0.3;
   attributes.umami = 0.7;
   attributes.rich = 0.6;
-  return { name: 'Logged dish (vision key not set)', name_zh: null, cuisine: 'unknown', attributes, confidence: 0.2, is_dish: true };
+  return { name: 'Logged dish (vision key not set)', name_zh: null, cuisine: 'unknown', attributes, confidence: 0.2, is_dish: true, diet: [], cooking_method: null, heaviness: null };
 }
 
 const ANCHORED_SYSTEM = `You re-analyze a dish photo. The eater has told you what the dish
@@ -95,22 +112,27 @@ cuisine, consistent with BOTH the given name and what is visible in the photo
 (portion, preparation, sauce, char, garnish all still carry real information).
 Respond with ONLY a JSON object, no markdown fences:
 {"cuisine": string (lowercase, e.g. "cantonese", "japanese", "thai"),
+ "diet": [string] (diet/allergen flags this dish LIKELY has, from EXACTLY this set: veg, pork, beef, seafood, shellfish, peanut, spicy — omit any you're not reasonably confident about; empty array if none apply),
+ "cooking_method": string|null (EXACTLY one of: fried, steamed, grilled, braised, baked, raw, stir-fried, boiled, other; null if unclear),
+ "heaviness": string|null (light, medium, or heavy; null if unclear),
  "attributes": { ${DIMS.map((d) => `"${d}": number 0..1`).join(', ')} }}
 Attributes are presence/intensity, not quality. Only report attributes you are
 genuinely confident about; leave uncertain ones near 0.`;
 
 /**
- * Re-derives a dish's attributes (and cuisine) from its photo, ANCHORED on the name
- * the person corrected it to. This exists because a dish record is a bundle derived
- * from vision's original guess: when the guess was wrong and the person fixes the
- * name, the attributes that came bundled with the wrong guess are wrong too — and
- * they're what the taste engine learns from. Name-only rescoring would work, but the
- * photo still carries real information the name alone doesn't (a fried vs steamed
- * preparation of the same dish, sauce, portion), so when a photo exists it stays in
- * the loop. Returns null on any failure so the caller keeps existing attributes
- * rather than blocking the rename.
+ * Re-derives a dish's attributes, cuisine, and cooking-info (diet/cooking_method/
+ * heaviness) from its photo, ANCHORED on the name the person corrected it to. This
+ * exists because a dish record is a bundle derived from vision's original guess:
+ * when the guess was wrong and the person fixes the name, EVERYTHING bundled with
+ * the wrong guess is wrong too — not just cuisine and attributes, but the cooking
+ * method shown on the Taste tab (a renamed "fried chicken" -> "steamed fish" must
+ * not keep showing 香炸濃郁/"Rich & Fried" as its cooking style forever). Returns
+ * null on any failure so the caller keeps existing values rather than blocking the
+ * rename.
  */
-export async function reanalyzeAnchored(name: string, base64: string, mediaType: string): Promise<{ attributes: DishVector; cuisine: string } | null> {
+export async function reanalyzeAnchored(
+  name: string, base64: string, mediaType: string,
+): Promise<{ attributes: DishVector; cuisine: string; diet: DietFlag[]; cooking_method: CookingMethod | null; heaviness: Heaviness | null } | null> {
   if (!process.env.OPENROUTER_API_KEY) return null;
   const text = await callClaude(ANCHORED_SYSTEM, [
     imagePart(base64, mediaType),
@@ -119,7 +141,7 @@ export async function reanalyzeAnchored(name: string, base64: string, mediaType:
   const parsed = parseJsonResponse<any>(text);
   if (!parsed) return null;
   const s = sanitize({ ...parsed, name });
-  return { attributes: s.attributes, cuisine: s.cuisine };
+  return { attributes: s.attributes, cuisine: s.cuisine, diet: s.diet, cooking_method: s.cooking_method, heaviness: s.heaviness };
 }
 
 const clamp01 = (x: number) => (Number.isFinite(x) ? Math.min(1, Math.max(0, x)) : 0);

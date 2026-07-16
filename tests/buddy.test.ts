@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   computeXP, levelFor, engineStrength, buddyElements, growthHint,
-  exploredDims, LEVELS, SPECIES, type BuddyInputs,
+  exploredDims, LEVELS, type BuddyInputs,
 } from '../src/lib/buddy';
 import { emptyTaste } from '../src/lib/taste';
 
@@ -130,11 +130,5 @@ describe('exploredDims', () => {
   it('counts only dims with clear signal, positive or negative', () => {
     expect(exploredDims({ ...emptyTaste(), spicy: 0.5, sweet: -0.5, umami: 0.1 }))
       .toEqual(['sweet', 'spicy']);
-  });
-});
-
-describe('SPECIES', () => {
-  it('offers exactly five buddies', () => {
-    expect(SPECIES).toHaveLength(5);
   });
 });

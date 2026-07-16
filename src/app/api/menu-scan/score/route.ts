@@ -36,8 +36,9 @@ export async function POST(req: NextRequest) {
   const attributes = await scoreOneDish({ name: item.name_original || item.name, cuisine: item.cuisine });
   const taste: TasteVector = profile?.vector ?? emptyTaste();
   const affinity: Record<string, number> = profile?.cuisine_affinity ?? {};
+  const lang: 'en' | 'zh' = body?.lang === 'zh' ? 'zh' : 'en';
 
-  const [ranked] = rankMenuItems([{ ...item, attributes }], taste, affinity, true, profile?.evidence ?? undefined);
+  const [ranked] = rankMenuItems([{ ...item, attributes }], taste, affinity, true, profile?.evidence ?? undefined, lang);
   // Fire QUALIFICATION only — this route sees one dish at a time, so the batch cap
   // (at most 2 fires shown per scan) is applied client-side at settle, when every
   // dish's outcome is known. Server stays the sole authority on qualification.

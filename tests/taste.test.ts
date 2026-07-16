@@ -328,3 +328,66 @@ describe('toRelativeMatchPercent — the fixed-ceiling saturation fix', () => {
     expect(toRelativeMatchPercent(1, rawScores, 20, 80)).toBe(80);
   });
 });
+
+/**
+ * RE-RATING must replay, never re-apply incrementally.
+ *
+ * updateTaste is an EMA nudge applied ON TOP of the current vector. When a user
+ * CHANGES an existing rating, the current vector still contains the effect of the
+ * OLD rating for that same dish — and nothing removes it. Applying the new rating
+ * incrementally therefore leaves the profile reflecting a rating history that
+ * never happened: the same phantom-learning failure as the original missing-
+ * attribute bug, arriving by a different door.
+ *
+ * Found while adding a "Re-rate" button (which made this path, previously almost
+ * unreachable, a normal user action). Verified against the real engine before the
+ * fix: flipping a spicy dish from loved to hated left spicy at +0.13 — still
+ * POSITIVE, insisting the user likes spicy when their only rating is a hate.
+ */
+describe('re-rating: incremental re-application is wrong; replay is correct', () => {
+  const spicyDish = { spicy: 0.9 };
+
+  it('the incremental path leaves a flipped rating pointing the WRONG WAY', () => {
+    let vec = emptyTaste();
+    let ev = {};
+    vec = updateTaste(vec, ev, spicyDish, 1.0, null);   // loved it
+    ev = bumpEvidence(ev, spicyDish, null);
+
+    // What the old code did on a re-rate: nudge again from the already-loved vector.
+    const incremental = updateTaste(vec, ev, spicyDish, -1.0, null);
+
+    // The user's ONLY rating of this dish is now "hated" — yet spicy stays positive.
+    expect(incremental.spicy).toBeGreaterThan(0); // <- the bug, asserted explicitly
+  });
+
+  it('replaying the CORRECTED history gives the honest answer', () => {
+    // Replay = rebuild from scratch over the ratings table, which by then holds only
+    // the corrected rating. One rating, "hated", on a spicy dish.
+    let replayed = emptyTaste();
+    replayed = updateTaste(replayed, {}, spicyDish, -1.0, null);
+
+    expect(replayed.spicy).toBeLessThan(0);
+  });
+
+  it('replay of an unchanged history reproduces the incremental result exactly', () => {
+    // Sanity: replay isn't a different engine, so on a history with no correction it
+    // must agree with the cheap incremental path — otherwise switching a re-rate to
+    // replay would silently shift everyone's numbers.
+    const dishA = { spicy: 0.8, umami: 0.4 };
+    const dishB = { sweet: 0.7 };
+
+    let inc = emptyTaste();
+    let ev = {};
+    inc = updateTaste(inc, ev, dishA, 0.8, null);
+    ev = bumpEvidence(ev, dishA, null);
+    inc = updateTaste(inc, ev, dishB, -0.5, null);
+
+    let rep = emptyTaste();
+    let rev = {};
+    rep = updateTaste(rep, rev, dishA, 0.8, null);
+    rev = bumpEvidence(rev, dishA, null);
+    rep = updateTaste(rep, rev, dishB, -0.5, null);
+
+    for (const d of DIMS) expect(rep[d]).toBeCloseTo(inc[d], 10);
+  });
+});

@@ -14,7 +14,7 @@ type RankedItem = {
   unanimous: boolean; protected_by_fairness: boolean;
   attributes?: Record<string, number>;
 };
-type TablePick = { name: string; name_zh: string | null; handle: string };
+type TablePick = { name: string; name_zh: string | null; handle: string; identity_name?: string | null; identity_name_zh?: string | null };
 type SessionState = {
   code: string; session_id: string; restaurant_id: string | null;
   status: string; is_host: boolean; has_menu: boolean; orderable: boolean;
@@ -233,14 +233,18 @@ function Session({ code, onLeave }: { code: string; onLeave: () => void }) {
         <article className="card" key={item.key}>
           <div className="card-body scan-row">
             <div className="scan-rank">{i + 1}</div>
+            {/* Same 70/45 thresholds as before (calibrated, untouched — see the
+                standing note on Table Mode's fixed-gain exposure); only the
+                color scale changed, jade/egg-tart/grey -> ink/ink-faint/
+                ink-soft, to stay inside the paper+ink palette. */}
             <div className="group-ring" style={{
-              background: `conic-gradient(${item.group_match >= 70 ? 'var(--jade)' : item.group_match >= 45 ? 'var(--egg-tart)' : 'var(--ink-soft)'} ${item.group_match * 3.6}deg, var(--line) 0deg)`,
+              background: `conic-gradient(${item.group_match >= 70 ? 'var(--ink)' : item.group_match >= 45 ? 'var(--ink-faint)' : 'var(--ink-soft)'} ${item.group_match * 3.6}deg, var(--line) 0deg)`,
             }}>
               <span>{item.group_match}</span>
             </div>
             <div style={{ minWidth: 0, flex: 1 }}>
               <div className="dish-row">
-                <div className="card-title" style={{ fontSize: 15.5 }}>
+                <div className="card-title">
                   <DishName name={item.name} name_zh={item.name_zh} name_original={item.name_original} />
                   {item.unanimous && <span className="badge-unanimous">{t('table.unanimous')}</span>}
                   {item.protected_by_fairness && <span className="badge-fair">{t('table.fairness')}</span>}
@@ -273,7 +277,7 @@ function Session({ code, onLeave }: { code: string; onLeave: () => void }) {
                       <div className="bar-track">
                         <div className="bar-fill" style={{
                           left: 0, width: `${mm.match}%`,
-                          background: mm.match >= 55 ? 'var(--jade)' : 'var(--ink-soft)',
+                          background: mm.match >= 55 ? 'var(--ink)' : 'var(--ink-soft)',
                         }} />
                       </div>
                     </div>

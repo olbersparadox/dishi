@@ -20,10 +20,17 @@ export const WORD_KEYS: [number, string][] = [
   [-1.01, 'flick.never'],
 ];
 
+// Every band in WORD_KEYS must have a tap equivalent here. 'flick.good' (幾好食 /
+// "Pretty good") was missing — so the entire 0.15..0.5 band was reachable ONLY by
+// swiping, and a person rating by tap had no way to say it. Worse, the gap sat in
+// the most-used part of the scale: the jump went straight from 一般般 (0.1) to
+// 超好味 (0.6), silently pushing every mild positive into one of two verdicts the
+// person didn't actually mean. Chip values sit mid-band, not on the boundary.
 export const CHIPS: { key: string; value: number }[] = [
   { key: 'flick.never', value: -0.9 },
   { key: 'flick.notforme', value: -0.5 },
   { key: 'flick.fine', value: 0.1 },
+  { key: 'flick.good', value: 0.35 },
   { key: 'flick.loved', value: 0.6 },
   { key: 'flick.inhaled', value: 1 },
 ];

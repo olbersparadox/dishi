@@ -157,7 +157,7 @@ function OrderFlow() {
               <div className="card-meta" style={{ fontSize: 14, color: 'var(--ink)' }}>
                 {o.items.map(i => `${i.qty}\u00d7 ${i.name}`).join(', ')}
               </div>
-              <div className="card-meta" style={{ color: o.status === 'cancelled' ? 'var(--lacquer)' : 'var(--jade)' }}>
+              <div className="card-meta" style={{ color: o.status === 'cancelled' ? 'var(--lacquer)' : 'var(--ink)' }}>
                 {STATUS_KEY[o.status] ? t(STATUS_KEY[o.status]) : o.status}
               </div>
             </div>
@@ -176,13 +176,13 @@ function OrderFlow() {
         <article className="card" key={item.key}>
           <div className="card-body scan-row">
             <div className="group-ring" style={{
-              background: `conic-gradient(${item.group_match >= 70 ? 'var(--jade)' : item.group_match >= 45 ? 'var(--egg-tart)' : 'var(--ink-soft)'} ${item.group_match * 3.6}deg, var(--line) 0deg)`,
+              background: `conic-gradient(${item.group_match >= 70 ? 'var(--ink)' : item.group_match >= 45 ? 'var(--ink-faint)' : 'var(--ink-soft)'} ${item.group_match * 3.6}deg, var(--line) 0deg)`,
             }}>
               <span>{item.group_match}</span>
             </div>
             <div style={{ minWidth: 0, flex: 1 }}>
               <div className="dish-row">
-                <div className="card-title" style={{ fontSize: 15.5 }}>
+                <div className="card-title">
                   <DishName name={item.name} name_zh={item.name_zh} name_original={item.name_original} />
                   {item.unanimous && state.members.length > 1 && <span className="badge-unanimous">{t('table.unanimous')}</span>}
                 </div>

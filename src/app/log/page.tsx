@@ -1,13 +1,13 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AuthGate from '@/components/AuthGate';
 import RestaurantPicker, { RestaurantChoice } from '@/components/RestaurantPicker';
 import FlickRating from '@/components/FlickRating';
-import VoiceNote from '@/components/VoiceNote';
 import { normalizePhoto } from '@/lib/image';
 import DishName from '@/components/DishName';
 import PhotoPicker from '@/components/PhotoPicker';
+import { CloseIcon, CameraIcon, RateIcon, TrashIcon, EditIcon } from '@/components/icons';
 import { useLang, cuisineLabel } from '@/lib/i18n';
 
 type Dish = { id: string; name: string; name_zh?: string | null; cuisine: string; photo_url: string | null; vision_confidence?: number; is_dish?: boolean };
@@ -27,6 +27,12 @@ function LogFlow() {
   const [photo, setPhoto] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [restaurant, setRestaurant] = useState<RestaurantChoice>(null);
+  // No-photo path: type what you ate instead of photographing it.
+  const [noPhotoMode, setNoPhotoMode] = useState(false);
+  const [typedEn, setTypedEn] = useState('');
+  const [typedZh, setTypedZh] = useState('');
+  const [creatingNoPhoto, setCreatingNoPhoto] = useState(false);
+  const [noPhotoError, setNoPhotoError] = useState('');
   const [dish, setDish] = useState<Dish | null>(null);
   const [draftName, setDraftName] = useState('');
   const [draftNameZh, setDraftNameZh] = useState('');
@@ -36,15 +42,17 @@ function LogFlow() {
   const [nameSaveError, setNameSaveError] = useState<string | null>(null);
   const [relearned, setRelearned] = useState(false);
   const [learnedDims, setLearnedDims] = useState<{ dim: string; dir: number }[] | null>(null);
-  const [transcript, setTranscript] = useState('');
   const [rating, setRating] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [finishing, setFinishing] = useState(false);
   const [picks, setPicks] = useState<Pick[] | null>(null);
+  const [sealedIds, setSealedIds] = useState<Set<string>>(new Set());
   const [ratingExistingPick, setRatingExistingPick] = useState(false);
   const [addingPhoto, setAddingPhoto] = useState(false);
   const [confirmedAnyway, setConfirmedAnyway] = useState(false);
+  const [sameDish, setSameDish] = useState<{ dish_id: string; name: string; name_zh: string | null } | null>(null);
+  const [sameDishBusy, setSameDishBusy] = useState(false);
 
   function onPickPhoto(f: File | null) {
     setPhoto(f);
@@ -55,6 +63,35 @@ function LogFlow() {
     setDish(null);
   }
 
+  /** Creates a dish from a typed name (no photo) and drops straight into rating it.
+   * Same dishes table, same rating pipeline, same taste engine — the ONLY thing
+   * missing is the photo, which was never what the engine learned from. */
+  async function createWithoutPhoto() {
+    if (creatingNoPhoto) return;
+    setCreatingNoPhoto(true); setNoPhotoError('');
+    try {
+      const res = await fetch('/api/dishes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: typedEn.trim() || undefined,
+          name_zh: typedZh.trim() || undefined,
+          restaurant_id: restaurant?.kind === 'existing' ? restaurant.id : undefined,
+          new_restaurant: restaurant?.kind === 'new' ? restaurant : undefined,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Could not save that dish.');
+      setDish(json.dish);
+      setRating(null);
+      setConfirmedAnyway(false);
+    } catch (e: any) {
+      setNoPhotoError(e.message || 'Could not save that dish.');
+    } finally {
+      setCreatingNoPhoto(false);
+    }
+  }
+
   // Release the object URL when the whole flow unmounts (e.g. navigating away).
   useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
 
@@ -62,14 +99,37 @@ function LogFlow() {
   // to be rated — same rating pipeline as a photographed dish, just entered a
   // different way. Only relevant on the idle (pre-photo) screen.
   useEffect(() => {
-    fetch('/api/my/dishes?unrated=1').then(r => r.json()).then(j => setPicks(j.dishes ?? [])).catch(() => setPicks([]));
-  }, []);
+    fetch('/api/my/dishes?unrated=1').then(r => r.json()).then(async j => {
+      const list = j.dishes ?? [];
+      setPicks(list);
+      // Deep link from the Taste tab's "dishes to be rated" placeholders: jump
+      // straight into rating that specific one, same as tapping "Rate now" here.
+      const targetId = new URLSearchParams(window.location.search).get('rate');
+      if (targetId) {
+        const target = list.find((p: Pick) => p.id === targetId);
+        if (target) rateExistingPick(target);
+        window.history.replaceState({}, '', '/log'); // don't re-trigger on refresh
+      }
+      const sealed = new Set<string>();
+      await Promise.all(list.map(async (p: Pick) => {
+        try {
+          const res = await fetch('/api/seals', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ dish_id: p.id }),
+          });
+          const out = await res.json().catch(() => ({}));
+          if (out.sealed) sealed.add(p.id);
+        } catch { /* non-critical */ }
+      }));
+      setSealedIds(sealed);
+    }).catch(() => setPicks([]));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   /** Jump straight into rating an already-picked dish — no photo step needed. */
   function rateExistingPick(pick: Pick) {
     setRatingExistingPick(true);
     setDish({ id: pick.id, name: pick.name, name_zh: pick.name_zh, cuisine: pick.cuisine, photo_url: null });
-    setRating(null); setTranscript(''); setConfirmedAnyway(false);
+    setRating(null); setConfirmedAnyway(false);
     setNameSaveError(null);
   }
 
@@ -126,6 +186,50 @@ function LogFlow() {
     setNameSaveError(null); setRelearned(false);
   }, [dish?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Dish identity: ask the server whether this dish is one the restaurant's menu
+  // already knows under a different name (蝦餃 vs 水晶鮮蝦餃). The server only ever
+  // answers when it's genuinely confident (string prefilter -> LLM adjudication,
+  // both must pass), so most of the time this quietly returns nothing and the
+  // person is never interrupted. Best-effort: a failure just means no prompt.
+  useEffect(() => {
+    setSameDish(null);
+    if (!dish) return;
+    let cancelled = false;
+    fetch(`/api/dishes/identity?dish_id=${dish.id}`)
+      .then(r => r.json())
+      .then(j => { if (!cancelled && j.suggestion) setSameDish(j.suggestion); })
+      .catch(() => { /* no suggestion is always an acceptable outcome */ });
+    return () => { cancelled = true; };
+  }, [dish?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /**
+   * The person answered the "same dish?" question. YES links this dish to the other
+   * one's shared identity; NO records nothing and simply stops asking. Either way the
+   * prompt disappears and rating continues uninterrupted — this is never a blocker.
+   *
+   * Linking is purely additive: this dish keeps its own name, photo, attributes and
+   * ratings. It gains only a pointer saying "this is the same real thing as that",
+   * which is what lets dish locking and the owner dashboard stop treating one
+   * dumpling as two.
+   */
+  async function answerSameDish(same: boolean) {
+    if (!dish || !sameDish) return;
+    setSameDishBusy(true);
+    try {
+      await fetch('/api/dishes/identity', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          dish_id: dish.id,
+          same_as_dish_id: same ? sameDish.dish_id : undefined,
+          not_same_as_dish_id: same ? undefined : sameDish.dish_id,
+        }),
+      });
+    } catch { /* a failed link is not worth blocking the rating over */ }
+    setSameDish(null);
+    setSameDishBusy(false);
+  }
+
   /**
    * Confirm tapped: saves the corrected name(s) BEFORE rating, via the same endpoint
    * as the home rename form, which runs the full correction cascade server-side —
@@ -137,11 +241,11 @@ function LogFlow() {
    * correction vanished the moment you rated, and the attributes vision bundled
    * with its WRONG guess stayed to quietly teach the profile bad data.
    */
-  async function saveName() {
-    if (!dish) return;
+  async function saveName(): Promise<boolean> {
+    if (!dish) return true;
     const name = draftName.trim();
     const name_zh = draftNameZh.trim();
-    if (!name && !name_zh) return; // need at least one language to work from
+    if (!name && !name_zh) return true; // nothing typed — nothing to commit
     setSavingName(true); setNameSaveError(null);
     try {
       const res = await fetch('/api/my/dishes', {
@@ -159,8 +263,10 @@ function LogFlow() {
       setDraftNameZh(json.dish.name_zh ?? '');
       setEditedEn(false); setEditedZh(false);
       setRelearned(!!json.relearned);
+      return true;
     } catch (e: any) {
       setNameSaveError(e.message || 'Something went wrong saving that name.');
+      return false;
     } finally {
       setSavingName(false);
     }
@@ -197,26 +303,50 @@ function LogFlow() {
     setRating(score);
   }
 
-  /** Done tapped: submit rating + voice transcript, show what the rating actually
-   * taught (drawn from the engine's own taughtDims output, so it can never claim
+  /** Done tapped: this is now the ONE commit point for the whole screen, not just
+   * the rating. If the name fields were touched, that correction is saved FIRST
+   * (same server cascade as before: translation, cuisine, attributes, replay if
+   * already rated) — no separate inline confirm step exists anymore. A failure
+   * there stops here, with the error visible, rather than silently rating against
+   * a name that never actually got corrected.
+   * Then: submit the rating, show what it actually taught
+   * (drawn from the engine's own taughtDims output, so it can never claim
    * learning that didn't happen), then navigate. The brief pause is the cheapest
    * trust mechanic in the app: every single rating visibly does something. */
   async function finishLogging() {
     if (!dish || rating === null || finishing) return;
     setFinishing(true);
     try {
+      if (editedEn || editedZh) {
+        const ok = await saveName();
+        if (!ok) return; // error is already visible; stay here so Done can be retried
+      }
       const res = await fetch('/api/ratings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dish_id: dish.id, score: rating, voice_transcript: transcript || undefined }),
+        body: JSON.stringify({ dish_id: dish.id, score: rating }),
       });
       const json = await res.json().catch(() => ({}));
       if (res.ok && Array.isArray(json.taught) && json.taught.length > 0) {
         setLearnedDims(json.taught.slice(0, 4));
         await new Promise(r => setTimeout(r, 1400));
       }
+      // What this rating actually taught, AND the seal reveal if one existed:
+      // both stashed for the Taste tab to show once, right after landing.
+      // sessionStorage (not query params) since both are small objects, not flags.
+      if (res.ok && Array.isArray(json.taught) && json.taught.length > 0) {
+        try { sessionStorage.setItem('dishi_just_learned', JSON.stringify(json.taught.slice(0, 4))); } catch { /* storage may be unavailable */ }
+      }
+      if (res.ok && json.seal) {
+        try { sessionStorage.setItem('dishi_seal_reveal', JSON.stringify(json.seal)); } catch { /* storage may be unavailable */ }
+      }
+      // Lands on Taste, not Home — this is where "what did I just teach Dishi"
+      // and "rate another?" actually belong, and it's the same destination the
+      // Taste tab's own to-be-rated placeholders point back into, so the loop
+      // (rate -> see what changed -> rate the next one) stays on one screen.
+      router.push('/profile?rated=1');
     } finally {
-      router.push('/?rated=1');
+      setFinishing(false);
     }
   }
 
@@ -224,27 +354,94 @@ function LogFlow() {
   if (!dish) {
     return (
       <div>
-        <h1 style={{ marginBottom: 12 }}>{t('log.title')}</h1>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 22 }}>
+          <h1 style={{ margin: 0 }}>{t('log.title')}</h1>
+          <button className="icon-btn" onClick={() => router.push('/profile')} aria-label={t('log.cancelflow')} title={t('log.cancelflow')}>
+            <CloseIcon />
+          </button>
+        </div>
 
-        <label className="label">{t('log.photo')}</label>
         {preview ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={preview} alt="Dish preview" className="card-photo card" />
-        ) : null}
-        <PhotoPicker onPick={f => onPickPhoto(f)} />
+          // Small camera icon overlaid bottom-right on the photo itself — real
+          // feedback was that a separate "已揀好 · 撳一下換相" text bar under the
+          // photo was extra visual noise for something that reads perfectly well
+          // as a small edit affordance ON the photo, the way profile-photo
+          // pickers usually work.
+          <div style={{ position: 'relative', marginBottom: 14 }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={preview} alt="Dish preview" className="card-photo card" style={{ marginBottom: 0 }} />
+            <RetakePhotoButton onPick={onPickPhoto} />
+          </div>
+        ) : (
+          <div style={{ marginBottom: 14 }}>
+            <PhotoPicker onPick={f => onPickPhoto(f)} icon={<CameraIcon size={38} strokeWidth={1.1} />} hideLabel />
+          </div>
+        )}
 
-        {picks !== null && picks.length > 0 && (
+        {/* A photo is OPTIONAL, not required. The engine learns from a dish's
+            attributes, and a typed name yields real attributes — so a no-photo dish
+            teaches it exactly as much. (Menu-scan picks have always worked this way;
+            there was simply no way to start one by hand.) */}
+        {!preview && !noPhotoMode && (
+          <button className="nophoto-pill" style={{ width: '100%', marginBottom: 28 }} onClick={() => setNoPhotoMode(true)}>
+            <EditIcon size={17} />
+            {t('log.nophoto')}
+          </button>
+        )}
+        {!preview && noPhotoMode && (
+          <div className="card" style={{ marginBottom: 28 }}><div className="card-body">
+            <label className="label" style={{ fontSize: 11.5 }}>{t('home.name.zh')}</label>
+            <input className="field" style={{ marginBottom: 6 }} value={typedZh} autoFocus
+              onChange={e => setTypedZh(e.target.value)} placeholder="蝦餃" />
+            <label className="label" style={{ fontSize: 11.5 }}>{t('home.name.en')}</label>
+            <input className="field" value={typedEn}
+              onChange={e => setTypedEn(e.target.value)} placeholder="Har gow" />
+            <p className="card-meta" style={{ marginTop: 4 }}>{t('home.translateOnSave')}</p>
+
+            <div style={{ marginTop: 10 }}>
+              <RestaurantPicker onChange={setRestaurant} />
+            </div>
+
+            {noPhotoError && <p style={{ color: 'var(--lacquer)', fontSize: 12.5, marginTop: 6 }}>{noPhotoError}</p>}
+            <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+              <button className="btn primary" style={{ flex: 2 }}
+                disabled={creatingNoPhoto || (!typedEn.trim() && !typedZh.trim())}
+                onClick={createWithoutPhoto}>
+                {creatingNoPhoto ? t('log.saving') : t('log.nophoto.go')}
+              </button>
+              <button className="btn ghost" style={{ flex: 1 }} disabled={creatingNoPhoto}
+                onClick={() => { setNoPhotoMode(false); setNoPhotoError(''); }}>
+                {t('home.cancel')}
+              </button>
+            </div>
+          </div></div>
+        )}
+
+        {/* The "dishes to rate" shortcut is a landing-only prompt. The moment the
+            user has picked a photo (or switched to typing a name), they're
+            committed to logging THIS dish — showing other pending picks here just
+            invites them to wander off and rate something else instead. */}
+        {!preview && !noPhotoMode && picks !== null && picks.length > 0 && (
           <div style={{ margin: '16px 0' }}>
             <label className="label">{t('log.toRate')}</label>
             {picks.map(p => (
               <div className="pick-card" key={p.id}>
                 <div style={{ minWidth: 0 }}>
-                  <div className="pick-card-name"><DishName name={p.name} name_zh={p.name_zh} /></div>
+                  <div className="pick-card-name">
+                  <DishName name={p.name} name_zh={p.name_zh} />
+                  {sealedIds.has(p.id) && <span className="seal-stamp" title={t('seal.stamp.title')} aria-label={t('seal.stamp.title')}>印</span>}
+                </div>
                   <div className="pick-card-meta">{p.restaurant ?? t('home.homecooking')}</div>
                 </div>
                 <div className="pick-card-actions">
-                  <button className="btn primary small" onClick={() => rateExistingPick(p)}>{t('log.rateNow')}</button>
-                  <button className="btn ghost small" onClick={() => deletePick(p.id)}>{t('home.delete')}</button>
+                  <button className="icon-btn lg rate" onClick={() => rateExistingPick(p)}
+                    aria-label={t('log.rateNow')} title={t('log.rateNow')}>
+                    <RateIcon size={20} />
+                  </button>
+                  <button className="icon-btn lg delete" onClick={() => deletePick(p.id)}
+                    aria-label={t('home.delete')} title={t('home.delete')}>
+                    <TrashIcon size={20} />
+                  </button>
                 </div>
               </div>
             ))}
@@ -257,7 +454,7 @@ function LogFlow() {
         {error && <p style={{ color: 'var(--lacquer)', marginTop: 12 }}>{error}</p>}
         <button
           className="btn primary"
-          style={{ width: '100%', marginTop: 20 }}
+          style={{ width: '100%', marginTop: 28 }}
           disabled={!photo || busy}
           onClick={logDish}
         >
@@ -298,51 +495,79 @@ function LogFlow() {
 
   return (
     <div>
-      <label className="label">{t('log.how')}</label>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <label className="label" style={{ margin: 0 }}>{t('log.how')}</label>
+        <button className="icon-btn" onClick={() => router.push('/profile')} aria-label={t('log.cancelflow')} title={t('log.cancelflow')}>
+          <CloseIcon />
+        </button>
+      </div>
       {/* Optimistic rendering: the photo the user just took is ALREADY in memory
           (the object URL from step 1) — reuse it instantly instead of waiting on
           dish.photo_url, a fresh network fetch of the exact same image the user
           just looked at one screen ago. The server URL is only a fallback for the
           (normally unreachable) case where the local preview isn't available. */}
-      <FlickRating photoUrl={preview ?? dish.photo_url} dishName={dish.name} onRate={onRate} />
+      <FlickRating photoUrl={preview ?? dish.photo_url} dishName={dish.name} dishNameZh={dish.name_zh} onRate={onRate} />
 
       {/* The AI's name guess lives BELOW the photo, in visibly editable fields —
           presented as a suggestion inviting correction, not a settled headline.
           Editing one language blanks the other (if untouched): the blank is a
           visible promise that the translation will be rebuilt from YOUR words on
           confirm, rather than a stale machine name silently surviving your fix.
-          Confirming runs the full cascade server-side: translation, cuisine
-          re-derivation, attribute re-derivation from the photo anchored on your
-          name — and a profile replay if this dish was already rated. */}
+          Chinese first, matching the app's default display language and the same
+          order MyDishes' rename editor uses, so the two don't disagree.
+          No separate confirm/cancel here anymore — the single Done button below
+          is the one commit point for the whole screen (name AND rating together),
+          running the full cascade server-side: translation, cuisine re-derivation,
+          attribute re-derivation from the photo anchored on your name — and a
+          profile replay if this dish was already rated. */}
       <div style={{ margin: '10px 0' }}>
-        <label className="label" style={{ fontSize: 11.5 }}>{t('home.name.en')}</label>
-        <input className="field" style={{ marginBottom: 6 }} value={draftName}
-          onChange={e => {
-            setDraftName(e.target.value); setEditedEn(true);
-            if (!editedZh) setDraftNameZh('');
-          }} />
         <label className="label" style={{ fontSize: 11.5 }}>{t('home.name.zh')}</label>
-        <input className="field" value={draftNameZh} placeholder={editedEn && !editedZh ? t('log.willTranslate') : undefined}
+        <input className="field" style={{ marginBottom: 6 }} value={draftNameZh}
+          placeholder={editedEn && !editedZh ? t('log.willTranslate') : undefined}
           onChange={e => {
             setDraftNameZh(e.target.value); setEditedZh(true);
             if (!editedEn) setDraftName('');
           }} />
+        <label className="label" style={{ fontSize: 11.5 }}>{t('home.name.en')}</label>
+        <input className="field" value={draftName} placeholder={editedZh && !editedEn ? t('log.willTranslate') : undefined}
+          onChange={e => {
+            setDraftName(e.target.value); setEditedEn(true);
+            if (!editedZh) setDraftNameZh('');
+          }} />
         {(editedEn || editedZh) && (
-          <>
-            <p className="card-meta" style={{ marginTop: 4 }}>{t('home.translateOnSave')}</p>
-            {nameSaveError && <p style={{ color: 'var(--lacquer)', fontSize: 12.5, marginTop: 4 }}>{nameSaveError}</p>}
-            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-              <button className="btn primary" style={{ flex: 1 }} disabled={savingName || (!draftName.trim() && !draftNameZh.trim())} onClick={saveName}>
-                {savingName ? t('home.saving') : t('log.confirmName')}
+          <p className="card-meta" style={{ marginTop: 4 }}>{t('home.translateOnSave')}</p>
+        )}
+        {nameSaveError && <p style={{ color: 'var(--lacquer)', fontSize: 12.5, marginTop: 4 }}>{nameSaveError}</p>}
+        {relearned && <p className="card-meta" style={{ marginTop: 4, color: 'var(--ink)' }}>{t('log.relearned')}</p>}
+
+        {/* Dish identity confirm. Only ever appears when the server is genuinely
+            confident this is a dish the restaurant already has under another name —
+            it stays silent otherwise, by design. Answering is optional: rating works
+            perfectly well whether or not this is ever touched. */}
+        {sameDish && !editedEn && !editedZh && (
+          <div className="card" style={{ marginTop: 10 }}><div className="card-body">
+            <p className="card-meta" style={{ marginBottom: 4 }}>
+              {t('log.samedish.title', { restaurant: restaurant?.name ?? '' })}
+            </p>
+            <p style={{ fontWeight: 700, fontSize: 17, marginBottom: 10 }}>
+              {t('log.samedish.pair', {
+                a: lang === 'zh' ? (dish.name_zh ?? dish.name) : dish.name,
+                b: lang === 'zh' ? (sameDish.name_zh ?? sameDish.name) : sameDish.name,
+              })}
+            </p>
+            <p style={{ fontWeight: 650, fontSize: 14.5, marginBottom: 12 }}>{t('log.samedish.q')}</p>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button className="btn primary large" disabled={sameDishBusy}
+                onClick={() => answerSameDish(true)}>
+                {t('log.samedish.yes')}
               </button>
-              <button className="btn ghost" style={{ flex: 1 }} disabled={savingName}
-                onClick={() => { setDraftName(dish.name); setDraftNameZh(dish.name_zh ?? ''); setEditedEn(false); setEditedZh(false); setNameSaveError(null); }}>
-                {t('home.cancel')}
+              <button className="btn ghost large" disabled={sameDishBusy}
+                onClick={() => answerSameDish(false)}>
+                {t('log.samedish.no')}
               </button>
             </div>
-          </>
+          </div></div>
         )}
-        {relearned && <p className="card-meta" style={{ marginTop: 4, color: 'var(--jade)' }}>{t('log.relearned')}</p>}
         {!ratingExistingPick && dish.cuisine !== 'unknown' && (
           <p className="card-meta" style={{ marginTop: 4 }}>
             {t('log.looks', { cuisine: cuisineLabel(dish.cuisine, lang) || dish.cuisine })}
@@ -366,11 +591,6 @@ function LogFlow() {
           automatically, and never mid-swipe. */}
       {rating !== null && (
         <>
-          <label className="label">{t('log.anything')}</label>
-          <VoiceNote onTranscript={setTranscript} />
-          <p className="card-meta" style={{ marginTop: 8 }}>
-            {t('log.note')}
-          </p>
           <button
             className="btn primary"
             style={{ width: '100%', marginTop: 16 }}
@@ -383,7 +603,7 @@ function LogFlow() {
               never a fabricated claim. Shown briefly before navigating home, so
               every single rating visibly does something. */}
           {learnedDims && learnedDims.length > 0 && (
-            <p className="card-meta" role="status" style={{ marginTop: 8, color: 'var(--jade)' }}>
+            <p className="card-meta" role="status" style={{ marginTop: 8, color: 'var(--ink)' }}>
               {t('log.learned')}{'\uFF1A'}
               {learnedDims.map(x => `${t(`dim.${x.dim}`)} ${x.dir > 0 ? '\u2191' : '\u2193'}`).join(' \u00B7 ')}
             </p>
@@ -391,5 +611,35 @@ function LogFlow() {
         </>
       )}
     </div>
+  );
+}
+
+/** Small circular camera-icon button overlaid bottom-right on an already-picked
+ * photo — tapping it re-opens the file picker to swap the photo, same mechanism
+ * as PhotoPicker's own hidden input, just without a separate "picked · tap to
+ * change" text bar underneath. */
+function RetakePhotoButton({ onPick }: { onPick: (f: File | null) => void }) {
+  const { t } = useLang();
+  const inputRef = useRef<HTMLInputElement>(null);
+  return (
+    <>
+      <button
+        type="button"
+        className="retake-photo-btn"
+        onClick={() => inputRef.current?.click()}
+        aria-label={t('upload.change')}
+        title={t('upload.change')}
+      >
+        <CameraIcon />
+      </button>
+      <input
+        ref={inputRef} type="file" accept="image/*" hidden
+        onChange={e => {
+          const f = e.target.files?.[0];
+          if (f) onPick(f);
+          e.target.value = '';
+        }}
+      />
+    </>
   );
 }

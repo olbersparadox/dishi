@@ -1,16 +1,42 @@
-/* Dishi tokens — "porcelain & lacquer"
-   celadon glaze #EDF1EA / squid ink #1E2320 / lacquer red #C93A2B
-   jade #33705F / egg tart #E9B44C / clay pot #262B24 */
+/* Dishi tokens — "paper + ink" per the decided Claude Design handoff. ONE token
+ * layer: the old .paper-scope overlay (paper-tokens.css) is gone — it sat on
+ * top of these base tokens with higher specificity and kept silently winning
+ * over newer, more faithful base styles (e.g. forcing the flat pending-dish
+ * rows back into inset cards). Everything decided in the handoff now lives
+ * directly in the base classes below.
+ *
+ * Palette contract (from the handoff, strict):
+ *   paper / ink / soft grey / hairline / inset — that's the whole palette.
+ *   ONE accent: vermillion #c73e1d, reserved for exactly two uses app-wide —
+ *   the sealed-prediction stamp and the AI-export CTA. Nothing else.
+ *   jade / egg-tart remain defined ONLY for the owner dashboard (not part of
+ *   this design pass); no consumer screen may use them.
+ *   --lacquer now ALIASES the one vermillion (#c73e1d) — the second red
+ *   (#c93a2b) is retired so there's a single red in the app. */
 :root {
-  --glaze: #edf1ea;
-  --ink: #1e2320;
-  --ink-soft: #4c554e;
-  --lacquer: #c93a2b;
-  --jade: #33705f;
-  --egg-tart: #e9b44c;
+  --glaze: #faf7f1;          /* paper */
+  --paper-raised: #ffffff;
+  --paper-inset: #eee9dd;
+  --ink: #2b2925;
+  --ink-soft: #8f897c;
+  --ink-faint: #c9c2b2;
+  --line: #e2ddd2;           /* hairline */
+  --seal: #c73e1d;           /* vermillion — seal stamp + export CTA ONLY */
+  --seal-ink: #faf7f1;
+  --lacquer: #c73e1d;        /* legacy alias → the one vermillion */
+  --jade: #33705f;           /* owner dashboard only */
+  --egg-tart: #e9b44c;       /* owner dashboard only */
   --clay: #262b24;
-  --line: #d5ddd2;
-  --radius: 18px;
+  --radius: 16px;            /* generic inner-card radius */
+  --r-form: 20px;            /* taste-form card */
+  --r-ai: 16px;              /* AI-export card, dropzone */
+  --r-session: 14px;         /* session/table-code bar */
+  --r-stat: 12px;            /* stat grid cells */
+  /* Display serif: Chinese-first Songti stack, Georgia for Latin — system
+   * fonts, zero webfont weight. ('Noto Serif TC' was never actually loaded
+   * anywhere, so it's not in the stack.) The wordmark alone keeps its
+   * original bold sans via --font-wordmark (next/font, layout.tsx). */
+  --font-display: 'Songti TC', 'Noto Serif TC', Georgia, serif;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -21,60 +47,119 @@ body {
   font-family: var(--font-body), system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
-h1, h2, h3, .display { font-family: var(--font-display), var(--font-body), sans-serif; }
+h1, h2, h3, .display { font-family: var(--font-display); font-weight: 500; letter-spacing: 0.06em; }
+/* The em-tracking above is tuned for Chinese, where a little space between dense
+   glyphs reads well. On Latin headings/names the same tracking looks too airy, so
+   English mode pulls display-serif letter-spacing back to near-normal. */
+.lang-en h1, .lang-en h2, .lang-en h3, .lang-en .display,
+.lang-en .card-title, .lang-en .dishname-primary { letter-spacing: 0.005em; }
+h1 { font-size: 30px; line-height: 1.15; }
+h3 { font-size: 16px; }
 
-.shell { max-width: 480px; margin: 0 auto; padding: 20px 16px 96px; }
+.shell { max-width: 420px; margin: 0 auto; padding: 28px 12px 96px; }
 
-.topbar { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 18px; }
-.wordmark { font-size: 28px; font-weight: 800; letter-spacing: -0.02em; }
-.wordmark em { color: var(--lacquer); font-style: normal; }
+.topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+.wordmark {
+  font-family: var(--font-wordmark), system-ui, sans-serif;
+  font-size: 34px; font-weight: 800; letter-spacing: -0.02em;
+}
+.wordmark em { color: var(--seal); font-style: normal; }
 .tagline { font-size: 12px; color: var(--ink-soft); }
 
 .card {
-  background: #fff; border: 1px solid var(--line); border-radius: var(--radius);
-  overflow: hidden; margin-bottom: 16px;
+  background: var(--paper-raised); border: 1px solid var(--line); border-radius: var(--radius);
+  overflow: hidden; margin-bottom: 20px;
 }
 .card-photo { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; display: block; background: var(--clay); }
-.card-body { padding: 12px 14px 14px; }
-.card-title { font-size: 17px; font-weight: 700; }
-.card-meta { font-size: 12.5px; color: var(--ink-soft); margin-top: 2px; }
-.reason {
-  display: inline-block; font-size: 11.5px; font-weight: 600; color: var(--jade);
-  background: #33705f14; border-radius: 99px; padding: 3px 9px; margin-bottom: 8px;
-}
-.reason.collab { color: var(--lacquer); background: #c93a2b12; }
+.card-body { padding: 18px 18px 20px; }
+.card-title { font-family: var(--font-display); font-size: 17px; font-weight: 500; letter-spacing: 0.05em; }
+.card-meta { font-size: 13px; color: var(--ink-soft); margin-top: 2px; }
 
 button { font: inherit; cursor: pointer; }
+/* All buttons are pills with 1px borders per the handoff — the outline weight
+ * dropped from 1.5px to hairline-adjacent so buttons sit in the same quiet
+ * register as the rest of the chrome. Filled CTAs are serif. */
 .btn {
-  border: 1.5px solid var(--ink); background: transparent; color: var(--ink);
-  border-radius: 12px; padding: 10px 16px; font-weight: 650;
+  border: 1px solid var(--ink); background: transparent; color: var(--ink);
+  border-radius: 999px; padding: 10px 16px; font-weight: 650;
 }
-.btn.primary { background: var(--lacquer); border-color: var(--lacquer); color: #fff; }
+.btn.primary {
+  background: var(--ink); border-color: var(--ink); color: var(--glaze);
+  font-family: var(--font-display);
+}
 .btn.ghost { border-color: var(--line); color: var(--ink-soft); }
-.btn.small { padding: 6px 12px; font-size: 13px; border-radius: 10px; }
-.btn:focus-visible, .chip:focus-visible { outline: 3px solid var(--egg-tart); outline-offset: 2px; }
+.btn.small { padding: 6px 14px; font-size: 12px; }
+.btn.large { padding: 14px 18px; font-size: 16px; flex: 1; }
+/* The ONE button in the whole app allowed to be vermillion — the AI-prompt
+ * export CTA specifically (see also .seal-stamp, the only other vermillion
+ * use). Every other "primary" action uses ink now; do not add this class
+ * anywhere else. */
+.btn.export {
+  background: var(--seal); border-color: var(--seal); color: var(--seal-ink);
+  font-family: var(--font-display);
+}
+/* Small icon-only actions (edit/delete on a rated dish) — a quiet round tap
+   target rather than a bordered .btn, since a row of these next to a dish's
+   metadata is scanned visually, not read as buttons with labels. */
+.icon-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border-radius: 50%; border: none;
+  background: var(--glaze); color: var(--ink-soft);
+}
+.icon-btn:hover, .icon-btn:focus-visible { color: var(--ink); background: var(--line); }
+/* Rate/delete on a dish-to-rate row need to read as two clearly different
+   buttons at a glance, not two identical circles that happen to differ only
+   by which icon is inside them. Rate is the primary action for this whole
+   card (that's what the row exists for) so it gets the filled, high-contrast
+   treatment; delete stays quiet/secondary but still visibly a button. */
+.icon-btn.rate {
+  background: var(--paper-inset, #eee9dd); color: var(--ink);
+}
+.icon-btn.rate:hover, .icon-btn.rate:focus-visible { background: var(--line); color: var(--ink); }
+.icon-btn.delete {
+  background: var(--paper-inset, #eee9dd); color: var(--ink-soft);
+}
+.icon-btn.delete:hover, .icon-btn.delete:focus-visible { background: var(--line); color: var(--ink); }
+
+.retake-photo-btn {
+  position: absolute; right: 10px; bottom: 10px;
+  width: 36px; height: 36px; border-radius: 50%; border: none;
+  background: rgba(0,0,0,0.55); backdrop-filter: blur(2px); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+}
+.btn:focus-visible, .chip:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 
 .chip {
-  border: 1px solid var(--line); background: #fff; border-radius: 99px;
-  padding: 9px 14px; font-size: 14px; font-weight: 600;
+  border: 1px solid var(--line); background: transparent; border-radius: 99px;
+  padding: 7px 15px; font-size: 13px; color: var(--ink-soft);
 }
-.chip.on { border-color: var(--jade); color: var(--jade); background: #33705f0f; }
+.chip.on { border-color: var(--ink); color: var(--ink); background: transparent; }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
 
-.field { width: 100%; border: 1px solid var(--line); border-radius: 12px; padding: 11px 12px; font: inherit; background: #fff; }
-.label { display: block; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-soft); margin: 18px 0 8px; }
+.field { width: 100%; border: 1px solid var(--line); border-radius: 10px; padding: 11px 12px; font: inherit; background: var(--paper-raised); }
+.label { display: block; font-size: 14px; font-weight: 400; color: var(--ink-soft); margin: 18px 0 8px; }
 
 .tabbar {
   position: fixed; bottom: 0; left: 0; right: 0; background: #ffffffee;
   backdrop-filter: blur(8px); border-top: 1px solid var(--line);
-  display: flex; justify-content: center; gap: 8px; padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+  display: flex; justify-content: space-around; align-items: center;
+  padding: 8px 16px calc(8px + env(safe-area-inset-bottom));
 }
-.tabbar a {
+.tabbar-side {
   text-decoration: none; color: var(--ink-soft); font-weight: 650; font-size: 14px;
-  padding: 8px 18px; border-radius: 12px;
+  padding: 10px 22px; border-radius: 12px; flex: 1; text-align: center;
 }
-.tabbar a.active { color: var(--ink); background: var(--glaze); }
-.tabbar a.log { background: var(--lacquer); color: #fff; }
+.tabbar-side.active { color: var(--ink); background: var(--paper-inset); }
+/* Raised, circular, INK — the center tab is the app's core loop (scan a menu),
+   so it stays a distinct raised action button; it is no longer red, because
+   vermillion is reserved for exactly the seal + export CTA and a permanent
+   nav element would dilute that to decoration. */
+.tabbar-scan {
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  width: 56px; height: 56px; border-radius: 50%; background: var(--ink);
+  margin: 0 12px; margin-top: -22px; box-shadow: 0 4px 14px rgba(0,0,0,0.18);
+  border: 3px solid #fff; color: var(--glaze);
+}
 
 /* --- flick rating (signature) --- */
 .flick-stage { position: relative; touch-action: none; user-select: none; -webkit-user-select: none; }
@@ -84,6 +169,11 @@ button { font: inherit; cursor: pointer; }
   border-radius: 99px; background: #ffffff55; overflow: hidden; pointer-events: none;
 }
 .flick-fill { position: absolute; left: 0; right: 0; border-radius: 99px; }
+.flick-arrow {
+  position: absolute; right: 8px; color: #ffffff; opacity: 0.55; pointer-events: none;
+}
+.flick-arrow-up { top: -6px; }
+.flick-arrow-down { bottom: -6px; }
 .flick-word {
   position: absolute; left: 14px; bottom: 14px; pointer-events: none;
   font-family: var(--font-display); font-weight: 800; font-size: 26px; color: #fff;
@@ -103,12 +193,6 @@ button { font: inherit; cursor: pointer; }
 .bar-track { position: relative; height: 8px; background: #fff; border: 1px solid var(--line); border-radius: 99px; }
 .bar-fill { position: absolute; top: 0; bottom: 0; border-radius: 99px; }
 
-.toast {
-  position: fixed; left: 50%; bottom: 84px; transform: translateX(-50%);
-  background: var(--ink); color: #fff; border-radius: 12px; padding: 10px 16px;
-  font-size: 14px; display: flex; gap: 12px; align-items: center; z-index: 50;
-}
-.toast button { background: none; border: none; color: var(--egg-tart); font-weight: 700; }
 
 /* --- menu scanner --- */
 .scan-frame { position: relative; border-radius: var(--radius); overflow: hidden; margin-bottom: 14px; border: 1px solid var(--line); }
@@ -116,8 +200,8 @@ button { font: inherit; cursor: pointer; }
 .scan-frame.scanning img { filter: saturate(0.75) brightness(0.92); }
 .scan-beam {
   position: absolute; left: 0; right: 0; height: 3px; top: 0;
-  background: linear-gradient(90deg, transparent, var(--egg-tart), var(--lacquer), var(--egg-tart), transparent);
-  box-shadow: 0 0 18px 4px #e9b44c66;
+  background: linear-gradient(90deg, transparent, #faf7f1cc, transparent);
+  box-shadow: 0 0 16px 3px #faf7f166;
   animation: beam 2.4s ease-in-out infinite;
 }
 @keyframes beam { 0% { top: 2%; } 50% { top: 96%; } 100% { top: 2%; } }
@@ -127,28 +211,24 @@ button { font: inherit; cursor: pointer; }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
 
 .scan-banner {
-  font-size: 13px; background: #e9b44c1f; border: 1px solid #e9b44c55;
-  border-radius: 12px; padding: 9px 12px; margin: 10px 0; color: var(--ink);
+  font-size: 13px; background: var(--paper-inset); border: none;
+  border-radius: 12px; padding: 10px 14px; margin: 10px 0; color: var(--ink);
 }
-.scan-hero { border-color: var(--lacquer); border-width: 1.5px; }
+/* Fire pick highlight: quiet selected-style wash, not a colored border — the
+   🔥 mark itself is the signal; the row treatment just lifts it slightly. */
+.scan-hero { border-color: var(--ink-faint); }
 .scan-row { display: flex; gap: 12px; align-items: flex-start; }
-.scan-rank {
-  font-family: var(--font-display); font-weight: 800; font-size: 15px;
-  color: var(--ink-soft); width: 20px; text-align: center; flex-shrink: 0;
-}
-/* Rank number + fire mark stack vertically, both pinned to the TOP of the card
-   (next to the dish name) rather than centering against the whole card's height
-   — which grew tall and pulled them down once hook/chips/reason text stacked up
-   underneath. */
-.scan-rank-col { display: flex; flex-direction: column; align-items: center; gap: 3px; flex-shrink: 0; width: 20px; }
-.scan-fire { font-size: 26px; line-height: 1; }
-.scan-reason { font-size: 14px; margin-top: 8px; color: var(--jade); font-weight: 550; }
-.scan-caution { font-size: 14px; margin-top: 4px; color: var(--lacquer); font-weight: 550; }
+/* Rank now renders INLINE with the dish name ("1. 葡式香辣燒春雞") per the
+   handoff's Screen 4 — the old separate rank column is gone. The fire mark
+   sits inline in the name row at text scale. */
+.scan-fire { font-size: 17px; line-height: 1; flex-shrink: 0; }
+.scan-reason { font-size: 13px; margin-top: 8px; color: var(--ink); font-weight: 550; }
+.scan-caution { font-size: 13px; margin-top: 4px; color: var(--ink-soft); font-weight: 550; }
 
 /* --- table mode --- */
 .table-code {
-  font-family: var(--font-display); letter-spacing: 0.12em; color: var(--lacquer);
-  background: #c93a2b12; border-radius: 10px; padding: 2px 10px;
+  font-family: var(--font-display); font-weight: 700; letter-spacing: 0.05em; color: var(--ink);
+  background: var(--paper-inset); border-radius: 10px; padding: 2px 10px;
 }
 .code-input {
   text-transform: uppercase; letter-spacing: 0.25em; font-weight: 800;
@@ -159,7 +239,7 @@ button { font: inherit; cursor: pointer; }
   display: grid; place-items: center; position: relative;
 }
 .group-ring::before {
-  content: ''; position: absolute; inset: 5px; background: #fff; border-radius: 50%;
+  content: ''; position: absolute; inset: 5px; background: var(--paper-raised); border-radius: 50%;
 }
 .group-ring span {
   position: relative; font-weight: 800; font-size: 14px;
@@ -169,8 +249,8 @@ button { font: inherit; cursor: pointer; }
   font-size: 10.5px; font-weight: 700; border-radius: 99px; padding: 2px 8px;
   margin-left: 6px; vertical-align: 2px; white-space: nowrap;
 }
-.badge-unanimous { color: var(--jade); background: #33705f14; }
-.badge-fair { color: var(--lacquer); background: #c93a2b12; }
+.badge-unanimous { color: var(--ink); background: var(--paper-inset); }
+.badge-fair { color: var(--ink-soft); background: var(--paper-inset); border: 1px solid var(--line); }
 
 /* --- owner dashboard --- */
 .stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 16px; }
@@ -181,52 +261,21 @@ button { font: inherit; cursor: pointer; }
 .stat-num { font-family: var(--font-display); font-weight: 800; font-size: 22px; }
 .stat-label { font-size: 11px; color: var(--ink-soft); margin-top: 2px; }
 
-/* tighter tabs now that there are five */
-.tabbar a { padding: 8px 12px; font-size: 13.5px; }
+/* Taste-tab stat grid specifically (handoff spec) — scoped separately from
+ * .stat above, which the owner dashboard also uses and wasn't part of this
+ * design pass. */
+.taste-stat { border: 1px solid var(--line); border-radius: 12px; padding: 12px 5px; text-align: center; }
+.taste-stat .stat-num { font-weight: 700; font-size: 22px; }
+.taste-stat .stat-label { font-size: 13.5px; margin-top: 3px; }
 
-/* --- taste buddy --- */
-.buddy { overflow: visible; }
-.buddy-bob { animation: buddyBob 3.2s ease-in-out infinite; transform-origin: 100px 118px; }
-@keyframes buddyBob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
-.buddy-breathe { animation: buddyBreathe 3.2s ease-in-out infinite; transform-origin: center; }
-@keyframes buddyBreathe { 0%, 100% { opacity: 0.8; } 50% { opacity: 1; } }
-.buddy-flicker { animation: buddyFlicker 0.9s ease-in-out infinite; transform-origin: 100px 52px; }
-@keyframes buddyFlicker { 0%, 100% { transform: scaleY(1); opacity: 0.95; } 50% { transform: scaleY(1.12); opacity: 1; } }
-.buddy-sway { animation: buddySway 4s ease-in-out infinite; transform-origin: 100px 70px; }
-@keyframes buddySway { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
-.buddy-twinkle { animation: buddyTwinkle 2.2s ease-in-out infinite; }
-@keyframes buddyTwinkle { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
-.buddy-steam { animation: buddySteam 2.6s ease-in-out infinite; }
-@keyframes buddySteam { 0% { opacity: 0.7; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-10px); } }
-@media (prefers-reduced-motion: reduce) {
-  .buddy-bob, .buddy-breathe, .buddy-flicker, .buddy-sway, .buddy-twinkle, .buddy-steam { animation: none; }
-}
-
-.buddy-picker { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-bottom: 12px; }
-.buddy-pick {
-  background: var(--glaze); border: 1.5px solid var(--line); border-radius: 16px;
-  padding: 12px 8px; display: flex; flex-direction: column; align-items: center; gap: 4px;
-  cursor: pointer; transition: border-color 120ms, transform 120ms;
-}
-.buddy-pick:hover { border-color: var(--jade); transform: translateY(-2px); }
-.buddy-pick strong { font-size: 14px; }
-.buddy-pick span { font-size: 11.5px; color: var(--ink-soft); text-align: center; }
-
-.xp-bar {
-  height: 10px; background: var(--glaze); border: 1px solid var(--line);
-  border-radius: 99px; overflow: hidden; margin-top: 10px;
-}
-.xp-fill { height: 100%; background: linear-gradient(90deg, var(--jade), var(--egg-tart)); border-radius: 99px; transition: width 600ms ease; }
-.buddy-hint {
-  font-size: 14px; font-weight: 600; color: var(--ink);
-  background: var(--glaze); border-radius: 12px; padding: 10px 12px; margin-top: 12px;
-}
 .rated-banner {
-  display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600;
-  background: #33705f12; border: 1px solid #33705f44; border-radius: 12px;
-  padding: 10px 14px; margin-bottom: 14px;
+  display: flex; align-items: center; gap: 12px;
+  background: var(--paper-inset); border: none; border-radius: 12px;
+  padding: 14px 16px; margin-bottom: 14px;
 }
-.rated-banner a { color: var(--jade); }
+.rated-banner-icon { font-size: 30px; line-height: 1; flex-shrink: 0; }
+.rated-banner-text { flex: 1; font-size: 16px; font-weight: 600; line-height: 1.45; }
+.rated-banner a { color: var(--ink); }
 
 /* --- qr ordering --- */
 .qty-stepper {
@@ -236,13 +285,13 @@ button { font: inherit; cursor: pointer; }
   width: 32px; height: 32px; border-radius: 10px; border: 1.5px solid var(--line);
   background: #fff; font-size: 18px; font-weight: 700; line-height: 1;
 }
-.qty-stepper button:not(:disabled):hover { border-color: var(--jade); color: var(--jade); }
+.qty-stepper button:not(:disabled):hover { border-color: var(--ink); color: var(--ink); }
 .qty-stepper button:disabled { opacity: 0.35; cursor: default; }
 .qty-stepper span { min-width: 18px; text-align: center; font-weight: 800; font-variant-numeric: tabular-nums; }
 .cart-bar {
   position: fixed; left: 0; right: 0; bottom: 62px; padding: 10px 16px;
   background: #ffffffee; backdrop-filter: blur(8px); border-top: 1px solid var(--line);
-  max-width: 480px; margin: 0 auto; z-index: 40;
+  max-width: 420px; margin: 0 auto; z-index: 40;
 }
 
 /* --- owner tabs --- */
@@ -263,45 +312,23 @@ button { font: inherit; cursor: pointer; }
 .lang-toggle button.on { background: var(--ink); color: #fff; }
 
 .dishname { display: flex; flex-direction: column; min-width: 0; }
-.dishname-primary { font-weight: 700; line-height: 1.25; }
+.dishname-primary { font-weight: 700; line-height: 1.25; letter-spacing: 0.05em; }
 .dishname-secondary {
-  font-size: 0.72em; font-weight: 300; color: var(--ink-soft);
+  font-size: 0.72em; font-weight: 300; color: var(--ink);
   letter-spacing: 0.01em; line-height: 1.3; margin-top: 1px;
 }
-.dishname-lg .dishname-primary { font-family: var(--font-display), system-ui; font-size: 26px; font-weight: 800; }
+.dishname-lg .dishname-primary { font-family: var(--font-display); font-size: 26px; font-weight: 700; }
 .dishname-lg .dishname-secondary { font-size: 14px; }
 
-/* --- feed typography refresh --- */
-:root { --sky: #5d9ac2; }
-/* location + cuisine line: same size as the dish name's secondary line, light blue */
-.dish-meta { font-size: 13px; font-weight: 400; color: var(--sky); line-height: 1.35; margin-top: 2px; }
-/* primary dish name in feed cards: bigger and bolder */
-.card-title .dishname-primary { font-size: 19px; font-weight: 800; }
+/* --- feed typography --- */
+/* location + cuisine line: quiet meta, paper palette (the old light-blue --sky
+   was off-palette and is retired) */
+.dish-meta { font-size: 13px; font-weight: 400; color: var(--ink-soft); line-height: 1.35; margin-top: 2px; }
+/* primary dish name in feed cards: bigger, serif, medium weight per handoff */
+.card-title .dishname-primary { font-size: 19px; font-weight: 700; }
 .card-title .dishname-secondary { font-size: 13px; }
 
-/* --- heart (helped me decide) --- */
-.heart-btn {
-  border: none; background: none; padding: 6px; cursor: pointer;
-  color: var(--line); transition: color 150ms, transform 150ms;
-  display: inline-flex; align-items: center;
-}
-.heart-btn svg { width: 26px; height: 26px; fill: currentColor; stroke: var(--ink-soft); stroke-width: 1.4; }
-.heart-btn:hover { color: #e8b8b3; }
-.heart-btn.on { color: var(--lacquer); transform: scale(1.12); }
-.heart-btn.on svg { stroke: var(--lacquer); }
-.heart-btn:disabled { cursor: default; }
 
-/* --- buddy recommendation card --- */
-.buddy-rec .card-body { display: flex; gap: 12px; align-items: center; }
-.buddy-rec { border-color: var(--jade); }
-.buddy-rec-bubble {
-  background: var(--glaze); border-radius: 14px; padding: 10px 12px; flex: 1; min-width: 0;
-  position: relative;
-}
-.buddy-rec-bubble::before {
-  content: ''; position: absolute; left: -7px; top: 50%; transform: translateY(-50%);
-  border: 7px solid transparent; border-right-color: var(--glaze); border-left: 0;
-}
 
 /* during an active drag, the photo must track the finger with zero easing lag */
 .flick-stage.dragging .flick-photo { transition: none; }
@@ -309,23 +336,140 @@ button { font: inherit; cursor: pointer; }
 /* --- photo picker --- */
 .photo-picker {
   width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px;
-  border: 2px dashed var(--line); border-radius: var(--radius); background: #fff;
-  padding: 22px 16px; font-weight: 650; color: var(--ink-soft); cursor: pointer;
+  border: 1px dashed #c9c2b2; border-radius: 16px; background: var(--glaze);
+  padding: 32px 16px; font-weight: 650; color: var(--ink-soft); cursor: pointer;
   transition: border-color 150ms, color 150ms;
 }
-.photo-picker:hover { border-color: var(--jade); color: var(--jade); }
-.photo-picker.picked { border-style: solid; border-color: var(--jade); color: var(--jade); }
+.photo-picker:hover { border-color: var(--ink-soft); color: var(--ink); }
+.photo-picker.picked { border-style: solid; border-color: var(--ink); color: var(--ink); }
 .photo-picker:disabled { opacity: 0.5; cursor: default; }
 .photo-picker-icon { width: 26px; height: 26px; flex-shrink: 0; }
+.photo-picker.icon-only { padding: 28px 16px; }
+.photo-picker.icon-only .photo-picker-icon { width: 38px; height: 38px; }
+.nophoto-pill {
+  border: 1px solid var(--line); border-radius: 99px; padding: 14px 18px;
+  display: flex; align-items: center; gap: 10px; color: var(--ink-soft);
+  font-size: 14px; background: none; text-align: left;
+}
 
-/* --- training progress: lighter greens gradient + bigger blurb (+2pt) --- */
-.xp-fill.greens { background: linear-gradient(90deg, #cde9cf, #8fcf9f, #5aa876); }
-.training-blurb { font-size: 14.5px; color: var(--ink); font-weight: 600; }
 
 /* --- dish name row with right-aligned thin price --- */
 .dish-row { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
 .dish-row .card-title { min-width: 0; }
-.dish-price { font-size: 17px; font-weight: 300; color: var(--ink); white-space: nowrap; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+
+/* --- restaurant-owner front door on the Taste tab --- */
+.owner-entry {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  margin-top: 24px; padding: 16px 18px;
+  border: 1px solid var(--line); border-radius: var(--r-form, 16px);
+  background: var(--paper-raised); text-decoration: none; color: var(--ink);
+}
+.owner-entry:hover { background: var(--paper-inset); }
+.owner-entry-title { font-family: var(--font-display); font-size: 16px; font-weight: 700; }
+.owner-entry-blurb { font-size: 12.5px; color: var(--ink-soft); margin-top: 3px; line-height: 1.4; }
+.owner-entry-cta { flex-shrink: 0; font-size: 13px; color: var(--ink-soft); white-space: nowrap; }
+
+/* --- 已評嘅菜: flat no-photo list on the Taste tab (design Screen 2) ---
+   name (bold serif) + restaurant (grey) left, verdict word right, hairline
+   dividers between rows. */
+.rated-flat-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 14px 2px; border-bottom: 1px solid var(--line);
+}
+.rated-flat-row:last-of-type { border-bottom: none; }
+.rated-flat-row .card-title { font-family: var(--font-display); font-size: 17px; font-weight: 700; }
+.rated-flat-meta { font-size: 12px; color: var(--ink-soft); margin-top: 4px; }
+.rated-flat-verdict { font-size: 13px; color: var(--ink); flex-shrink: 0; }
+
+/* Rated-dish list: a hairline-divided list, not a stack of individually
+ * boxed cards — repeating list items read as generic app chrome when each
+ * one gets its own border+shadow; a thin rule between rows is closer to the
+ * spare, quiet list style of the paper direction. Dish name goes bigger and
+ * serif to read as the thing that actually matters on the row. */
+.rated-dish-row {
+  border-bottom: 1px solid var(--line);
+  padding: 14px 2px;
+}
+.rated-dish-row:last-of-type { border-bottom: none; }
+.rated-dish-row .card-title { font-family: var(--font-display); font-size: 18px; font-weight: 700; }
+
+/* Journal row: [photo + verdict] | [date/name/meta/chips] | [kebab] */
+.journal-row { display: flex; gap: 14px; align-items: flex-start; padding: 4px 2px; }
+.journal-photo-col {
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  flex-shrink: 0; width: 64px;
+}
+.journal-photo { width: 64px; height: 64px; object-fit: cover; border-radius: 12px; display: block; }
+.journal-photo-empty { background: var(--paper-inset); }
+.journal-photo-add {
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  color: var(--ink-faint); font-size: 24px; font-weight: 300; line-height: 1;
+  border: 1px dashed var(--line);
+}
+.journal-photo-add:hover { color: var(--ink-soft); background: var(--paper-inset); }
+.journal-verdict { font-size: 13px; font-weight: 500; color: var(--ink); text-align: center; }
+.journal-info { min-width: 0; flex: 1; }
+/* Looser vertical rhythm than before — date, name, meta and chips each get
+   real breathing room rather than stacking tight. */
+.journal-date { font-size: 12px; color: var(--ink-soft); margin-bottom: 5px; }
+.journal-info .card-title { line-height: 1.3; }
+.journal-info .dish-meta { margin-top: 6px; }
+.journal-info > *:not(:first-child) { margin-top: 6px; }
+/* Locked dish: a small filled dot where the kebab would be — "can't edit,
+   someone else has rated this". */
+.journal-locked {
+  flex-shrink: 0; width: 38px; height: 38px; display: inline-flex;
+  align-items: center; justify-content: center;
+}
+.journal-locked::before {
+  content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--ink-faint);
+}
+
+.dish-price { font-size: 15px; font-weight: 400; color: var(--ink); white-space: nowrap; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+
+/* --- taste-form + AI-export cards (handoff Screen 2; previously defined only
+   in the retired .paper-scope overlay, folded here verbatim-in-spirit) --- */
+.taste-form-card {
+  background: var(--paper-raised); border: 1px solid var(--line);
+  border-radius: var(--r-form); padding: 14px 20px 24px; text-align: center;
+  margin: 14px 0 24px;
+}
+.taste-form-legend {
+  display: flex; justify-content: center; gap: 20px; margin-top: 14px;
+  font-size: 16px; color: var(--ink-soft);
+}
+.taste-form-legend .dot {
+  display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px;
+}
+.taste-form-legend .dot-knows { background: var(--ink); }
+.taste-form-legend .dot-learning { background: var(--ink-faint); }
+
+/* Level progress bar under the taste form. These classes were referenced by
+   TasteFormCard but had no styles, so the bar rendered at zero height (i.e.
+   invisible) — this restores it. */
+.xp-bar {
+  height: 8px; background: var(--line); border-radius: 999px; overflow: hidden;
+}
+.xp-fill {
+  height: 100%; background: var(--ink); border-radius: 999px;
+  transition: width 400ms ease;
+}
+.ai-export-card {
+  border: 1px solid var(--line); border-radius: var(--r-ai); padding: 20px;
+  margin-bottom: 26px;
+}
+.ai-logo-row {
+  display: flex; justify-content: center; gap: 18px; margin-bottom: 16px;
+}
+.ai-logo-row img { width: 32px; height: 32px; object-fit: contain; }
+
+/* Rank number for Table Mode's ranked list (scan results now rank INLINE in
+   the dish-name line per the handoff; /table keeps its column until that
+   screen gets its own design pass). */
+.scan-rank {
+  font-family: var(--font-display); font-weight: 700; font-size: 18px;
+  color: var(--ink-soft); width: 20px; text-align: center; flex-shrink: 0;
+}
 
 /* --- 6-digit sign-in code --- */
 .code-input { letter-spacing: 6px; font-variant-numeric: tabular-nums; font-weight: 700; max-width: 150px; text-align: center; }
@@ -363,27 +507,99 @@ button { font: inherit; cursor: pointer; }
   .match-ring-spinner circle:nth-child(2), .scan-settle, .scan-settle-row { animation: none; }
 }
 
-/* --- flick rating: no-photo fallback for rating a "pick" later --- */
+/* --- flick rating: no-photo surface (rating without a photo is a first-class
+       path, not a fallback) — the dish's NAME is what you flick, so it's the
+       title of the thing being rated and reads at title size. --- */
 .flick-nophoto {
   display: flex; align-items: center; justify-content: center;
   background: linear-gradient(160deg, var(--glaze), var(--porcelain));
-  font-family: var(--font-display), system-ui; font-weight: 800; font-size: 22px;
-  color: var(--ink); text-align: center; padding: 24px;
+  font-family: var(--font-display), system-ui; font-weight: 800; font-size: 30px;
+  line-height: 1.25; color: var(--ink); text-align: center; padding: 28px;
 }
 
 /* --- log page: dishes-to-rate placeholders --- */
 .pick-card {
-  display: flex; align-items: center; justify-content: space-between; gap: 10px;
-  background: var(--glaze); border: 1px solid var(--line); border-radius: 14px;
-  padding: 10px 12px; margin-bottom: 8px;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  border-bottom: 1px solid var(--line);
+  padding: 18px 2px; position: relative;
 }
-.pick-card-name { font-weight: 650; font-size: 14.5px; }
-.pick-card-meta { font-size: 12.5px; color: var(--ink-soft); margin-top: 1px; }
-.pick-card-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.pick-card:last-of-type { border-bottom: none; }
+.pick-card-name {
+  font-family: var(--font-display); font-size: 17px; font-weight: 700;
+  display: flex; align-items: center; gap: 7px;
+}
+.pick-card-meta { font-size: 12px; color: var(--ink-soft); margin-top: 5px; }
+.pick-card-actions { display: flex; gap: 8px; flex-shrink: 0; }
 
-/* --- scan page: pick-mode selection state --- */
-.scan-pickable { cursor: pointer; transition: border-color 120ms, background 120ms; }
-.scan-pickable.picked { border-color: var(--jade); background: #33705f0d; }
+/* 封印預測 — the seal stamp on a to-be-rated card. Small, quiet, vermillion:
+   it exists to be NOTICED, not explained. Content is never shown here — the
+   whole point is that nobody, including the person themself, knows what's
+   behind it until they rate. */
+.seal-stamp {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; border-radius: 4px; flex-shrink: 0;
+  background: var(--seal); color: var(--seal-ink); font-size: 10.5px; font-weight: 600;
+  font-family: var(--font-display);
+}
+
+/* Seal reveal — shown once, right after a rating that broke a seal. It presses
+   in like a chop being stamped, then settles. Motion is decorative only; the
+   content is fully readable with animations off. */
+.seal-reveal {
+  background: #faf7f1; border: 1px solid #e2ddd2; border-radius: 14px;
+  padding: 14px 16px; margin-bottom: 12px; text-align: center;
+  animation: sealCardIn 320ms ease both;
+}
+.seal-reveal-stamp {
+  width: 40px; height: 40px; border-radius: 8px; margin: 0 auto 8px;
+  background: var(--seal); color: var(--seal-ink); display: flex; align-items: center; justify-content: center;
+  font-size: 20px; font-family: var(--font-display);
+  animation: sealStamp 420ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.seal-reveal-title { font-weight: 650; font-size: 15px; color: var(--ink); }
+.seal-reveal-detail { font-size: 12.5px; color: var(--ink-soft); margin-top: 4px; }
+.seal-reveal-reason {
+  font-size: 12.5px; color: var(--ink); margin-top: 8px;
+  padding-top: 8px; border-top: 1px solid var(--line);
+  font-family: var(--font-display);
+}
+.seal-reveal-streak { font-size: 12px; color: var(--seal); font-weight: 600; margin-top: 6px; }
+/* Outcomes stay inside the paper+ink palette: a hit is the seal's own
+ * vermillion (its one legitimate home), a near-hit ink, a miss soft grey. */
+.seal-reveal.hit .seal-reveal-stamp { background: var(--seal); }
+.seal-reveal.near .seal-reveal-stamp { background: var(--ink); }
+.seal-reveal.miss .seal-reveal-stamp { background: var(--ink-soft); }
+.seal-reveal.near .seal-reveal-streak, .seal-reveal.miss .seal-reveal-streak { display: none; }
+
+@keyframes sealStamp {
+  0%   { transform: scale(1.7) rotate(-8deg); opacity: 0; }
+  55%  { transform: scale(0.92) rotate(2deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+@keyframes sealCardIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .seal-reveal, .seal-reveal-stamp { animation: none; }
+}
+
+
+/* --- scan page: pick-mode selection state (handoff Screen 4) ---
+   Unselected: flat row, hairline bottom divider, tighter horizontal padding.
+   Selected: soft #eee9dd wash card, 16px radius, breathing room below. */
+.scan-pickable {
+  cursor: pointer; transition: border-color 120ms, background 120ms, border-radius 120ms;
+  background: transparent; border: none; border-bottom: 1px solid var(--line);
+  border-radius: 0; margin-bottom: 0; overflow: visible;
+}
+.scan-pickable .card-body { padding: 16px 4px; }
+.scan-pickable .card-title { font-family: var(--font-display); font-size: 18px; font-weight: 700; }
+.scan-pickable.picked {
+  background: var(--paper-inset); border-bottom-color: transparent; border-radius: 16px;
+  margin-bottom: 10px;
+}
+.scan-pickable.picked .card-body { padding: 16px 14px; }
 /* .pick-check removed: whole-card background/border on .scan-pickable.picked is the sole indicator now */
 
 /* Fire — the single confident mark on scanned menus. Sized to read as a mark,
@@ -403,13 +619,120 @@ button { font: inherit; cursor: pointer; }
 .scan-fire-pop { animation: fire-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
 @keyframes fire-pop { 0% { transform: scale(0.3); opacity: 0; } 60% { transform: scale(1.25); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
 
-/* --- scan: day-0 chips (diet/cooking/heaviness) --- */
+/* --- scan: day-0 chips (diet/cooking/heaviness) ---
+   Sized to the handoff's Screen 4 list-row tag spec exactly:
+   5px/12px padding, 11.5px text, always neutral (no active state at this size). */
 .scan-chip {
-  padding: 3px 10px; display: inline-flex; align-items: center; gap: 4px;
+  padding: 5px 12px; display: inline-flex; align-items: center; gap: 4px;
 }
-.scan-chip-icon { font-size: 17px; line-height: 1; color: #000; } /* icon glyph stays black/native color */
-.scan-chip-label { font-size: 13px; font-weight: 650; color: var(--jade); }
+.scan-chip-icon { font-size: 14px; line-height: 1; color: #000; } /* icon glyph stays black/native color */
+.scan-chip-label { font-size: 11.5px; color: inherit; }
 
 /* Hook line: Title Case in English (text-transform is a no-op on Chinese
    characters, so this is safe to apply unconditionally regardless of language). */
 .dish-hook { text-transform: capitalize; }
+.heaviness-dots { letter-spacing: 1px; opacity: 0.85; }
+
+/* --- add-a-page (menu accumulation) --- */
+.btn.is-disabled { opacity: 0.5; pointer-events: none; }
+.scan-appending {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 16px;
+  font-size: 13px; color: var(--ink-soft);
+}
+.scan-appending-dot {
+  width: 8px; height: 8px; border-radius: 50%; background: var(--ink-soft);
+  animation: appendingPulse 1s ease-in-out infinite;
+}
+@keyframes appendingPulse { 0%,100% { opacity: 0.3; } 50% { opacity: 1; } }
+.scan-new-tag {
+  display: inline-block; margin-left: 8px; padding: 1px 7px; border-radius: 999px;
+  font-size: 11px; font-weight: 700; font-family: var(--font-body);
+  background: var(--paper-inset); color: var(--ink-soft); vertical-align: middle;
+  letter-spacing: 0;
+}
+@media (prefers-reduced-motion: reduce) { .scan-appending-dot { animation: none; } }
+
+/* --- join a table: the deliberately-quiet secondary path on the Scan screen ---
+   Matches the design mock: serif heading, grey blurb, a large letter-spaced
+   code input and a single round arrow submit button. */
+.join-table {
+  margin-top: 26px; padding-top: 20px; border-top: 1px solid var(--line);
+}
+.join-table-title { font-family: var(--font-display); font-size: 18px; font-weight: 500; margin-bottom: 6px; }
+.join-table-blurb { font-size: 13px; color: var(--ink-soft); margin-bottom: 14px; line-height: 1.5; }
+.join-row { display: flex; align-items: stretch; gap: 12px; }
+.join-code-input {
+  flex: 1; text-transform: uppercase; letter-spacing: 0.3em; font-weight: 700;
+  font-family: var(--font-display); font-size: 20px; text-align: center;
+  padding: 14px 16px; border-radius: 14px;
+}
+.join-code-input::placeholder { color: var(--ink-faint); letter-spacing: 0.3em; }
+.join-go {
+  flex-shrink: 0; width: 56px; border: none; border-radius: 14px;
+  background: var(--paper-inset); color: var(--ink);
+  display: flex; align-items: center; justify-content: center;
+}
+.join-go:not(:disabled):hover { background: var(--line); }
+.join-go:disabled { color: var(--ink-faint); cursor: default; }
+
+/* --- session bar, shown above scan results once a table session exists ---
+   Handoff Screen 4: a quiet #eee9dd inset strip — serif code, small meta,
+   outline "+ 邀請" pill. No border, no big stats. */
+.table-bar {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  margin: 4px 0 22px; background: var(--paper-inset); border: none;
+  border-radius: var(--r-session); padding: 12px 16px;
+}
+.table-bar-code {
+  font-family: var(--font-display); font-weight: 700; font-size: 16px;
+  letter-spacing: 0.05em; color: var(--ink);
+}
+.table-bar-stat { font-size: 12px; color: var(--ink-soft); }
+
+/* --- cart bar: what you picked (left) vs what it costs (right) ---
+   Handoff Screen 4 total bar: full-width ink pill, 15px/22px padding. */
+.cart-btn {
+  width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 15px 22px; font-size: 15px;
+}
+.cart-total { font-weight: 650; }
+
+/* --- AI taste export: the payoff for training Dishi, so it gets real presence --- */
+.taste-export {
+  margin-top: 20px; padding: 20px; border-radius: 16px;
+  background: var(--glaze); border: 1px solid var(--line); text-align: center;
+}
+.taste-export-head { display: flex; gap: 10px; align-items: flex-start; text-align: left; margin-bottom: 14px; }
+.taste-export-spark { font-size: 18px; color: var(--jade); line-height: 1.2; }
+.taste-export-title { font-weight: 800; font-size: 15px; }
+.taste-export-blurb { font-size: 12.5px; color: var(--ink-soft); margin-top: 3px; line-height: 1.5; }
+.taste-export-note { font-size: 11.5px; color: var(--ink-soft); margin-top: 8px; text-align: left; line-height: 1.45; }
+.taste-export-text {
+  min-height: 150px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11.5px; line-height: 1.5; margin-top: 10px; white-space: pre-wrap;
+}
+
+/* --- rated dish row: "more actions" kebab menu (edit/delete) --- */
+.row-menu-backdrop {
+  position: fixed; inset: 0; z-index: 45; background: transparent;
+}
+.row-menu {
+  position: absolute; right: 0; top: calc(100% + 4px); z-index: 46;
+  background: var(--paper-raised); border: 1px solid var(--line); border-radius: 12px;
+  box-shadow: 0 6px 20px rgba(43,41,37,0.14); overflow: hidden; min-width: 140px;
+}
+.row-menu button {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 11px 14px; background: none; border: none; text-align: left;
+  font-size: 14px; color: var(--ink); font-weight: 500;
+}
+.row-menu button:hover, .row-menu button:focus-visible { background: var(--paper-inset); }
+.row-menu button:last-child { color: var(--ink-soft); }
+/* Kebab menu button, pinned to the row's top-right (own flex child). */
+.dish-actions {
+  position: relative; flex-shrink: 0;
+  display: flex; gap: 8px; justify-content: flex-end;
+}
+/* Larger tap targets for the icon actions (the 30px ones were genuinely fiddly on
+   a phone, and these are the primary way to fix a wrong dish). */
+.icon-btn.lg { width: 38px; height: 38px; }

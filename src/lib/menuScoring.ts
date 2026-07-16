@@ -16,6 +16,20 @@ const DIM_PHRASES: Record<string, string> = {
   steamed: 'delicate steaming', raw: 'raw purity', baked: 'baked comfort',
 };
 
+// zh-HK equivalents — the reason line is shown in the app's current display
+// language, so a Chinese-first user reads "夠鮮味、夠腍滑 — 正正係你一直畀高分嗰啲"
+// rather than English. Same dims, same honesty guarantees; only the surface text.
+const DIM_PHRASES_ZH: Record<string, string> = {
+  sweet: '有甜味', salty: '夠鹹香', sour: '夠酸', bitter: '有回甘',
+  umami: '夠鮮味', spicy: '夠辣',
+  crispy: '夠脆', creamy: '夠滑', chewy: '有嚼勁', tender: '夠腍滑',
+  rich: '夠濃郁', fresh: '夠清新',
+  fried: '炸得香口', grilled: '有炭燒香', braised: '燜得入味',
+  steamed: '蒸得嫩', raw: '夠鮮生', baked: '焗得香',
+};
+
+export type ReasonLang = 'en' | 'zh';
+
 export type ScorableItem = { attributes: DishVector; cuisine: string };
 
 /** A dim may be CITED in a reason/caution only if at least this many ratings have
@@ -81,7 +95,7 @@ export function markFires<T extends ScorableItem & { raw_score: number }>(
   return ranked.map(i => ({ ...i, fire: chosen.has(i) }));
 }
 
-export function composeReason(item: ScorableItem, taste: TasteVector, affinity: Record<string, number>, evidence?: EvidenceMap): string {
+export function composeReason(item: ScorableItem, taste: TasteVector, affinity: Record<string, number>, evidence?: EvidenceMap, lang: ReasonLang = 'en'): string {
   const hits = DIMS
     .map(d => ({ d, strength: (taste[d] ?? 0) * (item.attributes[d] ?? 0) }))
     .filter(h => h.strength > 0.12 && (taste[h.d] ?? 0) > 0.15 && (item.attributes[h.d] ?? 0) >= MIN_CITE_ATTR && citable(h.d, evidence))
@@ -89,6 +103,18 @@ export function composeReason(item: ScorableItem, taste: TasteVector, affinity: 
     .slice(0, 2);
 
   const cuisineLove = (affinity[item.cuisine] ?? 0) > 0.3;
+
+  if (lang === 'zh') {
+    if (hits.length === 0) {
+      return cuisineLove
+        ? '你成日食呢種菜式，值得一試'
+        : '呢味你平時未必揀 — 當開下眼界';
+    }
+    const zhCore = hits.map(h => DIM_PHRASES_ZH[h.d] ?? h.d).join('、');
+    return cuisineLove
+      ? `${zhCore} — 而且啱你成日鍾意嗰種菜式`
+      : `${zhCore} — 正正係你一直畀高分嗰啲`;
+  }
 
   if (hits.length === 0) {
     return cuisineLove
@@ -102,13 +128,15 @@ export function composeReason(item: ScorableItem, taste: TasteVector, affinity: 
     : `${core} — squarely what you keep rating up`;
 }
 
-export function composeCaution(item: ScorableItem, taste: TasteVector, evidence?: EvidenceMap): string | null {
+export function composeCaution(item: ScorableItem, taste: TasteVector, evidence?: EvidenceMap, lang: ReasonLang = 'en'): string | null {
   const warn = DIMS
     .map(d => ({ d, strength: -(taste[d] ?? 0) * (item.attributes[d] ?? 0) }))
     .filter(h => h.strength > 0.2 && (item.attributes[h.d] ?? 0) >= 0.5 && citable(h.d, evidence))
     .sort((a, b) => b.strength - a.strength)[0];
   if (!warn) return null;
-  return `Heads up: ${DIM_PHRASES[warn.d] ?? warn.d} — historically not your thing`;
+  return lang === 'zh'
+    ? `留意下：${DIM_PHRASES_ZH[warn.d] ?? warn.d} — 一直都唔係你杯茶`
+    : `Heads up: ${DIM_PHRASES[warn.d] ?? warn.d} — historically not your thing`;
 }
 
 function cap(s: string) { return s.charAt(0).toUpperCase() + s.slice(1); }
@@ -125,6 +153,7 @@ export function rankMenuItems<T extends ScorableItem>(
   affinity: Record<string, number>,
   includeReasons: boolean,
   evidence?: EvidenceMap,
+  lang: ReasonLang = 'en',
 ): (T & { match: number; raw_score: number; reason: string | null; caution: string | null })[] {
   const withRaw = items.map(item => ({ item, raw: contentScore(taste, item.attributes, affinity, item.cuisine) }));
   const allRaw = withRaw.map(x => x.raw);
@@ -133,8 +162,8 @@ export function rankMenuItems<T extends ScorableItem>(
       ...item,
       match: toRelativeMatchPercent(raw, allRaw),
       raw_score: raw,
-      reason: includeReasons ? composeReason(item, taste, affinity, evidence) : null,
-      caution: includeReasons ? composeCaution(item, taste, evidence) : null,
+      reason: includeReasons ? composeReason(item, taste, affinity, evidence, lang) : null,
+      caution: includeReasons ? composeCaution(item, taste, evidence, lang) : null,
     }))
     .sort((a, b) => b.raw_score - a.raw_score);
 }

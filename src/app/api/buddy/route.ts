@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase/server';
 import { emptyTaste } from '@/lib/taste';
 import {
-  SPECIES, type Species, computeXP, levelFor, engineStrength,
+  computeXP, levelFor, engineStrength,
   buddyElements, growthHint, exploredDims,
 } from '@/lib/buddy';
 
@@ -65,23 +65,19 @@ export async function GET() {
         dims_explored: exploredDims(inputs.vector).length,
         dims_total: 18,
       },
+      // Raw materials for the deterministic taste form (blobForm.ts) — the
+      // SAME vector/evidence/count the rest of this response is computed
+      // from, so the form can never show something the buddy stats disagree
+      // with. profile_version seeds the form's identity and bumps on export.
+      vector: inputs.vector,
+      evidence: profile?.evidence ?? {},
+      profile_version: profile?.profile_version ?? 1,
     },
   });
 }
 
-export async function POST(req: NextRequest) {
-  const supabase = supabaseServer();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Sign in first.' }, { status: 401 });
-
-  const { species } = await req.json();
-  if (!SPECIES.includes(species as Species)) {
-    return NextResponse.json({ error: 'Pick a real buddy.' }, { status: 400 });
-  }
-
-  const { error } = await supabase.from('buddies')
-    .upsert({ user_id: user.id, species });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-
-  return NextResponse.json({ ok: true, species });
-}
+// POST (adopt/switch a species) is retired: the species picker UI is gone —
+// the taste form IS the companion now (Session A §3, option (a)). GET still
+// returns the stored species so the one-time "your buddy evolved" migration
+// card can fire for users who had one; the buddies table itself stays for that
+// read until the migration moment has been seen broadly, then can be dropped.

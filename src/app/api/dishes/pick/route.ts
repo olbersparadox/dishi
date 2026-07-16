@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase/server';
 import { resolveOrCreateRestaurant } from '@/lib/restaurant';
+import { sanitizeDietFlags, sanitizeCookingMethod, sanitizeHeaviness } from '@/lib/menuScan';
 
 /**
  * POST /api/dishes/pick
@@ -48,6 +49,12 @@ export async function POST(req: NextRequest) {
         name_zh: typeof raw?.name_zh === 'string' ? raw.name_zh.trim().slice(0, 120) || null : null,
         cuisine: typeof raw?.cuisine === 'string' ? raw.cuisine.toLowerCase().slice(0, 40) : 'unknown',
         attributes: raw?.attributes && typeof raw.attributes === 'object' ? raw.attributes : {},
+        // Re-sanitized, not trusted verbatim — the client echoes back what the scan
+        // showed on screen, but it's still client input, and these are closed
+        // vocabularies exactly like `cuisine` above should be too.
+        cooking_method: sanitizeCookingMethod(raw?.cooking_method),
+        heaviness: sanitizeHeaviness(raw?.heaviness),
+        diet: sanitizeDietFlags(raw?.diet),
         photo_url: null,
         source,
       };

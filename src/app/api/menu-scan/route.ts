@@ -30,10 +30,14 @@ const jsonError = (error: string, status: number) =>
  *       about that distinction itself.
  *   {kind:'done', menu_language, restaurant_guess, elapsed_ms}
  *     — sent once, after the stream ends.
- *   {kind:'error', error}
+ *   {kind:'error', error, reason: 'not_menu' | 'unreadable'}
  *     — sent ONLY if literally nothing could be recovered (mirrors the old
  *       "zero items" hard-failure case) — a partial scan (some dishes, then a
  *       drop) still ends in a normal 'done', with whatever was recovered.
+ *       reason distinguishes "this genuinely isn't a menu" (a receipt, a dish,
+ *       a random photo) from "this is probably a menu but unreadable" (bad
+ *       lighting/angle/crop) — the client shows a different, honest message
+ *       for each rather than always blaming photo quality.
  *
  * Stage 2 (enrichment) and Stage 3 (flavor scoring) are unchanged: per-dish,
  * concurrency-capped, kicked off by the client once it has the full item list.
@@ -45,6 +49,7 @@ export async function POST(req: NextRequest) {
 
   const form = await req.formData();
   const photo = form.get('photo') as File | null;
+  const lang: 'en' | 'zh' = form.get('lang') === 'zh' ? 'zh' : 'en';
   if (!photo) return jsonError('A menu photo is required.', 400);
 
   const bytes = Buffer.from(await photo.arrayBuffer());
@@ -80,7 +85,7 @@ export async function POST(req: NextRequest) {
         const taste: TasteVector = profile?.vector ?? emptyTaste();
         const affinity: Record<string, number> = profile?.cuisine_affinity ?? {};
         const ranked = markFires(
-          rankMenuItems(scan.items, taste, affinity, profileReady, profile?.evidence ?? undefined),
+          rankMenuItems(scan.items, taste, affinity, profileReady, profile?.evidence ?? undefined, lang),
           taste, profile?.evidence ?? {},
         );
         for (const item of ranked) send({ kind: 'item', item: { ...item, enriched: true } });
@@ -92,6 +97,7 @@ export async function POST(req: NextRequest) {
       let itemCount = 0;
       let menu_language = 'unknown';
       let restaurant_guess: string | null = null;
+      let isMenu = true; // benefit of the doubt if the stream errors before meta arrives
       try {
         for await (const ev of scanMenuSkeletonStream(bytes.toString('base64'), mediaType)) {
           if (ev.kind === 'item') {
@@ -104,6 +110,7 @@ export async function POST(req: NextRequest) {
           } else {
             menu_language = ev.menu_language;
             restaurant_guess = ev.restaurant_guess;
+            isMenu = ev.is_menu;
           }
         }
       } catch (e) {
@@ -113,10 +120,18 @@ export async function POST(req: NextRequest) {
       }
 
       const elapsed_ms = Date.now() - started;
-      console.log(`menu-scan/skeleton-stream: ${itemCount} items in ${elapsed_ms}ms`);
+      console.log(`menu-scan/skeleton-stream: ${itemCount} items in ${elapsed_ms}ms, is_menu=${isMenu}`);
 
       if (itemCount === 0) {
-        send({ kind: 'error', error: 'The scan failed or took too long. Try again — closer, flatter, better light; or scan one page at a time.' });
+        // Two genuinely different failures get two genuinely different, honest
+        // messages — a not-a-menu photo isn't a lighting/angle problem, and telling
+        // someone to hold their phone closer to a photo of their dog doesn't help
+        // them, it just wastes their next attempt too.
+        send(
+          isMenu
+            ? { kind: 'error', reason: 'unreadable', error: 'The scan failed or took too long. Try again — closer, flatter, better light; or scan one page at a time.' }
+            : { kind: 'error', reason: 'not_menu', error: "This doesn't look like a restaurant menu." },
+        );
       } else {
         send({ kind: 'done', menu_language, restaurant_guess, elapsed_ms });
       }

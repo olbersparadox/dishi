@@ -4,6 +4,7 @@ import { translateDishName, inferCuisineFromName } from '@/lib/translate';
 import { reanalyzeAnchored } from '@/lib/vision';
 import { scoreOneDish } from '@/lib/menuScan';
 import { replayProfile } from '@/lib/replay';
+import { resolveOrCreateRestaurant } from '@/lib/restaurant';
 
 /**
  * The caller's own logged dishes, for the feed's "my dishes" section.
@@ -54,13 +55,30 @@ export async function GET(req: NextRequest) {
 
   const PAGE_SIZE = 12;
   const before = req.nextUrl.searchParams.get('before');
+  // rated=1 -> only dishes this user has actually RATED. The Taste tab shows
+  // "dishes to rate" and "dishes you've rated" as two separate sections, and
+  // without this filter an unrated pick appears in BOTH (the rated list used to
+  // be an unfiltered "all my dishes" list, which was correct when it was the only
+  // dish list in the app, and became a duplicate the moment it wasn't).
+  const ratedOnly = req.nextUrl.searchParams.get('rated') === '1';
+
+  let ratedIds: string[] | null = null;
+  if (ratedOnly) {
+    const { data: myRatings } = await supabase
+      .from('ratings').select('dish_id').eq('user_id', user.id);
+    ratedIds = (myRatings ?? []).map(r => r.dish_id);
+    // No ratings at all -> nothing to show. Returning early avoids an `.in()` with
+    // an empty array, whose behaviour is a footgun not worth relying on.
+    if (ratedIds.length === 0) return NextResponse.json({ dishes: [], has_more: false });
+  }
 
   let query = supabase
     .from('dishes')
-    .select('id, name, name_zh, cuisine, photo_url, created_at, restaurant_id, restaurants(name)')
+    .select('id, name, name_zh, cuisine, photo_url, created_at, restaurant_id, dish_identity_id, dish_identity_checked_at, cooking_method, heaviness, diet, restaurants(name), dish_identities(name, name_zh)')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
     .limit(PAGE_SIZE);
+  if (ratedIds) query = query.in('id', ratedIds);
   // Cursor pagination (not offset): stays correct even if new dishes get added
   // between page loads, which a simple page-number/offset scheme would silently
   // skip or duplicate around.
@@ -88,6 +106,10 @@ export async function GET(req: NextRequest) {
     dishes: (dishes ?? []).map((d: any) => ({
       id: d.id, name: d.name, name_zh: d.name_zh, cuisine: d.cuisine,
       photo_url: d.photo_url, restaurant: d.restaurants?.name ?? null,
+      restaurant_id: d.restaurant_id ?? null, dish_identity_id: d.dish_identity_id ?? null,
+      dish_identity_checked_at: d.dish_identity_checked_at ?? null,
+      identity_name: d.dish_identities?.name ?? null, identity_name_zh: d.dish_identities?.name_zh ?? null,
+      cooking_method: d.cooking_method, heaviness: d.heaviness, diet: d.diet ?? [],
       hearts: hearts.get(d.id) ?? 0,
       my_score: myScores.get(d.id) ?? null,
       locked: locked.get(d.id) ?? false,
@@ -123,6 +145,20 @@ export async function GET(req: NextRequest) {
  * Best-effort throughout: any translate/infer failure keeps the existing value
  * rather than blocking the rename itself.
  */
+/**
+ * PATCH { dish_id, name?, name_zh?, edited_en?, edited_zh?, restaurant_id?, new_restaurant? }
+ * -> rename (with the full correction cascade, as before) AND/OR change which
+ *    restaurant a dish is attached to — independently of each other; either can
+ *    be sent alone. Both are blocked server-side if locked, for the same reason:
+ *    once someone else has rated this dish (or the same restaurant+name), both a
+ *    name AND a restaurant change would retroactively alter what they learned
+ *    from, or silently unlink this row from a group they're relying on.
+ *
+ * Restaurant resolution reuses resolveOrCreateRestaurant — the SAME dedup logic
+ * (place_id, then normalized-name-within-50m, then create) that photo-logging and
+ * menu-scan picks already use, so correcting a wrongly-attached restaurant here
+ * can't silently fork a duplicate restaurant row either.
+ */
 export async function PATCH(req: NextRequest) {
   const supabase = supabaseServer();
   const { data: { user } } = await supabase.auth.getUser();
@@ -141,16 +177,58 @@ export async function PATCH(req: NextRequest) {
   const name = typeof body.name === 'string' ? body.name.trim().slice(0, 120) : undefined;
   const nameZh = typeof body.name_zh === 'string' ? body.name_zh.trim().slice(0, 120) : undefined;
   const editedEn = !!body.edited_en, editedZh = !!body.edited_zh;
-  if (name === undefined && nameZh === undefined) return NextResponse.json({ error: 'Nothing to update.' }, { status: 400 });
+  const wantsRestaurantChange = typeof body.restaurant_id === 'string' || !!body.new_restaurant;
+  if (name === undefined && nameZh === undefined && !wantsRestaurantChange) {
+    return NextResponse.json({ error: 'Nothing to update.' }, { status: 400 });
+  }
+
+  // Current stored names, needed to tell a REAL rename from a resubmission of the
+  // same text. Clients pre-fill their name inputs with the existing names, so a
+  // request carrying a name proves nothing on its own — only a name that actually
+  // DIFFERS is a human authoring a name.
+  const { data: existing } = await supabase
+    .from('dishes').select('name, name_zh, photo_url').eq('id', dishId).eq('user_id', user.id).maybeSingle();
+  if (!existing) return NextResponse.json({ error: 'Not found or not yours.' }, { status: 403 });
+
+  const nameChanged =
+    (name !== undefined && name !== existing.name) ||
+    (nameZh !== undefined && (nameZh || null) !== (existing.name_zh ?? null));
 
   const patch: Record<string, string | null> = {};
   if (name) patch.name = name;
   if (nameZh !== undefined) patch.name_zh = nameZh || null;
+  if (nameChanged) {
+    // A person just authored a name that differs from what was stored. That's a
+    // STRONGER claim than a vision guess, but a WEAKER one than the restaurant's own
+    // printed menu — and crucially, if this row came from a menu scan, its name is no
+    // longer the menu's words and must stop claiming menu authority. See
+    // nameAuthority() in dishIdentity.ts.
+    //
+    // Guarded on an ACTUAL difference, not merely on a name being present in the
+    // request: an edit that only changes the restaurant re-sends the unchanged name
+    // alongside it, and stamping on that would silently demote a menu-scan name from
+    // AUTHORITY_MENU to AUTHORITY_HUMAN for a name nobody touched.
+    (patch as any).name_edited_at = new Date().toISOString();
+  }
 
-  if (editedEn && !editedZh && name) {
+  if (wantsRestaurantChange) {
+    if (typeof body.restaurant_id === 'string') {
+      patch.restaurant_id = body.restaurant_id;
+    } else {
+      const resolved = await resolveOrCreateRestaurant(supabase, user.id, null, body.new_restaurant);
+      if (resolved.error) return NextResponse.json({ error: resolved.error }, { status: 400 });
+      patch.restaurant_id = resolved.id;
+    }
+  }
+
+  // Auto-translate only on a REAL rename. Without the nameChanged guard, a
+  // restaurant-only edit that re-sends the untouched names would burn a
+  // translation call and could overwrite the other language with a fresh machine
+  // translation of a name the person never touched.
+  if (nameChanged && editedEn && !editedZh && name) {
     const translated = await translateDishName(name);
     if (translated) patch.name_zh = translated;
-  } else if (editedZh && !editedEn && nameZh) {
+  } else if (nameChanged && editedZh && !editedEn && nameZh) {
     const translated = await translateDishName(nameZh);
     if (translated) patch.name = translated;
   }
@@ -163,14 +241,15 @@ export async function PATCH(req: NextRequest) {
   // Photo available -> re-analyze the photo anchored on the person's name (the
   // photo still carries preparation/sauce/portion information a name alone loses).
   // No photo -> text-only rescoring, same path menu scanning uses.
-  const correctedName = editedEn ? name : editedZh ? nameZh : undefined;
+  const correctedName = nameChanged ? (editedEn ? name : editedZh ? nameZh : undefined) : undefined;
   let relearned = false;
   if (correctedName) {
-    const { data: current } = await supabase
-      .from('dishes').select('photo_url').eq('id', dishId).eq('user_id', user.id).maybeSingle();
-    if (!current) return NextResponse.json({ error: 'Not found or not yours.' }, { status: 403 });
+    const current = existing; // already loaded above (name/name_zh/photo_url)
 
-    let rederived: { attributes: Record<string, number>; cuisine: string } | null = null;
+    let rederived: {
+      attributes: Record<string, number>; cuisine: string;
+      diet?: string[]; cooking_method?: string | null; heaviness?: string | null;
+    } | null = null;
     if (current.photo_url) {
       try {
         const imgRes = await fetch(current.photo_url);
@@ -186,16 +265,24 @@ export async function PATCH(req: NextRequest) {
         scoreOneDish({ name: correctedName, cuisine: patch.cuisine ?? 'unknown' }),
         inferCuisineFromName(correctedName),
       ]);
+      // Text-only rescoring (menuScoring.ts) doesn't produce cooking_method/diet/
+      // heaviness — those come from photo analysis. Leaving them untouched here is
+      // deliberate: a rename with no photo shouldn't overwrite a real cooking-style
+      // read with a guess this path can't actually make.
       rederived = { attributes, cuisine: cuisine ?? 'unknown' };
     }
     if (rederived) {
       if (Object.keys(rederived.attributes).length) (patch as any).attributes = rederived.attributes;
       if (rederived.cuisine && rederived.cuisine !== 'unknown') patch.cuisine = rederived.cuisine;
+      if (rederived.cooking_method !== undefined) (patch as any).cooking_method = rederived.cooking_method;
+      if (rederived.heaviness !== undefined) (patch as any).heaviness = rederived.heaviness;
+      if (rederived.diet !== undefined) (patch as any).diet = rederived.diet;
     }
   }
 
   const { data, error } = await supabase
-    .from('dishes').update(patch).eq('id', dishId).select('id, name, name_zh, cuisine, attributes').single();
+    .from('dishes').update(patch).eq('id', dishId)
+    .select('id, name, name_zh, cuisine, attributes, restaurant_id, cooking_method, heaviness, diet, restaurants(name)').single();
   if (error || !data) return NextResponse.json({ error: 'Not found or not yours.' }, { status: 403 });
 
   // If the person has RATED this dish, their profile learned from the old (wrong)
@@ -221,9 +308,11 @@ export async function PATCH(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ dish: data, relearned });
+  return NextResponse.json({
+    dish: { ...data, restaurant: (data as any).restaurants?.name ?? null },
+    relearned,
+  });
 }
-
 export async function DELETE(req: NextRequest) {
   const supabase = supabaseServer();
   const { data: { user } } = await supabase.auth.getUser();

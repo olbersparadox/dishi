@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useLang } from '@/lib/i18n';
+import { namesMatch } from '@/lib/restaurant';
 
 type Nearby = {
   source: 'dishi' | 'google';
@@ -8,13 +9,14 @@ type Nearby = {
   place_id?: string;    // present for source: 'google'
   name: string;
   name_zh?: string | null;
+  address?: string | null;
   lat: number;
   lng: number;
   distance_m: number | null;
 };
 export type RestaurantChoice =
   | { kind: 'existing'; id: string; name: string }
-  | { kind: 'new'; name: string; lat: number; lng: number; area?: string; address?: string }
+  | { kind: 'new'; name: string; lat: number; lng: number; area?: string; address?: string; place_id?: string }
   | null;
 
 /**
@@ -45,6 +47,8 @@ export default function RestaurantPicker({ onChange }: { onChange: (c: Restauran
   const [address, setAddress] = useState('');
   const [geocoding, setGeocoding] = useState(false);
   const [geocodedOnce, setGeocodedOnce] = useState(false);
+  const [suggestion, setSuggestion] = useState<Nearby | null>(null);
+  const [suggestionDismissed, setSuggestionDismissed] = useState(false);
 
   useEffect(() => {
     if (!navigator.geolocation) { setStatus('denied'); return; }
@@ -68,18 +72,37 @@ export default function RestaurantPicker({ onChange }: { onChange: (c: Restauran
     const key = r.source === 'dishi' ? r.id! : r.place_id!;
     setSelectedKey(key);
     setAdding(false);
+    setSuggestion(null);
     if (r.source === 'dishi') {
       onChange({ kind: 'existing', id: r.id!, name: r.name });
     } else {
       // Google-sourced: becomes a brand-new Dishi restaurant the moment it's used.
-      onChange({ kind: 'new', name: r.name, lat: r.lat, lng: r.lng });
+      // place_id travels with it — the server dedupes on it, so two people tapping
+      // this same chip (even shown in different languages) share ONE record.
+      onChange({
+        kind: 'new', name: r.name, lat: r.lat, lng: r.lng,
+        place_id: r.place_id, address: r.address ?? undefined,
+      });
     }
   }
   function confirmNew() {
-    if (!newName.trim() || !coords) return;
+    const typed = newName.trim();
+    if (!typed || !coords) return;
+    // Same-place nudge: if what they typed cosmetically matches a chip that's
+    // already sitting right there (Dishi's or Google's), ask before forking a
+    // duplicate. One question, human decides — never silently auto-merged, and
+    // "no, it's new" is always available and always respected.
+    if (!suggestionDismissed) {
+      const match = nearby.find(r => namesMatch(typed, r));
+      if (match) { setSuggestion(match); return; }
+    }
+    createNew(typed);
+  }
+  function createNew(typed: string) {
+    setSuggestion(null);
     setSelectedKey('manual-new');
     onChange({
-      kind: 'new', name: newName.trim(), ...coords,
+      kind: 'new', name: typed, ...coords!,
       area: area.trim() || undefined,
       address: address.trim() || undefined,
     });
@@ -143,12 +166,39 @@ export default function RestaurantPicker({ onChange }: { onChange: (c: Restauran
               className="field"
               placeholder={t('picker.name')}
               value={newName}
-              onChange={e => setNewName(e.target.value)}
+              onChange={e => {
+                setNewName(e.target.value);
+                // A different name is a different question — the earlier
+                // "no, it's new" answer shouldn't suppress a fresh nudge.
+                setSuggestionDismissed(false);
+                setSuggestion(null);
+              }}
             />
             <button className="btn small" onClick={confirmNew} disabled={!coords || !newName.trim()}>
               {t('picker.confirm')}
             </button>
           </div>
+
+          {suggestion && (
+            <div style={{ marginTop: 8 }}>
+              <p className="card-meta" style={{ marginBottom: 6 }}>
+                {t('picker.sameas', {
+                  name: lang === 'zh' ? (suggestion.name_zh ?? suggestion.name) : suggestion.name,
+                })}
+              </p>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button className="btn small" onClick={() => pick(suggestion)}>
+                  {t('picker.samesame')}
+                </button>
+                <button
+                  className="btn ghost small"
+                  onClick={() => { setSuggestionDismissed(true); createNew(newName.trim()); }}
+                >
+                  {t('picker.notsame')}
+                </button>
+              </div>
+            </div>
+          )}
 
           {!showDetails ? (
             <button className="btn ghost small" style={{ marginTop: 8 }} onClick={openDetails}>

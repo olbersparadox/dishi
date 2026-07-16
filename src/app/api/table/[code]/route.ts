@@ -102,7 +102,10 @@ export async function GET(_req: NextRequest, { params }: { params: { code: strin
 
   const { data: tablePicks } = await admin
     .from('dishes')
-    .select('name, name_zh, profiles(handle)')
+    // dish_identities join: a pick that's been renamed or linked to a canonical
+    // identity still matches the menu's printed name via these alias names —
+    // name-only matching fragments the moment 蝦餃 gets linked to 水晶鮮蝦餃.
+    .select('name, name_zh, profiles(handle), dish_identities(name, name_zh)')
     .eq('table_session_id', session.id)
     .order('created_at', { ascending: false });
 
@@ -125,6 +128,8 @@ export async function GET(_req: NextRequest, { params }: { params: { code: strin
     // row the picker rates on their own.
     table_picks: (tablePicks ?? []).map((p: any) => ({
       name: p.name, name_zh: p.name_zh, handle: p.profiles?.handle ?? 'someone',
+      identity_name: p.dish_identities?.name ?? null,
+      identity_name_zh: p.dish_identities?.name_zh ?? null,
     })),
     items: ranked.map(r => ({
       ...r.item,

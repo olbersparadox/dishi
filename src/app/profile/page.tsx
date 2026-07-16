@@ -1,10 +1,15 @@
 'use client';
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import AuthGate from '@/components/AuthGate';
 import { supabaseBrowser } from '@/lib/supabase/client';
-import { DIMS } from '@/lib/taste';
-import BuddyCard from '@/components/BuddyCard';
-import TasteRadar from '@/components/TasteRadar';
+import TasteFormCard from '@/components/TasteFormCard';
+import SealReveal, { type SealResult } from '@/components/SealReveal';
+import DishName from '@/components/DishName';
+import type { ExportDish } from '@/lib/tasteExport';
+import { RateIcon, TrashIcon } from '@/components/icons';
+import { wordKeyFor } from '@/lib/flickWords';
 import { useLang, cuisineLabel } from '@/lib/i18n';
 
 export default function ProfilePage() {
@@ -15,18 +20,56 @@ export default function ProfilePage() {
   );
 }
 
+type ToRate = { id: string; name: string; name_zh: string | null; cuisine: string | null; source: string; restaurant: string | null };
+
+/** Rated rows as the API returns them — kept whole (ids + identity links)
+ * so the 已評嘅菜 list can group same-real-dish occasions instead of showing
+ * a linked pair (蝦餃 / 水晶鮮蝦餃) as two unrelated rows. ExportDish for the
+ * AI prompt is DERIVED from these, not fetched separately. */
+type RatedRow = {
+  id: string; name: string; name_zh: string | null; restaurant: string | null;
+  my_score: number | null; created_at: string;
+  dish_identity_id: string | null;
+  identity_name: string | null; identity_name_zh: string | null;
+};
+
 function TasteProfile() {
   const { t, lang } = useLang();
+  const router = useRouter();
   const [vector, setVector] = useState<Record<string, number>>({});
   const [affinity, setAffinity] = useState<Record<string, number>>({});
   const [count, setCount] = useState(0);
   const [points, setPoints] = useState(0);
+  const [toRate, setToRate] = useState<ToRate[] | null>(null);
+  const [ratedRows, setRatedRows] = useState<RatedRow[]>([]);
+  const [justRated, setJustRated] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [sealReveal, setSealReveal] = useState<SealResult | null>(null);
+  const [justLearned, setJustLearned] = useState<{ dim: string; dir: number }[] | null>(null);
+  const [sealedIds, setSealedIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    // The rating flow lands here (not Home) the moment a rating is saved — this
+    // is where "what did that just teach Dishi" and "rate another?" belong,
+    // since Taste is the screen about training the engine, not browsing it.
+    if (new URLSearchParams(window.location.search).get('rated') === '1') {
+      setJustRated(true);
+      window.history.replaceState({}, '', '/profile'); // don't re-celebrate on refresh
+      try {
+        const rawSeal = sessionStorage.getItem('dishi_seal_reveal');
+        if (rawSeal) { setSealReveal(JSON.parse(rawSeal)); sessionStorage.removeItem('dishi_seal_reveal'); }
+        const rawLearned = sessionStorage.getItem('dishi_just_learned');
+        if (rawLearned) { setJustLearned(JSON.parse(rawLearned)); sessionStorage.removeItem('dishi_just_learned'); }
+      } catch { /* storage may be unavailable */ }
+    }
+  }, []);
 
   useEffect(() => {
     const supabase = supabaseBrowser();
     supabase.auth.getUser().then(async ({ data }) => {
       const uid = data.user?.id;
       if (!uid) return;
+      setUserId(uid);
       const [{ data: taste }, { data: prof }] = await Promise.all([
         supabase.from('taste_profiles').select('*').eq('user_id', uid).maybeSingle(),
         supabase.from('profiles').select('points').eq('id', uid).maybeSingle(),
@@ -38,53 +81,162 @@ function TasteProfile() {
       }
       setPoints(prof?.points ?? 0);
     });
+    fetch('/api/my/dishes?unrated=1').then(r => r.json()).then(async j => {
+      const dishes = j.dishes ?? [];
+      setToRate(dishes);
+      // Lazily seal each to-rate dish. Idempotent + server-gated (only seals if
+      // the engine has >= SEAL_GATE ratings), so this is safe to call every
+      // time the list loads — it either creates the seal once or no-ops.
+      const sealed = new Set<string>();
+      await Promise.all(dishes.map(async (d: ToRate) => {
+        try {
+          const res = await fetch('/api/seals', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ dish_id: d.id }),
+          });
+          const out = await res.json().catch(() => ({}));
+          if (out.sealed) sealed.add(d.id);
+        } catch { /* non-critical — the card just won't show a stamp */ }
+      }));
+      setSealedIds(sealed);
+    }).catch(() => setToRate([]));
+    // Concrete rated dishes: kept as full rows (id + identity link) so the
+    // 已評嘅菜 list can group same-real-dish occasions; the AI-export evidence
+    // shape is derived from the same fetch rather than fetched twice.
+    fetch('/api/my/dishes?rated=1')
+      .then(r => r.json())
+      .then(j => setRatedRows((j.dishes ?? [])
+        .filter((d: any) => d.my_score !== null)
+        .map((d: any) => ({
+          id: d.id, name: d.name, name_zh: d.name_zh, restaurant: d.restaurant,
+          my_score: d.my_score, created_at: d.created_at,
+          dish_identity_id: d.dish_identity_id ?? null,
+          identity_name: d.identity_name ?? null, identity_name_zh: d.identity_name_zh ?? null,
+        }))))
+      .catch(() => setRatedRows([]));
   }, []);
+
+  const exportDishes: ExportDish[] = ratedRows.map(d => ({
+    name: d.name, name_zh: d.name_zh, score: d.my_score as number, restaurant: d.restaurant,
+  }));
+
+  // 已評嘅菜, grouped by real-world identity: linked occasions (same
+  // dish_identity_id) collapse into ONE row — labelled with the identity's
+  // canonical name, carrying the most recent occasion's verdict. Unlinked
+  // dishes group by their own row id (i.e. stay as-is). Rows arrive newest
+  // first from the API, so first-seen per group IS the latest occasion.
+  const ratedGroups = (() => {
+    const seen = new Map<string, RatedRow>();
+    for (const d of ratedRows) {
+      const key = d.dish_identity_id ? `id:${d.dish_identity_id}` : `row:${d.id}`;
+      if (!seen.has(key)) seen.set(key, d);
+    }
+    return Array.from(seen.values());
+  })();
 
   const topCuisines = Object.entries(affinity).sort((a, b) => b[1] - a[1]).slice(0, 5);
 
+  /** Drop a pick you don't actually want to rate. Same DELETE the rated list uses;
+   * an unrated pick is never locked (nobody else has rated it), so this can't be
+   * blocked. Optimistic, reverting if the server refuses. */
+  async function removePick(id: string) {
+    if (!confirm(t('home.delete.confirm'))) return;
+    const prev = toRate;
+    setToRate(cur => cur?.filter(d => d.id !== id) ?? null);
+    const res = await fetch('/api/my/dishes', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dish_id: id }),
+    });
+    if (!res.ok) setToRate(prev);
+  }
+
   return (
     <div>
+      {justRated && sealReveal && <SealReveal seal={sealReveal} />}
+      {justRated && (
+        <div className="rated-banner" role="status">
+          <span className="rated-banner-icon" aria-hidden>🍜</span>
+          <span className="rated-banner-text">
+            {justLearned && justLearned.length > 0
+              ? t('profile.justlearned', {
+                  dims: justLearned.map(x => `${t(`dim.${x.dim}`)} ${x.dir > 0 ? '↑' : '↓'}`).join(' · '),
+                })
+              : t('home.rated')}
+          </span>
+        </div>
+      )}
       <h1 style={{ marginBottom: 4 }}>{t('profile.title')}</h1>
-      <p className="card-meta" style={{ marginBottom: 16 }}>
+      <p className="card-meta" style={{ marginBottom: 22 }}>
         {t('profile.flicks', { n: count, p: points })}
         {points > 0 ? t('profile.helped') : ''}
       </p>
 
-      <BuddyCard />
+      {/* +Log is no longer its own bottom-nav tab (nav is now Feed / Scan /
+          Taste) — this is the bridge so photographing and rating a dish directly
+          (not via a menu-scan pick) is still one tap away, right where Jerry
+          asked for "rate a dish" to live. */}
+      <Link href="/log" className="btn primary" style={{ display: 'block', textAlign: 'center', textDecoration: 'none', marginBottom: 26 }}>
+        {t('profile.logadish')}
+      </Link>
 
-      <div className="card"><div className="card-body">
-        <h3 style={{ marginBottom: 12 }}>{t('profile.learned')}</h3>
-        {count === 0 ? (
-          <p className="card-meta">{t('profile.blank')}</p>
-        ) : (
-          <>
-            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
-              <TasteRadar vector={vector} />
+      {/* Dishes waiting to be rated — picked off a menu scan or during a shared
+          table, not yet rated. Living here (not buried on /log) is deliberate:
+          Jerry's framing is "menu scan is the focus; rating is what trains
+          Dishi to get more relevant" — so the training queue belongs on the
+          Taste tab, where the training itself is the point of being here. */}
+      {toRate !== null && toRate.length > 0 && (
+        <div style={{ marginBottom: 16 }}>
+          <h3 style={{ marginBottom: 2 }}>{t('log.toRate')}</h3>
+          {toRate.map(p => (
+            <div key={p.id} className="pick-card">
+              <div style={{ minWidth: 0 }}>
+                <div className="pick-card-name">
+                <DishName name={p.name} name_zh={p.name_zh} />
+                {sealedIds.has(p.id) && <span className="seal-stamp" title={t('seal.stamp.title')} aria-label={t('seal.stamp.title')}>印</span>}
+              </div>
+                <div className="pick-card-meta">{p.restaurant ?? t('home.homecooking')}</div>
+              </div>
+              {/* Rate AND delete. A pick you no longer want was previously stuck in
+                  this queue forever with no way out but rating it — which would have
+                  taught the engine from a dish you never actually ate. */}
+              <div className="pick-card-actions">
+                <button className="icon-btn lg rate" onClick={() => router.push(`/log?rate=${p.id}`)}
+                  aria-label={t('log.rateNow')} title={t('log.rateNow')}>
+                  <RateIcon size={20} />
+                </button>
+                <button className="icon-btn lg delete" onClick={() => removePick(p.id)}
+                  aria-label={t('home.delete')} title={t('home.delete')}>
+                  <TrashIcon size={20} />
+                </button>
+              </div>
             </div>
-            <div className="bars">
-            {DIMS.map(dim => {
-              const v = vector[dim] ?? 0;
-              const width = Math.abs(v) * 50;
-              return (
-                <div className="bar-row" key={dim}>
-                  <span style={{ textTransform: 'capitalize' }}>{dim}</span>
-                  <div className="bar-track">
-                    <div
-                      className="bar-fill"
-                      style={{
-                        left: v >= 0 ? '50%' : `${50 - width}%`,
-                        width: `${width}%`,
-                        background: v >= 0 ? 'var(--jade)' : 'var(--ink-soft)',
-                      }}
-                    />
-                  </div>
+          ))}
+        </div>
+      )}
+
+      {userId && <TasteFormCard vector={vector} affinity={affinity} count={count} dishes={exportDishes} userId={userId} />}
+
+      {/* 已評嘅菜 — flat, no-photo reference list below the AI export card per the
+          design. Identity-grouped: a dish rated twice under linked names shows
+          once, under its canonical identity name. The richer per-occasion photo
+          journal lives on the Feed tab. */}
+      {ratedGroups.length > 0 && (
+        <div style={{ marginBottom: 20 }}>
+          <h3 style={{ marginBottom: 2 }}>{t('profile.rated')}</h3>
+          {ratedGroups.map(d => (
+            <div className="rated-flat-row" key={d.dish_identity_id ?? d.id}>
+              <div style={{ minWidth: 0 }}>
+                <div className="card-title">
+                  <DishName name={d.identity_name ?? d.name} name_zh={d.identity_name_zh ?? d.name_zh} />
                 </div>
-              );
-            })}
-          </div>
-          </>
-        )}
-      </div></div>
+                {d.restaurant && <div className="rated-flat-meta">{d.restaurant}</div>}
+              </div>
+              <div className="rated-flat-verdict">{t(wordKeyFor(d.my_score as number))}</div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {topCuisines.length > 0 && (
         <div className="card"><div className="card-body">
@@ -99,9 +251,18 @@ function TasteProfile() {
         </div></div>
       )}
 
-      <p className="card-meta" style={{ marginTop: 20 }}>
-        {t('profile.owner')} <a href="/owner" style={{ color: 'var(--jade)', fontWeight: 650 }}>{t('profile.owner.link')}</a> {t('profile.owner.blurb')}
-      </p>
+      {/* Restaurant-owner front door. The "claim your page" entry Dishi's
+          owner-side monetisation hangs off — it needs to be genuinely findable by
+          an owner who's looking, not a grey afterthought, while staying quiet
+          enough that it isn't noise for the diners who are 99% of users. A single
+          bordered, tappable row does both. */}
+      <a href="/owner" className="owner-entry">
+        <div>
+          <div className="owner-entry-title">{t('profile.owner')}</div>
+          <div className="owner-entry-blurb">{t('profile.owner.blurb')}</div>
+        </div>
+        <span className="owner-entry-cta" aria-hidden>{t('profile.owner.link')} →</span>
+      </a>
     </div>
   );
 }
