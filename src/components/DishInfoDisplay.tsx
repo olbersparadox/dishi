@@ -44,7 +44,7 @@ export default function DishInfoDisplay({ info, compact = false, hideHook = fals
     <>
       {showHook && <div className="card-meta dish-hook">{bucketText}</div>}
       {hasChips && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: compact ? 4 : 5 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: compact ? 6 : 5 }}>
           {diet.map(d => (
             <span key={d} className="chip scan-chip">
               <span className="scan-chip-icon">{DIET_ICON[d] ?? ''}</span>
