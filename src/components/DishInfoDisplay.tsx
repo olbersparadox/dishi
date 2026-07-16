@@ -25,21 +25,24 @@ export type DishInfo = {
   diet?: string[] | null;
 };
 
-export default function DishInfoDisplay({ info, compact = false }: { info: DishInfo; compact?: boolean }) {
+export default function DishInfoDisplay({ info, compact = false, hideHook = false }: { info: DishInfo; compact?: boolean; hideHook?: boolean }) {
   const { t } = useLang();
 
   // null for 'other'/unknown — nothing honest to show, so nothing is shown. A
   // fabricated cooking category would be worse than an absent one.
   const bucket = cookingBucket(info.cooking_method as CookingMethod | null | undefined);
   const bucketText = bucket ? t(`scan.bucket.${bucket}`) : null;
+  // hideHook: the caller already shows the cooking style elsewhere (e.g. the
+  // journal meta line), so rendering it here too would duplicate it.
+  const showHook = !!bucketText && !hideHook;
   const diet = info.diet ?? [];
   const hasChips = diet.length > 0 || !!info.heaviness;
 
-  if (!bucketText && !hasChips) return null;
+  if (!showHook && !hasChips) return null;
 
   return (
     <>
-      {bucketText && <div className="card-meta dish-hook">{bucketText}</div>}
+      {showHook && <div className="card-meta dish-hook">{bucketText}</div>}
       {hasChips && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: compact ? 4 : 5 }}>
           {diet.map(d => (

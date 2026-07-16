@@ -6,6 +6,7 @@ import FlickRating from '@/components/FlickRating';
 import { cuisineLabel } from '@/lib/i18n';
 import { wordKeyFor } from '@/lib/flickWords';
 import { EditIcon, TrashIcon, MoreIcon } from './icons';
+import { cookingBucket, type CookingMethod } from '@/lib/menuScan';
 import DishInfoDisplay from './DishInfoDisplay';
 import { normalizePhoto } from '@/lib/image';
 
@@ -338,7 +339,10 @@ export default function MyDishes({ t, lang }: { t: (k: string, p?: Record<string
         </div></div>
       )}
       {groups.map(group => {
-        const rows = group.map(d => (
+        const rows = group.map(d => {
+        const bucket = cookingBucket(d.cooking_method as CookingMethod | null | undefined);
+        const bucketText = bucket ? t(`scan.bucket.${bucket}`) : null;
+        return (
         <article className="rated-dish-row" key={d.id}>
           <div className="card-body journal-row">
             {/* Left column: the dish photo (or a soft placeholder when a dish
@@ -428,13 +432,13 @@ export default function MyDishes({ t, lang }: { t: (k: string, p?: Record<string
                   <div className="dish-meta">
                     {d.restaurant ?? t('home.homecooking')}
                     {cuisineLabel(d.cuisine, lang) ? ` · ${cuisineLabel(d.cuisine, lang)}` : ''}
-                    {` · ♥ ${t('home.hearts', { n: d.hearts })}`}
+                    {bucketText && ` · ${bucketText}`}
                   </div>
 
-                  {/* Same cooking-style + diet/heaviness format the menu-scan card
-                      uses — one shared component, so the same dish doesn't show
-                      more information on one screen than another. */}
-                  <DishInfoDisplay info={d} compact />
+                  {/* Same diet/heaviness chips the menu-scan card uses — one shared
+                      component. The cooking-style hook is hidden here (hideHook)
+                      because it now lives inline in the meta line above. */}
+                  <DishInfoDisplay info={d} compact hideHook />
                 </>
               )}
 
@@ -478,7 +482,8 @@ export default function MyDishes({ t, lang }: { t: (k: string, p?: Record<string
             )}
           </div>
         </article>
-        ));
+        );
+        });
         // No special grouping visual: linked occurrences already read as the same
         // dish because they share the canonical name (above), so a red-line block
         // and a "recorded N times" header were redundant chrome. Each occasion is

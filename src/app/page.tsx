@@ -31,8 +31,7 @@ function Journal() {
   const { t, lang } = useLang();
   return (
     <div>
-      <h1 style={{ marginBottom: 4 }}>{t('home.title')}</h1>
-      <p className="card-meta" style={{ marginBottom: 16 }}>{t('home.journal.blurb')}</p>
+      <h1 style={{ marginBottom: 17 }}>{t('home.title')}</h1>
       <MyDishes t={t} lang={lang} />
     </div>
   );

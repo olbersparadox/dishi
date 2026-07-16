@@ -120,6 +120,20 @@ export function ScanMenuIcon({ size = 22 }: IconProps) {
   );
 }
 
+/** Solid cooking pot — a filled, monotone mark for a dish's cooking style,
+ *  sized and weighted to sit alongside text the way the old ♥ glyph did. */
+export function PotIcon({ size = 14 }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} aria-hidden="true">
+      <rect x="4" y="11" width="16" height="8" rx="2" fill="currentColor" />
+      <rect x="3" y="9" width="18" height="2.2" rx="1.1" fill="currentColor" />
+      <rect x="1.3" y="12.4" width="3.2" height="2.2" rx="1.1" fill="currentColor" />
+      <rect x="19.5" y="12.4" width="3.2" height="2.2" rx="1.1" fill="currentColor" />
+      <circle cx="12" cy="7.2" r="1.3" fill="currentColor" />
+    </svg>
+  );
+}
+
 /** Camera — retake/replace the photo. */
 export function CameraIcon({ size = 18, strokeWidth = 1.8 }: IconProps & { strokeWidth?: number }) {
   return (
