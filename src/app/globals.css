@@ -98,6 +98,13 @@ button { font: inherit; cursor: pointer; }
 .btn.ghost { border-color: var(--line); color: var(--ink-soft); }
 .btn.small { padding: 6px 14px; font-size: 12px; }
 .btn.large { padding: 14px 18px; font-size: 16px; flex: 1; }
+/* A continue/advance button dims until its step's requirement is met. The
+ * disabled attribute is already set correctly across every rating flow (log
+ * continue, no-photo save, scan pick confirm, table join, new-restaurant
+ * confirm), but a custom-styled button keeps its full-strength background when
+ * disabled, so it never LOOKED unavailable. One rule so every case reads the
+ * same — matches the .btn.is-disabled dim level below. */
+.btn:disabled { opacity: 0.5; cursor: default; }
 /* The ONE button in the whole app allowed to be vermillion — the AI-prompt
  * export CTA specifically (see also .seal-stamp, the only other vermillion
  * use). Every other "primary" action uses ink now; do not add this class
@@ -294,7 +301,7 @@ button { font: inherit; cursor: pointer; }
    uniform ink cards — each a vertical rectangle with a relevant icon above its
    label, sized to keep the old button's prominence and a full tap target. */
 .log-src-row {
-  display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
   margin-bottom: 26px;
 }
 .log-src {

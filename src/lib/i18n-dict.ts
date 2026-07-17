@@ -211,8 +211,8 @@ export const dict: Record<string, { zh: string; en: string }> = {
   // the surface itself says "anything counts": eating out, home cooking, or an
   // old photo sitting in the camera roll.
   'logsrc.rest': { zh: '餐廳菜', en: 'Dining out' },
-  'logsrc.home': { zh: '屋企煮', en: 'Home-cooked' },
-  'logsrc.album': { zh: '相簿舊相', en: 'Old photos' },
+  'logsrc.home': { zh: '住家菜', en: 'Home-cooked' },
+  'logsrc.album': { zh: '相簿舊菜', en: 'Old photos' },
   'log.title.home': { zh: '記錄屋企煮嘅', en: 'Log a home-cooked dish' },
   'log.title.album': { zh: '記錄相簿舊相', en: 'Log from your camera roll' },
   'log.album.hint': { zh: '喺相簿揀返張食物相 — 幾耐之前食都得', en: 'Pick a food shot from your photos — no matter how long ago' },
