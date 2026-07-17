@@ -126,8 +126,7 @@ export const dict: Record<string, { zh: string; en: string }> = {
 
   // ---- scan ----
   'scan.title': { zh: '掃餐牌', en: 'Scan a menu' },
-  'scan.blurb': { zh: '影低成張餐牌 — Dishi 讀晒每道菜，再按你口味排名。', en: 'Photograph the whole menu — Dishi reads every dish and ranks it against your taste.' },
-  'scan.tip': { zh: '平放影全頁效果最好。中文、英文、中英夾雜都得。', en: 'Works best flat-on with the whole page in frame. Chinese, English, or both.' },
+  'scan.tip': { zh: '平放影全頁效果最好。中文、英文、中英夾雜都得', en: 'Works best flat-on with the whole page in frame. Chinese, English, or both.' },
   'scan.tablestatus': { zh: '{n} 人 · 揀咗 {m} 碟', en: '{n} here · {m} picked' },
   'scan.share.alsopicked': { zh: '{handles} 都揀咗', en: '{handles} picked this too' },
   'scan.results': { zh: '你嘅最佳選擇', en: 'Your best bets' },
@@ -156,12 +155,12 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'table.readingmenu': { zh: '讀緊餐牌…', en: 'Reading the menu…' },
   'table.join': { zh: '同朋友一齊點', en: 'Order Together' },
   'table.join.blurb': {
-    zh: '朋友掃咗餐牌？問佢攞個「檯號」，喺下面入返就可以一齊揀。',
+    zh: '一個先掃餐牌出 [枱號]，其他人跟住入',
     en: 'Already scanned by a friend? Ask them for the table code and enter it below to pick together.',
   },
   'table.joining': { zh: '入緊…', en: 'Joining…' },
   'table.joinbtn': { zh: '加入', en: 'Join' },
-  'table.open.full': { zh: '想自己開檯？去「開檯」頁 →', en: 'Want to start your own table? Open the Table page →' },
+  'table.open.full': { zh: '我要自己開檯', en: 'Want to start your own table? Open the Table page →' },
   'table.leave': { zh: '離開', en: 'Leave' },
   'table.back': { zh: '返回', en: 'Back' },
   'table.invite': { zh: '+ 邀請', en: '+ Invite' },

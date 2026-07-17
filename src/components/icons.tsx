@@ -134,6 +134,21 @@ export function PotIcon({ size = 14 }: IconProps) {
   );
 }
 
+/** Open menu (booklet) — pairs with the camera icon on the scan dropzone to
+ *  signal "photograph a menu" specifically, not just "take a photo". */
+export function MenuBookIcon({ size = 20 }: IconProps) {
+  return (
+    <svg viewBox="0 0 60 60" width={size} height={size} aria-hidden="true">
+      <g fill="currentColor">
+        <path d="M11,60H48c1.65,0,3-1.35,3-3V9c0-1.65-1.35-3-3-3h-2V2.74c0-.83-.36-1.61-.99-2.13-.6-.5-1.37-.7-2.13-.57L10.6,6.04c-.91,.18-1.6,.99-1.6,1.96V58c0,1.1,.9,2,2,2ZM49,9V57c0,.55-.45,1-1,1H11V8H48c.55,0,1,.45,1,1Zm-5.76-6.99c.24-.04,.41,.07,.49,.14,.17,.14,.27,.36,.27,.6v3.26H21.77l21.48-3.99Z" />
+        <path d="M14,48c0,1.65,1.35,3,3,3h26c1.65,0,3-1.35,3-3,0-1.32-.86-2.43-2.04-2.83-.35-5.99-4.47-10.97-10.02-12.6,.03-.19,.06-.38,.06-.57,0-2.21-1.79-4-4-4s-4,1.79-4,4c0,.2,.04,.38,.06,.57-5.55,1.63-9.67,6.61-10.02,12.6-1.18,.4-2.04,1.51-2.04,2.83Zm14-16c0-1.1,.9-2,2-2s2,.9,2,2c0,.05-.01,.1-.02,.16-.65-.09-1.31-.16-1.98-.16s-1.33,.06-1.98,.16c0-.05-.02-.1-.02-.16Zm2,2c6.28,0,11.44,4.85,11.95,11H18.05c.51-6.15,5.67-11,11.95-11Zm-13,13h26c.55,0,1,.45,1,1s-.45,1-1,1H17c-.55,0-1-.45-1-1s.45-1,1-1Z" />
+        <path d="M21,19h18c.55,0,1-.45,1-1s-.45-1-1-1H21c-.55,0-1,.45-1,1s.45,1,1,1Z" />
+        <path d="M26,21c-.55,0-1,.45-1,1s.45,1,1,1h8c.55,0,1-.45,1-1s-.45-1-1-1h-8Z" />
+      </g>
+    </svg>
+  );
+}
+
 /** Camera — retake/replace the photo. */
 export function CameraIcon({ size = 18, strokeWidth = 1.8 }: IconProps & { strokeWidth?: number }) {
   return (

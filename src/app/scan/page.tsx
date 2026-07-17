@@ -9,7 +9,7 @@ import RestaurantPicker, { RestaurantChoice } from '@/components/RestaurantPicke
 import { mapWithConcurrency } from '@/lib/concurrency';
 import DishInfoDisplay from '@/components/DishInfoDisplay';
 import { sumPrices } from '@/lib/price';
-import { CameraIcon, ArrowRightIcon, CloseIcon } from '@/components/icons';
+import { CameraIcon, MenuBookIcon, ArrowRightIcon, CloseIcon } from '@/components/icons';
 import { sameDishInSession, restaurantKeptNote } from '@/lib/menuMerge';
 import { getScanSession, setScanSession, clearScanSession } from '@/lib/scanSession';
 import { useLang } from '@/lib/i18n';
@@ -527,10 +527,7 @@ function Scanner() {
   if (!result) {
     return (
       <div>
-        <h1 style={{ marginBottom: 6 }}>{t('scan.title')}</h1>
-        <p className="card-meta" style={{ marginBottom: 18 }}>
-          {t('scan.blurb')}
-        </p>
+        <h1 style={{ marginBottom: 18 }}>{t('scan.title')}</h1>
 
         {preview && (
           <div className={`scan-frame ${scanning ? 'scanning' : ''}`}>
@@ -552,12 +549,17 @@ function Scanner() {
             <PhotoPicker
               key={preview ?? 'fresh'}
               onPick={f => onPick(f)}
-              icon={<CameraIcon size={38} strokeWidth={1.1} />}
+              icon={
+                <span className="scan-dropzone-content">
+                  <span className="scan-dropzone-icons">
+                    <CameraIcon size={42} strokeWidth={1.1} />
+                    <MenuBookIcon size={59} />
+                  </span>
+                  <span className="scan-dropzone-tip">{t('scan.tip')}</span>
+                </span>
+              }
               hideLabel
             />
-            <p className="card-meta" style={{ marginTop: 10 }}>
-              {t('scan.tip')}
-            </p>
           </>
         )}
         {error && <p style={{ color: 'var(--lacquer)', marginTop: 12 }}>{error}</p>}
@@ -587,7 +589,7 @@ function Scanner() {
                 (Creating a table without scanning a menu is a real capability:
                 the table ranks dishes from around Dishi instead.) */}
             <p className="card-meta" style={{ marginTop: 12 }}>
-              <a href="/table" style={{ color: 'var(--ink)' }}>{t('table.open.full')}</a>
+              <a href="/table" className="table-open-link" style={{ color: 'var(--ink)' }}>{t('table.open.full')}</a>
             </p>
           </div>
         )}
