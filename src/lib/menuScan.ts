@@ -21,8 +21,37 @@ import { salvageJsonObjects } from './jsonSalvage';
  * set keeps the UI's icon mapping exhaustive and makes "likely-contains" framing
  * enforceable in the prompt itself, rather than trusting whatever string the model
  * feels like emitting. */
-export const DIET_FLAGS = ['veg', 'pork', 'beef', 'seafood', 'shellfish', 'peanut', 'spicy'] as const;
+export const DIET_FLAGS = [
+  'veg', 'pork', 'beef', 'chicken', 'duck_goose', 'lamb',
+  'seafood', 'shellfish', 'egg', 'dairy', 'offal', 'peanut', 'spicy',
+] as const;
 export type DietFlag = typeof DIET_FLAGS[number];
+
+/** Single source of truth for the diet vocabulary INSIDE prompts. The flag set
+ * used to be hand-pasted into three separate prompt strings; when 雞扎 shipped as
+ * 豬肉+牛肉 with no way to say chicken, part of the cause was that the schema (7
+ * flags) literally could not express the right answer, and nobody noticed because
+ * the vocabulary lived in three places. Deriving it here means the prompts and the
+ * sanitizer can never drift apart again. */
+export const DIET_FLAG_LIST = DIET_FLAGS.join(', ');
+
+/** The diet portion of every enrichment/vision prompt, grounded the way
+ * dishIdentity.ts grounds NAME matching: Chinese food names lie at the surface, so
+ * a string may never AUTHOR a flag — it can only make the model reason from the
+ * real recipe. The chain (ingredients first → flags derived only from them) plus
+ * the named trap classes is the whole fix; kept in one constant so all three
+ * prompt sites say the exact same thing. */
+export const DIET_PROMPT_GUIDANCE =
+  `Reason about diet flags in TWO steps, in order:\n` +
+  `  (1) First determine the dish's REAL typical ingredients as classically prepared.\n` +
+  `  (2) Derive the diet flags ONLY from that ingredient list — NEVER from characters/words in the name.\n` +
+  `Chinese names are often figurative: 菠蘿包 (pineapple bun) contains no pineapple; ` +
+  `田雞 is frog, NOT chicken; 牛油 is butter, NOT beef; 魚香茄子 contains no fish. ` +
+  `Reason from the recipe, not the characters.`;
+
+/** The one extra line appended on a tripwire re-ask (see dietSuspicion). */
+export const DIET_RECHECK_LINE =
+  `Double-check the diet flags against the dish's classic recipe; correct any flag that does not belong.`;
 export const COOKING_METHODS = ['fried', 'steamed', 'grilled', 'braised', 'baked', 'raw', 'stir-fried', 'boiled', 'other'] as const;
 export type CookingMethod = typeof COOKING_METHODS[number];
 export const HEAVINESS = ['light', 'medium', 'heavy'] as const;
@@ -311,15 +340,20 @@ export async function* scanMenuSkeletonStream(base64: string, mediaType: string)
   };
 }
 
+// Field ORDER matters: "i" (ingredients) is emitted BEFORE "d" (diet) on purpose —
+// the model must commit to the real recipe first, then read the flags off it, which
+// is exactly the grounding DIET_PROMPT_GUIDANCE describes. Emitting flags first would
+// invite the surface-name shortcut the whole spec exists to kill.
 const ENRICH_SYSTEM = `You describe ONE dish from a restaurant menu, using culinary knowledge only (no photo).
 Respond with ONLY compact JSON, no fences:
 {"h": string (<=6 words, most distinctive sensory hook, in ENGLISH, each word capitalized like a title),
  "hz": string (the SAME hook, in Traditional Chinese, Hong Kong Cantonese flavor — not a literal word-for-word translation, write it as a native speaker would),
- "d": [string] (diet/allergen flags this dish LIKELY has, from EXACTLY this set: veg, pork, beef, seafood, shellfish, peanut, spicy — omit any you're not reasonably confident about; empty array if none apply),
+ "i": [string] (up to 4 key ingredients of the dish as classically prepared, lowercase, e.g. "tofu","chili","garlic"),
+ "d": [string] (diet/allergen flags, from EXACTLY this set: ${DIET_FLAG_LIST} — omit any you're not reasonably confident about; empty array if none apply),
  "m": string|null (primary cooking method, from EXACTLY: fried, steamed, grilled, braised, baked, raw, stir-fried, boiled, other — null if unclear),
- "w": string|null (heaviness: light, medium, or heavy — your best culinary judgment; null if unclear),
- "i": [string] (up to 4 key ingredients, lowercase, e.g. "tofu","chili","garlic")}
-Diet flags are your best estimate from the dish name and culinary knowledge, not a guarantee — never claim certainty about allergens.`;
+ "w": string|null (heaviness: light, medium, or heavy — your best culinary judgment; null if unclear)}
+${DIET_PROMPT_GUIDANCE}
+Diet flags are your best estimate, not a guarantee — never claim certainty about allergens.`;
 
 export type Enrichment = { hook: string; hook_zh: string; diet: DietFlag[]; cooking_method: CookingMethod | null; heaviness: Heaviness | null; ingredients: string[] };
 
@@ -331,11 +365,11 @@ export type Enrichment = { hook: string; hook_zh: string; diet: DietFlag[]; cook
  * call, not the sum of every dish, and each card fills in the moment ITS call
  * finishes rather than everyone waiting for the whole menu together.
  */
-export async function enrichOneDish(item: { name: string; cuisine: string; section?: string | null }): Promise<Enrichment> {
-  const userText = `${item.name}${item.section ? ` (menu section: ${item.section})` : ''} \u2014 cuisine: ${item.cuisine}`;
-  const text = await callClaude(ENRICH_SYSTEM, userText, { maxTokens: 260 });
+const EMPTY_ENRICHMENT: Enrichment = { hook: '', hook_zh: '', diet: [], cooking_method: null, heaviness: null, ingredients: [] };
+
+function parseEnrichment(text: string | null): Enrichment | null {
   const parsed = parseJsonResponse<any>(text);
-  if (!parsed) return { hook: '', hook_zh: '', diet: [], cooking_method: null, heaviness: null, ingredients: [] };
+  if (!parsed) return null;
   return {
     hook: String(parsed.h ?? '').slice(0, 80),
     hook_zh: String(parsed.hz ?? '').slice(0, 80),
@@ -344,6 +378,86 @@ export async function enrichOneDish(item: { name: string; cuisine: string; secti
     heaviness: sanitizeHeaviness(parsed.w),
     ingredients: sanitizeIngredients(parsed.i),
   };
+}
+
+export async function enrichOneDish(item: { name: string; name_zh?: string | null; cuisine: string; section?: string | null }): Promise<Enrichment> {
+  const userText = `${item.name}${item.section ? ` (menu section: ${item.section})` : ''} \u2014 cuisine: ${item.cuisine}`;
+  const first = parseEnrichment(await callClaude(ENRICH_SYSTEM, userText, { maxTokens: 260 }));
+  if (!first) return EMPTY_ENRICHMENT;
+
+  // Tripwire, not authority (see dietSuspicion). A name/flag/ingredient mismatch
+  // never edits a flag itself \u2014 that would be exactly the string-authoring bug the
+  // spec forbids. It only earns ONE re-ask of the same knowledge call with an added
+  // "recheck against the classic recipe" nudge, and whatever that re-ask returns is
+  // final even if the tripwire would still fire (\u83e0\u863f\u5305 legitimately keeps its
+  // no-pineapple answer). Skip the retry with no key: the call would just return
+  // null again, and mock mode has nothing to re-check.
+  if (process.env.OPENROUTER_API_KEY && dietSuspicion(item.name, item.name_zh ?? null, first.diet, first.ingredients)) {
+    const retry = parseEnrichment(await callClaude(ENRICH_SYSTEM, `${userText}\n${DIET_RECHECK_LINE}`, { maxTokens: 260 }));
+    if (retry) return retry;
+  }
+  return first;
+}
+
+// Protein morphemes and the ONE flag each implies, paired with the lowercase
+// English ingredient substrings that count as real recipe support. This is the
+// tripwire's whole vocabulary: it is deliberately small and closed. It NEVER
+// authors a flag \u2014 it only decides whether a name and its flags are consistent
+// enough to trust, or worth a single knowledge re-check.
+const PROTEIN_TRIPWIRE: { morphemes: string[]; flag: DietFlag; ingredientKeys: string[] }[] = [
+  { morphemes: ['\u96de', 'chicken'], flag: 'chicken', ingredientKeys: ['chicken'] },
+  { morphemes: ['\u725b', 'beef'], flag: 'beef', ingredientKeys: ['beef'] },
+  { morphemes: ['\u8c6c', 'pork'], flag: 'pork', ingredientKeys: ['pork'] },
+  { morphemes: ['\u9d28', 'duck'], flag: 'duck_goose', ingredientKeys: ['duck'] },
+  { morphemes: ['\u9d5d', 'goose'], flag: 'duck_goose', ingredientKeys: ['goose'] },
+  { morphemes: ['\u7f8a', 'lamb', 'mutton'], flag: 'lamb', ingredientKeys: ['lamb', 'mutton'] },
+  { morphemes: ['\u8766', 'shrimp', 'prawn'], flag: 'shellfish', ingredientKeys: ['shrimp', 'prawn'] },
+  { morphemes: ['\u9b5a', 'fish'], flag: 'seafood', ingredientKeys: ['fish'] },
+  { morphemes: ['\u86cb', 'egg'], flag: 'egg', ingredientKeys: ['egg'] },
+];
+
+// Figurative compounds where a protein character does NOT mean that protein. These
+// are neutralised BEFORE morpheme scanning so the tripwire never demands chicken of
+// \u7530\u96de (frog) or beef of \u725b\u6cb9 (butter) \u2014 the key anti-regression cases. This is a
+// closed list of known traps, not a general parser; growing it is cheap and safe
+// because the worst case of a missing trap is one harmless re-ask, never a wrong flag.
+const DIET_NAME_TRAPS = ['\u7530\u96de', '\u725b\u6cb9\u679c', '\u725b\u6cb9', '\u9b5a\u9999', '\u9b5a\u9732', '\u9b5a\u86cb'];
+
+/**
+ * TRIPWIRE for diet-flag integrity \u2014 pure, exported, unit-tested. Returns true when
+ * a dish's name and its diet flags look INCONSISTENT enough to be worth one recipe
+ * re-check. It is advisory only: it never edits a flag, and a "true" here is a
+ * question ("are you sure?"), never a verdict ("add chicken"). Two independent ways
+ * to raise suspicion:
+ *   1. A protein morpheme in the name has neither its flag NOR a supporting
+ *      ingredient (e.g. \u96de\u624e named with chicken but tagged only pork+beef).
+ *   2. A protein flag is present with no support in the name OR the ingredients
+ *      (e.g. the bogus \u8c6c\u8089+\u725b\u8089 on \u96de\u624e \u2014 pork/beef backed by nothing).
+ * Figurative names (\u7530\u96de, \u725b\u6cb9\u2026) are stripped first so their characters never fire
+ * rule 1 \u2014 reasoning from the recipe, not the surface, exactly as the flags must.
+ */
+export function dietSuspicion(
+  name: string | null | undefined,
+  name_zh: string | null | undefined,
+  flags: readonly string[],
+  ingredients: readonly string[],
+): boolean {
+  let hay = `${name ?? ''} ${name_zh ?? ''}`.toLowerCase();
+  for (const trap of DIET_NAME_TRAPS) hay = hay.split(trap.toLowerCase()).join(' ');
+  const ings = ingredients.map(i => i.toLowerCase());
+  const flagSet = new Set(flags.map(f => f.toLowerCase()));
+  const ingredientSupports = (keys: string[]) => ings.some(ing => keys.some(k => ing.includes(k)));
+
+  for (const p of PROTEIN_TRIPWIRE) {
+    const inName = p.morphemes.some(m => hay.includes(m.toLowerCase()));
+    const hasFlag = flagSet.has(p.flag);
+    const hasIngredient = ingredientSupports(p.ingredientKeys);
+    // Rule 1: the name says this protein, but nothing backs it up.
+    if (inName && !hasFlag && !hasIngredient) return true;
+    // Rule 2: the flag claims this protein, but nothing backs it up.
+    if (hasFlag && !inName && !hasIngredient) return true;
+  }
+  return false;
 }
 
 const SCORE_ONE_SYSTEM = `You estimate sensory flavor attributes for ONE dish, using culinary knowledge only (no photo).

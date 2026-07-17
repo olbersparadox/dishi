@@ -34,7 +34,13 @@ export type RestaurantChoice =
  * whenever Google or a prior Dishi record actually has both languages — never a
  * fabricated second line.
  */
-export default function RestaurantPicker({ onChange }: { onChange: (c: RestaurantChoice) => void }) {
+export default function RestaurantPicker({ onChange, skipFirst = false }: {
+  onChange: (c: RestaurantChoice) => void;
+  /** Album mode (old camera-roll photos): the photo probably wasn't taken near
+   * where the user is standing NOW, so "skip" leads the chip row instead of
+   * trailing it — nearby suggestions become the fallback, not the assumption. */
+  skipFirst?: boolean;
+}) {
   const { t, lang } = useLang();
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [nearby, setNearby] = useState<Nearby[]>([]);
@@ -136,6 +142,11 @@ export default function RestaurantPicker({ onChange }: { onChange: (c: Restauran
       {status === 'denied' && <p className="card-meta">{t('picker.denied')}</p>}
 
       <div className="chips" style={{ marginTop: 8 }}>
+        {skipFirst && (
+          <button className={`chip ${selectedKey === 'skip' ? 'on' : ''}`} onClick={skip}>
+            {t('picker.skip')}
+          </button>
+        )}
         {nearby.map(r => {
           const key = r.source === 'dishi' ? r.id! : r.place_id!;
           // Single name, in whichever language the app currently displays. Google
@@ -154,9 +165,11 @@ export default function RestaurantPicker({ onChange }: { onChange: (c: Restauran
         <button className={`chip ${adding ? 'on' : ''}`} onClick={() => setAdding(a => !a)}>
           {t('picker.add')}
         </button>
-        <button className={`chip ${selectedKey === 'skip' ? 'on' : ''}`} onClick={skip}>
-          {t('picker.skip')}
-        </button>
+        {!skipFirst && (
+          <button className={`chip ${selectedKey === 'skip' ? 'on' : ''}`} onClick={skip}>
+            {t('picker.skip')}
+          </button>
+        )}
       </div>
 
       {adding && (

@@ -46,6 +46,12 @@ export async function POST(req: NextRequest) {
   const photo = form.get('photo') as File | null;
   if (!photo) return NextResponse.json({ error: 'A photo is required.' }, { status: 400 });
 
+  // Entry context the user chose on the Taste tab (餐廳菜/屋企煮/相簿舊相).
+  // Whitelisted — 'scan'/'table' are reserved for their own pipelines and can't
+  // be claimed by this endpoint.
+  const rawSource = (form.get('source') as string) || '';
+  const source = ['photo', 'home', 'album'].includes(rawSource) ? rawSource : 'photo';
+
   // Resolve restaurant: existing id, or create one from the quick-pick "add" path.
   let restaurantId = (form.get('restaurant_id') as string) || null;
   const newRestaurantRaw = form.get('new_restaurant') as string | null;
@@ -89,6 +95,7 @@ export async function POST(req: NextRequest) {
       cooking_method: vision.cooking_method,
       heaviness: vision.heaviness,
       diet: vision.diet,
+      source,
     })
     .select()
     .single();
@@ -127,7 +134,7 @@ async function createFromName(req: NextRequest, supabase: any, userId: string) {
   const cuisine = (await inferCuisineFromName(seed).catch(() => null)) ?? 'unknown';
   const [attributes, enrichment, translated] = await Promise.all([
     scoreOneDish({ name: seed, cuisine }).catch(() => ({})),
-    enrichOneDish({ name: seed, cuisine }).catch(() => null),
+    enrichOneDish({ name: seed, name_zh: nameZh || null, cuisine }).catch(() => null),
     (name && !nameZh ? translateDishName(name) : !name && nameZh ? translateDishName(nameZh) : Promise.resolve(null))
       .catch(() => null),
   ]);
@@ -149,7 +156,11 @@ async function createFromName(req: NextRequest, supabase: any, userId: string) {
       cooking_method: enrichment?.cooking_method ?? null,
       heaviness: enrichment?.heaviness ?? null,
       diet: enrichment?.diet ?? [],
-      source: 'manual',
+      // 'home' when the person entered via the 屋企煮 path and typed the dish;
+      // plain typed entries stay 'manual'. (Note: 'manual' was silently violating
+      // the old check constraint — every no-photo log failed until the
+      // dishes_source_expand_check migration widened it.)
+      source: body?.source === 'home' ? 'home' : 'manual',
     })
     .select()
     .single();

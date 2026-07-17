@@ -8,7 +8,7 @@ import TasteFormCard from '@/components/TasteFormCard';
 import SealReveal, { type SealResult } from '@/components/SealReveal';
 import DishName from '@/components/DishName';
 import type { ExportDish } from '@/lib/tasteExport';
-import { RateIcon, TrashIcon } from '@/components/icons';
+import { RateIcon, TrashIcon, UtensilsIcon, HomeIcon, PhotoIcon } from '@/components/icons';
 import { wordKeyFor } from '@/lib/flickWords';
 import { useLang, cuisineLabel } from '@/lib/i18n';
 
@@ -172,9 +172,16 @@ function TasteProfile() {
           Taste) — this is the bridge so photographing and rating a dish directly
           (not via a menu-scan pick) is still one tap away, right where Jerry
           asked for "rate a dish" to live. */}
-      <Link href="/log" className="btn primary" style={{ display: 'block', textAlign: 'center', textDecoration: 'none', marginBottom: 26 }}>
-        {t('profile.logadish')}
-      </Link>
+      {/* The single ＋記錄口味 button is REPLACED by its three entry paths, so the
+          surface itself teaches that anything counts: a restaurant dish, tonight's
+          home cooking, or a food shot buried in the camera roll. Each path lands
+          in a log flow with the steps IT doesn't need already removed (home has no
+          restaurant question; album is photo-first with skip-first restaurant). */}
+      <div className="log-src-row">
+        <Link href="/log" className="log-src"><UtensilsIcon /><span>{t('logsrc.rest')}</span></Link>
+        <Link href="/log?source=home" className="log-src"><HomeIcon /><span>{t('logsrc.home')}</span></Link>
+        <Link href="/log?source=album" className="log-src"><PhotoIcon /><span>{t('logsrc.album')}</span></Link>
+      </div>
 
       {/* Dishes waiting to be rated — picked off a menu scan or during a shared
           table, not yet rated. Living here (not buried on /log) is deliberate:

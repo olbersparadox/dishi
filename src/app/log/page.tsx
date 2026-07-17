@@ -24,6 +24,19 @@ export default function LogPage() {
 function LogFlow() {
   const { t, lang } = useLang();
   const router = useRouter();
+  // Which entry chip on the Taste tab brought us here. Each mode strips what its
+  // path doesn't need: 'home' has no restaurant step at all (home cooking has no
+  // restaurant); 'album' is photo-library-first (no typed-only pill — an album
+  // log IS a photo) with the restaurant question demoted to skip-first, since an
+  // old shot probably wasn't taken where the user is standing now. 'restaurant'
+  // is the classic flow unchanged, and any unrecognized/absent value falls back
+  // to it so old links keep working. Read once at mount — the mode is fixed for
+  // the life of the flow.
+  const [mode] = useState<'restaurant' | 'home' | 'album'>(() => {
+    if (typeof window === 'undefined') return 'restaurant';
+    const s = new URLSearchParams(window.location.search).get('source');
+    return s === 'home' || s === 'album' ? s : 'restaurant';
+  });
   const [photo, setPhoto] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [restaurant, setRestaurant] = useState<RestaurantChoice>(null);
@@ -76,8 +89,9 @@ function LogFlow() {
         body: JSON.stringify({
           name: typedEn.trim() || undefined,
           name_zh: typedZh.trim() || undefined,
-          restaurant_id: restaurant?.kind === 'existing' ? restaurant.id : undefined,
-          new_restaurant: restaurant?.kind === 'new' ? restaurant : undefined,
+          restaurant_id: mode !== 'home' && restaurant?.kind === 'existing' ? restaurant.id : undefined,
+          new_restaurant: mode !== 'home' && restaurant?.kind === 'new' ? restaurant : undefined,
+          source: mode === 'home' ? 'home' : undefined, // typed entries default to 'manual' server-side
         }),
       });
       const json = await res.json();
@@ -279,8 +293,11 @@ function LogFlow() {
     // 1024px is plenty for dish identification (1600 is only needed for menu TEXT)
     // — roughly halves the upload, and converts iPhone HEIC to JPEG.
     form.append('photo', await normalizePhoto(photo, 1024));
-    if (restaurant?.kind === 'existing') form.append('restaurant_id', restaurant.id);
-    if (restaurant?.kind === 'new') form.append('new_restaurant', JSON.stringify(restaurant));
+    if (mode !== 'home' && restaurant?.kind === 'existing') form.append('restaurant_id', restaurant.id);
+    if (mode !== 'home' && restaurant?.kind === 'new') form.append('new_restaurant', JSON.stringify(restaurant));
+    // Entry context: 'home' and 'album' record their path; the classic flow's
+    // fresh-photo default ('photo') is applied server-side.
+    if (mode !== 'restaurant') form.append('source', mode);
     try {
       const res = await fetch('/api/dishes', { method: 'POST', body: form });
       const json = await res.json();
@@ -355,7 +372,9 @@ function LogFlow() {
     return (
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 22 }}>
-          <h1 style={{ margin: 0 }}>{t('log.title')}</h1>
+          <h1 style={{ margin: 0 }}>
+            {mode === 'home' ? t('log.title.home') : mode === 'album' ? t('log.title.album') : t('log.title')}
+          </h1>
           <button className="icon-btn" onClick={() => router.push('/profile')} aria-label={t('log.cancelflow')} title={t('log.cancelflow')}>
             <CloseIcon />
           </button>
@@ -374,6 +393,7 @@ function LogFlow() {
           </div>
         ) : (
           <div style={{ marginBottom: 14 }}>
+            {mode === 'album' && <p className="card-meta" style={{ marginBottom: 8 }}>{t('log.album.hint')}</p>}
             <PhotoPicker onPick={f => onPickPhoto(f)} icon={<CameraIcon size={38} strokeWidth={1.1} />} hideLabel />
           </div>
         )}
@@ -381,8 +401,10 @@ function LogFlow() {
         {/* A photo is OPTIONAL, not required. The engine learns from a dish's
             attributes, and a typed name yields real attributes — so a no-photo dish
             teaches it exactly as much. (Menu-scan picks have always worked this way;
-            there was simply no way to start one by hand.) */}
-        {!preview && !noPhotoMode && (
+            there was simply no way to start one by hand.) Except in album mode:
+            an "old photo" log without a photo is a contradiction, so the typed-only
+            pill is one of the things that path takes away. */}
+        {!preview && !noPhotoMode && mode !== 'album' && (
           <button className="nophoto-pill" style={{ width: '100%', marginBottom: 28 }} onClick={() => setNoPhotoMode(true)}>
             <EditIcon size={17} />
             {t('log.nophoto')}
@@ -398,9 +420,13 @@ function LogFlow() {
               onChange={e => setTypedEn(e.target.value)} placeholder="Har gow" />
             <p className="card-meta" style={{ marginTop: 4 }}>{t('home.translateOnSave')}</p>
 
-            <div style={{ marginTop: 10 }}>
-              <RestaurantPicker onChange={setRestaurant} />
-            </div>
+            {/* Home-cooked: there IS no restaurant — the entire question is
+                removed, not just made skippable. */}
+            {mode !== 'home' && (
+              <div style={{ marginTop: 10 }}>
+                <RestaurantPicker onChange={setRestaurant} skipFirst={mode === 'album'} />
+              </div>
+            )}
 
             {noPhotoError && <p style={{ color: 'var(--lacquer)', fontSize: 12.5, marginTop: 6 }}>{noPhotoError}</p>}
             <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
@@ -448,8 +474,14 @@ function LogFlow() {
           </div>
         )}
 
-        <label className="label">{t('log.where')}</label>
-        <RestaurantPicker onChange={setRestaurant} />
+        {/* Home-cooked: no restaurant step at all. Album: the question survives
+            but demoted — skip leads, and the label acknowledges memory is fuzzy. */}
+        {mode !== 'home' && (
+          <>
+            <label className="label">{mode === 'album' ? t('log.album.where') : t('log.where')}</label>
+            <RestaurantPicker onChange={setRestaurant} skipFirst={mode === 'album'} />
+          </>
+        )}
 
         {error && <p style={{ color: 'var(--lacquer)', marginTop: 12 }}>{error}</p>}
         <button

@@ -159,3 +159,39 @@ export function CameraIcon({ size = 18, strokeWidth = 1.8 }: IconProps & { strok
     </svg>
   );
 }
+
+/** Fork + knife — dining out at a restaurant (餐廳菜). */
+export function UtensilsIcon({ size = 22 }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor"
+      strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M6 3v6a2 2 0 002 2 2 2 0 002-2V3" />
+      <path d="M8 11v10" />
+      <path d="M18 3c-1.7 0-3 1.8-3 5v4h3V3zm0 9v9" />
+    </svg>
+  );
+}
+
+/** House — home cooking (屋企煮). */
+export function HomeIcon({ size = 22 }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor"
+      strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3 10.5 12 3l9 7.5" />
+      <path d="M5 9.5V20a1 1 0 001 1h12a1 1 0 001-1V9.5" />
+      <path d="M10 21v-6h4v6" />
+    </svg>
+  );
+}
+
+/** Photo / picture — an old shot from the camera roll (相簿舊相). */
+export function PhotoIcon({ size = 22 }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor"
+      strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="3" y="4" width="18" height="16" rx="2.5" />
+      <circle cx="8.5" cy="9.5" r="1.4" />
+      <path d="M21 15l-4.5-4.5L6 21" />
+    </svg>
+  );
+}

@@ -9,8 +9,13 @@ import { cookingBucket, type CookingMethod, type Heaviness } from '@/lib/menuSca
 // met it on. Both now render through this.
 
 const DIET_ICON: Record<string, string> = {
-  veg: '\u{1F331}', pork: '\u{1F416}', beef: '\u{1F404}', seafood: '\u{1F41F}',
-  shellfish: '\u{1F990}', peanut: '\u{1F95C}', spicy: '\u{1F336}\uFE0F',
+  veg: '\u{1F331}', pork: '\u{1F416}', beef: '\u{1F404}',
+  chicken: '\u{1F414}', duck_goose: '\u{1F986}', lamb: '\u{1F411}',
+  seafood: '\u{1F41F}', shellfish: '\u{1F990}',
+  egg: '\u{1F95A}', dairy: '\u{1F95B}',
+  // offal: deliberately no emoji \u2014 nothing tasteful reads as "offal" at chip size,
+  // and a wrong-but-cute icon is worse than the text label alone.
+  peanut: '\u{1F95C}', spicy: '\u{1F336}\uFE0F',
 };
 
 // Filled/hollow dots for the heaviness chip: 清淡●○○ / 適中●●○ / 濃郁●●●
@@ -23,6 +28,7 @@ export type DishInfo = {
   cooking_method?: CookingMethod | string | null;
   heaviness?: Heaviness | string | null;
   diet?: string[] | null;
+  ingredients?: string[] | null;
 };
 
 export default function DishInfoDisplay({ info, compact = false, hideHook = false }: { info: DishInfo; compact?: boolean; hideHook?: boolean }) {
@@ -37,8 +43,13 @@ export default function DishInfoDisplay({ info, compact = false, hideHook = fals
   const showHook = !!bucketText && !hideHook;
   const diet = info.diet ?? [];
   const hasChips = diet.length > 0 || !!info.heaviness;
+  // The recipe the flags were derived FROM — harvested at enrichment but never
+  // shown until now. A quiet " · "-joined line under the chips: it's what makes a
+  // 🐔 chip legible ("why chicken? because 雞肉 · 火腿 · 魚肚"). Lowercase English as
+  // stored today; bilingual ingredient names are a separate, later item.
+  const ingredients = (info.ingredients ?? []).filter(Boolean);
 
-  if (!showHook && !hasChips) return null;
+  if (!showHook && !hasChips && ingredients.length === 0) return null;
 
   return (
     <>
@@ -62,6 +73,11 @@ export default function DishInfoDisplay({ info, compact = false, hideHook = fals
               </span>
             </span>
           )}
+        </div>
+      )}
+      {ingredients.length > 0 && (
+        <div className="card-meta" style={{ marginTop: compact ? 4 : 5 }}>
+          {ingredients.join(' · ')}
         </div>
       )}
     </>

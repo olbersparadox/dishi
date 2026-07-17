@@ -22,6 +22,10 @@ export async function POST(req: NextRequest) {
 
   const enrichment = await enrichOneDish({
     name: item.name_original || item.name,
+    // Passed so the diet tripwire (dietSuspicion) can see the Chinese name too — a
+    // menu whose English column was translated loosely can hide a protein the
+    // 中文 name states plainly (or vice versa).
+    name_zh: item.name_zh,
     cuisine: item.cuisine,
     section: item.section,
   });

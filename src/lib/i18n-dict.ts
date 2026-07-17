@@ -206,7 +206,16 @@ export const dict: Record<string, { zh: string; en: string }> = {
   // ---- profile / buddy ----
   'profile.title': { zh: '味 AI', en: 'Taste AI' },
   'profile.flicks': { zh: '{n} 次滑動 · {p} 有用積分', en: '{n} flicks · {p} usefulness points' },
-  'profile.logadish': { zh: '+ 記錄口味', en: '+ Log a dish' },
+  // Three-path entry on the Taste tab — these REPLACE the single log button, so
+  // the surface itself says "anything counts": eating out, home cooking, or an
+  // old photo sitting in the camera roll.
+  'logsrc.rest': { zh: '餐廳菜', en: 'Dining out' },
+  'logsrc.home': { zh: '屋企煮', en: 'Home-cooked' },
+  'logsrc.album': { zh: '相簿舊相', en: 'Old photos' },
+  'log.title.home': { zh: '記錄屋企煮嘅', en: 'Log a home-cooked dish' },
+  'log.title.album': { zh: '記錄相簿舊相', en: 'Log from your camera roll' },
+  'log.album.hint': { zh: '喺相簿揀返張食物相 — 幾耐之前食都得', en: 'Pick a food shot from your photos — no matter how long ago' },
+  'log.album.where': { zh: '記唔記得喺邊度食？唔記得可以跳過', en: 'Remember where you had it? Skip if not' },
   'profile.helped': { zh: ' — 你嘅記錄幫過其他人決定', en: ' — your logs helped other people decide' },
   'profile.cuisines': { zh: '菜系', en: 'Cuisines' },
   'profile.rated': { zh: '已評嘅菜', en: 'Dishes you\u2019ve rated' },
@@ -298,8 +307,14 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'scan.diet.veg': { zh: '素', en: 'Veg' },
   'scan.diet.pork': { zh: '豬肉', en: 'Pork' },
   'scan.diet.beef': { zh: '牛肉', en: 'Beef' },
+  'scan.diet.chicken': { zh: '雞肉', en: 'Chicken' },
+  'scan.diet.duck_goose': { zh: '鴨鵝', en: 'Duck & Goose' },
+  'scan.diet.lamb': { zh: '羊肉', en: 'Lamb' },
   'scan.diet.seafood': { zh: '海鮮', en: 'Seafood' },
   'scan.diet.shellfish': { zh: '帶殼海鮮', en: 'Shellfish' },
+  'scan.diet.egg': { zh: '蛋', en: 'Egg' },
+  'scan.diet.dairy': { zh: '奶類', en: 'Dairy' },
+  'scan.diet.offal': { zh: '內臟', en: 'Offal' },
   'scan.diet.peanut': { zh: '花生', en: 'Peanut' },
   'scan.diet.spicy': { zh: '辣', en: 'Spicy' },
   // Cooking method \u2014 only the two NOT already covered by dim.* (fried/steamed/
