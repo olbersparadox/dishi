@@ -134,7 +134,8 @@ export const dict: Record<string, { zh: string; en: string }> = {
   // ---- scan ----
   'scan.title': { zh: '掃餐牌', en: 'Scan a menu' },
   'scan.tip': { zh: '平放影全頁效果最好。中文、英文、中英夾雜都得', en: 'Works best flat-on with the whole page in frame. Chinese, English, or both.' },
-  'scan.tablestatus': { zh: '{n} 人 · 揀咗 {m} 碟', en: '{n} here · {m} picked' },
+  'scan.tablestatus': { zh: '|    {n} 人 · 揀咗 {m} 碟', en: '|    {n} here · {m} picked' },
+  'scan.tablelabel': { zh: '枱號：', en: 'Table ' },
   'scan.share.alsopicked': { zh: '{handles} 都揀咗', en: '{handles} picked this too' },
   'scan.results': { zh: '你嘅最佳選擇', en: 'Your best bets' },
   'scan.addpage': { zh: '加掃一版', en: 'Add a page' },

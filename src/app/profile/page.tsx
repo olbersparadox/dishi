@@ -178,9 +178,9 @@ function TasteProfile() {
           in a log flow with the steps IT doesn't need already removed (home has no
           restaurant question; album is photo-first with skip-first restaurant). */}
       <div className="log-src-row">
-        <Link href="/log" className="log-src"><UtensilsIcon /><span>{t('logsrc.rest')}</span></Link>
-        <Link href="/log?source=home" className="log-src"><HomeIcon /><span>{t('logsrc.home')}</span></Link>
-        <Link href="/log?source=album" className="log-src"><PhotoIcon /><span>{t('logsrc.album')}</span></Link>
+        <Link href="/log" className="log-src"><UtensilsIcon size={30} /><span>+{t('logsrc.rest')}</span></Link>
+        <Link href="/log?source=home" className="log-src"><HomeIcon size={30} /><span>+{t('logsrc.home')}</span></Link>
+        <Link href="/log?source=album" className="log-src"><PhotoIcon size={30} /><span>+{t('logsrc.album')}</span></Link>
       </div>
 
       {/* Dishes waiting to be rated — picked off a menu scan or during a shared

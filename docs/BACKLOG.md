@@ -13,10 +13,12 @@ _(nothing in flight — pull from Next)_
 
 ## Next
 
-- [ ] **[S] Bilingual ingredient display.** The ingredients line under the diet
-  chips (DishInfoDisplay) shows lowercase English as stored today. Give ingredients
-  a zh/en pair so the line reads native in Chinese-first mode. Deferred out of the
-  diet-flag-integrity work; needs its own small vocabulary/translation pass.
+- [ ] **[S/F] Dish-detail view with full ingredients.** The summary cards now show
+  only the common iconifiable ingredients as emoji (DishInfoDisplay), dropping the
+  rest. The complete, text-labelled ingredient list should live in a dedicated
+  dish-detail surface (likely a tab/expand on a dish) for a deeper view — decide
+  the surface, then build. Supersedes the old "bilingual ingredient LINE" idea: the
+  zh/en pairing still matters, but for that detail view, not the summary row.
 - [ ] **[F] Diet taxonomy growth (gluten, soy, nuts-general).** The 雞扎 fix took
   DIET_FLAGS from 7 → 13 (added poultry/lamb/egg/dairy/offal). Further allergen
   axes are real but each needs its own recipe-grounding thought — do NOT bolt them

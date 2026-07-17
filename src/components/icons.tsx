@@ -195,3 +195,14 @@ export function PhotoIcon({ size = 22 }: IconProps) {
     </svg>
   );
 }
+
+/** Speech bubble — Dishi "talking" (e.g. the why-recommended reason line).
+ *  Soft, well-rounded bubble with a small tail. */
+export function SpeechIcon({ size = 16 }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor"
+      strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M7 3h10a5 5 0 015 5v2a5 5 0 01-5 5h-5l-4 4v-4H7a5 5 0 01-5-5V8a5 5 0 015-5z" />
+    </svg>
+  );
+}

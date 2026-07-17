@@ -9,7 +9,7 @@ import RestaurantPicker, { RestaurantChoice } from '@/components/RestaurantPicke
 import { mapWithConcurrency } from '@/lib/concurrency';
 import DishInfoDisplay from '@/components/DishInfoDisplay';
 import { sumPrices } from '@/lib/price';
-import { CameraIcon, MenuBookIcon, ArrowRightIcon, CloseIcon } from '@/components/icons';
+import { CameraIcon, MenuBookIcon, ArrowRightIcon, CloseIcon, SpeechIcon } from '@/components/icons';
 import { sameDishInSession, restaurantKeptNote } from '@/lib/menuMerge';
 import { getScanSession, setScanSession, clearScanSession } from '@/lib/scanSession';
 import { useLang } from '@/lib/i18n';
@@ -672,11 +672,16 @@ function Scanner() {
           leaving the scan screen. */}
       {tableSession && (
         <div className="table-bar">
-          <span className="table-bar-code">{tableSession.code}</span>
-          {/* Headcount + dishes picked as one quiet meta line ("2 人 · 3 已揀")
-              per the handoff's session bar — status, not a dashboard. */}
-          <span className="table-bar-stat">
-            {t('scan.tablestatus', { n: tableMemberCount, m: tablePicks.length })}
+          <span className="table-bar-left">
+            <span className="table-bar-codewrap">
+              <span className="table-bar-label">{t('scan.tablelabel')}</span>
+              <span className="table-bar-code">{tableSession.code}</span>
+            </span>
+            {/* Headcount + dishes picked as one quiet meta line, sitting right
+                after the code (separated by a "|") — status, not a dashboard. */}
+            <span className="table-bar-stat">
+              {t('scan.tablestatus', { n: tableMemberCount, m: tablePicks.length })}
+            </span>
           </span>
           <button className="btn small" onClick={copyTableLink}>
             {t('table.invite')}
@@ -749,14 +754,19 @@ function Scanner() {
                 <div className="card-body">
                   <div className="dish-row">
                     <div className="card-title" style={{ display: 'flex', alignItems: 'baseline', gap: 7, minWidth: 0 }}>
-                      <DishName prefix={`${i + 1}. `} name={item.name} name_zh={item.name_zh} name_original={item.name_original} />
+                      <DishName prefix={`${i + 1}. `} name={item.name} name_zh={item.name_zh} name_original={item.name_original}
+                        suffix={fire ? <span className="scan-fire scan-fire-pop" aria-label={t('scan.fire')}>{'\uD83D\uDD25'}</span> : undefined} />
                       {item.isNew && <span className="scan-new-tag">{t('scan.new')}</span>}
-                      {fire && <span className="scan-fire scan-fire-pop" aria-label={t('scan.fire')}>{'\uD83D\uDD25'}</span>}
                     </div>
                     {item.price && <span className="dish-price">{item.price}</span>}
                   </div>
                   <DishDetails item={item} t={t} lang={lang} pickedBy={pickersFor(item, tablePicks)} />
-                  {fire && item.reason && <p className="scan-reason fade-in">{item.reason}</p>}
+                  {fire && item.reason && (
+                    <p className="scan-reason fade-in">
+                      <span className="scan-reason-icon" aria-hidden><SpeechIcon size={18} /></span>
+                      <span>{item.reason}</span>
+                    </p>
+                  )}
                 </div>
               </article>
             );
