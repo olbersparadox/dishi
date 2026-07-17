@@ -13,8 +13,8 @@
  */
 import {
   DIMS, LEARN_CUTOFF, emptyTaste, contentScore,
-  updateTaste, bumpEvidence, updateTasteFromDuel, bumpEvidenceFromDuel,
-  DUEL_WEIGHT, DUEL_K,
+  updateTaste, bumpEvidence, updateTasteFromDuel, updateTasteFromDuelTie, bumpEvidenceFromDuel,
+  DUEL_WEIGHT, DUEL_K, DUEL_TIE_WEIGHT,
   type TasteVector, type DishVector, type EvidenceMap,
 } from '../src/lib/taste';
 import { selectDuelPair, type DuelCandidate, type ExistingDuelRow } from '../src/lib/duels';
@@ -38,6 +38,7 @@ const gauss = (r: () => number) => {
 const CUISINES = ['cantonese', 'japanese', 'italian', 'thai'];
 const RATING_GAIN = 10;    // maps contentScore (~±0.1) to a flick in ±1
 const RATING_NOISE = 0.35; // mood/hunger/scale drift on an absolute flick
+const TIE_BAND = 0.02;     // ground-truth utility gap below which the user ties (揀唔落)
 
 type Dish = { id: string; cuisine: string; attributes: DishVector };
 
@@ -96,7 +97,7 @@ function learnRatingsOnly(gt: TasteVector, rated: Dish[], r: () => number): Lear
  * (a realistically noisy chooser, not an oracle). */
 function learnWithDuels(
   gt: TasteVector, rated: Dish[], r: () => number,
-  duelOpts: { weight: number; k: number }, interval = 4,
+  duelOpts: { weight: number; k: number; tieWeight: number }, interval = 4,
 ): LearnResult {
   let vector = emptyTaste();
   let evidence: EvidenceMap = {};
@@ -119,15 +120,22 @@ function learnWithDuels(
         const da = seen.find(d => d.id === pair.a.id)!;
         const db = seen.find(d => d.id === pair.b.id)!;
         const du = utility(gt, da) - utility(gt, db);
-        // A pairwise choice is MORE reliable than an absolute flick — that's the
-        // whole premise of duels — so the chooser is sharper than the rating noise.
-        const pAWins = 1 / (1 + Math.exp(-16 * du));
-        const aWins = r() < pAWins;
-        const winner = aWins ? da : db;
-        const loser = aWins ? db : da;
-        vector = updateTasteFromDuel(vector, evidence, winner.attributes, loser.attributes, duelOpts);
-        evidence = bumpEvidenceFromDuel(evidence, winner.attributes, loser.attributes);
-        history.push({ dish_a: pair.a.id, dish_b: pair.b.id, winner: winner.id, served_at: new Date(tick()).toISOString(), skipped_at: null });
+        if (Math.abs(du) < TIE_BAND) {
+          // Ground-truth utilities this close: the user genuinely can't separate
+          // them and taps 揀唔落 — a tie, learned toward neutral.
+          vector = updateTasteFromDuelTie(vector, evidence, da.attributes, db.attributes, { weight: duelOpts.tieWeight, k: duelOpts.k });
+          evidence = bumpEvidenceFromDuel(evidence, da.attributes, db.attributes);
+        } else {
+          // A pairwise choice is MORE reliable than an absolute flick — that's the
+          // whole premise of duels — so the chooser is sharper than the rating noise.
+          const pAWins = 1 / (1 + Math.exp(-16 * du));
+          const aWins = r() < pAWins;
+          const winner = aWins ? da : db;
+          const loser = aWins ? db : da;
+          vector = updateTasteFromDuel(vector, evidence, winner.attributes, loser.attributes, duelOpts);
+          evidence = bumpEvidenceFromDuel(evidence, winner.attributes, loser.attributes);
+        }
+        history.push({ dish_a: pair.a.id, dish_b: pair.b.id, resolved: true, served_at: new Date(tick()).toISOString() });
       }
     }
   }
@@ -159,7 +167,7 @@ function lowEvidenceOpinionatedDims(gt: TasteVector, ratingEvidence: EvidenceMap
 void decidingDim;
 
 // ── run ──────────────────────────────────────────────────────────────────────
-function run(duelOpts: { weight: number; k: number }, seedOffset = 0) {
+function run(duelOpts: { weight: number; k: number; tieWeight: number }, seedOffset = 0) {
   // Sparse ratings on purpose: with only this many flicks, several dims a user
   // genuinely cares about stay under-taught (low evidence) — the regime duels exist
   // to help. (A user who has rated hundreds of dishes needs no help.)
@@ -209,7 +217,7 @@ function run(duelOpts: { weight: number; k: number }, seedOffset = 0) {
 // Average over several seed bases so the tuning decision isn't chasing one lucky
 // draw of 30 users.
 const SEEDS = [0, 500, 1000, 1500, 2000];
-function avg(opts: { weight: number; k: number }) {
+function avg(opts: { weight: number; k: number; tieWeight: number }) {
   let oA = 0, oB = 0, lA = 0, lB = 0, n = 0;
   for (const s of SEEDS) {
     const r = run(opts, s);
@@ -219,10 +227,11 @@ function avg(opts: { weight: number; k: number }) {
   return { overallA: oA / k, overallB: oB / k, lowEvA: lA / k, lowEvB: lB / k, lowEvN: Math.round(n / k) };
 }
 
-// Sweep (weight, K), each averaged across seeds, to pick defaults on evidence.
+const TW = DUEL_TIE_WEIGHT;
+// Sweep win (weight, K) at the shipped tie weight, each averaged across seeds.
 const grid = [
-  { weight: 0.3, k: 4 }, { weight: 0.6, k: 4 }, { weight: 0.9, k: 4 },
-  { weight: 0.6, k: 1 }, { weight: 0.6, k: 2 }, { weight: 0.6, k: 6 },
+  { weight: 0.3, k: 4, tieWeight: TW }, { weight: 0.6, k: 4, tieWeight: TW }, { weight: 0.9, k: 4, tieWeight: TW },
+  { weight: 0.6, k: 1, tieWeight: TW }, { weight: 0.6, k: 2, tieWeight: TW }, { weight: 0.6, k: 6, tieWeight: TW },
 ];
 console.log(`sweep — mean over ${SEEDS.length} seed bases (overall A→B / low-ev A→B):`);
 for (const g of grid) {
@@ -234,8 +243,16 @@ for (const g of grid) {
   );
 }
 
-console.log(`\nACCEPTANCE — shipped constants (DUEL_WEIGHT=${DUEL_WEIGHT}, DUEL_K=${DUEL_K}), mean over ${SEEDS.length} seeds:`);
-const res = avg({ weight: DUEL_WEIGHT, k: DUEL_K });
+// Tie-weight comparison at the chosen win params (0 = "揀唔落 teaches nothing").
+console.log(`\ntie-weight sweep at weight=${DUEL_WEIGHT} k=${DUEL_K} (low-ev A→B):`);
+for (const tw of [0, 0.2, 0.4, 0.6]) {
+  const rr = avg({ weight: DUEL_WEIGHT, k: DUEL_K, tieWeight: tw });
+  const dL = rr.lowEvB - rr.lowEvA, dO = rr.overallB - rr.overallA;
+  console.log(`  tieWeight=${tw}:  low-ev ${dL >= 0 ? '+' : ''}${dL.toFixed(2)}pp   overall ${dO >= 0 ? '+' : ''}${dO.toFixed(2)}pp`);
+}
+
+console.log(`\nACCEPTANCE — shipped constants (DUEL_WEIGHT=${DUEL_WEIGHT}, DUEL_K=${DUEL_K}, DUEL_TIE_WEIGHT=${DUEL_TIE_WEIGHT}), mean over ${SEEDS.length} seeds:`);
+const res = avg({ weight: DUEL_WEIGHT, k: DUEL_K, tieWeight: DUEL_TIE_WEIGHT });
 const lowEvGain = res.lowEvB - res.lowEvA;
 const overallDelta = res.overallB - res.overallA;
 console.log(`  overall ranking:   ${res.overallA.toFixed(2)}%  →  ${res.overallB.toFixed(2)}%   (Δ ${overallDelta >= 0 ? '+' : ''}${overallDelta.toFixed(2)}pp)`);

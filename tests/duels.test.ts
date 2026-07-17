@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import {
-  updateTasteFromDuel, bumpEvidenceFromDuel, duelContrast,
+  updateTasteFromDuel, updateTasteFromDuelTie, bumpEvidenceFromDuel, duelContrast,
   DUEL_WEIGHT, emptyTaste, type DishVector, type TasteVector,
 } from '../src/lib/taste';
 import { selectDuelPair, type DuelCandidate, type ExistingDuelRow } from '../src/lib/duels';
@@ -68,6 +68,34 @@ describe('updateTasteFromDuel', () => {
   });
 });
 
+// ── updateTasteFromDuelTie (揀唔落) ─────────────────────────────────────────────
+describe('updateTasteFromDuelTie', () => {
+  it('pulls a confidently-predicted gap back toward neutral', () => {
+    // Engine strongly prefers umami; a tie says "these two are actually equal" ->
+    // the umami preference should shrink toward 0.
+    const start: TasteVector = { ...emptyTaste(), umami: 0.8 };
+    const next = updateTasteFromDuelTie(start, {}, { umami: 0.9 }, { umami: 0.3 });
+    expect(next.umami).toBeLessThan(0.8);
+    expect(next.umami).toBeGreaterThan(0); // nudged toward neutral, not flipped
+  });
+
+  it('is a near-no-op when the engine was already neutral (nothing to correct)', () => {
+    // taste umami 0 -> p = 0.5 -> (0.5 - p) = 0 -> no movement
+    const next = updateTasteFromDuelTie(emptyTaste(), {}, { umami: 0.9 }, { umami: 0.3 });
+    expect(next.umami).toBeCloseTo(0, 9);
+  });
+
+  it('ignores murmur dims and is symmetric in dish order', () => {
+    const a: DishVector = { umami: 0.9, spicy: 0.1 }; // spicy is murmur
+    const b: DishVector = { umami: 0.3 };
+    const start: TasteVector = { ...emptyTaste(), umami: 0.8 };
+    const ab = updateTasteFromDuelTie(start, {}, a, b);
+    const ba = updateTasteFromDuelTie(start, {}, b, a);
+    expect(ab.umami).toBeCloseTo(ba.umami, 9); // order-independent
+    expect(ab.spicy).toBe(0);                   // murmur taught nothing
+  });
+});
+
 // ── bumpEvidenceFromDuel ────────────────────────────────────────────────────────
 describe('bumpEvidenceFromDuel', () => {
   it('bumps only dims contrasted by at least 0.3', () => {
@@ -114,16 +142,17 @@ describe('selectDuelPair', () => {
 
   it('excludes an already-answered pair regardless of stored order', () => {
     const cands = [cand('x', 'cantonese', { umami: 0.9 }), cand('y', 'cantonese', { umami: 0.3 })];
-    // stored as (y, x) — the opposite order to the candidate loop
-    const answered: ExistingDuelRow[] = [{ dish_a: 'y', dish_b: 'x', winner: 'y', served_at: daysAgo(200), skipped_at: null }];
+    // stored as (y, x) — the opposite order to the candidate loop. resolved covers
+    // both a win and a tie (揀唔落) — either retires the pair.
+    const answered: ExistingDuelRow[] = [{ dish_a: 'y', dish_b: 'x', resolved: true, served_at: daysAgo(200) }];
     expect(selectDuelPair(cands, {}, answered, NOW)).toBeNull();
   });
 
   it('excludes a pair served within the recency window, then lets it back after', () => {
     const cands = [cand('x', 'cantonese', { umami: 0.9 }), cand('y', 'cantonese', { umami: 0.3 })];
-    const recent: ExistingDuelRow[] = [{ dish_a: 'x', dish_b: 'y', winner: null, served_at: daysAgo(10), skipped_at: null }];
+    const recent: ExistingDuelRow[] = [{ dish_a: 'x', dish_b: 'y', resolved: false, served_at: daysAgo(10) }];
     expect(selectDuelPair(cands, {}, recent, NOW)).toBeNull();
-    const old: ExistingDuelRow[] = [{ dish_a: 'x', dish_b: 'y', winner: null, served_at: daysAgo(40), skipped_at: null }];
+    const old: ExistingDuelRow[] = [{ dish_a: 'x', dish_b: 'y', resolved: false, served_at: daysAgo(40) }];
     expect(selectDuelPair(cands, {}, old, NOW)).not.toBeNull();
   });
 
@@ -131,9 +160,9 @@ describe('selectDuelPair', () => {
     const cands = [cand('x', 'cantonese', { umami: 0.9 }), cand('y', 'cantonese', { umami: 0.3 })];
     // x already in 3 duels (with other, long-gone dishes) -> excluded
     const existing: ExistingDuelRow[] = [
-      { dish_a: 'x', dish_b: 'p', winner: 'x', served_at: daysAgo(200), skipped_at: null },
-      { dish_a: 'x', dish_b: 'q', winner: 'q', served_at: daysAgo(180), skipped_at: null },
-      { dish_a: 'x', dish_b: 'r', winner: 'x', served_at: daysAgo(160), skipped_at: null },
+      { dish_a: 'x', dish_b: 'p', resolved: true, served_at: daysAgo(200) },
+      { dish_a: 'x', dish_b: 'q', resolved: true, served_at: daysAgo(180) },
+      { dish_a: 'x', dish_b: 'r', resolved: true, served_at: daysAgo(160) },
     ];
     expect(selectDuelPair(cands, {}, existing, NOW)).toBeNull();
   });
@@ -183,11 +212,10 @@ describe('replayProfile (merged ratings + duels)', () => {
       { score: 1, voice_attributes: null, created_at: '2026-07-01T00:00:00Z', dishes: { attributes: { umami: 0.8 }, cuisine: 'cantonese' } },
     ];
     duelData = [
-      // answered: teaches spicy toward the winner
-      { winner: 'w', answered_at: '2026-07-02T00:00:00Z', a: { id: 'w', attributes: { spicy: 0.9 } }, b: { id: 'l', attributes: { spicy: 0.1 } } },
-      // unanswered leftover (winner null) — the query filter would drop it live; the
-      // defensive guard drops it here too. Must be inert.
-      { winner: null, answered_at: null, a: { id: 'w', attributes: { sweet: 0.9 } }, b: { id: 'l', attributes: { sweet: 0.1 } } },
+      // a WIN: teaches spicy toward the winner
+      { winner: 'w', tied_at: null, answered_at: '2026-07-02T00:00:00Z', a: { id: 'w', attributes: { spicy: 0.9 } }, b: { id: 'l', attributes: { spicy: 0.1 } } },
+      // an open/dismissed duel (answered_at null) — inert via the defensive guard
+      { winner: null, tied_at: null, answered_at: null, a: { id: 'w', attributes: { sweet: 0.9 } }, b: { id: 'l', attributes: { sweet: 0.1 } } },
     ];
 
     const fakeUser: any = { from: () => makeChain(ratingData) };
@@ -195,8 +223,28 @@ describe('replayProfile (merged ratings + duels)', () => {
     expect(out).not.toBeNull();
     expect(out!.replayed).toBe(1);           // one rating; the duel is not counted
     expect(out!.vector.umami).toBeGreaterThan(0); // from the rating
-    expect(out!.vector.spicy).toBeGreaterThan(0);  // from the answered duel
-    expect(out!.vector.sweet).toBe(0);        // the unanswered duel taught nothing
+    expect(out!.vector.spicy).toBeGreaterThan(0);  // from the answered win
+    expect(out!.vector.sweet).toBe(0);        // the open duel taught nothing
+  });
+
+  it('replays a tie (揀唔落) as a pull toward neutral', async () => {
+    const { replayProfile } = await import('../src/lib/replay');
+    // Two ratings first push crispy strongly positive; then a tie between a
+    // crispy-rich and a crispy-poor dish says "actually equal" -> crispy shrinks.
+    ratingData = [
+      { score: 1, voice_attributes: null, created_at: '2026-07-01T00:00:00Z', dishes: { attributes: { crispy: 0.9 }, cuisine: 'x' } },
+      { score: 1, voice_attributes: null, created_at: '2026-07-02T00:00:00Z', dishes: { attributes: { crispy: 0.9 }, cuisine: 'x' } },
+    ];
+    const ratingsOnly: any = { from: () => makeChain(ratingData) };
+    duelData = [];
+    const before = (await replayProfile(ratingsOnly, 'user-1'))!.vector.crispy;
+
+    duelData = [
+      { winner: null, tied_at: '2026-07-03T00:00:00Z', answered_at: '2026-07-03T00:00:00Z', a: { id: 'a', attributes: { crispy: 0.9 } }, b: { id: 'b', attributes: { crispy: 0.3 } } },
+    ];
+    const after = (await replayProfile(ratingsOnly, 'user-1'))!.vector.crispy;
+    expect(after).toBeLessThan(before);  // the tie pulled the learned preference down
+    expect(after).toBeGreaterThan(0);    // toward neutral, not flipped
   });
 
   it('orders events by time so a later rating and an earlier duel both land', async () => {

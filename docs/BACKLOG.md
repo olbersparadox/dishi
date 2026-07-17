@@ -9,7 +9,20 @@ Model tier per item: **[S]** = Sonnet (well-specified build) · **[F]** = Fable/
 
 ## Now
 
-_(clear — see Done below)_
+- [ ] **[F] 語言對 — the globe picker (language-pair dish names).** Replace the
+  中/EN switcher with a globe: pick any primary+secondary language for dish names
+  app-wide (ja/ko/th/vi/id/tl/es/fr + zh/en). Canonical zh/en storage untouched;
+  other languages cached lazily in dishes.names jsonb (column already live).
+  Smart preset: foreign-menu scans show the printed original as secondary
+  (point-and-order fidelity). Folds in the Japanese-menu katakana/false-friend
+  prompt hardening. Cross-cutting i18n refactor — use Opus.
+  Full spec: `docs/specs/language-pair-globe.md`.
+- [ ] **[F] 對決 — pairwise taste duels.** Occasionally ask which of two rated
+  same-cuisine dishes the user would eat first; Bradley-Terry-style update along
+  the attribute contrast, pairs actively chosen to resolve low-evidence dims, and
+  the engine seals a winner prediction before asking (reveal on answer). DB table
+  already live. Requires simulation verification — use Opus in Claude Code.
+  Full spec: `docs/specs/dish-duels.md`.
 
 ## Next
 
@@ -39,16 +52,6 @@ _(clear — see Done below)_
 
 ## Done (recent, for context)
 
-- [x] **對決 — pairwise taste duels** — learning math (pairwise logistic on the
-  attribute contrast), active pair selection, GET/POST duel API (prediction sealed
-  server-side), self-fetching Taste-tab card, merged into replay. Simulation-tuned:
-  the spec's p-formula was diagnosed to flatline the error signal (contentScore ÷18
-  → p≈0.5); corrected to the un-normalized Bradley-Terry logit, K re-tuned 4→2.
-  Sim (5 seeds × 30 users): overall ranking 63.08→63.10% (no degradation),
-  low-evidence-dim sign accuracy 59.49→64.14% (+4.65pp). `3291d42`
-- [x] Vision reliability: retry unparseable responses + honest "couldn’t read"
-  card for true failures (was silently logging "Unknown dish" as is_dish:true).
-  `82089d8`, `b1e76c4`
 - [x] Diet-flag integrity fix (雞扎 problem) — taxonomy 7→13, recipe-grounded
   enrichment, dietSuspicion tripwire, ingredients line surfaced, bounded backfill
   script. `52fd013`

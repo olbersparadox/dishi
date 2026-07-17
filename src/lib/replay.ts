@@ -2,7 +2,7 @@ import { SupabaseClient } from '@supabase/supabase-js';
 import { supabaseAdmin } from './supabase/server';
 import {
   emptyTaste, updateTaste, updateCuisineAffinity, bumpEvidence,
-  updateTasteFromDuel, bumpEvidenceFromDuel,
+  updateTasteFromDuel, updateTasteFromDuelTie, bumpEvidenceFromDuel,
   type TasteVector, type EvidenceMap,
 } from './taste';
 
@@ -23,9 +23,10 @@ import {
  * - ratings.voice_attributes is persisted, so spoken testimony replays exactly.
  * - ratings are upserted one-row-per-dish, so replay naturally applies each dish's
  *   FINAL score once — mirroring how a re-rate corrects rather than duplicates.
- * - Answered duels replay through updateTasteFromDuel using both dishes' CURRENT
- *   attributes, so a rename heals duel learning exactly as it heals ratings.
- *   Skipped/unanswered duels (winner null) are not learning events and are skipped.
+ * - Resolved duels replay using both dishes' CURRENT attributes, so a rename heals
+ *   duel learning exactly as it heals ratings: a win through updateTasteFromDuel, a
+ *   tie (揀唔落) through updateTasteFromDuelTie. Open/dismissed duels (answered_at
+ *   null) are not learning events and are skipped.
  * - Deleted dishes cascade-delete both their ratings and their duels, so replay
  *   only ever sees events whose dishes still exist — same information the live
  *   profile would have after deletes.
@@ -48,9 +49,8 @@ export async function replayProfile(
       .order('created_at', { ascending: true }),
     supabaseAdmin()
       .from('dish_duels')
-      .select('winner, answered_at, a:dishes!dish_a(id, attributes), b:dishes!dish_b(id, attributes)')
+      .select('winner, tied_at, answered_at, a:dishes!dish_a(id, attributes), b:dishes!dish_b(id, attributes)')
       .eq('user_id', userId)
-      .not('winner', 'is', null)
       .not('answered_at', 'is', null),
   ]);
   if (error || !rows) return null;
@@ -60,7 +60,8 @@ export async function replayProfile(
   // learning rate is order-sensitive, so interleaving must be faithful.
   type Event =
     | { t: number; kind: 'rating'; attrs: Record<string, number>; cuisine: string | null; score: number; voice: Record<string, number> | null }
-    | { t: number; kind: 'duel'; winner: Record<string, number>; loser: Record<string, number> };
+    | { t: number; kind: 'duel'; winner: Record<string, number>; loser: Record<string, number> }
+    | { t: number; kind: 'tie'; a: Record<string, number>; b: Record<string, number> };
 
   const events: Event[] = [];
 
@@ -72,11 +73,17 @@ export async function replayProfile(
   }
 
   for (const d of (duelRows ?? []) as any[]) {
-    if (!d.a || !d.b || !d.winner || !d.answered_at) continue; // defensive
-    const winnerDish = d.a.id === d.winner ? d.a : d.b.id === d.winner ? d.b : null;
-    const loserDish = winnerDish === d.a ? d.b : d.a;
-    if (!winnerDish || !loserDish) continue;
-    events.push({ t: new Date(d.answered_at).getTime(), kind: 'duel', winner: winnerDish.attributes ?? {}, loser: loserDish.attributes ?? {} });
+    if (!d.a || !d.b || !d.answered_at) continue; // defensive
+    const t = new Date(d.answered_at).getTime();
+    if (d.tied_at) {
+      // 揀唔落 — a tie. Symmetric; a/b order only sets the sign of the contrast.
+      events.push({ t, kind: 'tie', a: d.a.attributes ?? {}, b: d.b.attributes ?? {} });
+    } else if (d.winner) {
+      const winnerDish = d.a.id === d.winner ? d.a : d.b.id === d.winner ? d.b : null;
+      const loserDish = winnerDish === d.a ? d.b : d.a;
+      if (!winnerDish || !loserDish) continue;
+      events.push({ t, kind: 'duel', winner: winnerDish.attributes ?? {}, loser: loserDish.attributes ?? {} });
+    }
   }
 
   events.sort((x, y) => x.t - y.t);
@@ -92,9 +99,12 @@ export async function replayProfile(
       evidence = bumpEvidence(evidence, e.attrs, e.voice);
       affinity = updateCuisineAffinity(affinity, e.cuisine, e.score);
       replayed++;
-    } else {
+    } else if (e.kind === 'duel') {
       vector = updateTasteFromDuel(vector, evidence, e.winner, e.loser);
       evidence = bumpEvidenceFromDuel(evidence, e.winner, e.loser);
+    } else {
+      vector = updateTasteFromDuelTie(vector, evidence, e.a, e.b);
+      evidence = bumpEvidenceFromDuel(evidence, e.a, e.b);
     }
   }
 

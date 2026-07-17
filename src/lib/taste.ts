@@ -170,6 +170,12 @@ export function contentScore(taste: TasteVector, dish: DishVector, cuisineAffini
 // which is a noisy absolute judgment. See docs/specs/dish-duels.md.
 
 export const DUEL_WEIGHT = 0.6; // overall duel step size relative to a rating's
+// A tie (揀唔落) is gentler than a decisive pick. Tuned in scripts/simulate-duels.ts:
+// a tie-weight sweep showed 0.2 keeps the full low-evidence gain of the wins (+2.2pp,
+// identical to ignoring ties) while improving overall calibration versus ignoring
+// them — so ties genuinely help, without over-correcting the dims wins just taught.
+// Higher (0.4–0.6) starts eroding the low-evidence gain.
+export const DUEL_TIE_WEIGHT = 0.2;
 // Logistic gain on the un-normalized alignment gap Σ taste·x (NOT contentScore).
 // Tuned in scripts/simulate-duels.ts: across a 5-seed × 30-user sweep, weight 0.6 /
 // K 2 was the best cell on BOTH axes — overall ranking flat (+0.02pp) and
@@ -249,11 +255,45 @@ export function updateTasteFromDuel(
 /** Evidence bump for a duel: +1 only for dims the duel GENUINELY contrasted
  * (|x| >= 0.3). A pair that barely differed on a dim is not evidence about it, so
  * it must not age that dim's learning rate — mirroring taughtDims' cutoff for
- * ratings. Call AFTER updateTasteFromDuel (which reads pre-duel evidence). */
+ * ratings. Call AFTER updateTasteFromDuel (which reads pre-duel evidence). A tie
+ * exercises the same contrast, so it bumps identically (winner/loser order is
+ * irrelevant to |x|). */
 export function bumpEvidenceFromDuel(evidence: EvidenceMap, winner: DishVector, loser: DishVector): EvidenceMap {
   const next = { ...evidence };
   for (const { dim, x } of duelContrast(winner, loser)) {
     if (Math.abs(x) >= 0.3) next[dim] = (next[dim] ?? 0) + 1;
+  }
+  return next;
+}
+
+/**
+ * Update a taste vector from a TIE ("揀唔落" — the user genuinely couldn't separate
+ * the two dishes). Same logistic step as a win, but toward a target of p = 0.5
+ * instead of 1: a tie is evidence the two dishes are equally preferred, so the
+ * engine's predicted gap between them should SHRINK. `(0.5 − p)` pulls each contrast
+ * dim toward neutral in proportion to how wrong the current confident belief was —
+ * a genuinely surprising tie (the engine expected a clear winner) corrects a lot; a
+ * tie the engine already half-expected barely moves anything. Distinct from a
+ * dismiss, which teaches nothing at all. `a`/`b` are symmetric here; order only sets
+ * the sign of x, which cancels because the target is the midpoint.
+ */
+export function updateTasteFromDuelTie(
+  taste: TasteVector,
+  evidence: EvidenceMap,
+  a: DishVector,
+  b: DishVector,
+  opts?: { weight?: number; k?: number },
+): TasteVector {
+  const weight = opts?.weight ?? DUEL_TIE_WEIGHT;
+  const k = opts?.k ?? DUEL_K;
+  const next: TasteVector = { ...emptyTaste(), ...taste };
+  const contrast = duelContrast(a, b);
+  let gap = 0;
+  for (const { dim, x } of contrast) gap += (taste[dim] ?? 0) * x;
+  const p = sigmoid(k * gap);
+  for (const { dim, x } of contrast) {
+    const alpha = Math.max(0.08, 1 / ((evidence[dim] ?? 0) + 2));
+    next[dim] = clamp(next[dim] + weight * alpha * (0.5 - p) * x, -1, 1);
   }
   return next;
 }

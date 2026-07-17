@@ -27,17 +27,19 @@ export async function GET() {
   if (!user) return NextResponse.json({ error: 'Sign in first.' }, { status: 401 });
 
   // All of this user's duels — drives both the cooldown check and selection's
-  // exclusion rules, fetched once.
+  // exclusion rules, fetched once. `answered_at` marks a duel RESOLVED (a win or a
+  // tie); an open duel (answered_at null) may have been dismissed ("not now") and
+  // simply resumes.
   const { data: duelRows } = await admin
     .from('dish_duels')
-    .select('id, dish_a, dish_b, winner, served_at, skipped_at, answered_at')
+    .select('id, dish_a, dish_b, served_at, answered_at')
     .eq('user_id', user.id);
   const duels = duelRows ?? [];
 
   // 1. Resume an open, unexpired served duel rather than minting a new one.
   const now = Date.now();
   const pending = duels
-    .filter(d => !d.answered_at && !d.skipped_at && now - new Date(d.served_at).getTime() < 24 * H)
+    .filter(d => !d.answered_at && now - new Date(d.served_at).getTime() < 24 * H)
     .sort((a, b) => new Date(b.served_at).getTime() - new Date(a.served_at).getTime())[0];
   if (pending) {
     const cards = await fetchDishCards(supabase, [pending.dish_a, pending.dish_b]);
@@ -47,10 +49,11 @@ export async function GET() {
     // A dish went missing (deleted mid-flight) — fall through and try a fresh pair.
   }
 
-  // 2. Spacing: one duel per ~day. Don't serve a new one right after the last was done.
+  // 2. Spacing: one duel per ~day. Don't serve a new one right after the last was
+  // resolved (win or tie).
   const lastDone = Math.max(
     0,
-    ...duels.flatMap(d => [d.answered_at, d.skipped_at].filter(Boolean).map(s => new Date(s as string).getTime())),
+    ...duels.filter(d => d.answered_at).map(d => new Date(d.answered_at as string).getTime()),
   );
   if (now - lastDone < 20 * H) return NextResponse.json({ duel: null });
 
@@ -73,7 +76,7 @@ export async function GET() {
   }
 
   const evidence = profile?.evidence ?? {};
-  const existing: ExistingDuelRow[] = duels.map(d => ({ dish_a: d.dish_a, dish_b: d.dish_b, winner: d.winner, served_at: d.served_at, skipped_at: d.skipped_at }));
+  const existing: ExistingDuelRow[] = duels.map(d => ({ dish_a: d.dish_a, dish_b: d.dish_b, resolved: !!d.answered_at, served_at: d.served_at }));
   const pair = selectDuelPair(candidates, evidence, existing, now);
   if (!pair) return NextResponse.json({ duel: null });
 

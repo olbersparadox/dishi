@@ -28,14 +28,15 @@ export type DuelCandidate = {
   identityId: string | null;
 };
 
-/** The subset of a dish_duels row selection needs. Timestamps are ISO strings (as
- * Supabase returns them); `now` is injectable so tests are deterministic. */
+/** The subset of a dish_duels row selection needs. `resolved` is true once the duel
+ * was answered EITHER way — a win or a tie (揀唔落); both retire the pair forever, so
+ * selection treats them the same. Timestamps are ISO strings (as Supabase returns
+ * them); `now` is injectable so tests are deterministic. */
 export type ExistingDuelRow = {
   dish_a: string;
   dish_b: string;
-  winner: string | null;
+  resolved: boolean;
   served_at: string;
-  skipped_at: string | null;
 };
 
 export type SelectedPair = { a: DuelCandidate; b: DuelCandidate; info: number };
@@ -64,7 +65,7 @@ export function selectDuelPair(
     lifetimeCount.set(d.dish_a, (lifetimeCount.get(d.dish_a) ?? 0) + 1);
     lifetimeCount.set(d.dish_b, (lifetimeCount.get(d.dish_b) ?? 0) + 1);
     const key = pairKey(d.dish_a, d.dish_b);
-    if (d.winner) answered.add(key);
+    if (d.resolved) answered.add(key);
     if (new Date(d.served_at).getTime() >= recentCutoff) recent.add(key);
   }
 

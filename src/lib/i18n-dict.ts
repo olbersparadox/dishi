@@ -56,12 +56,14 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'log.visionfail.retry': { zh: '再試一次', en: 'Try again' },
   'log.visionfail.keep': { zh: '照留低，自己改名', en: 'Keep it — I’ll name it' },
   // 對決 (pairwise taste duels) — the 印 stamp signals a sealed prediction, same
-  // honesty contract as the rating seal.
-  'duel.title': { zh: '今日對決', en: 'Today’s duel' },
-  'duel.q': { zh: '而家俾你揀，食邊樣先？', en: 'Right now — which would you eat first?' },
-  'duel.skip': { zh: '揀唔落', en: 'Can’t choose' },
+  // honesty contract as the rating seal. 揀唔落 is a TIE (a real "these two are equal
+  // for me" signal), distinct from the ✕ dismiss which teaches nothing.
+  'duel.title': { zh: '調校口味', en: 'Refining your taste' },
+  'duel.q': { zh: '揀一樣唔好諗', en: 'Pick one — don’t overthink' },
+  'duel.tie': { zh: '揀唔落', en: 'Can’t separate them' },
   'duel.hit': { zh: '估中咗', en: 'Called it' },
   'duel.miss': { zh: '估錯咗', en: 'Got that wrong' },
+  'duel.tieresult': { zh: '兩樣都差唔多，記低咗', en: 'About even — noted' },
   'duel.learned': { zh: '學到：{dims}', en: 'Learned: {dims}' },
   'log.addphotohint': { zh: '得閒影返張相都得，唔影都評到分。', en: 'Optional \u2014 add a photo whenever you like, rating works fine without one.' },
   'log.toRate': { zh: '待評嘅菜', en: 'Dishes to rate' },

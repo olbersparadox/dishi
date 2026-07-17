@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import AuthGate from '@/components/AuthGate';
 import { supabaseBrowser } from '@/lib/supabase/client';
 import TasteFormCard from '@/components/TasteFormCard';
-import DishDuelCard from '@/components/DishDuelCard';
 import SealReveal, { type SealResult } from '@/components/SealReveal';
 import DishName from '@/components/DishName';
 import type { ExportDish } from '@/lib/tasteExport';
@@ -196,11 +195,6 @@ function TasteProfile() {
           }} />
         </label>
       </div>
-
-      {/* 對決: a pairwise "which would you eat first?" between two rated same-cuisine
-          dishes, with a sealed prediction. Self-fetching and self-hiding — it
-          renders nothing unless the engine has a genuinely informative pair. */}
-      <DishDuelCard />
 
       {/* Dishes waiting to be rated — picked off a menu scan or during a shared
           table, not yet rated. Living here (not buried on /log) is deliberate:

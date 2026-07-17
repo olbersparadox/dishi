@@ -792,30 +792,51 @@ button { font: inherit; cursor: pointer; }
    a phone, and these are the primary way to fix a wrong dish). */
 .icon-btn.lg { width: 38px; height: 38px; }
 
-/* 對決 duel card — FIRST-PASS layout, meant to be refined in Claude Design. Built
+/* 對決 taste-duel — FIRST-PASS layout, meant to be refined in Claude Design. Built
    from the same tokens as everything else; the 印 stamp reuses .seal-stamp. */
-.duel-card { margin-bottom: 16px; }
-.duel-head { display: flex; align-items: center; gap: 2px; margin-bottom: 12px; }
+
+/* Header bell (left of the language toggle). Only rendered when a duel waits. */
+.topbar-right { display: flex; align-items: center; gap: 12px; }
+.duel-bell { position: relative; display: inline-flex; padding: 4px; background: none; border: none; color: var(--ink); cursor: pointer; }
+.duel-bell-dot { position: absolute; top: 3px; right: 3px; width: 7px; height: 7px; border-radius: 50%; background: var(--seal); }
+
+/* Floating overlay */
+.duel-overlay { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; padding: 20px; animation: duel-fade-in 240ms ease; }
+.duel-overlay.closing { animation: duel-fade-out 340ms ease forwards; }
+@keyframes duel-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes duel-fade-out { from { opacity: 1; } to { opacity: 0; } }
+.duel-backdrop { position: absolute; inset: 0; background: rgba(20, 16, 12, 0.42); }
+.duel-floating { position: relative; z-index: 1; width: 100%; max-width: 420px; margin: 0; animation: duel-pop 260ms cubic-bezier(0.2, 0.9, 0.3, 1.2); }
+@keyframes duel-pop { from { transform: translateY(10px) scale(0.96); } to { transform: none; } }
+
+.duel-head { display: flex; align-items: center; gap: 4px; margin-bottom: 14px; }
 .duel-title { font-family: var(--font-display); font-size: 18px; }
-.duel-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.duel-x { margin-left: auto; display: inline-flex; padding: 2px; background: none; border: none; color: var(--ink-soft); cursor: pointer; }
+
+.duel-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: stretch; }
+.duel-pair.resolving { display: flex; justify-content: center; }
 .duel-option {
+  flex: 1 1 0; min-width: 0; max-width: 100%;
   display: flex; flex-direction: column; gap: 6px; text-align: left;
   padding: 8px; border: 1px solid var(--line); border-radius: 14px;
   background: transparent; cursor: pointer;
-  transition: border-color 140ms ease, opacity 140ms ease;
+  transition: opacity 340ms ease, max-width 380ms ease, transform 300ms ease, border-color 140ms ease;
 }
 .duel-option:not(:disabled):active { border-color: var(--ink); }
-.duel-option.chosen { border-color: var(--ink); }
-.duel-option.revealed:not(.chosen) { opacity: 0.5; }
+.duel-option.won { border-color: var(--ink); transform: scale(1.02); }
+/* Loser (and, on a tie, both) collapse away so the choice slides to center. */
+.duel-option.faded { opacity: 0; max-width: 0; flex-basis: 0; padding: 0; margin: 0; border-width: 0; overflow: hidden; }
 .duel-photo { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 10px; display: block; }
 .duel-photo-blank { background: var(--line); }
-.duel-option-name { font-weight: 700; }
+/* MATCH every other dish name in the app (Songti display) — the base .dishname
+   inherits the body sans unless a wrapper sets the display font. */
+.duel-option-name { font-family: var(--font-display); }
+.duel-option-name .dishname-primary { font-size: 16px; font-weight: 700; }
+.duel-option-name .dishname-secondary { font-size: 12px; }
 .duel-option-rest { font-size: 12px; color: var(--ink-soft); }
-.duel-q { text-align: center; color: var(--ink-soft); margin-top: 12px; }
-.duel-skip {
-  display: block; margin: 6px auto 0; background: none; border: none;
-  color: var(--ink-soft); font-size: 13px; text-decoration: underline; cursor: pointer;
-}
-.duel-reveal { display: flex; flex-direction: column; align-items: center; gap: 4px; margin-top: 12px; text-align: center; }
-.duel-verdict { font-weight: 700; font-size: 16px; }
+/* The prompt: bigger, bolder, black — per the design call. */
+.duel-q { text-align: center; margin-top: 16px; font-family: var(--font-display); font-weight: 800; font-size: 20px; color: var(--ink); }
+.duel-tie { display: block; margin: 8px auto 0; background: none; border: none; color: var(--ink-soft); font-size: 13px; text-decoration: underline; cursor: pointer; }
+.duel-reveal { display: flex; flex-direction: column; align-items: center; gap: 4px; margin-top: 14px; text-align: center; }
+.duel-verdict { font-family: var(--font-display); font-weight: 700; font-size: 16px; }
 .duel-learned { font-size: 13px; color: var(--ink); }
