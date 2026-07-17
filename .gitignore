@@ -16,3 +16,6 @@ Thumbs.db
 # Editor/tool files
 *.tsbuildinfo
 .vercel
+
+# Private Claude Code context (repo is public)
+CLAUDE.local.md

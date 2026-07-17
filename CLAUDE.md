@@ -1,0 +1,104 @@
+# Dishi — Project Context for Claude Code
+
+Dish rating + taste-learning app for Hong Kong. Users scan menus, rate dishes, and
+build an authentic taste profile that exports as a prompt to their personal AI.
+Bilingual zh-HK (Traditional Chinese, HK Cantonese) / English — **Chinese-first**
+in product copy and field ordering. Restaurant-side monetization is a
+"claim your page" model (Google Business Profile style); the moat is
+consumer-side dish-level demand data.
+
+## Hard product principles (never violate)
+
+- **Never sell placement or ranking influence to restaurant owners.** It destroys
+  consumer trust in the recommendation engine.
+- **No rec is better than an irrelevant one.** Recommendation quality gates
+  everything; don't pad results.
+- **The sealed-bet honesty contract:** a sealed prediction is written server-side
+  BEFORE the user rates and is never returned to the client until revealed.
+  The client may only ever learn that a seal exists (the 印 stamp). Anything
+  that leaks a pending prediction breaks the product claim.
+- **Name authority ladder** (`nameAuthority()` in `src/lib/dishIdentity.ts`):
+  OWNER(4) > MENU(3) > HUMAN(2) > VISION(1). Upgrades only — never silently
+  demote a name's tier. A user editing a name sets human authority
+  (`name_edited_at`); propagating an identity name to dishes must NOT touch
+  `name_edited_at`.
+- Equal-weight logging: restaurant dishes, home cooking, and old camera-roll
+  photos all count the same. Don't privilege the restaurant path in UI.
+
+## Stack & commands
+
+- Next.js (app router) + Supabase + Vercel. Repo root is the project root.
+- Verify with: `npx tsc --noEmit` and `npm test` (vitest; all tests must pass).
+  Known pre-existing failure to ignore: `tests/i18n.test.ts` downlevelIteration
+  errors under bare tsc (vitest runs it fine).
+- Deploy: push to `main` → Vercel.
+
+## Database workflow
+
+- Migrations are applied LIVE to Supabase (via MCP or dashboard), then the exact
+  SQL is recorded in `supabase/applied/<name>.sql` with a header comment noting
+  the date and why. `supabase/schema.sql` is descriptive; **live schema is the
+  source of truth** — inspect it before assuming.
+- **RLS pattern:** `supabaseServer()` is the user-scoped client and respects
+  RLS. `supabaseAdmin()` bypasses it. Any table that is deliberately
+  RLS-locked against its own owner (e.g. `sealed_predictions` — pending rows
+  invisible by design) must be read/written ONLY via `supabaseAdmin()` in API
+  routes, after authenticating the user and scoping to their `user_id`.
+  A silently-blocked insert (RLS or check constraint) is a known failure class
+  here — when a write path "never seems to run," check policies and constraints
+  in the live DB first.
+- `dishes.source` check constraint allows:
+  `photo | scan | table | manual | home | album`. `scan`/`table` are reserved
+  for their pipelines; the `/api/dishes` endpoint whitelists what it accepts.
+
+## Architecture map (where things live)
+
+- `src/lib/dishIdentity.ts` — dish identity resolution: 3-gate pipeline
+  (string prefilter → LLM adjudication → human confirm), authority ladder.
+- `src/lib/ownerMenuReconcile.ts` — owner-published menu names adopting
+  identities (exact match free; LLM fuzzy capped at 12 per publish; fails
+  closed). Tests: `tests/ownerMenuReconcile.test.ts`.
+- `src/lib/restaurant.ts` — restaurant dedup: `place_id` canonical, cosmetic
+  name match either language within 50m, guarded containment fallback.
+- `src/lib/seal.ts` + `/api/seals` + `/api/ratings` — sealed-bet mechanic
+  (create → 印 stamp → reveal on rating; streak computed from revealed history).
+- `src/lib/scanSession.ts` — in-memory persistence of a scan across tab
+  switches (deliberately NOT Web Storage: must clear on browser refresh).
+- `src/lib/openrouter.ts` (`callClaudeStream`) + `src/lib/jsonSalvage.ts`
+  (`salvageJsonObjects`) — token-level SSE scan streaming + incremental JSON.
+- `src/app/log/page.tsx` — log flow with three entry modes via `?source=`:
+  `restaurant` (default) / `home` (no restaurant step at all) /
+  `album` (photo-first, no typed-only pill, skip-first restaurant).
+- Taste engine: `src/lib/taste.ts` (EMA + full-history replay on re-rating —
+  never incremental-update a re-rated dish), `src/lib/buddy.ts`,
+  `src/components/TasteForm*.tsx` (blob ↔ radar).
+
+## Conventions
+
+- Bilingual copy lives in `src/lib/i18n-dict.ts`; every key needs zh + en
+  (tests enforce parity). Remove keys when their last usage goes.
+- Comments explain WHY (design rationale), not what. Keep the existing style.
+- Prefer small shared components (`DishInfoDisplay`, `icons.tsx`) over
+  duplication; pure logic goes in `src/lib` with a vitest file.
+- UI: quiet ink-on-paper aesthetic; ink (`--ink`) for primary, vermillion
+  (`--seal`) reserved for the seal stamp and export CTA only.
+
+## Model selection (decide per task, state the choice)
+
+- **Strongest model (Opus/Fable tier):** entity-resolution tradeoffs, cross-layer
+  diagnosis (e.g. silent DB failures), R&D with uncertain success, simulation-
+  heavy verification, anything touching the authority ladder or seal contract.
+- **Sonnet tier:** well-specified implementation, UI polish, copy changes,
+  straightforward builds from a spec.
+- The owner sets an explicit go/no-go probability bar (~50%) before committing
+  to R&D directions — surface success-probability estimates early.
+
+## Open threads (check with owner before starting)
+
+- 食記 journal: order album logs by when-eaten vs when-logged (fuzzy eaten-date
+  question is unresolved design).
+- AI taste export loop: keep versioning deltas visible and recurring.
+- Consumer scan density: one dense neighborhood first; no friend graph yet.
+
+Private/local context (IDs, test accounts) lives in `CLAUDE.local.md` — not
+committed. Deeper product history: `SPEC.md` and `docs/`.
