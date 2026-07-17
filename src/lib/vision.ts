@@ -56,10 +56,14 @@ and give your best guess with lower confidence.`;
 export async function inferDish(base64: string, mediaType: string): Promise<VisionResult> {
   if (!process.env.OPENROUTER_API_KEY) return mockResult();
 
+  // expectJson: a truncated/garbled body gets retried inside callClaude rather
+  // than falling through to the fallback below — which matters here more than
+  // anywhere, because that fallback's is_dish:true silently skips the
+  // not-a-dish confirmation the moment a flaky response slips past.
   const text = await callClaude(SYSTEM, [
     imagePart(base64, mediaType),
     textPart('Identify this dish.'),
-  ], { maxTokens: 500 });
+  ], { maxTokens: 500, expectJson: true });
 
   const parsed = parseJsonResponse(text);
   // Call failed with a real key (timeout/model error): keep the log flow alive with
@@ -142,7 +146,7 @@ export async function reanalyzeAnchored(
   const text = await callClaude(ANCHORED_SYSTEM, [
     imagePart(base64, mediaType),
     textPart(`The eater says this dish is: ${name}`),
-  ], { maxTokens: 400 });
+  ], { maxTokens: 400, expectJson: true });
   const parsed = parseJsonResponse<any>(text);
   if (!parsed) return null;
   const s = sanitize({ ...parsed, name });

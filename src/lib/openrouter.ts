@@ -26,19 +26,39 @@ type ContentPart =
 export async function callClaude(
   system: string,
   userContent: string | ContentPart[],
-  opts: { maxTokens?: number } = {},
+  opts: { maxTokens?: number; expectJson?: boolean } = {},
 ): Promise<string | null> {
+  // Retry on FAST failures only (the elapsed gate below): a retry after a slow
+  // failure (a genuine ~50s timeout) would stack past Vercel's function budget
+  // and die mid-flight anyway.
+  //
+  // TWO failure shapes get retried, not one. Validation on real menus hit the
+  // first live: OpenRouter returned a non-JSON body once and the identical
+  // request succeeded seconds later (-> null from callClaudeOnce). The second
+  // was measured 2026-07-18 against the live provider: HTTP 200 with a valid
+  // envelope whose `content` is TRUNCATED JSON, cut mid-object — which is
+  // non-null, so the old single-retry logic waved it through to the caller,
+  // whose parse then failed silently. For dish vision that silent parse
+  // failure fell through to the is_dish:true fallback — exactly the case the
+  // not-a-dish guard exists for. `expectJson` lets a caller declare "an
+  // unparseable response IS a failure," making truncated bodies retryable.
+  //
+  // Attempt counts come from a 28-call probe during a degraded provider
+  // window: 29% first-attempt failures, one retry recovered ~60% of them, a
+  // second cuts the residual roughly in half again. Callers without expectJson
+  // keep the original retry-once behavior unchanged.
   const started = Date.now();
-  const first = await callClaudeOnce(system, userContent, opts);
-  if (first !== null) return first;
-  // Retry exactly once on any FAST gateway-level failure (non-2xx, mangled body).
-  // Validation on real menus hit this live: OpenRouter returned a non-JSON body
-  // once and the identical request succeeded seconds later. A retry after a slow
-  // failure (a genuine ~50s timeout) is skipped — it would stack past Vercel's
-  // function budget and die mid-flight anyway.
-  if (Date.now() - started > 15_000) return null;
-  await new Promise(r => setTimeout(r, 800));
-  return callClaudeOnce(system, userContent, opts);
+  const attempts = opts.expectJson ? 3 : 2;
+  let last: string | null = null;
+  for (let i = 0; i < attempts; i++) {
+    if (i > 0) {
+      if (Date.now() - started > 15_000) break;
+      await new Promise(r => setTimeout(r, 800));
+    }
+    last = await callClaudeOnce(system, userContent, opts);
+    if (last !== null && (!opts.expectJson || parseJsonResponse(last) !== null)) return last;
+  }
+  return last;
 }
 
 async function callClaudeOnce(
