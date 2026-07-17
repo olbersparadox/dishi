@@ -166,11 +166,7 @@ function TasteProfile() {
           </span>
         </div>
       )}
-      <h1 style={{ marginBottom: 4 }}>{t('profile.title')}</h1>
-      <p className="card-meta" style={{ marginBottom: 22 }}>
-        {t('profile.flicks', { n: count, p: points })}
-        {points > 0 ? t('profile.helped') : ''}
-      </p>
+      <h1 style={{ marginBottom: 22 }}>{t('profile.title')}</h1>
 
       {/* +Log is no longer its own bottom-nav tab (nav is now Feed / Scan /
           Taste) — this is the bridge so photographing and rating a dish directly
@@ -192,8 +188,8 @@ function TasteProfile() {
             <div key={p.id} className="pick-card">
               <div style={{ minWidth: 0 }}>
                 <div className="pick-card-name">
-                <DishName name={p.name} name_zh={p.name_zh} />
-                {sealedIds.has(p.id) && <span className="seal-stamp" title={t('seal.stamp.title')} aria-label={t('seal.stamp.title')}>印</span>}
+                <DishName name={p.name} name_zh={p.name_zh}
+                  suffix={sealedIds.has(p.id) && <span className="seal-stamp" title={t('seal.stamp.title')} aria-label={t('seal.stamp.title')}>印</span>} />
               </div>
                 <div className="pick-card-meta">{p.restaurant ?? t('home.homecooking')}</div>
               </div>

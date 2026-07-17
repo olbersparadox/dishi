@@ -428,8 +428,8 @@ function LogFlow() {
               <div className="pick-card" key={p.id}>
                 <div style={{ minWidth: 0 }}>
                   <div className="pick-card-name">
-                  <DishName name={p.name} name_zh={p.name_zh} />
-                  {sealedIds.has(p.id) && <span className="seal-stamp" title={t('seal.stamp.title')} aria-label={t('seal.stamp.title')}>印</span>}
+                  <DishName name={p.name} name_zh={p.name_zh}
+                    suffix={sealedIds.has(p.id) && <span className="seal-stamp" title={t('seal.stamp.title')} aria-label={t('seal.stamp.title')}>印</span>} />
                 </div>
                   <div className="pick-card-meta">{p.restaurant ?? t('home.homecooking')}</div>
                 </div>

@@ -558,7 +558,7 @@ button { font: inherit; cursor: pointer; }
   display: inline-flex; align-items: center; justify-content: center;
   width: 18px; height: 18px; border-radius: 4px; flex-shrink: 0;
   background: var(--seal); color: var(--seal-ink); font-size: 10.5px; font-weight: 600;
-  font-family: var(--font-display);
+  font-family: var(--font-display); margin-left: 5px; vertical-align: 2px;
 }
 
 /* Seal reveal — shown once, right after a rating that broke a seal. It presses
@@ -680,7 +680,8 @@ button { font: inherit; cursor: pointer; }
 .join-table-title { font-family: var(--font-display); font-size: 18px; font-weight: 1000; letter-spacing: 0.04em; margin-bottom: 6px; }
 .table-open-link { letter-spacing: 0.08em; }
 .lang-en .table-open-link { letter-spacing: normal; }
-.join-table-blurb { font-size: 13px; color: var(--ink-soft); margin-bottom: 14px; line-height: 1.5; }
+.join-table-blurb { font-size: 13px; color: var(--ink-soft); margin-bottom: 14px; line-height: 1.5; letter-spacing: 0.02em; }
+.lang-en .join-table-blurb { letter-spacing: normal; }
 .join-row { display: flex; align-items: center; gap: 12px; }
 .join-code-input {
   flex-shrink: 0; width: 208px; text-transform: uppercase; letter-spacing: 0.3em; font-weight: 700;

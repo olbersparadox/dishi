@@ -14,6 +14,7 @@ export default function DishName({
   name_original,
   size = 'md',
   prefix,
+  suffix,
 }: {
   name: string;
   name_zh?: string | null;
@@ -22,6 +23,10 @@ export default function DishName({
   /** Rendered inline before the primary name at the same size/weight —
    * used for the rank ("1. ") in scan results per the design handoff. */
   prefix?: string;
+  /** Rendered inline right after the primary (core) dish name — e.g. the
+   * 封印 seal stamp — so it sits on the same line as the core name rather
+   * than floating beside the whole two-line bilingual block. */
+  suffix?: React.ReactNode;
 }) {
   const { lang } = useLang();
   const { en, zh } = pickNames({ name, name_zh, name_original });
@@ -32,7 +37,7 @@ export default function DishName({
 
   return (
     <span className={`dishname ${size === 'lg' ? 'dishname-lg' : ''}`}>
-      <span className="dishname-primary">{prefix}{primary}</span>
+      <span className="dishname-primary">{prefix}{primary}{suffix}</span>
       {secondary && <span className="dishname-secondary">{secondary}</span>}
     </span>
   );
