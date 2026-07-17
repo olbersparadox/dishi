@@ -52,7 +52,7 @@ h1, h2, h3, .display { font-family: var(--font-display); font-weight: 500; lette
    glyphs reads well. On Latin headings/names the same tracking looks too airy, so
    English mode pulls display-serif letter-spacing back to near-normal. */
 .lang-en h1, .lang-en h2, .lang-en h3, .lang-en .display,
-.lang-en .card-title, .lang-en .dishname-primary { letter-spacing: 0.005em; }
+.lang-en .card-title, .lang-en .dishname-primary, .lang-en .join-table-title { letter-spacing: -0.01em; }
 h1 { font-size: 30px; line-height: 1.15; }
 h3 { font-size: 16px; }
 
@@ -64,7 +64,15 @@ h3 { font-size: 16px; }
   font-size: 34px; font-weight: 800; letter-spacing: -0.02em;
 }
 .wordmark em { color: var(--seal); font-style: normal; }
+/* Sign-in screen: the topbar's wordmark moves down into the centered auth
+   block instead (enlarged), so the small top-left one is hidden there only. */
+.shell:has(.auth-screen) > .topbar .wordmark { visibility: hidden; }
+.auth-wordmark { font-size: 70px; text-align: center; margin-bottom: 24px; }
 .tagline { font-size: 12px; color: var(--ink-soft); }
+.auth-tagline { font-size: 19px; font-weight: 300; text-align: left; line-height: 26.5px; margin: -8px 0 24px; white-space: pre-line; }
+.auth-longcopy { text-align: left; line-height: 1.42; margin: -17px 0 24px; }
+.card-meta.auth-longcopy { margin-top: -17px; }
+.auth-title { font-weight: 600; }
 
 .card {
   background: var(--paper-raised); border: 1px solid var(--line); border-radius: var(--radius);
@@ -421,7 +429,7 @@ button { font: inherit; cursor: pointer; }
 .journal-info { min-width: 0; flex: 1; }
 /* Looser vertical rhythm than before — date, name, meta and chips each get
    real breathing room rather than stacking tight. */
-.journal-date { font-size: 13px; color: var(--ink-soft); margin-bottom: 3px; }
+.journal-date { font-size: 13px; color: var(--ink-soft); margin-bottom: 3px; letter-spacing: 0.03em; }
 .journal-info .card-title { line-height: 1.3; }
 .journal-info .dish-meta { margin-top: 6px; }
 .journal-info > *:not(:first-child) { margin-top: 6px; }

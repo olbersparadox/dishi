@@ -9,8 +9,15 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'nav.taste': { zh: '口味', en: 'Taste' },
 
   // ---- auth ----
-  'auth.title': { zh: '登入開始', en: 'Sign in to start' },
-  'auth.blurb': { zh: '一個電郵，唔使密碼。由你第一下滑動開始，Dishi 就學緊你嘅口味。', en: 'One email, no password. Dishi learns your taste from your first flick.' },
+  'auth.title': { zh: '電郵登入', en: 'Sign in to start' },
+  'auth.tagline': {
+    zh: 'Restaurant Reviews Tell You Where To Go.\nDishi Tells You What To Order',
+    en: 'Restaurant Reviews Tell You Where To Go.\nDishi Tells You What To Order',
+  },
+  'auth.longcopy': {
+    zh: 'Rate it all — the lobster, the leftovers, the cup noodles. Two seconds a flick. Your taste is in there somewhere, and Dishi finds it: built from what you actually ate, honest when it’s still guessing. Then take it anywhere — export your taste to any AI you use, and it finally knows your tongue.',
+    en: 'Rate it all — the lobster, the leftovers, the cup noodles. Two seconds a flick. Your taste is in there somewhere, and Dishi finds it: built from what you actually ate, honest when it’s still guessing. Then take it anywhere — export your taste to any AI you use, and it finally knows your tongue.',
+  },
   'auth.placeholder': { zh: 'you@example.com', en: 'you@example.com' },
   'auth.send': { zh: '傳送連結', en: 'Send link' },
   'auth.sent': { zh: '請查收電郵，撳登入連結。', en: 'Check your inbox for the sign-in link.' },

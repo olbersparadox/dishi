@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { supabaseBrowser } from '@/lib/supabase/client';
 import { useLang } from '@/lib/i18n';
+import { ArrowRightIcon } from '@/components/icons';
 
 const EMAIL_KEY = 'dishi-email';
 
@@ -71,21 +72,26 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   if (signedIn) return <>{children}</>;
 
   return (
-    <div className="card"><div className="card-body">
-      <h2 style={{ marginBottom: 6 }}>{t('auth.title')}</h2>
-      <p className="card-meta" style={{ marginBottom: 12 }}>{t('auth.blurb')}</p>
+    <div className="auth-screen" style={{ marginTop: 'calc(62.5vh - 418px)' }}>
+      <div className="wordmark auth-wordmark">dish<em>i</em></div>
+      <p className="tagline auth-tagline">{t('auth.tagline')}</p>
+      <p className="card-meta auth-longcopy">{t('auth.longcopy')}</p>
+      <h2 className="auth-title" style={{ marginTop: 44, marginBottom: 12 }}>{t('auth.title')}</h2>
 
       {!sent ? (
         <div style={{ display: 'flex', gap: 8 }}>
           <input className="field" type="email" placeholder={t('auth.placeholder')}
             value={email} onChange={e => setEmail(e.target.value)} autoComplete="email" />
-          <button className="btn primary" onClick={sendLink} disabled={!email.includes('@')}>{t('auth.send')}</button>
+          <button className="join-go" aria-label={t('auth.send')} title={t('auth.send')}
+            onClick={sendLink} disabled={!email.includes('@')}>
+            <ArrowRightIcon size={20} />
+          </button>
         </div>
       ) : (
         <>
-          <p style={{ marginBottom: 10 }}>{t('auth.sent')}</p>
+          <p style={{ marginBottom: 2 }}>{t('auth.sent')}</p>
           <p className="card-meta" style={{ marginBottom: 8 }}>{t('auth.codehint')}</p>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 8, marginTop: 15 }}>
             {/* No hardcoded digit count: Supabase's actual default OTP length turned
                 out to be 8 digits, not the 6 originally assumed here — capping input
                 at the wrong length silently truncated every real code before it ever
@@ -94,8 +100,9 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
                 one. */}
             <input className="field code-input" inputMode="numeric" placeholder={t('auth.codeplaceholder')}
               value={code} onChange={e => setCode(e.target.value.replace(/\D/g, ''))} />
-            <button className="btn primary" onClick={verifyCode} disabled={code.trim().length === 0 || verifying}>
-              {verifying ? t('auth.verifying') : t('auth.verify')}
+            <button className="join-go" aria-label={t('auth.verify')} title={t('auth.verify')}
+              onClick={verifyCode} disabled={code.trim().length === 0 || verifying}>
+              <ArrowRightIcon size={20} />
             </button>
           </div>
           <button className="btn ghost small" style={{ marginTop: 10 }} onClick={() => { setSent(false); setCode(''); }}>
@@ -104,7 +111,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
         </>
       )}
       {error && <p style={{ color: 'var(--lacquer)', marginTop: 10 }}>{error}</p>}
-    </div></div>
+    </div>
   );
 }
 
