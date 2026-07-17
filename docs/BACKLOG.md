@@ -9,14 +9,7 @@ Model tier per item: **[S]** = Sonnet (well-specified build) · **[F]** = Fable/
 
 ## Now
 
-- [ ] **[S] Diet-flag integrity (雞扎 problem).** Dish named chicken shows
-  pork+beef chips and no chicken — taxonomy has no poultry flag, and no guard
-  checks model output against the dish's own name. Trust-critical: users read
-  chips as an ingredient list. Full spec: `docs/specs/diet-flag-integrity.md`.
-- [ ] **[S] Three-path log entry (re-land).** Replace the single ＋記錄口味 button
-  with 餐廳菜 / 屋企煮 / 相簿舊相; each path strips what it doesn't need.
-  Full spec: `docs/specs/three-path-log-entry.md`. DB side is ALREADY live
-  (dishes.source accepts photo|scan|table|manual|home|album) — this is code-only.
+_(nothing in flight — pull from Next)_
 
 ## Next
 
@@ -46,6 +39,11 @@ Model tier per item: **[S]** = Sonnet (well-specified build) · **[F]** = Fable/
 
 ## Done (recent, for context)
 
+- [x] Diet-flag integrity fix (雞扎 problem) — taxonomy 7→13, recipe-grounded
+  enrichment, dietSuspicion tripwire, ingredients line surfaced, bounded backfill
+  script. `52fd013`
+- [x] Three-path log entry (餐廳菜/屋企煮/相簿舊相) — landed in the same commit
+  as the diet-flag fix. `52fd013`
 - [x] Sealed-bet mechanic end-to-end + RLS/admin-client fix (印 stamp live in prod)
 - [x] Scan persistence across tab switches (`src/lib/scanSession.ts`)
 - [x] Taste tab redesign: black radar, bold top-3, progress bar, stat sizing
