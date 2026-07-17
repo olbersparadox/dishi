@@ -55,6 +55,14 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'log.visionfail.blurb': { zh: '唔係你張相有問題 — 係 Dishi 讀相嗰陣斷咗線，而家連入面係咪食物都未確認到。試多次應該得，或者照留低張相，自己打返個菜名。', en: 'Nothing wrong with your photo — Dishi’s reading service dropped the connection, so it hasn’t even confirmed there’s food in it. A retry usually works; or keep the photo and name the dish yourself.' },
   'log.visionfail.retry': { zh: '再試一次', en: 'Try again' },
   'log.visionfail.keep': { zh: '照留低，自己改名', en: 'Keep it — I’ll name it' },
+  // 對決 (pairwise taste duels) — the 印 stamp signals a sealed prediction, same
+  // honesty contract as the rating seal.
+  'duel.title': { zh: '今日對決', en: 'Today’s duel' },
+  'duel.q': { zh: '而家俾你揀，食邊樣先？', en: 'Right now — which would you eat first?' },
+  'duel.skip': { zh: '揀唔落', en: 'Can’t choose' },
+  'duel.hit': { zh: '估中咗', en: 'Called it' },
+  'duel.miss': { zh: '估錯咗', en: 'Got that wrong' },
+  'duel.learned': { zh: '學到：{dims}', en: 'Learned: {dims}' },
   'log.addphotohint': { zh: '得閒影返張相都得，唔影都評到分。', en: 'Optional \u2014 add a photo whenever you like, rating works fine without one.' },
   'log.toRate': { zh: '待評嘅菜', en: 'Dishes to rate' },
   'log.rateNow': { zh: '而家評', en: 'Rate now' },

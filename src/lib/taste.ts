@@ -163,6 +163,101 @@ export function contentScore(taste: TasteVector, dish: DishVector, cuisineAffini
   return s;
 }
 
+// ── 對決 (pairwise taste duels) ────────────────────────────────────────────────
+// A duel teaches from a CHOICE between two dishes, not an absolute score. The
+// signal lives entirely in the CONTRAST between the two dishes' attributes, so a
+// pick isolates the dimensions that actually differed — cleaner than a flick,
+// which is a noisy absolute judgment. See docs/specs/dish-duels.md.
+
+export const DUEL_WEIGHT = 0.6; // overall duel step size relative to a rating's
+// Logistic gain on the un-normalized alignment gap Σ taste·x (NOT contentScore).
+// Tuned in scripts/simulate-duels.ts: across a 5-seed × 30-user sweep, weight 0.6 /
+// K 2 was the best cell on BOTH axes — overall ranking flat (+0.02pp) and
+// low-evidence-dim sign accuracy +4.6pp. (The spec's K=4 was calibrated against the
+// original contentScore-÷18 formula, whose gap was ~18× smaller; once p is computed
+// on the correct logit, the gain re-tunes down.)
+export const DUEL_K = 2;
+
+export function sigmoid(x: number): number {
+  return 1 / (1 + Math.exp(-x));
+}
+
+/**
+ * Per-dim signed contrast between the winner's and loser's attributes — the ONLY
+ * thing a duel teaches from. Centered presence `(v - 0.5) * 2` per dish, but a dim
+ * absent or below LEARN_CUTOFF contributes 0 to that dish's side (identical murmur
+ * rule to taughtDims — a vision murmur is not evidence in a duel any more than in a
+ * rating). Dims whose contrast is exactly 0 taught nothing and are omitted. Shared
+ * by the learning update, the evidence bump, and server-side pair selection so all
+ * three can never disagree about what a given pair actually contrasts.
+ */
+export function duelContrast(winner: DishVector, loser: DishVector): { dim: Dim; x: number }[] {
+  const centered = (dish: DishVector, dim: Dim): number => {
+    const v = dish[dim];
+    if (v === undefined || v < LEARN_CUTOFF) return 0;
+    return (v - 0.5) * 2;
+  };
+  const out: { dim: Dim; x: number }[] = [];
+  for (const dim of DIMS) {
+    const x = centered(winner, dim) - centered(loser, dim);
+    if (x !== 0) out.push({ dim, x });
+  }
+  return out;
+}
+
+/**
+ * Update a taste vector from a duel outcome (winner beat loser). This is one step
+ * of pairwise logistic (Bradley-Terry) regression with the taste vector as the
+ * weights and the per-dim contrast `x` as the features: nudge each contrasted dim
+ * toward the winner's side, scaled by the prediction error `(1 − p)`.
+ *
+ * `p` is the model's own probability the winner would win, `sigmoid(K · Σ taste·x)`.
+ * IMPORTANT: this uses the UN-normalized alignment gap `Σ taste·x` over the contrast
+ * dims — NOT contentScore, whose 1/18 mean crushes the gap so small that `p ≈ 0.5`
+ * for ~86% of realistic pairs (measured), which flatlines the error signal into a
+ * blind constant push and DEGRADED accuracy in simulation. The raw gap is the
+ * correct logit and is what makes `(1 − p)` meaningful — a confidently-correct
+ * prediction barely moves the vector; an upset teaches a lot. (Same-cuisine pairing
+ * means cuisine affinity cancels, so it's excluded entirely here.) Per-dim learning
+ * rate decays with evidence, exactly like updateTaste. K/DUEL_WEIGHT were tuned in
+ * scripts/simulate-duels.ts; see that file's reported numbers.
+ */
+export function updateTasteFromDuel(
+  taste: TasteVector,
+  evidence: EvidenceMap,
+  winner: DishVector,
+  loser: DishVector,
+  // Overrides exist ONLY so the tuning simulation (scripts/simulate-duels.ts) can
+  // sweep these through the real code path rather than a divergent copy; every
+  // production caller omits them and gets the shipped constants.
+  opts?: { weight?: number; k?: number },
+): TasteVector {
+  const weight = opts?.weight ?? DUEL_WEIGHT;
+  const k = opts?.k ?? DUEL_K;
+  const next: TasteVector = { ...emptyTaste(), ...taste };
+  const contrast = duelContrast(winner, loser);
+  let gap = 0;
+  for (const { dim, x } of contrast) gap += (taste[dim] ?? 0) * x;
+  const p = sigmoid(k * gap);
+  for (const { dim, x } of contrast) {
+    const alpha = Math.max(0.08, 1 / ((evidence[dim] ?? 0) + 2));
+    next[dim] = clamp(next[dim] + weight * alpha * (1 - p) * x, -1, 1);
+  }
+  return next;
+}
+
+/** Evidence bump for a duel: +1 only for dims the duel GENUINELY contrasted
+ * (|x| >= 0.3). A pair that barely differed on a dim is not evidence about it, so
+ * it must not age that dim's learning rate — mirroring taughtDims' cutoff for
+ * ratings. Call AFTER updateTasteFromDuel (which reads pre-duel evidence). */
+export function bumpEvidenceFromDuel(evidence: EvidenceMap, winner: DishVector, loser: DishVector): EvidenceMap {
+  const next = { ...evidence };
+  for (const { dim, x } of duelContrast(winner, loser)) {
+    if (Math.abs(x) >= 0.3) next[dim] = (next[dim] ?? 0) + 1;
+  }
+  return next;
+}
+
 /**
  * Blend content-based and collaborative scores. `crossUserSignal` is the number of
  * ratings from similar users on this candidate; with little data we trust content,
