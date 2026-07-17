@@ -48,6 +48,13 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'log.notdish.blurb': { zh: '可能你口味係真係幾特別，又或者呢張相入面根本冇嘢食得。Dishi 老實同你講：唔係食物嘅相，學唔到你嘅口味 \u2014 評落去都係得個吉。真係要評落去？', en: 'Either your taste is wonderfully unusual, or there\u2019s nothing edible in this photo. Honest heads up: Dishi genuinely can\u2019t learn your taste from something that isn\u2019t food \u2014 rating it won\u2019t teach the engine anything. Still want to rate it anyway?' },
   'log.notdish.retake': { zh: '換張相', en: 'Try another photo' },
   'log.notdish.anyway': { zh: '照評，我口味係特別', en: 'Rate it anyway' },
+  // Vision genuinely failed (timeout/garbled response after retries) — distinct
+  // from notdish above, where a model DID look and said "not food." Here nobody
+  // ever looked, and Dishi says so instead of silently pretending it's a dish.
+  'log.visionfail.title': { zh: '哎呀，讀唔到呢張相', en: 'Couldn’t read that photo' },
+  'log.visionfail.blurb': { zh: '唔係你張相有問題 — 係 Dishi 讀相嗰陣斷咗線，而家連入面係咪食物都未確認到。試多次應該得，或者照留低張相，自己打返個菜名。', en: 'Nothing wrong with your photo — Dishi’s reading service dropped the connection, so it hasn’t even confirmed there’s food in it. A retry usually works; or keep the photo and name the dish yourself.' },
+  'log.visionfail.retry': { zh: '再試一次', en: 'Try again' },
+  'log.visionfail.keep': { zh: '照留低，自己改名', en: 'Keep it — I’ll name it' },
   'log.addphotohint': { zh: '得閒影返張相都得，唔影都評到分。', en: 'Optional \u2014 add a photo whenever you like, rating works fine without one.' },
   'log.toRate': { zh: '待評嘅菜', en: 'Dishes to rate' },
   'log.rateNow': { zh: '而家評', en: 'Rate now' },

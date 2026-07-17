@@ -24,6 +24,13 @@ export type VisionResult = {
   diet: DietFlag[];
   cooking_method: CookingMethod | null;
   heaviness: Heaviness | null;
+  // True ONLY when the vision call genuinely failed (timeout / unparseable after
+  // retries) and everything above is placeholder. is_dish stays true in that case
+  // — benefit of the doubt — but the CLIENT must know the difference between "a
+  // model looked and said dish" and "nobody ever looked": the first proceeds
+  // silently, the second must ask the person instead of pretending. Deliberately
+  // NOT set by the mock/no-key paths — those are working demo modes, not failures.
+  vision_failed?: boolean;
 };
 
 const SYSTEM = `You identify a dish from a photo and estimate its sensory attributes.
@@ -70,7 +77,7 @@ export async function inferDish(base64: string, mediaType: string): Promise<Visi
   // an honest low-confidence Unknown — the user gets the "fix the name" chip — rather
   // than fake demo data or a hard failure after they already took the photo.
   if (!parsed) {
-    return { name: 'Unknown dish', name_zh: null, cuisine: 'unknown', attributes: {}, confidence: 0.1, is_dish: true, diet: [], cooking_method: null, heaviness: null };
+    return { name: 'Unknown dish', name_zh: null, cuisine: 'unknown', attributes: {}, confidence: 0.1, is_dish: true, diet: [], cooking_method: null, heaviness: null, vision_failed: true };
   }
   return sanitize(parsed);
 }

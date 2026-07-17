@@ -10,7 +10,7 @@ import PhotoPicker from '@/components/PhotoPicker';
 import { CloseIcon, CameraIcon, RateIcon, TrashIcon, EditIcon } from '@/components/icons';
 import { useLang, cuisineLabel } from '@/lib/i18n';
 
-type Dish = { id: string; name: string; name_zh?: string | null; cuisine: string; photo_url: string | null; vision_confidence?: number; is_dish?: boolean };
+type Dish = { id: string; name: string; name_zh?: string | null; cuisine: string; photo_url: string | null; vision_confidence?: number; is_dish?: boolean; vision_failed?: boolean };
 type Pick = { id: string; name: string; name_zh: string | null; cuisine: string; source: string; restaurant: string | null };
 
 export default function LogPage() {
@@ -154,6 +154,24 @@ function LogFlow() {
     if (preview) URL.revokeObjectURL(preview);
     setPreview(null);
     setConfirmedAnyway(false);
+  }
+
+  /** The photo was fine — the READ failed (vision timeout/garbled response after
+   * retries). So the retry re-submits the SAME photo, still in memory, rather
+   * than making the person re-take anything. The failed row is removed first:
+   * without that, every retry would stack another "Unknown dish" into the
+   * to-rate queue. Fire-and-forget — a lingering row is a cosmetic leak, not
+   * worth blocking the retry the person actually asked for. */
+  async function retryRead() {
+    if (!dish) return;
+    const failedId = dish.id;
+    setDish(null);
+    fetch('/api/my/dishes', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dish_id: failedId }),
+    }).catch(() => {});
+    await logDish();
   }
 
   async function deletePick(id: string) {
@@ -499,6 +517,33 @@ function LogFlow() {
   // dish.name/dish.cuisine are now always the source of truth — saveName() updates
   // them for real (server-side, including cuisine re-derivation) rather than a
   // client-only override that vanished on navigation and never touched cuisine.
+
+  // Vision NEVER RAN (timeout / garbled response even after retries) — different
+  // in kind from is_dish:false below, where a model looked and judged. Here
+  // nobody looked, so silently proceeding would smuggle an unverified photo past
+  // the not-a-dish guard — the one silent path left after the retry fix, and the
+  // reason this card exists. Same card pattern as notdish; the honest choice is
+  // the person's: re-read the same photo (the photo was never the problem), or
+  // keep it and name the dish themselves (typed names carry human authority and
+  // re-derive everything downstream anyway).
+  if (dish.vision_failed && !confirmedAnyway && !ratingExistingPick) {
+    return (
+      <div>
+        <div className="card" style={{ borderColor: 'var(--lacquer)' }}><div className="card-body">
+          {preview && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={preview} alt="" className="card-photo" style={{ marginBottom: 12, opacity: 0.85 }} />
+          )}
+          <p style={{ fontWeight: 800, fontSize: 17, marginBottom: 6 }}>{t('log.visionfail.title')}</p>
+          <p className="card-meta" style={{ marginBottom: 14 }}>{t('log.visionfail.blurb')}</p>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn ghost" style={{ flex: 1 }} onClick={() => setConfirmedAnyway(true)}>{t('log.visionfail.keep')}</button>
+            <button className="btn primary" style={{ flex: 1 }} onClick={retryRead}>{t('log.visionfail.retry')}</button>
+          </div>
+        </div></div>
+      </div>
+    );
+  }
 
   // A genuine, explicit "this doesn't look like food at all" signal from vision —
   // distinct from ordinary low-confidence identification (a blurry-but-real dish

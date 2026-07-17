@@ -101,7 +101,7 @@ export async function POST(req: NextRequest) {
     .single();
   if (dishErr) return NextResponse.json({ error: dishErr.message }, { status: 500 });
 
-  return NextResponse.json({ dish: { ...dish, is_dish: vision.is_dish } });
+  return NextResponse.json({ dish: { ...dish, is_dish: vision.is_dish, vision_failed: vision.vision_failed ?? false } });
 }
 
 /**
