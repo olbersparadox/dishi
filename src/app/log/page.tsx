@@ -9,6 +9,7 @@ import DishName from '@/components/DishName';
 import PhotoPicker from '@/components/PhotoPicker';
 import { CloseIcon, CameraIcon, RateIcon, TrashIcon, EditIcon } from '@/components/icons';
 import { useLang, cuisineLabel } from '@/lib/i18n';
+import { takePendingPhoto } from '@/lib/pendingPhoto';
 
 type Dish = { id: string; name: string; name_zh?: string | null; cuisine: string; photo_url: string | null; vision_confidence?: number; is_dish?: boolean; vision_failed?: boolean };
 type Pick = { id: string; name: string; name_zh: string | null; cuisine: string; source: string; restaurant: string | null };
@@ -75,6 +76,17 @@ function LogFlow() {
     });
     setDish(null);
   }
+
+  // Album entry (Taste tab "+相簿舊菜") opens the OS photo picker itself and hands
+  // the chosen file here, so an album log lands straight on this screen with its
+  // photo already loaded — no redundant "tap to pick" step. Consumed once; a
+  // refresh wipes the hand-off and just shows the normal photo-first picker.
+  useEffect(() => {
+    if (mode !== 'album') return;
+    const handed = takePendingPhoto();
+    if (handed) onPickPhoto(handed);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /** Creates a dish from a typed name (no photo) and drops straight into rating it.
    * Same dishes table, same rating pipeline, same taste engine — the ONLY thing
@@ -465,7 +477,10 @@ function LogFlow() {
             user has picked a photo (or switched to typing a name), they're
             committed to logging THIS dish — showing other pending picks here just
             invites them to wander off and rate something else instead. */}
-        {!preview && !noPhotoMode && picks !== null && picks.length > 0 && (
+        {/* Hidden on the home-cooking path: those pending picks are all
+            restaurant/menu-scan dishes, so dangling them on the 屋企煮 screen only
+            invites wandering off to rate something unrelated to tonight's cooking. */}
+        {mode !== 'home' && !preview && !noPhotoMode && picks !== null && picks.length > 0 && (
           <div style={{ margin: '16px 0' }}>
             <label className="label">{t('log.toRate')}</label>
             {picks.map(p => (

@@ -9,6 +9,7 @@ import SealReveal, { type SealResult } from '@/components/SealReveal';
 import DishName from '@/components/DishName';
 import type { ExportDish } from '@/lib/tasteExport';
 import { RateIcon, TrashIcon, UtensilsIcon, HomeIcon, PhotoIcon } from '@/components/icons';
+import { setPendingPhoto } from '@/lib/pendingPhoto';
 import { wordKeyFor } from '@/lib/flickWords';
 import { useLang, cuisineLabel } from '@/lib/i18n';
 
@@ -180,7 +181,19 @@ function TasteProfile() {
       <div className="log-src-row">
         <Link href="/log" className="log-src"><UtensilsIcon size={42} /><span>+{t('logsrc.rest')}</span></Link>
         <Link href="/log?source=home" className="log-src"><HomeIcon size={42} /><span>+{t('logsrc.home')}</span></Link>
-        <Link href="/log?source=album" className="log-src"><PhotoIcon size={42} /><span>+{t('logsrc.album')}</span></Link>
+        {/* Album entry opens the OS photo picker directly — an "old photo" log IS a
+            camera-roll shot, so there's no reason to detour through the capture
+            screen first. The chosen file is handed to the album flow (which then
+            lands with it already loaded) via the pendingPhoto singleton. It's a
+            <label> so the tap natively opens the picker with a real user gesture. */}
+        <label className="log-src">
+          <PhotoIcon size={42} /><span>+{t('logsrc.album')}</span>
+          <input type="file" accept="image/*" hidden onChange={e => {
+            const f = e.target.files?.[0];
+            e.target.value = ''; // allow re-picking the same file next time
+            if (f) { setPendingPhoto(f); router.push('/log?source=album'); }
+          }} />
+        </label>
       </div>
 
       {/* Dishes waiting to be rated — picked off a menu scan or during a shared
