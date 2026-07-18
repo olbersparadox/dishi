@@ -30,6 +30,7 @@ type ToRate = { id: string; name: string; name_zh: string | null; cuisine: strin
 type RatedRow = {
   id: string; name: string; name_zh: string | null; restaurant: string | null;
   my_score: number | null; created_at: string;
+  eaten_at: string | null; source: string | null;
   dish_identity_id: string | null;
   identity_name: string | null; identity_name_zh: string | null;
 };
@@ -111,6 +112,7 @@ function TasteProfile() {
         .map((d: any) => ({
           id: d.id, name: d.name, name_zh: d.name_zh, restaurant: d.restaurant,
           my_score: d.my_score, created_at: d.created_at,
+          eaten_at: d.eaten_at ?? null, source: d.source ?? null,
           dish_identity_id: d.dish_identity_id ?? null,
           identity_name: d.identity_name ?? null, identity_name_zh: d.identity_name_zh ?? null,
         }))))
@@ -119,6 +121,7 @@ function TasteProfile() {
 
   const exportDishes: ExportDish[] = ratedRows.map(d => ({
     name: d.name, name_zh: d.name_zh, score: d.my_score as number, restaurant: d.restaurant,
+    eaten_at: d.eaten_at, source: d.source,
   }));
 
   // 已評嘅菜, grouped by real-world identity: linked occasions (same

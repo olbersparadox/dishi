@@ -80,7 +80,29 @@ export function ratingsToUnlock(input: ConfidenceInputs): number {
   return Math.max(1, rcNeeded - input.ratingCount);
 }
 
-export type ExportDish = { name: string; name_zh?: string | null; score: number; restaurant?: string | null };
+export type ExportDish = {
+  name: string; name_zh?: string | null; score: number; restaurant?: string | null;
+  /** When the dish was eaten (photo-EXIF or hand-set) — surfaced on anchors only at
+   * higher confidence bands (see exportPayload). Null when unknown. */
+  eaten_at?: string | null;
+  /** How it was logged: 'home' = home cooking; a restaurant name means dining out.
+   * Feeds the home-vs-dining split (a real pattern the palate should know). */
+  source?: string | null;
+};
+
+/** What extra evidence the export payload carries, BY confidence band — the spec's
+ * "payload grows as levels rise" made explicit as a table, not vibes. A thin profile
+ * (which is also still locked) stays minimal; an emerging one gains the home-vs-dining
+ * split; a solid one additionally dates its anchor dishes. Personas (later slice) read
+ * the SAME table, so growing the payload is one edit here, not per-voice. */
+export type ExportPayload = { sourceSplit: boolean; dishDates: boolean };
+export function exportPayload(tier: ConfidenceTier): ExportPayload {
+  switch (tier) {
+    case 'thin':     return { sourceSplit: false, dishDates: false };
+    case 'emerging': return { sourceSplit: true,  dishDates: false };
+    case 'solid':    return { sourceSplit: true,  dishDates: true };
+  }
+}
 
 export type TasteExportInput = {
   vector: Record<string, number>;
@@ -102,6 +124,11 @@ export type TasteExportSections = {
   lovedDishes: ExportDish[];
   dislikedDishes: ExportDish[];
   ratingCount: number;
+  /** Home-vs-dining split across ALL rated dishes (not just the anchors) — a home dish
+   * has source 'home'; a dining one carries a restaurant. Rendered only when the band
+   * allows (exportPayload.sourceSplit). */
+  homeCookCount: number;
+  diningOutCount: number;
   /** Dishi's own honest read of how much it actually knows yet. */
   confidence: 'thin' | 'emerging' | 'solid';
 };
@@ -144,14 +171,25 @@ export function extractTasteSections(
     lovedDishes,
     dislikedDishes,
     ratingCount: input.ratingCount,
+    homeCookCount: dishes.filter(d => d.source === 'home').length,
+    diningOutCount: dishes.filter(d => !!d.restaurant).length,
     confidence,
   };
 }
 
-function dishLine(d: ExportDish): string {
+/** "Jul 2026" — the eaten-date tag for an anchor at a band that carries dates. Empty
+ * when unknown/unparseable, so the caller just omits it. English (the reader is an AI,
+ * per the export's language rationale). */
+function eatenTag(iso?: string | null): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+}
+
+function dishLine(d: ExportDish, showDate: boolean): string {
   const name = [d.name, d.name_zh].filter(Boolean).join(' / ');
-  const where = d.restaurant ? ` (${d.restaurant})` : '';
-  return `- ${name}${where}`;
+  const meta = [d.restaurant, showDate ? eatenTag(d.eaten_at) : ''].filter(Boolean);
+  return `- ${name}${meta.length ? ` (${meta.join(', ')})` : ''}`;
 }
 
 /**
@@ -174,7 +212,11 @@ export function buildTastePrompt(s: TasteExportSections): string {
   const {
     loves, strongLoves, dislikes, strongDislikes,
     cuisines, lovedDishes, dislikedDishes, ratingCount, confidence,
+    homeCookCount, diningOutCount,
   } = s;
+  // The payload grows with the band (spec §4): emerging gains the home-vs-dining
+  // split, solid additionally dates its anchor dishes. One table drives it.
+  const payload = exportPayload(confidence);
 
   const confidenceNote = {
     thin: `This is an EARLY profile (only ${ratingCount} rated dishes). Treat it as a weak prior: use it to break ties, not to make confident claims about me. Tell me when you're guessing.`,
@@ -212,16 +254,27 @@ export function buildTastePrompt(s: TasteExportSections): string {
     out.push('');
   }
 
+  // Home-vs-dining is a real behavioural pattern, not a taste dim — where I actually
+  // eat should shape what you recommend. Only once the profile is past 'thin'.
+  if (payload.sourceSplit && homeCookCount + diningOutCount > 0) {
+    const bits: string[] = [];
+    if (diningOutCount) bits.push(`${diningOutCount} eaten out`);
+    if (homeCookCount) bits.push(`${homeCookCount} cooked at home`);
+    out.push('## Where I actually eat');
+    out.push(`Of the dishes I've rated: ${bits.join(', ')}. Weight suggestions toward the setting I use most, and don't assume every recommendation should be a restaurant.`);
+    out.push('');
+  }
+
   if (lovedDishes.length) {
     out.push('## Specific dishes I loved (the actual evidence)');
-    out.push(...lovedDishes.map(dishLine));
+    out.push(...lovedDishes.map(d => dishLine(d, payload.dishDates)));
     out.push('Use these as concrete anchors: when judging an unfamiliar dish or menu, reason by analogy to these rather than to the abstract traits above.');
     out.push('');
   }
 
   if (dislikedDishes.length) {
     out.push('## Specific dishes I disliked');
-    out.push(...dislikedDishes.map(dishLine));
+    out.push(...dislikedDishes.map(d => dishLine(d, payload.dishDates)));
     out.push('');
   }
 

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   extractTasteSections, buildTastePrompt,
   evidenceConfidence, confidenceTier, exportUnlocked, ratingsToUnlock,
-  confidenceInputsFrom, EMERGING_AT, SOLID_AT,
+  confidenceInputsFrom, EMERGING_AT, SOLID_AT, exportPayload,
 } from '../src/lib/tasteExport';
 
 const label = (d: string) => d.toUpperCase();
@@ -102,7 +102,7 @@ describe('buildTastePrompt', () => {
     cuisines: ['Sichuan'],
     lovedDishes: [{ name: 'Mapo Tofu', name_zh: '\u9ebb\u5a46\u8c46\u8150', score: 0.9, restaurant: 'Lao Sze Chuan' }],
     dislikedDishes: [{ name: 'Natto', score: -0.9 }],
-    ratingCount: 30, confidence: 'solid' as const,
+    ratingCount: 30, homeCookCount: 4, diningOutCount: 20, confidence: 'solid' as const,
   };
 
   it('leads with provenance \u2014 that it was LEARNED, not self-reported', () => {
@@ -147,10 +147,64 @@ describe('buildTastePrompt', () => {
     const empty = {
       loves: [], strongLoves: [], dislikes: [], strongDislikes: [],
       cuisines: [], lovedDishes: [], dislikedDishes: [],
-      ratingCount: 5, confidence: 'thin' as const,
+      ratingCount: 5, homeCookCount: 0, diningOutCount: 0, confidence: 'thin' as const,
     };
     const p = buildTastePrompt(empty);
     expect(p).toMatch(/No clear positive signal yet/i);
     expect(p).toMatch(/No clear negative signal yet/i);
+  });
+});
+
+describe('payload grows with the confidence band', () => {
+  it('exportPayload: thin minimal, emerging adds the source split, solid adds dates', () => {
+    expect(exportPayload('thin')).toEqual({ sourceSplit: false, dishDates: false });
+    expect(exportPayload('emerging')).toEqual({ sourceSplit: true, dishDates: false });
+    expect(exportPayload('solid')).toEqual({ sourceSplit: true, dishDates: true });
+  });
+
+  it('extractTasteSections counts home cooking vs dining out from source/restaurant', () => {
+    const dishes = [
+      { name: 'A', score: 0.6, source: 'home' },
+      { name: 'B', score: 0.5, source: 'home' },
+      { name: 'C', score: 0.5, restaurant: 'Kaiseki', source: 'photo' },
+      { name: 'D', score: -0.5, source: 'album' }, // old camera-roll, no restaurant → neither
+    ];
+    const s = extractTasteSections({ vector: {}, affinity: {}, ratingCount: 4, dishes }, label, cuisine);
+    expect(s.homeCookCount).toBe(2);
+    expect(s.diningOutCount).toBe(1);
+  });
+
+  // The band is what gates rendering, so drive buildTastePrompt directly across tiers.
+  const base = {
+    loves: ['umami'], strongLoves: [], dislikes: [], strongDislikes: [], cuisines: [],
+    lovedDishes: [{ name: 'Saba', name_zh: '鯖魚', score: 0.9, restaurant: 'Tsukiji', eaten_at: '2026-04-01T12:00:00Z' }],
+    dislikedDishes: [], ratingCount: 30, homeCookCount: 3, diningOutCount: 27,
+  };
+
+  it('solid dates its anchors and shows the where-I-eat split', () => {
+    const p = buildTastePrompt({ ...base, confidence: 'solid' as const });
+    expect(p).toMatch(/Where I actually eat/i);
+    expect(p).toContain('27 eaten out');
+    expect(p).toContain('Apr 2026'); // eaten-date tag on the anchor
+  });
+
+  it('emerging shows the split but NOT dates', () => {
+    const p = buildTastePrompt({ ...base, confidence: 'emerging' as const });
+    expect(p).toMatch(/Where I actually eat/i);
+    expect(p).not.toContain('Apr 2026');
+  });
+
+  it('thin (still-locked band) shows neither the split nor dates', () => {
+    const p = buildTastePrompt({ ...base, confidence: 'thin' as const });
+    expect(p).not.toMatch(/Where I actually eat/i);
+    expect(p).not.toContain('Apr 2026');
+  });
+
+  it('the hard-limits trust contract survives at every band', () => {
+    for (const confidence of ['thin', 'emerging', 'solid'] as const) {
+      const p = buildTastePrompt({ ...base, confidence });
+      expect(p).toMatch(/at most ONCE per conversation/i);
+      expect(p).toMatch(/genuinely unknown, not neutral/i);
+    }
   });
 });
