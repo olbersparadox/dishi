@@ -795,10 +795,30 @@ button { font: inherit; cursor: pointer; }
 /* 對決 taste-duel — FIRST-PASS layout, meant to be refined in Claude Design. Built
    from the same tokens as everything else; the 印 stamp reuses .seal-stamp. */
 
-/* Header bell (left of the language toggle). Only rendered when a duel waits. */
-.topbar-right { display: flex; align-items: center; gap: 12px; }
-.duel-bell { position: relative; display: inline-flex; padding: 4px; background: none; border: none; color: var(--ink); cursor: pointer; }
-.duel-bell-dot { position: absolute; top: 3px; right: 3px; width: 7px; height: 7px; border-radius: 50%; background: var(--seal); }
+/* Always-visible notification bell (left of the language toggle) + its list. */
+.topbar-right { display: flex; align-items: center; gap: 12px; position: relative; }
+.notif-bell { position: relative; display: inline-flex; padding: 4px; background: none; border: none; color: var(--ink); cursor: pointer; }
+.notif-dot { position: absolute; top: 3px; right: 3px; width: 7px; height: 7px; border-radius: 50%; background: var(--seal); }
+/* Invisible full-screen catcher so a tap outside the list closes it. */
+.notif-scrim { position: fixed; inset: 0; z-index: 55; }
+.notif-list {
+  position: absolute; top: calc(100% + 8px); right: 0; z-index: 56;
+  width: min(300px, calc(100vw - 32px));
+  background: var(--glaze); border: 1px solid var(--line); border-radius: 14px;
+  box-shadow: 0 12px 32px rgba(20, 16, 12, 0.16); overflow: hidden;
+  animation: duel-pop 200ms ease;
+}
+.notif-empty { padding: 18px 16px; font-size: 13px; color: var(--ink-soft); text-align: center; }
+.notif-item {
+  display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
+  padding: 12px 14px; background: none; border: none; border-bottom: 1px solid var(--line); cursor: pointer;
+}
+.notif-item:last-child { border-bottom: none; }
+.notif-item:active { background: rgba(20, 16, 12, 0.04); }
+.notif-item-seal { font-family: 'PingFang TC', 'Heiti TC', sans-serif; font-size: 12.5px; font-weight: 700; color: var(--seal); border: 1px solid var(--seal); border-radius: 3px; padding: 1px 3px; flex-shrink: 0; }
+.notif-item-text { display: flex; flex-direction: column; min-width: 0; }
+.notif-item-label { font-family: var(--font-display); font-size: 15px; color: var(--ink); }
+.notif-item-sub { font-size: 12px; color: var(--ink-soft); }
 
 /* Floating overlay */
 .duel-overlay { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; padding: 20px; animation: duel-fade-in 240ms ease; }
@@ -823,20 +843,20 @@ button { font: inherit; cursor: pointer; }
   transition: opacity 340ms ease, max-width 380ms ease, transform 300ms ease, border-color 140ms ease;
 }
 .duel-option:not(:disabled):active { border-color: var(--ink); }
-.duel-option.won { border-color: var(--ink); transform: scale(1.02); }
-/* Loser (and, on a tie, both) collapse away so the choice slides to center. */
+/* The chosen dish is NOT enlarged — it just stays put while the loser collapses
+   away so the choice reads. (On a tie, neither is chosen, so both collapse.) */
+.duel-option.won { border-color: var(--ink); }
 .duel-option.faded { opacity: 0; max-width: 0; flex-basis: 0; padding: 0; margin: 0; border-width: 0; overflow: hidden; }
 .duel-photo { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 10px; display: block; }
 .duel-photo-blank { background: var(--line); }
-/* MATCH every other dish name in the app (Songti display) — the base .dishname
-   inherits the body sans unless a wrapper sets the display font. */
-.duel-option-name { font-family: var(--font-display); }
-.duel-option-name .dishname-primary { font-size: 16px; font-weight: 700; }
-.duel-option-name .dishname-secondary { font-size: 12px; }
-.duel-option-rest { font-size: 12px; color: var(--ink-soft); }
+/* Dish names use the SAME .card-title treatment as the journal/scan (serif primary
+   + small secondary, standard spacing) — no bespoke sizes here. */
+.duel-option-rest { font-size: 13px; color: var(--ink-soft); margin-top: 1px; }
 /* The prompt: bigger, bolder, black — per the design call. */
 .duel-q { text-align: center; margin-top: 16px; font-family: var(--font-display); font-weight: 800; font-size: 20px; color: var(--ink); }
 .duel-tie { display: block; margin: 8px auto 0; background: none; border: none; color: var(--ink-soft); font-size: 13px; text-decoration: underline; cursor: pointer; }
-.duel-reveal { display: flex; flex-direction: column; align-items: center; gap: 4px; margin-top: 14px; text-align: center; }
-.duel-verdict { font-family: var(--font-display); font-weight: 700; font-size: 16px; }
+/* Reveal STAYS on screen (no auto-close) so the 印 result is readable; OK closes. */
+.duel-reveal { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-top: 16px; text-align: center; }
+.duel-verdict { display: flex; align-items: center; gap: 8px; font-family: var(--font-display); font-weight: 700; font-size: 18px; color: var(--ink); }
 .duel-learned { font-size: 13px; color: var(--ink); }
+.duel-ok { margin-top: 6px; min-width: 120px; }

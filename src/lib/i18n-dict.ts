@@ -65,6 +65,11 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'duel.miss': { zh: '估錯咗', en: 'Got that wrong' },
   'duel.tieresult': { zh: '兩樣都差唔多，記低咗', en: 'About even — noted' },
   'duel.learned': { zh: '學到：{dims}', en: 'Learned: {dims}' },
+  'duel.ok': { zh: '好', en: 'OK' },
+  // Notification bell list
+  'notif.title': { zh: '通知', en: 'Notifications' },
+  'notif.empty': { zh: '暫時冇新通知', en: 'Nothing new right now' },
+  'notif.duel.sub': { zh: '揀一樣，幫個引擎調校口味', en: 'Pick one to refine your taste' },
   'log.addphotohint': { zh: '得閒影返張相都得，唔影都評到分。', en: 'Optional \u2014 add a photo whenever you like, rating works fine without one.' },
   'log.toRate': { zh: '待評嘅菜', en: 'Dishes to rate' },
   'log.rateNow': { zh: '而家評', en: 'Rate now' },

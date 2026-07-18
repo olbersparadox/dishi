@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { LanguageProvider, useLang } from '@/lib/i18n';
 import { ScanMenuIcon } from './icons';
-import DuelBell from './DuelBell';
+import NotificationBell from './NotificationBell';
 
 export default function Shell({ children }: { children: React.ReactNode }) {
   return (
@@ -26,9 +26,8 @@ function ShellInner({ children }: { children: React.ReactNode }) {
         <header className="topbar">
           <div className="wordmark">dish<em>i</em></div>
           <div className="topbar-right">
-            {/* Notification bell sits just left of the language toggle. Renders only
-                when there's something waiting (today: a taste duel). */}
-            <DuelBell />
+            {/* Always-visible notification bell, just left of the language toggle. */}
+            <NotificationBell />
             <div className="lang-toggle" role="group" aria-label="Language / 語言">
               <button className={lang === 'zh' ? 'on' : ''} onClick={() => setLang('zh')} aria-pressed={lang === 'zh'}>中</button>
               <button className={lang === 'en' ? 'on' : ''} onClick={() => setLang('en')} aria-pressed={lang === 'en'}>EN</button>

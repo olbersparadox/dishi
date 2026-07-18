@@ -1,10 +1,9 @@
 'use client';
-// The floating 對決 card. Appears as an overlay over whatever section the user is
-// on (from the header bell, or a rare auto-surface). Three outcomes: pick a dish
-// (win/loss), 揀唔落 (a TIE — a real "these two are equal for me" signal), or ✕
-// dismiss ("not now" — teaches nothing, the duel stays available). On a resolution
-// the loser collapses away as the choice slides to center, a brief reveal shows,
-// then the whole card fades out. First-pass visual — refine in Claude Design.
+// The floating 對決 card. Three outcomes: pick a dish (win/loss), 揀唔落 (a TIE — a
+// real "these two are equal for me" signal), or ✕ dismiss ("not now" — teaches
+// nothing, the duel stays available). On a pick the loser fades so the choice reads
+// (the winner is NOT enlarged); the sealed 印 result and what was learned then STAY
+// on screen until the user taps OK. First-pass visual — refine in Claude Design.
 import { useState } from 'react';
 import { useLang } from '@/lib/i18n';
 import DishName from './DishName';
@@ -14,17 +13,20 @@ export type DuelDish = { id: string; name: string; name_zh: string | null; photo
 export type Duel = { id: string; a: DuelDish; b: DuelDish };
 type Reveal = { predicted_correct?: boolean; tie?: boolean; predicted_p: number | null; learned: { dim: string; dir: number }[] };
 
-export default function DuelOverlay({ duel, onClose }: { duel: Duel; onClose: () => void }) {
+/** onClose(resolved): resolved=true when the duel was answered (pick/tie) and the
+ *  user tapped OK — the caller drops it from the list; false on a ✕/backdrop
+ *  dismiss, where the duel stays available. */
+export default function DuelOverlay({ duel, onClose }: { duel: Duel; onClose: (resolved: boolean) => void }) {
   const { t } = useLang();
   const [chosen, setChosen] = useState<string | null>(null); // a dish id, or 'tie'
   const [reveal, setReveal] = useState<Reveal | null>(null);
   const [busy, setBusy] = useState(false);
   const [closing, setClosing] = useState(false);
 
-  function close() {
+  function close(resolved: boolean) {
     if (closing) return;
     setClosing(true);
-    setTimeout(onClose, 360); // let the fade-out play before unmounting
+    setTimeout(() => onClose(resolved), 340); // let the fade-out play before unmounting
   }
 
   async function resolve(mark: string, body: object) {
@@ -36,8 +38,7 @@ export default function DuelOverlay({ duel, onClose }: { duel: Duel; onClose: ()
         body: JSON.stringify({ duel_id: duel.id, ...body }),
       });
       const j = await res.json();
-      if (res.ok) { setReveal(j); setTimeout(close, 2200); }
-      else setChosen(null);
+      if (res.ok) setReveal(j); else setChosen(null); // reveal STAYS until OK
     } catch { setChosen(null); } finally { setBusy(false); }
   }
 
@@ -45,34 +46,33 @@ export default function DuelOverlay({ duel, onClose }: { duel: Duel; onClose: ()
 
   return (
     <div className={`duel-overlay ${closing ? 'closing' : ''}`} role="dialog" aria-modal="true" aria-label={t('duel.title')}>
-      <div className="duel-backdrop" onClick={resolving ? undefined : close} />
+      <div className="duel-backdrop" onClick={resolving ? undefined : () => close(false)} />
       <div className="card duel-card duel-floating">
         <div className="card-body">
           <div className="duel-head">
             <span className="duel-title">{t('duel.title')}</span>
             <span className="seal-stamp" title={t('seal.stamp.title')} aria-label={t('seal.stamp.title')}>印</span>
-            <button className="duel-x" onClick={close} aria-label={t('home.cancel')}><CloseIcon /></button>
+            {!reveal && <button className="duel-x" onClick={() => close(false)} aria-label={t('home.cancel')}><CloseIcon /></button>}
           </div>
 
           <div className={`duel-pair ${resolving ? 'resolving' : ''}`}>
-            {[duel.a, duel.b].map(dish => {
-              const isChosen = chosen === dish.id;
-              return (
-                <button
-                  key={dish.id}
-                  className={`duel-option ${isChosen ? 'won' : ''} ${resolving && !isChosen ? 'faded' : ''}`}
-                  disabled={busy || resolving}
-                  onClick={() => resolve(dish.id, { winner_dish_id: dish.id })}
-                >
-                  {dish.photo_url
-                    // eslint-disable-next-line @next/next/no-img-element
-                    ? <img src={dish.photo_url} alt="" className="duel-photo" />
-                    : <div className="duel-photo duel-photo-blank" aria-hidden />}
-                  <div className="duel-option-name"><DishName name={dish.name} name_zh={dish.name_zh} /></div>
-                  {dish.restaurant && <div className="duel-option-rest">{dish.restaurant}</div>}
-                </button>
-              );
-            })}
+            {[duel.a, duel.b].map(dish => (
+              <button
+                key={dish.id}
+                className={`duel-option ${chosen === dish.id ? 'won' : ''} ${resolving && chosen !== dish.id ? 'faded' : ''}`}
+                disabled={busy || resolving}
+                onClick={() => resolve(dish.id, { winner_dish_id: dish.id })}
+              >
+                {dish.photo_url
+                  // eslint-disable-next-line @next/next/no-img-element
+                  ? <img src={dish.photo_url} alt="" className="duel-photo" />
+                  : <div className="duel-photo duel-photo-blank" aria-hidden />}
+                {/* card-title: the exact journal/scan dish-name treatment (serif
+                    primary + small secondary, standard spacing) — not a bespoke size. */}
+                <div className="card-title"><DishName name={dish.name} name_zh={dish.name_zh} /></div>
+                {dish.restaurant && <div className="duel-option-rest">{dish.restaurant}</div>}
+              </button>
+            ))}
           </div>
 
           {!reveal ? (
@@ -82,14 +82,17 @@ export default function DuelOverlay({ duel, onClose }: { duel: Duel; onClose: ()
             </>
           ) : (
             <div className="duel-reveal" role="status">
-              <span className="duel-verdict">
-                {reveal.tie ? t('duel.tieresult') : reveal.predicted_correct ? `${t('duel.hit')} 🎯` : t('duel.miss')}
-              </span>
+              {/* The sealed 印 result — stays put so it's actually readable. */}
+              <div className="duel-verdict">
+                <span className="seal-stamp" aria-hidden>印</span>
+                <span>{reveal.tie ? t('duel.tieresult') : reveal.predicted_correct ? `${t('duel.hit')} 🎯` : t('duel.miss')}</span>
+              </div>
               {reveal.learned.length > 0 && (
                 <span className="duel-learned">
                   {t('duel.learned', { dims: reveal.learned.map(x => `${t(`dim.${x.dim}`)} ${x.dir > 0 ? '↑' : '↓'}`).join(' · ') })}
                 </span>
               )}
+              <button className="btn primary duel-ok" onClick={() => close(true)}>{t('duel.ok')}</button>
             </div>
           )}
         </div>

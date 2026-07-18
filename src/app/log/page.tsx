@@ -160,8 +160,20 @@ function LogFlow() {
   }
 
   /** Back to the upload screen for a fresh photo — used when the person agrees this
-   * one probably isn't a dish and wants to try again rather than rate it anyway. */
+   * one probably isn't a dish and wants to try again rather than rate it anyway.
+   * Deletes the dish row /api/dishes already created for this photo: without it, a
+   * rejected not-a-dish (e.g. a candle photo) stays behind in 待評嘅菜 as "蠟燭"
+   * even though the person explicitly declined it. Fire-and-forget — a lingering
+   * row is a cosmetic leak, not worth blocking the retake. Never deletes an
+   * existing pick (retake is only reachable from the fresh-photo not-a-dish gate,
+   * but the guard makes that explicit). */
   function retakePhoto() {
+    if (dish && !ratingExistingPick) {
+      fetch('/api/my/dishes', {
+        method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dish_id: dish.id }),
+      }).catch(() => {});
+    }
     setDish(null); setPhoto(null);
     if (preview) URL.revokeObjectURL(preview);
     setPreview(null);
