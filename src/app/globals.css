@@ -401,8 +401,8 @@ button { font: inherit; cursor: pointer; }
 .lang-en .scan-dropzone-tip { letter-spacing: normal; }
 .nophoto-pill {
   border: 1px solid var(--line); border-radius: 99px; padding: 14px 18px;
-  display: flex; align-items: center; gap: 10px; color: var(--ink-soft);
-  font-size: 14px; background: none; text-align: left;
+  display: flex; align-items: center; justify-content: center; gap: 10px; color: var(--ink-soft);
+  font-size: 14px; background: none; text-align: center;
 }
 
 
