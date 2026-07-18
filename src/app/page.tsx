@@ -28,13 +28,11 @@ export default function Home() {
 }
 
 function Journal() {
-  const { t, lang, pair } = useLang();
+  const { t, lang } = useLang();
   return (
     <div>
       <h1 style={{ marginBottom: 17 }}>{t('home.title')}</h1>
-      {/* infoLang = the PRIMARY slot (any of 10), so dates localize to the language you
-          lead with, even though the chrome copy stays zh/en. */}
-      <MyDishes t={t} lang={lang} infoLang={pair.primary} />
+      <MyDishes t={t} lang={lang} />
     </div>
   );
 }
