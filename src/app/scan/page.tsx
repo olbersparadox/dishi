@@ -252,6 +252,22 @@ function Scanner() {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Could not save your picks.');
+      // Seal at PICK time — the moment you commit to ordering these dishes, the
+      // engine commits its prediction, instead of waiting until you next open the
+      // Taste tab. Picked dishes already carry real attributes from the scan, so the
+      // seal is meaningful now. Server-gated (>= SEAL_GATE ratings) + idempotent, so
+      // this no-ops when the engine's too young or a seal already exists; awaited so
+      // the seal is committed BEFORE /log can let you rate (contentScore/composeReason
+      // only — no LLM, so it's quick). The Taste-tab/log queue-load sealing stays as
+      // the backstop for dishes born WITHOUT attributes yet (typed names, whose
+      // enrichment is deferred) — those can only be sealed once enriched.
+      const pickedIds: string[] = (json.picked ?? []).map((p: { id?: string }) => p.id).filter(Boolean) as string[];
+      await Promise.all(pickedIds.map(id =>
+        fetch('/api/seals', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ dish_id: id }),
+        }).catch(() => { /* a missing stamp is cosmetic; never block the pick on it */ }),
+      ));
       router.push('/log');
     } catch (e: any) {
       setPickError(e.message || 'Something went wrong saving those picks.');
