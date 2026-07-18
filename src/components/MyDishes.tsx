@@ -72,6 +72,27 @@ function toDateInputValue(iso: string): string {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
 
+/** Placeholder rows while the journal loads — pulsing photo + text stand-ins in the
+ * real row layout, so the page has shape immediately instead of a blank flash. */
+function JournalSkeleton() {
+  return (
+    <div aria-hidden>
+      {[0, 1, 2].map(i => (
+        <article className="rated-dish-row" key={`skel-${i}`}>
+          <div className="card-body journal-row">
+            <div className="journal-photo skel-box" />
+            <div className="journal-skel-lines">
+              <span className="skel-box" style={{ width: '38%', height: 15, borderRadius: 6 }} />
+              <span className="skel-box" style={{ width: '66%', height: 12, borderRadius: 6 }} />
+              <span className="skel-box" style={{ width: '28%', height: 12, borderRadius: 6 }} />
+            </div>
+          </div>
+        </article>
+      ))}
+    </div>
+  );
+}
+
 /**
  * The user's own rated dishes: photo, hearts received, rename, restaurant change,
  * re-rate, delete. Lives on the Feed tab (食記 food journal — see page.tsx) —
@@ -348,7 +369,8 @@ export default function MyDishes({ t, lang }: { t: (k: string, p?: Record<string
     if (!res.ok) setDishes(prevDishes);
   }
 
-  if (dishes === null || dishes.length === 0) return null;
+  if (dishes === null) return <JournalSkeleton />; // loading: shape now, not a blank flash
+  if (dishes.length === 0) return null;
 
   // Group linked dishes together so a confirmed "same dish" actually shows up
   // as something, instead of the merge being invisible in the journal (the
