@@ -783,9 +783,11 @@ function Scanner() {
                   <div className="card-title"><DishName name={item.name} name_zh={item.name_zh} name_original={item.name_original} pair={scanPair} menuLanguage={menuCode} />{item.isNew && <span className="scan-new-tag">{t('scan.new')}</span>}</div>
                   {item.price && <span className="dish-price">{item.price}</span>}
                 </div>
-                <DishDetails item={item} t={t} lang={lang} pickedBy={pickersFor(item, tablePicks)} />
               </div>
             </div>
+            {/* Hook + chips sit at the card's left edge (aligned with the rank number),
+                not indented under the name like the secondary line. */}
+            <DishDetails item={item} t={t} lang={lang} pickedBy={pickersFor(item, tablePicks)} />
           </div>
         </article>
       ))}
@@ -806,9 +808,9 @@ function Scanner() {
                     {item.price && <span className="dish-price">{item.price}</span>}
                   </span>
                 </div>
-                <DishDetails item={item} t={t} lang={lang} pickedBy={pickersFor(item, tablePicks)} />
               </div>
             </div>
+            <DishDetails item={item} t={t} lang={lang} pickedBy={pickersFor(item, tablePicks)} />
           </div>
         </article>
       ))}
@@ -839,15 +841,15 @@ function Scanner() {
                         </div>
                         {item.price && <span className="dish-price">{item.price}</span>}
                       </div>
-                      <DishDetails item={item} t={t} lang={lang} pickedBy={pickersFor(item, tablePicks)} />
-                      {fire && item.reason && (
-                        <p className="scan-reason fade-in">
-                          <span className="scan-reason-icon" aria-hidden><SpeechIcon size={18} /></span>
-                          <span>{item.reason}</span>
-                        </p>
-                      )}
                     </div>
                   </div>
+                  <DishDetails item={item} t={t} lang={lang} pickedBy={pickersFor(item, tablePicks)} />
+                  {fire && item.reason && (
+                    <p className="scan-reason fade-in">
+                      <span className="scan-reason-icon" aria-hidden><SpeechIcon size={18} /></span>
+                      <span>{item.reason}</span>
+                    </p>
+                  )}
                 </div>
               </article>
             );
