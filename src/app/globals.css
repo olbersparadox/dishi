@@ -811,6 +811,7 @@ button { font: inherit; cursor: pointer; }
 .dish-actions {
   position: relative; flex-shrink: 0;
   display: flex; gap: 8px; justify-content: flex-end;
+  margin-right: -10px; /* nudge the kebab 10px toward the row's right edge */
 }
 /* Larger tap targets for the icon actions (the 30px ones were genuinely fiddly on
    a phone, and these are the primary way to fix a wrong dish). */
