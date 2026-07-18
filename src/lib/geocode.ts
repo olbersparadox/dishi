@@ -19,9 +19,16 @@ export type AddressComponent = { long_name: string; types: string[] };
  * locality, then null (never a wrong guess dressed up as a real answer).
  */
 export function pickAreaFromComponents(components: AddressComponent[]): string | null {
-  return components.find(c => c.types.includes('sublocality') || c.types.includes('sublocality_level_1'))?.long_name
-    ?? components.find(c => c.types.includes('locality'))?.long_name
-    ?? null;
+  // District-level, most-useful first. Hong Kong tags its districts (葵芳, 香港仔) as
+  // `neighborhood` with NO sublocality/locality at all — the original lookup only
+  // checked sublocality/locality, so every HK lookup returned null. Include
+  // neighborhood, and keep locality as the fallback for other cities.
+  const order = ['sublocality_level_1', 'sublocality', 'neighborhood', 'sublocality_level_2', 'locality'];
+  for (const type of order) {
+    const c = components.find(c => c.types.includes(type));
+    if (c?.long_name) return c.long_name;
+  }
+  return null;
 }
 
 export async function reverseGeocode(lat: number, lng: number, languageCode = 'en'): Promise<ReverseGeocodeResult> {
@@ -47,9 +54,6 @@ export async function reverseGeocode(lat: number, lng: number, languageCode = 'e
     const result = json?.results?.[0];
     if (!result) return { area: null, address: null };
 
-    // TEMP DIAGNOSTIC: HK component types are unusual — log them once to calibrate
-    // pickAreaFromComponents, then remove.
-    console.error('geocode components', JSON.stringify((result.address_components ?? []).map((c: AddressComponent) => ({ n: c.long_name, t: c.types }))));
     const area = pickAreaFromComponents(result.address_components ?? []);
     return { area, address: result.formatted_address ?? null };
   } catch (e) {

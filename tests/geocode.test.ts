@@ -34,4 +34,17 @@ describe('pickAreaFromComponents', () => {
     ]);
     expect(area).toBe('Shibuya');
   });
+
+  it('picks a Hong Kong district tagged only as neighborhood (葵芳, 香港仔)', () => {
+    // Real Google response shape for HK: no sublocality/locality at all — the district
+    // is a `neighborhood`, above only the whole-territory admin level and the country.
+    const area = pickAreaFromComponents([
+      { long_name: '223', types: ['street_number'] },
+      { long_name: '興芳路', types: ['route'] },
+      { long_name: '葵芳', types: ['neighborhood', 'political'] },
+      { long_name: '新界', types: ['administrative_area_level_1', 'political'] },
+      { long_name: '香港', types: ['country', 'political'] },
+    ]);
+    expect(area).toBe('葵芳');
+  });
 });
