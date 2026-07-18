@@ -97,3 +97,35 @@ accepted limitation, revisit only if it recurs visibly.)
 Same Imakatsu money test, plus: force a mock skeleton with kana in z → UI never
 shows kana in the primary Chinese slot at any point after enrichment settles;
 ヒレカツ膳 card shows at most one 牛肉 chip.
+
+---
+
+# v3 addendum: the preset must yield to an explicit user choice
+
+Live finding (12:17 test): with the foreign preset active (secondary = 日本語),
+changing the secondary to English in the globe does nothing — the override is
+recomputed from the persisted pair on every render, so any pair not containing
+ja gets stomped back to ja. The user is trapped, and the inline note's 撳地球可改
+promise is false. Also: the popover shows the PERSISTED pair (English) while the
+page shows the EFFECTIVE pair (Japanese) — the UI contradicts itself.
+
+Rule: **the preset is a default; an explicit user choice beats a default,
+immediately and for the rest of that scan session.**
+
+## Fix 5
+
+1. While a scan's foreign preset is active, the globe popover displays the
+   EFFECTIVE pair — secondary reads 日本語（餐牌原文）— not the persisted one.
+2. Any change made in the pair picker while scan results are open clears the
+   preset for that scan session (a session flag alongside the existing
+   scanSession state, so it survives tab switches like the rest of the scan and
+   dies on X/refresh with it). From that moment scanPair = the user's chosen
+   pair, exactly as chosen. Choosing 日本語 explicitly keeps Japanese — now by
+   choice rather than by trap. Persisted-pair semantics are unchanged.
+3. Tests: preset active → user sets secondary en → effective secondary en and
+   stays en across re-renders; preset cleared flag persists in scanSession;
+   new scan (new menu) re-evaluates the preset fresh.
+
+Acceptance: reproduce the 12:17 sequence — scan Japanese menu, open globe, set
+secondary to English → secondary line switches to English and stays; set it
+back to 日本語 → printed originals return.
