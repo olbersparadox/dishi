@@ -12,7 +12,7 @@ import { sumPrices } from '@/lib/price';
 import { CameraIcon, MenuBookIcon, ArrowRightIcon, CloseIcon, SpeechIcon } from '@/components/icons';
 import { sameDishInSession, restaurantKeptNote } from '@/lib/menuMerge';
 import { getScanSession, setScanSession, clearScanSession } from '@/lib/scanSession';
-import { useLang } from '@/lib/i18n';
+import { useLang, menuLanguageToCode, languageLabel } from '@/lib/i18n';
 
 type ScannedItem = {
   name: string; name_zh?: string | null; name_original: string; section: string | null; description: string | null;
@@ -69,7 +69,7 @@ export default function ScanPage() {
 }
 
 function Scanner() {
-  const { t, lang } = useLang();
+  const { t, lang, pair } = useLang();
   // Restore a scan left behind when the user switched tabs (Feed/Taste) and came
   // back. Read once, synchronously, so the very first render already shows the
   // menu instead of flashing the capture screen. `scanning`/`preview` are
@@ -628,6 +628,15 @@ function Scanner() {
   );
   const displayItems = result.items;
 
+  // Foreign-menu preset: if the menu's language is one we can display but is in
+  // NEITHER slot of the active pair, show it as the secondary for THIS scan only
+  // (the persisted pair is untouched — leaving the scan restores it). Passing
+  // menuLanguage also triggers the fidelity rule: that slot renders the printed
+  // original verbatim rather than a re-translation.
+  const menuCode = menuLanguageToCode(result.menu_language);
+  const foreignSecondary = menuCode && menuCode !== pair.primary && menuCode !== pair.secondary ? menuCode : null;
+  const scanPair = foreignSecondary ? { primary: pair.primary, secondary: foreignSecondary } : pair;
+
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6, gap: 8 }}>
@@ -656,6 +665,11 @@ function Scanner() {
       {keptNote && (
         <p className="card-meta" style={{ marginBottom: 18, color: 'var(--ink-soft)' }} role="status">
           {t('scan.kept', { name: keptNote })}
+        </p>
+      )}
+      {foreignSecondary && (
+        <p className="card-meta" style={{ marginBottom: 18, color: 'var(--ink-soft)' }} role="status">
+          {t('lang.foreignmenu', { lang: languageLabel(foreignSecondary) })}
         </p>
       )}
       {appending && (
@@ -711,7 +725,7 @@ function Scanner() {
           onClick={() => togglePick(item.name_original)}>
           <div className="card-body">
             <div className="dish-row">
-              <div className="card-title"><DishName prefix={`${i + 1}. `} name={item.name} name_zh={item.name_zh} name_original={item.name_original} />{item.isNew && <span className="scan-new-tag">{t('scan.new')}</span>}</div>
+              <div className="card-title"><DishName prefix={`${i + 1}. `} name={item.name} name_zh={item.name_zh} name_original={item.name_original} pair={scanPair} menuLanguage={menuCode} />{item.isNew && <span className="scan-new-tag">{t('scan.new')}</span>}</div>
               {item.price && <span className="dish-price">{item.price}</span>}
             </div>
             <DishDetails item={item} t={t} lang={lang} pickedBy={pickersFor(item, tablePicks)} />
@@ -726,7 +740,7 @@ function Scanner() {
           onClick={() => togglePick(item.name_original)}>
           <div className="card-body">
             <div className="dish-row">
-              <div className="card-title"><DishName prefix={`${i + 1}. `} name={item.name} name_zh={item.name_zh} name_original={item.name_original} />{item.isNew && <span className="scan-new-tag">{t('scan.new')}</span>}</div>
+              <div className="card-title"><DishName prefix={`${i + 1}. `} name={item.name} name_zh={item.name_zh} name_original={item.name_original} pair={scanPair} menuLanguage={menuCode} />{item.isNew && <span className="scan-new-tag">{t('scan.new')}</span>}</div>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
                 {item.match === undefined && <Spinner size={16} />}
                 {item.price && <span className="dish-price">{item.price}</span>}
@@ -754,7 +768,7 @@ function Scanner() {
                 <div className="card-body">
                   <div className="dish-row">
                     <div className="card-title" style={{ display: 'flex', alignItems: 'baseline', gap: 7, minWidth: 0 }}>
-                      <DishName prefix={`${i + 1}. `} name={item.name} name_zh={item.name_zh} name_original={item.name_original}
+                      <DishName prefix={`${i + 1}. `} name={item.name} name_zh={item.name_zh} name_original={item.name_original} pair={scanPair} menuLanguage={menuCode}
                         suffix={fire ? <span className="scan-fire scan-fire-pop" aria-label={t('scan.fire')}>{'\uD83D\uDD25'}</span> : undefined} />
                       {item.isNew && <span className="scan-new-tag">{t('scan.new')}</span>}
                     </div>

@@ -31,6 +31,26 @@ export const LANGUAGES: { code: LangCode; label: string }[] = [
 ];
 export const languageLabel = (code: LangCode) => LANGUAGES.find(l => l.code === code)?.label ?? code;
 
+/** Map a scan's `menu_language` string (the model returns names like "japanese")
+ * to a picker LangCode, or null if it isn't one we display (mixed/unknown/etc.).
+ * Drives the foreign-menu preset + the point-and-order fidelity rule. */
+export function menuLanguageToCode(menuLanguage: string | null | undefined): LangCode | null {
+  const m = (menuLanguage ?? '').trim().toLowerCase();
+  const map: Record<string, LangCode> = {
+    japanese: 'ja', ja: 'ja', 日本語: 'ja',
+    korean: 'ko', ko: 'ko', 한국어: 'ko',
+    thai: 'th', th: 'th',
+    vietnamese: 'vi', vi: 'vi',
+    indonesian: 'id', id: 'id', malay: 'id',
+    filipino: 'tl', tagalog: 'tl', tl: 'tl',
+    spanish: 'es', es: 'es',
+    french: 'fr', fr: 'fr',
+    english: 'en', en: 'en',
+    chinese: 'zh', cantonese: 'zh', mandarin: 'zh', 'traditional chinese': 'zh', zh: 'zh',
+  };
+  return map[m] ?? null;
+}
+
 export type LangPair = { primary: LangCode; secondary: LangCode };
 /** Chrome language derived from a pair: zh if EITHER slot is 中文, else en (spec's
  * ripple-containment rule — keeps ja/ko/… out of chrome, which stays zh/en only). */
@@ -43,6 +63,39 @@ export function chromeLangOf(pair: LangPair): Lang {
  * a DB id (persistence by id is a later slice). */
 export function dishNameKey(d: { name: string; name_zh?: string | null }): string {
   return `${d.name_zh ?? ''}|${d.name}`;
+}
+
+/**
+ * Resolve a dish's primary + secondary display strings for a pair. Pure, so it's
+ * unit-tested directly (DishName is the only caller). Rules, in order:
+ *  - FIDELITY: a slot whose language IS the scanned menu's language shows the exact
+ *    printed original (name_original) — no translation.
+ *  - canonical slots -> en / zh directly; other slots -> the cached translation.
+ *  - a missing translation falls back to the chrome-language canonical (shown until
+ *    the real one arrives).
+ *  - if both slots resolve to the same string, the secondary is dropped (no dupes).
+ */
+export function resolveNamePair(opts: {
+  pair: LangPair;
+  chromeLang: Lang;
+  en?: string;
+  zh?: string;
+  translated: (code: LangCode) => string | undefined;
+  nameOriginal?: string | null;
+  menuLanguage?: LangCode | null;
+}): { primary?: string; secondary?: string } {
+  const { pair, chromeLang, en, zh, translated, nameOriginal, menuLanguage } = opts;
+  const resolve = (code: LangCode): string | undefined => {
+    if (menuLanguage && code === menuLanguage && nameOriginal) return nameOriginal;
+    if (code === 'en') return en;
+    if (code === 'zh') return zh;
+    return translated(code);
+  };
+  const fallback = (chromeLang === 'zh' ? zh : en) ?? en ?? zh;
+  const primary = resolve(pair.primary) ?? fallback;
+  let secondary = resolve(pair.secondary) ?? fallback;
+  if (secondary === primary) secondary = undefined;
+  return { primary, secondary };
 }
 
 export const dict: Record<string, { zh: string; en: string }> = {
@@ -114,6 +167,7 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'lang.primary': { zh: '主要', en: 'Primary' },
   'lang.secondary': { zh: '次要', en: 'Secondary' },
   'lang.swap': { zh: '對調', en: 'Swap' },
+  'lang.foreignmenu': { zh: '副名稱：{lang}（餐牌原文）· 撳地球可改', en: 'Secondary: {lang} (as printed) · tap the globe to change' },
   // Notification bell list
   'notif.title': { zh: '通知', en: 'Notifications' },
   'notif.empty': { zh: '暫時冇新通知', en: 'Nothing new right now' },
