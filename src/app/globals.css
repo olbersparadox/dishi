@@ -379,6 +379,10 @@ button { font: inherit; cursor: pointer; }
    (incl. a re-activated .lang-en); applies to whichever slot holds each script. */
 .dishname-primary.dn-cjk { letter-spacing: 0.05em; }
 .dishname-primary.dn-latin { letter-spacing: -0.01em; }
+/* CJK stays open in the secondary slot too (matching the primary's 0.05em); Latin
+   there tightens to normal. So Chinese reads airy and English reads tight in whichever
+   slot each lands. */
+.dishname-secondary.dn-cjk { letter-spacing: 0.05em; }
 .dishname-secondary.dn-latin { letter-spacing: normal; }
 .dishname-lg .dishname-primary { font-family: var(--font-display); font-size: 26px; font-weight: 700; }
 .dishname-lg .dishname-secondary { font-size: 14px; }
