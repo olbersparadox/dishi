@@ -7,6 +7,7 @@ import {
 export type { Lang, LangCode, LangPair } from './i18n-dict';
 export {
   pickNames, cuisineLabel, LANGUAGES, languageLabel, CANONICAL_PAIR, isCanonical, dishNameKey, menuLanguageToCode, resolveNamePair, hasNonChineseScript,
+  foreignMenuSecondary, scanPresetPair,
 } from './i18n-dict';
 
 /**

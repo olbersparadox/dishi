@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { LanguageProvider, useLang } from '@/lib/i18n';
 import { TranslationProvider } from '@/lib/translation';
+import { ScanPresetProvider } from '@/lib/scanPreset';
 import { ScanMenuIcon } from './icons';
 import NotificationBell from './NotificationBell';
 import LanguagePicker from './LanguagePicker';
@@ -11,7 +12,13 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   return (
     <LanguageProvider>
       <TranslationProvider>
-        <ShellInner>{children}</ShellInner>
+        {/* ScanPresetProvider spans both the header globe and the page below it,
+            so a scan's foreign-menu preset and an explicit override in the globe
+            stay in sync. Shell is the persistent root layout, so this survives
+            tab switches and dies on refresh — matching scanSession's lifetime. */}
+        <ScanPresetProvider>
+          <ShellInner>{children}</ShellInner>
+        </ScanPresetProvider>
       </TranslationProvider>
     </LanguageProvider>
   );

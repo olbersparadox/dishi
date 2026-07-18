@@ -1,7 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import {
   chromeLangOf, menuLanguageToCode, dishNameKey, resolveNamePair,
-  CANONICAL_PAIR, isCanonical, LANGUAGES, hasNonChineseScript, type LangPair,
+  CANONICAL_PAIR, isCanonical, LANGUAGES, hasNonChineseScript,
+  foreignMenuSecondary, scanPresetPair, type LangPair,
 } from '../src/lib/i18n-dict';
 
 // ── chrome language derivation ──────────────────────────────────────────────────
@@ -69,6 +70,37 @@ describe('hasNonChineseScript', () => {
     expect(hasNonChineseScript('')).toBe(false);
     expect(hasNonChineseScript(null)).toBe(false);
     expect(hasNonChineseScript(undefined)).toBe(false);
+  });
+});
+
+// ── foreign-menu preset & the override that beats it (Fix 5) ────────────────────
+describe('foreignMenuSecondary', () => {
+  const dflt: LangPair = { primary: 'zh', secondary: 'en' };
+  it('presets the menu language only when it is in neither slot', () => {
+    expect(foreignMenuSecondary('ja', dflt)).toBe('ja');       // Japanese menu, zh/en pair
+    expect(foreignMenuSecondary('en', dflt)).toBeNull();       // already the secondary
+    expect(foreignMenuSecondary('zh', dflt)).toBeNull();       // already the primary
+    expect(foreignMenuSecondary('ja', { primary: 'en', secondary: 'ja' })).toBeNull(); // user already has ja
+    expect(foreignMenuSecondary(null, dflt)).toBeNull();       // unknown menu language
+  });
+});
+
+describe('scanPresetPair (preset is a default; an explicit choice wins)', () => {
+  const dflt: LangPair = { primary: 'zh', secondary: 'en' };
+  it('overlays the menu language while the preset stands', () => {
+    expect(scanPresetPair(dflt, 'ja', false)).toEqual({ primary: 'zh', secondary: 'ja' });
+  });
+  it('yields to the persisted pair once the user has overridden', () => {
+    // the 12:17 trap: Japanese menu, user picked English -> pair must be exactly {zh,en}
+    expect(scanPresetPair(dflt, 'ja', true)).toEqual({ primary: 'zh', secondary: 'en' });
+  });
+  it('is a no-op when the menu language is already covered by the pair', () => {
+    expect(scanPresetPair(dflt, 'en', false)).toEqual(dflt);
+    expect(scanPresetPair({ primary: 'en', secondary: 'ja' }, 'ja', false)).toEqual({ primary: 'en', secondary: 'ja' });
+  });
+  it('choosing the menu language explicitly still keeps it (now by choice, via the persisted pair)', () => {
+    // after override the user set secondary=ja, so the persisted pair carries it
+    expect(scanPresetPair({ primary: 'zh', secondary: 'ja' }, 'ja', true)).toEqual({ primary: 'zh', secondary: 'ja' });
   });
 });
 

@@ -12,7 +12,8 @@ import { sumPrices } from '@/lib/price';
 import { CameraIcon, MenuBookIcon, ArrowRightIcon, CloseIcon, SpeechIcon } from '@/components/icons';
 import { sameDishInSession, restaurantKeptNote } from '@/lib/menuMerge';
 import { getScanSession, setScanSession, clearScanSession } from '@/lib/scanSession';
-import { useLang, menuLanguageToCode, languageLabel, hasNonChineseScript } from '@/lib/i18n';
+import { useLang, menuLanguageToCode, languageLabel, hasNonChineseScript, foreignMenuSecondary, scanPresetPair } from '@/lib/i18n';
+import { useScanPreset } from '@/lib/scanPreset';
 
 type ScannedItem = {
   name: string; name_zh?: string | null; name_original: string; section: string | null; description: string | null;
@@ -102,6 +103,17 @@ function Scanner() {
   const [tableSession, setTableSession] = useState<{ code: string; session_id: string } | null>(restored?.tableSession ?? null);
   const [tableMemberCount, setTableMemberCount] = useState(0);
   const [tablePicks, setTablePicks] = useState<{ name: string; name_zh: string | null; handle: string; identity_name?: string | null; identity_name_zh?: string | null }[]>([]);
+
+  // Foreign-menu preset (Fix 5). Computed here at the top — before any early
+  // return — so the header globe can be told about it and so the results render
+  // below can reuse it. `overridden` (from the shared preset context) records an
+  // explicit choice made in the globe: once set, the preset yields and scanPair is
+  // just the persisted pair. The raw foreign secondary is PUBLISHED to the picker
+  // so its popover shows the effective pair instead of contradicting the page.
+  const { overridden, setPresetSecondary, resetPreset } = useScanPreset();
+  const menuCode = result ? menuLanguageToCode(result.menu_language) : null;
+  const foreignSecondary = foreignMenuSecondary(menuCode, pair);
+  useEffect(() => { setPresetSecondary(foreignSecondary); }, [foreignSecondary, setPresetSecondary]);
 
   /**
    * Every successful scan gets a table code, automatically — there's no longer a
@@ -265,6 +277,7 @@ function Scanner() {
       // (e.g. after a failed scan leaves the capture screen up), so the previous
       // menu's picks are cleared here rather than relying on reset() having run.
       clearScanSession(); // a new menu supersedes any restored one
+      resetPreset(); // new menu -> re-evaluate the foreign-language preset fresh (Fix 5)
       setResult(null);
       setSettled(false);
       setPicked(new Set());
@@ -527,6 +540,7 @@ function Scanner() {
 
   function reset() {
     clearScanSession(); // the X dismisses the menu for real — don't resurrect it on the next visit
+    resetPreset(); // and forget any foreign-language preset/override with it (Fix 5)
     setResult(null);
     setPreview(null);
     setError('');
@@ -654,10 +668,10 @@ function Scanner() {
   // NEITHER slot of the active pair, show it as the secondary for THIS scan only
   // (the persisted pair is untouched — leaving the scan restores it). Passing
   // menuLanguage also triggers the fidelity rule: that slot renders the printed
-  // original verbatim rather than a re-translation.
-  const menuCode = menuLanguageToCode(result.menu_language);
-  const foreignSecondary = menuCode && menuCode !== pair.primary && menuCode !== pair.secondary ? menuCode : null;
-  const scanPair = foreignSecondary ? { primary: pair.primary, secondary: foreignSecondary } : pair;
+  // original verbatim rather than a re-translation. `menuCode`/`foreignSecondary`
+  // are computed at the top of the component; `overridden` makes an explicit globe
+  // choice win over the preset (Fix 5).
+  const scanPair = scanPresetPair(pair, menuCode, overridden);
 
   return (
     <div>
@@ -689,7 +703,7 @@ function Scanner() {
           {t('scan.kept', { name: keptNote })}
         </p>
       )}
-      {foreignSecondary && (
+      {foreignSecondary && !overridden && (
         <p className="card-meta" style={{ marginBottom: 18, color: 'var(--ink-soft)' }} role="status">
           {t('lang.foreignmenu', { lang: languageLabel(foreignSecondary) })}
         </p>

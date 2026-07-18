@@ -73,6 +73,22 @@ export function dishNameKey(d: { name: string; name_zh?: string | null }): strin
   return `${d.name_zh ?? ''}|${d.name}`;
 }
 
+/** The secondary language a scanned menu should PRESET: the menu's own language,
+ * but only when it isn't already one of the two pair slots (otherwise the pair
+ * already covers it). null when there's nothing to preset. */
+export function foreignMenuSecondary(menuCode: LangCode | null, pair: LangPair): LangCode | null {
+  return menuCode && menuCode !== pair.primary && menuCode !== pair.secondary ? menuCode : null;
+}
+
+/** The pair a scan actually renders with. The foreign-menu preset overlays the
+ * menu's language onto the secondary slot FOR THIS SCAN — but it's only a default:
+ * once the user has made an explicit choice in the globe (`overridden`), the
+ * preset yields and the persisted pair is used exactly as chosen (Fix 5). */
+export function scanPresetPair(pair: LangPair, menuCode: LangCode | null, overridden: boolean): LangPair {
+  const secondary = overridden ? null : foreignMenuSecondary(menuCode, pair);
+  return secondary ? { primary: pair.primary, secondary } : pair;
+}
+
 /**
  * Resolve a dish's primary + secondary display strings for a pair. Pure, so it's
  * unit-tested directly (DishName is the only caller). Rules, in order:
@@ -176,6 +192,7 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'lang.secondary': { zh: '次要', en: 'Secondary' },
   'lang.swap': { zh: '對調', en: 'Swap' },
   'lang.foreignmenu': { zh: '副名稱：{lang}（餐牌原文）· 撳地球可改', en: 'Secondary: {lang} (as printed) · tap the globe to change' },
+  'lang.menuoriginal': { zh: '餐牌原文', en: 'menu original' },
   // Notification bell list
   'notif.title': { zh: '通知', en: 'Notifications' },
   'notif.empty': { zh: '暫時冇新通知', en: 'Nothing new right now' },
