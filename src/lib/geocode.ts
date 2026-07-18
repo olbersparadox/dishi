@@ -47,6 +47,9 @@ export async function reverseGeocode(lat: number, lng: number, languageCode = 'e
     const result = json?.results?.[0];
     if (!result) return { area: null, address: null };
 
+    // TEMP DIAGNOSTIC: HK component types are unusual — log them once to calibrate
+    // pickAreaFromComponents, then remove.
+    console.error('geocode components', JSON.stringify((result.address_components ?? []).map((c: AddressComponent) => ({ n: c.long_name, t: c.types }))));
     const area = pickAreaFromComponents(result.address_components ?? []);
     return { area, address: result.formatted_address ?? null };
   } catch (e) {
