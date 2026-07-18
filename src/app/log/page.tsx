@@ -459,16 +459,16 @@ function LogFlow() {
           const hasName = !!typedEn.trim() || !!typedZh.trim();
           return (
           <div className="card" style={{ marginBottom: 28 }}><div className="card-body">
-            {/* Translate hint sits beside the first label — one line, not a footnote. */}
-            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 }}>
+            {/* Translate hint sits right after the first label — one line, not a footnote. */}
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
               <label className="label" style={{ fontSize: 11.5 }}>{t('home.name.zh')}</label>
-              <span className="card-meta" style={{ fontSize: 11, textAlign: 'right' }}>{t('home.translateOnSave')}</span>
+              <span className="card-meta" style={{ fontSize: 11 }}>({t('home.translateOnSave')})</span>
             </div>
             <input className="field" style={{ marginBottom: 6 }} value={typedZh} autoFocus
               onChange={e => { setTypedZh(e.target.value); setNoPhotoConfirmed(false); }} placeholder="叉燒飯" />
             <label className="label" style={{ fontSize: 11.5 }}>{t('home.name.en')}</label>
             <input className="field" value={typedEn}
-              onChange={e => { setTypedEn(e.target.value); setNoPhotoConfirmed(false); }} placeholder="Char siu rice" />
+              onChange={e => { setTypedEn(e.target.value); setNoPhotoConfirmed(false); }} placeholder="BBQ pork rice" />
 
             {/* Restaurant lives in the shared "where" step below — not duplicated here. */}
             {noPhotoError && <p style={{ color: 'var(--lacquer)', fontSize: 12.5, marginTop: 6 }}>{noPhotoError}</p>}
