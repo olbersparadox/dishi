@@ -149,6 +149,11 @@ button { font: inherit; cursor: pointer; }
   padding: 7px 15px; font-size: 13px; color: var(--ink-soft);
 }
 .chip.on { border-color: var(--ink); color: var(--ink); background: transparent; }
+/* Utility pills (+ add-a-place / not-at-a-restaurant) — soft-filled so they read
+   as actions set apart from the outlined restaurant chips. Higher-specificity
+   selectors so they win over .chip / .chip.on regardless of source order. */
+.chip.chip-util { background: var(--paper-inset); border-color: transparent; color: var(--ink-soft); }
+.chip.chip-util.on { background: var(--paper-inset); border-color: var(--ink); color: var(--ink); }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
 
 .field { width: 100%; border: 1px solid var(--line); border-radius: 10px; padding: 11px 12px; font: inherit; background: var(--paper-raised); }

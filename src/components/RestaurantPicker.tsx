@@ -143,7 +143,7 @@ export default function RestaurantPicker({ onChange, skipFirst = false }: {
 
       <div className="chips" style={{ marginTop: 8 }}>
         {skipFirst && (
-          <button className={`chip ${selectedKey === 'skip' ? 'on' : ''}`} onClick={skip}>
+          <button className={`chip chip-util ${selectedKey === 'skip' ? 'on' : ''}`} onClick={skip}>
             {t('picker.skip')}
           </button>
         )}
@@ -162,11 +162,11 @@ export default function RestaurantPicker({ onChange, skipFirst = false }: {
             </button>
           );
         })}
-        <button className={`chip ${adding ? 'on' : ''}`} onClick={() => setAdding(a => !a)}>
+        <button className={`chip chip-util ${adding ? 'on' : ''}`} onClick={() => setAdding(a => !a)}>
           {t('picker.add')}
         </button>
         {!skipFirst && (
-          <button className={`chip ${selectedKey === 'skip' ? 'on' : ''}`} onClick={skip}>
+          <button className={`chip chip-util ${selectedKey === 'skip' ? 'on' : ''}`} onClick={skip}>
             {t('picker.skip')}
           </button>
         )}
