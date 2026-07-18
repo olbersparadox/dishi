@@ -71,9 +71,9 @@ export function CloseIcon({ size = 16 }: IconProps) {
 export function RateIcon({ size = 16 }: IconProps) {
   return (
     <svg viewBox="0 0 24 24" width={size} height={size} aria-hidden="true">
-      <path d="M12 3v18" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-      <path d="M8 7l4-4 4 4" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M8 17l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M12 3v18" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M8 7l4-4 4 4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M8 17l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
