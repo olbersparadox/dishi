@@ -120,6 +120,16 @@ export default function RestaurantPicker({ onChange, skipFirst = false }: {
     setAdding(false);
     onChange(null);
   }
+  // Single-select: opening "+ 加間舖" clears any picked chip (skip / a nearby
+  // place) and its pending choice — you can't have two picked at once. Tapping it
+  // again closes the form.
+  function toggleAdd() {
+    if (adding) { setAdding(false); return; }
+    setAdding(true);
+    setSelectedKey(null);
+    setSuggestion(null);
+    onChange(null);
+  }
 
   // Prefill area/address once, the first time "add more details" opens — a
   // starting point, not a fact. Always freely editable afterward, and never
@@ -164,7 +174,7 @@ export default function RestaurantPicker({ onChange, skipFirst = false }: {
             </button>
           );
         })}
-        <button className={`chip chip-util ${adding ? 'on' : ''}`} onClick={() => setAdding(a => !a)}>
+        <button className={`chip chip-util ${adding ? 'on' : ''}`} onClick={toggleAdd}>
           {t('picker.add')}
         </button>
         {!skipFirst && (
