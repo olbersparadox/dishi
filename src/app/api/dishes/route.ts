@@ -131,13 +131,21 @@ async function createFromName(req: NextRequest, supabase: any, userId: string) {
   // same translation path the rename flow uses, so a Chinese-only entry still ends
   // up with both names rather than a permanently half-filled row.
   const seed = name || nameZh;
-  const cuisine = (await inferCuisineFromName(seed).catch(() => null)) ?? 'unknown';
-  const [attributes, enrichment, translated] = await Promise.all([
-    scoreOneDish({ name: seed, cuisine }).catch(() => ({})),
-    enrichOneDish({ name: seed, name_zh: nameZh || null, cuisine }).catch(() => null),
+  // Speed-up A: run cuisine inference ALONGSIDE scoring/enrichment rather than
+  // awaiting it first — that chaining made typed-name "Continue" two back-to-back
+  // qwen round-trips (cuisine, THEN score/enrich). Score/enrich now get cuisine
+  // 'unknown' as context (the dish name is the dominant signal, and they already
+  // handle 'unknown' from the scan path); the STORED cuisine still comes from the
+  // real inference, so the saved row is identical — just ~half the wait. No vision
+  // here: the person named the dish, so nothing needs identifying.
+  const [cuisineInferred, attributes, enrichment, translated] = await Promise.all([
+    inferCuisineFromName(seed).catch(() => null),
+    scoreOneDish({ name: seed, cuisine: 'unknown' }).catch(() => ({})),
+    enrichOneDish({ name: seed, name_zh: nameZh || null, cuisine: 'unknown' }).catch(() => null),
     (name && !nameZh ? translateDishName(name) : !name && nameZh ? translateDishName(nameZh) : Promise.resolve(null))
       .catch(() => null),
   ]);
+  const cuisine = cuisineInferred ?? 'unknown';
 
   const { data: dish, error } = await supabase
     .from('dishes')
