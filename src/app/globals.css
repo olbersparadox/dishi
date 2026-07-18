@@ -602,7 +602,16 @@ button { font: inherit; cursor: pointer; }
   font-family: var(--font-display); font-size: 17px; font-weight: 700;
   display: flex; align-items: center; gap: 7px;
 }
-.pick-card-meta { font-size: 12px; color: var(--ink-soft); margin-top: 5px; }
+/* Match the 食記 journal's dish-name treatment (.card-title) exactly: a bigger,
+   bolder serif primary over a medium-weight secondary. Character spacing needs no
+   override — the base .dishname-primary/.dishname-secondary carry it in em (0.05em
+   for the CJK primary, 0.01em for the Latin secondary), so scaling the font-size
+   scales the tracking to the journal's px values too. */
+.pick-card-name .dishname-primary { font-size: 20px; font-weight: 800; }
+.pick-card-name .dishname-secondary { font-size: 13px; font-weight: 500; }
+/* Location line: same 13px / 0.02em tracking as the journal's .dish-meta, sat 6px
+   below the name — the journal's own secondary→meta gap. */
+.pick-card-meta { font-size: 13px; font-weight: 400; color: var(--ink-soft); line-height: 1.35; letter-spacing: 0.02em; margin-top: 6px; }
 .pick-card-actions { display: flex; gap: 8px; flex-shrink: 0; }
 
 /* 封印預測 — the seal stamp on a to-be-rated card. Small, quiet, vermillion:
