@@ -50,6 +50,12 @@ function LogFlow() {
   // The typed name must be explicitly CONFIRMED (the ✓ button) before the shared
   // 繼續 button below the card activates — editing either field un-confirms it.
   const [noPhotoConfirmed, setNoPhotoConfirmed] = useState(false);
+  // Which language field the user actually typed in. Mirrors the Eat-Journal edit
+  // (MyDishes): typing in one language clears the OTHER unless it was hand-edited,
+  // so a name is authored in one language and the other is derived.
+  const [typedEnEdited, setTypedEnEdited] = useState(false);
+  const [typedZhEdited, setTypedZhEdited] = useState(false);
+  const [confirmingName, setConfirmingName] = useState(false);
   const [dish, setDish] = useState<Dish | null>(null);
   const [draftName, setDraftName] = useState('');
   const [draftNameZh, setDraftNameZh] = useState('');
@@ -94,6 +100,33 @@ function LogFlow() {
   /** Creates a dish from a typed name (no photo) and drops straight into rating it.
    * Same dishes table, same rating pipeline, same taste engine — the ONLY thing
    * missing is the photo, which was never what the engine learned from. */
+  // ✓ confirm: fill in whichever language is empty by translating the one that's
+  // filled (so both are shown before saving), then mark the name confirmed. Fails
+  // soft — if translation can't be reached, we still confirm; the server fills the
+  // other side on save anyway.
+  async function confirmName() {
+    if (confirmingName) return;
+    const zh = typedZh.trim(); const en = typedEn.trim();
+    if (!zh && !en) return;
+    setConfirmingName(true);
+    try {
+      const source = zh && !en ? zh : en && !zh ? en : null; // only when one side is empty
+      if (source) {
+        const r = await fetch('/api/translate/dishname', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: source }),
+        });
+        const j = await r.json().catch(() => ({}));
+        if (r.ok && typeof j.translated === 'string' && j.translated.trim()) {
+          if (zh && !en) setTypedEn(j.translated.trim()); else setTypedZh(j.translated.trim());
+        }
+      }
+      setNoPhotoConfirmed(true);
+    } finally {
+      setConfirmingName(false);
+    }
+  }
+
   async function createWithoutPhoto() {
     if (creatingNoPhoto) return;
     setCreatingNoPhoto(true); setNoPhotoError('');
@@ -465,10 +498,10 @@ function LogFlow() {
               <span className="card-meta" style={{ fontSize: 11 }}>({t('home.translateOnSave')})</span>
             </div>
             <input className="field" style={{ marginBottom: 6 }} value={typedZh} autoFocus
-              onChange={e => { setTypedZh(e.target.value); setNoPhotoConfirmed(false); }} placeholder="叉燒飯" />
+              onChange={e => { setTypedZh(e.target.value); setTypedZhEdited(true); if (!typedEnEdited) setTypedEn(''); setNoPhotoConfirmed(false); }} placeholder="叉燒飯" />
             <label className="label" style={{ fontSize: 11.5 }}>{t('home.name.en')}</label>
             <input className="field" value={typedEn}
-              onChange={e => { setTypedEn(e.target.value); setNoPhotoConfirmed(false); }} placeholder="BBQ pork rice" />
+              onChange={e => { setTypedEn(e.target.value); setTypedEnEdited(true); if (!typedZhEdited) setTypedZh(''); setNoPhotoConfirmed(false); }} placeholder="BBQ pork rice" />
 
             {/* Restaurant lives in the shared "where" step below — not duplicated here. */}
             {noPhotoError && <p style={{ color: 'var(--lacquer)', fontSize: 12.5, marginTop: 6 }}>{noPhotoError}</p>}
@@ -478,15 +511,15 @@ function LogFlow() {
                 activates only once confirmed. */}
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
               <button className="icon-btn" aria-label={t('home.cancel')} title={t('home.cancel')}
-                onClick={() => { setNoPhotoMode(false); setNoPhotoError(''); setNoPhotoConfirmed(false); }}>
+                onClick={() => { setNoPhotoMode(false); setNoPhotoError(''); setNoPhotoConfirmed(false); setTypedEnEdited(false); setTypedZhEdited(false); }}>
                 <CloseIcon />
               </button>
               <button className="icon-btn" aria-label={t('home.confirm')} title={t('home.confirm')}
-                disabled={!hasName}
+                disabled={!hasName || confirmingName}
                 style={noPhotoConfirmed
                   ? { background: 'var(--ink)', color: 'var(--paper-raised)' }
-                  : !hasName ? { opacity: 0.4 } : undefined}
-                onClick={() => setNoPhotoConfirmed(true)}>
+                  : (!hasName || confirmingName) ? { opacity: 0.4 } : undefined}
+                onClick={confirmName}>
                 <CheckIcon />
               </button>
             </div>
