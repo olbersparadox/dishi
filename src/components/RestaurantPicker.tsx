@@ -114,6 +114,8 @@ export default function RestaurantPicker({ onChange, skipFirst = false }: {
     });
   }
   function skip() {
+    // Toggle: tapping 唔喺餐廳 again un-picks it (back to no selection).
+    if (selectedKey === 'skip') { setSelectedKey(null); onChange(null); return; }
     setSelectedKey('skip');
     setAdding(false);
     onChange(null);

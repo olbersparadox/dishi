@@ -153,7 +153,7 @@ button { font: inherit; cursor: pointer; }
    as actions set apart from the outlined restaurant chips. Higher-specificity
    selectors so they win over .chip / .chip.on regardless of source order. */
 .chip.chip-util { background: var(--paper-inset); border-color: transparent; color: var(--ink-soft); }
-.chip.chip-util.on { background: var(--paper-inset); border-color: var(--ink); color: var(--ink); }
+.chip.chip-util.on { background: var(--ink); border-color: transparent; color: var(--glaze); }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
 
 .field { width: 100%; border: 1px solid var(--line); border-radius: 10px; padding: 11px 12px; font: inherit; background: var(--paper-raised); }
