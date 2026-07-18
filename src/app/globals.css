@@ -267,7 +267,7 @@ button { font: inherit; cursor: pointer; }
 /* Rank now renders INLINE with the dish name ("1. 葡式香辣燒春雞") per the
    handoff's Screen 4 — the old separate rank column is gone. The fire mark
    sits inline in the name row at text scale. */
-.scan-fire { font-size: 17px; line-height: 1; flex-shrink: 0; margin-left: 6px; }
+.scan-fire { font-size: 17px; line-height: 1; flex-shrink: 0; margin-left: 6px; position: relative; top: -1px; }
 .scan-reason { font-size: 13px; margin-top: 8px; color: var(--seal); font-weight: 550; display: flex; align-items: flex-start; gap: 6px; }
 /* The speech-bubble mark on the why-recommended line, in a distinct accent so it
    reads as Dishi "speaking". */
