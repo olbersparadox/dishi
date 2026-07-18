@@ -44,6 +44,10 @@ function LogFlow() {
   // of live GPS, so a photo logged later still finds the right place. Null = no
   // readable GPS (stripped/screenshot/in-app camera) → picker uses live GPS.
   const [photoCoords, setPhotoCoords] = useState<{ lat: number; lng: number } | null>(null);
+  // Photo EXIF capture time = when the dish was eaten (Phase 2). Captured silently
+  // to dishes.eaten_at; not yet used for journal ordering (that's the open 食記
+  // design). Null when no readable EXIF timestamp.
+  const [photoTakenAt, setPhotoTakenAt] = useState<Date | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [restaurant, setRestaurant] = useState<RestaurantChoice>(null);
   // No-photo path: type what you ate instead of photographing it.
@@ -94,7 +98,8 @@ function LogFlow() {
     // Fire-and-forget, fails soft — a stripped/GPS-less photo just leaves this null
     // and the picker falls back to live GPS. (takenAt is read too, for Phase 2.)
     setPhotoCoords(null);
-    if (f) readPhotoMeta(f).then(m => setPhotoCoords(m.coords)).catch(() => {});
+    setPhotoTakenAt(null);
+    if (f) readPhotoMeta(f).then(m => { setPhotoCoords(m.coords); setPhotoTakenAt(m.takenAt); }).catch(() => {});
   }
 
   // Album entry (Taste tab "+相簿舊菜") opens the OS photo picker itself and hands
@@ -381,6 +386,10 @@ function LogFlow() {
     // Entry context: 'home' and 'album' record their path; the classic flow's
     // fresh-photo default ('photo') is applied server-side.
     if (mode !== 'restaurant') form.append('source', mode);
+    // Eaten-date from the photo's EXIF capture time (Phase 2): when it survives, it's
+    // the real when-eaten — especially for album/retrospective logs. Silent capture;
+    // journal ordering doesn't use it yet.
+    if (photoTakenAt) form.append('eaten_at', photoTakenAt.toISOString());
     try {
       const res = await fetch('/api/dishes', { method: 'POST', body: form });
       const json = await res.json();

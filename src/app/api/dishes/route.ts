@@ -50,6 +50,12 @@ export async function POST(req: NextRequest) {
   const rawSource = (form.get('source') as string) || '';
   const source = ['photo', 'home', 'album'].includes(rawSource) ? rawSource : 'photo';
 
+  // Eaten-date from the client's photo EXIF (Phase 2, silent capture). Validated as a
+  // real date; anything malformed is simply dropped (stays null → created_at semantics
+  // until the 食記 ordering design uses this).
+  const eatenAtRaw = form.get('eaten_at') as string | null;
+  const eatenAt = eatenAtRaw && !Number.isNaN(Date.parse(eatenAtRaw)) ? new Date(eatenAtRaw).toISOString() : null;
+
   // Resolve restaurant: existing id, or create one from the quick-pick "add" path.
   let restaurantId = (form.get('restaurant_id') as string) || null;
   const newRestaurantRaw = form.get('new_restaurant') as string | null;
@@ -94,6 +100,7 @@ export async function POST(req: NextRequest) {
       heaviness: vision.heaviness,
       diet: vision.diet,
       source,
+      eaten_at: eatenAt,
     })
     .select()
     .single();
