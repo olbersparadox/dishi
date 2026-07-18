@@ -201,13 +201,17 @@ export type DishInfo = {
   ingredients?: string[] | null;
 };
 
-export default function DishInfoDisplay({ info, compact = false, hideHook = false }: { info: DishInfo; compact?: boolean; hideHook?: boolean }) {
+export default function DishInfoDisplay({ info, compact = false, hideHook = false, hookOnly = false }: { info: DishInfo; compact?: boolean; hideHook?: boolean; hookOnly?: boolean }) {
   const { t, lang } = useLang();
 
   // null for 'other'/unknown — nothing honest to show, so nothing is shown. A
   // fabricated cooking category would be worse than an absent one.
   const bucket = cookingBucket(info.cooking_method as CookingMethod | null | undefined);
   const bucketText = bucket ? t(`scan.bucket.${bucket}`) : null;
+  // hookOnly: render JUST the cooking-style hook — the scan card places it under the
+  // dish name while the chips sit further left (aligned with the rank number), so the
+  // two halves live in different containers.
+  if (hookOnly) return bucketText ? <div className="card-meta dish-hook">{bucketText}</div> : null;
   // hideHook: the caller already shows the cooking style elsewhere (e.g. the
   // journal meta line), so rendering it here too would duplicate it.
   const showHook = !!bucketText && !hideHook;

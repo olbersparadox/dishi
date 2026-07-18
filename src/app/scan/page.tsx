@@ -783,11 +783,11 @@ function Scanner() {
                   <div className="card-title"><DishName name={item.name} name_zh={item.name_zh} name_original={item.name_original} pair={scanPair} menuLanguage={menuCode} />{item.isNew && <span className="scan-new-tag">{t('scan.new')}</span>}</div>
                   {item.price && <span className="dish-price">{item.price}</span>}
                 </div>
+                {/* Cooking hook stays indented under the name; chips sit further left. */}
+                {item.enriched && <DishInfoDisplay info={item} hookOnly />}
               </div>
             </div>
-            {/* Hook + chips sit at the card's left edge (aligned with the rank number),
-                not indented under the name like the secondary line. */}
-            <DishDetails item={item} t={t} lang={lang} pickedBy={pickersFor(item, tablePicks)} />
+            <DishDetails item={item} t={t} lang={lang} pickedBy={pickersFor(item, tablePicks)} hideHook />
           </div>
         </article>
       ))}
@@ -808,9 +808,10 @@ function Scanner() {
                     {item.price && <span className="dish-price">{item.price}</span>}
                   </span>
                 </div>
+                {item.enriched && <DishInfoDisplay info={item} hookOnly />}
               </div>
             </div>
-            <DishDetails item={item} t={t} lang={lang} pickedBy={pickersFor(item, tablePicks)} />
+            <DishDetails item={item} t={t} lang={lang} pickedBy={pickersFor(item, tablePicks)} hideHook />
           </div>
         </article>
       ))}
@@ -841,9 +842,10 @@ function Scanner() {
                         </div>
                         {item.price && <span className="dish-price">{item.price}</span>}
                       </div>
+                      {item.enriched && <DishInfoDisplay info={item} hookOnly />}
                     </div>
                   </div>
-                  <DishDetails item={item} t={t} lang={lang} pickedBy={pickersFor(item, tablePicks)} />
+                  <DishDetails item={item} t={t} lang={lang} pickedBy={pickersFor(item, tablePicks)} hideHook />
                   {fire && item.reason && (
                     <p className="scan-reason fade-in">
                       <span className="scan-reason-icon" aria-hidden><SpeechIcon size={18} /></span>
@@ -957,7 +959,7 @@ function pickersFor(
     .map(p => p.handle);
 }
 
-function DishDetails({ item, t, lang, pickedBy }: { item: ScannedItem; t: (key: string, params?: Record<string, string | number>) => string; lang: 'zh' | 'en'; pickedBy?: string[] }) {
+function DishDetails({ item, t, lang, pickedBy, hideHook = false }: { item: ScannedItem; t: (key: string, params?: Record<string, string | number>) => string; lang: 'zh' | 'en'; pickedBy?: string[]; hideHook?: boolean }) {
   if (!item.enriched) {
     return <div className="hook-shimmer" aria-hidden />;
   }
@@ -966,7 +968,7 @@ function DishDetails({ item, t, lang, pickedBy }: { item: ScannedItem; t: (key: 
   // identical information rather than differing by which screen you met it on.
   return (
     <div className="fade-in">
-      <DishInfoDisplay info={item} />
+      <DishInfoDisplay info={item} hideHook={hideHook} />
       {!!pickedBy?.length && (
         <div className="card-meta" style={{ color: 'var(--ink)', fontWeight: 600, marginTop: 2 }}>
           {t('scan.share.alsopicked', { handles: pickedBy.join('、') })}
