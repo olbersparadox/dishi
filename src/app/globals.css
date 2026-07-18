@@ -712,6 +712,8 @@ button { font: inherit; cursor: pointer; }
   cursor: pointer; transition: border-color 120ms, background 120ms, border-radius 120ms;
   background: transparent; border: none; border-bottom: 1px solid var(--line);
   border-radius: 0; margin-bottom: 0; overflow: visible;
+  /* Pull the dish rows 10px left (right edge stays put via auto width). */
+  margin-left: -10px;
 }
 .scan-pickable .card-body { padding: 16px 4px; }
 .scan-pickable .card-title { font-family: var(--font-display); font-size: 18px; font-weight: 700; }
