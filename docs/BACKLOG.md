@@ -9,14 +9,18 @@ Model tier per item: **[S]** = Sonnet (well-specified build) · **[F]** = Fable/
 
 ## Now
 
-- [ ] **[F] 語言對 — the globe picker (language-pair dish names).** Replace the
-  中/EN switcher with a globe: pick any primary+secondary language for dish names
-  app-wide (ja/ko/th/vi/id/tl/es/fr + zh/en). Canonical zh/en storage untouched;
-  other languages cached lazily in dishes.names jsonb (column already live).
-  Smart preset: foreign-menu scans show the printed original as secondary
-  (point-and-order fidelity). Folds in the Japanese-menu katakana/false-friend
-  prompt hardening. Cross-cutting i18n refactor — use Opus.
-  Full spec: `docs/specs/language-pair-globe.md`.
+- [ ] **[F] dishi — your AI palate (export redesign).** Replace "prompt export"
+  with a persona: the user's palate, unlocked (not given) once the engine
+  genuinely knows enough, written in a user-chosen voice, leveling up as the
+  engine learns — each version visibly knows MORE (dishes, dates, places,
+  home-cook patterns). Unified confidence-as-level bar with honest endowed
+  progress on day 1; day-1 export locked, album-logging tutorial as the fast
+  path to first unlock. Engine-adjacent (buddy level rebase) — use Opus.
+  Full spec: `docs/specs/dishi-palate-export.md`.
+- [ ] **[S] OTP login (kill the magic-link browser trap).** Code-as-hero email,
+  `autoComplete="one-time-code"` for iOS keyboard autofill, code entry as the
+  primary login path. Mostly template + a few lines; verifyOtp path already
+  exists. Full spec: `docs/specs/otp-login.md`.
 
 ## Next
 
@@ -39,13 +43,21 @@ Model tier per item: **[S]** = Sonnet (well-specified build) · **[F]** = Fable/
 
 ## Later / standing
 
-- [ ] **[F] Taste export as a recurring loop.** Versioned deltas shipped; open
-  question is cadence and re-engagement (when/how the app invites a re-export).
 - [ ] **Strategy: consumer scan density.** One dense neighborhood before
   expanding; no friend graph at this stage. Not a code item.
+- Brainstormed, NOT confirmed (do not build): weekly recap card · web push
+  re-entry triggers · revisit prompt ("would you order it again?") · 地雷
+  dealbreaker probe · 排個名 restaurant mini-ranking · tempt-duel at scan time ·
+  cold-start popularity ranking for profileless users · reverse taste import.
 
 ## Done (recent, for context)
 
+- [x] **語言對 — the globe picker (language-pair dish names)** — pair state +
+  globe UI + on-the-fly translation; persisted dishes.names cache + scan prompt
+  hardening; foreign-scan preset + printed-original fidelity rule + langPair
+  tests. `c28ae7a`, `d7112a5`, `ec16af0` (supersedes the standalone
+  multilingual-scan-hardening idea; also absorbs the old "taste export recurring
+  loop" open question — that loop is now designed into the palate export above)
 - [x] **對決 — pairwise taste duels** — learning math (pairwise logistic on the
   attribute contrast) with a 揀唔落 tie signal, active pair selection, GET/POST duel
   API (prediction sealed server-side), header notification bell + floating card,
