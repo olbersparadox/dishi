@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase/server';
 import { inferDish } from '@/lib/vision';
 import { resolveOrCreateRestaurant } from '@/lib/restaurant';
-import { scoreOneDish, enrichOneDish } from '@/lib/menuScan';
-import { translateDishName, inferCuisineFromName } from '@/lib/translate';
 
 export const maxDuration = 60;
 
@@ -105,12 +103,15 @@ export async function POST(req: NextRequest) {
 }
 
 /**
- * No-photo path: the person types what they ate. Everything the taste engine needs
- * comes from the name — the same text-only inference used when a menu-scan pick is
- * created and when a rename invalidates a dish's old vision bundle. Runs the three
- * inferences in parallel; each fails soft, because a dish with a name is already
- * good enough to rate, and a missing cooking-style chip is far better than blocking
- * someone from logging their dinner.
+ * No-photo path: the person types what they ate. FAST — no LLM here (fix B).
+ *
+ * The person named the dish, so there is nothing to identify. We insert a
+ * name-only row and return immediately, so "Continue" lands on the rating screen
+ * in well under a second instead of blocking on 20-30s of qwen enrichment. The
+ * client then fires POST /api/dishes/enrich in the background to fill cuisine,
+ * taste attributes, diet/cooking/heaviness, and the missing-language name — and
+ * that route re-runs the taste replay if the dish gets rated before enrichment
+ * lands, so no rating ever learns from an empty dish.
  */
 async function createFromName(req: NextRequest, supabase: any, userId: string) {
   const body = await req.json().catch(() => null);
@@ -127,43 +128,27 @@ async function createFromName(req: NextRequest, supabase: any, userId: string) {
     restaurantId = resolved.id;
   }
 
-  // Whichever language was given is what we reason from; the other is filled by the
-  // same translation path the rename flow uses, so a Chinese-only entry still ends
-  // up with both names rather than a permanently half-filled row.
-  const seed = name || nameZh;
-  // Speed-up A: run cuisine inference ALONGSIDE scoring/enrichment rather than
-  // awaiting it first — that chaining made typed-name "Continue" two back-to-back
-  // qwen round-trips (cuisine, THEN score/enrich). Score/enrich now get cuisine
-  // 'unknown' as context (the dish name is the dominant signal, and they already
-  // handle 'unknown' from the scan path); the STORED cuisine still comes from the
-  // real inference, so the saved row is identical — just ~half the wait. No vision
-  // here: the person named the dish, so nothing needs identifying.
-  const [cuisineInferred, attributes, enrichment, translated] = await Promise.all([
-    inferCuisineFromName(seed).catch(() => null),
-    scoreOneDish({ name: seed, cuisine: 'unknown' }).catch(() => ({})),
-    enrichOneDish({ name: seed, name_zh: nameZh || null, cuisine: 'unknown' }).catch(() => null),
-    (name && !nameZh ? translateDishName(name) : !name && nameZh ? translateDishName(nameZh) : Promise.resolve(null))
-      .catch(() => null),
-  ]);
-  const cuisine = cuisineInferred ?? 'unknown';
-
   const { data: dish, error } = await supabase
     .from('dishes')
     .insert({
       user_id: userId,
       restaurant_id: restaurantId,
-      name: name || translated || nameZh,
-      name_zh: nameZh || (name ? translated : null),
-      cuisine,
+      // name is NOT NULL: a Chinese-only entry parks the Chinese here until the
+      // background enrich translates the real English into it (name === name_zh is
+      // the signal that the English slot is still a placeholder).
+      name: name || nameZh,
+      name_zh: nameZh || null,
+      cuisine: 'unknown',
       photo_url: null,
-      attributes,
+      attributes: {},        // filled by /api/dishes/enrich
       // Typed by a human, so the name carries human authority from birth — it was
       // never a machine guess to be demoted from. See nameAuthority() in
-      // dishIdentity.ts.
+      // dishIdentity.ts. (The enrich step fills the OTHER language by machine; it
+      // must NOT touch name_edited_at.)
       name_edited_at: new Date().toISOString(),
-      cooking_method: enrichment?.cooking_method ?? null,
-      heaviness: enrichment?.heaviness ?? null,
-      diet: enrichment?.diet ?? [],
+      cooking_method: null,
+      heaviness: null,
+      diet: [],
       // 'home' when the person entered via the 屋企煮 path and typed the dish;
       // plain typed entries stay 'manual'. (Note: 'manual' was silently violating
       // the old check constraint — every no-photo log failed until the

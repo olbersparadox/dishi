@@ -55,7 +55,6 @@ function LogFlow() {
   // so a name is authored in one language and the other is derived.
   const [typedEnEdited, setTypedEnEdited] = useState(false);
   const [typedZhEdited, setTypedZhEdited] = useState(false);
-  const [confirmingName, setConfirmingName] = useState(false);
   const [dish, setDish] = useState<Dish | null>(null);
   const [draftName, setDraftName] = useState('');
   const [draftNameZh, setDraftNameZh] = useState('');
@@ -100,31 +99,11 @@ function LogFlow() {
   /** Creates a dish from a typed name (no photo) and drops straight into rating it.
    * Same dishes table, same rating pipeline, same taste engine — the ONLY thing
    * missing is the photo, which was never what the engine learned from. */
-  // ✓ confirm: fill in whichever language is empty by translating the one that's
-  // filled (so both are shown before saving), then mark the name confirmed. Fails
-  // soft — if translation can't be reached, we still confirm; the server fills the
-  // other side on save anyway.
-  async function confirmName() {
-    if (confirmingName) return;
-    const zh = typedZh.trim(); const en = typedEn.trim();
-    if (!zh && !en) return;
-    setConfirmingName(true);
-    try {
-      const source = zh && !en ? zh : en && !zh ? en : null; // only when one side is empty
-      if (source) {
-        const r = await fetch('/api/translate/dishname', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text: source }),
-        });
-        const j = await r.json().catch(() => ({}));
-        if (r.ok && typeof j.translated === 'string' && j.translated.trim()) {
-          if (zh && !en) setTypedEn(j.translated.trim()); else setTypedZh(j.translated.trim());
-        }
-      }
-      setNoPhotoConfirmed(true);
-    } finally {
-      setConfirmingName(false);
-    }
+  // ✓ confirm: just mark the typed name ready — instant. Translation of the other
+  // language is DEFERRED to the background enrich after Continue (fix B), so this no
+  // longer blocks on a ~20s qwen call; the other name fills in on the rating screen.
+  function confirmName() {
+    if (typedZh.trim() || typedEn.trim()) setNoPhotoConfirmed(true);
   }
 
   async function createWithoutPhoto() {
@@ -147,6 +126,20 @@ function LogFlow() {
       setDish(json.dish);
       setRating(null);
       setConfirmedAnyway(false);
+      // Fix B: the dish was created name-only for speed. Fill cuisine/attributes/
+      // diet + the missing-language name in the background, and let the server heal
+      // taste learning if it gets rated first. Fire-and-forget — this survives
+      // client-side tab navigation (SPA), and patches the on-screen dish when it
+      // lands (translated name, chips). A hard refresh mid-enrich is the only gap,
+      // and it self-heals on any later re-rate via replay.
+      const newId = json.dish.id as string;
+      fetch('/api/dishes/enrich', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: newId }),
+      })
+        .then(r => (r.ok ? r.json() : null))
+        .then(j => { if (j?.dish) setDish(prev => (prev && prev.id === newId ? { ...prev, ...j.dish } : prev)); })
+        .catch(() => {});
     } catch (e: any) {
       setNoPhotoError(e.message || 'Could not save that dish.');
     } finally {
@@ -520,12 +513,12 @@ function LogFlow() {
                 <CloseIcon />
               </button>
               <button className="icon-btn" aria-label={t('home.confirm')} title={t('home.confirm')}
-                disabled={!hasName || confirmingName}
+                disabled={!hasName}
                 style={noPhotoConfirmed
                   ? { background: 'var(--ink)', color: 'var(--paper-raised)' }
-                  : (!hasName || confirmingName) ? { opacity: 0.4 } : undefined}
+                  : !hasName ? { opacity: 0.4 } : undefined}
                 onClick={confirmName}>
-                {confirmingName ? <span className="icon-spinner" aria-hidden /> : <CheckIcon />}
+                <CheckIcon />
               </button>
             </div>
           </div></div>
