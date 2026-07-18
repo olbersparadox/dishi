@@ -122,13 +122,11 @@ button { font: inherit; cursor: pointer; }
   background: var(--glaze); color: var(--ink-soft);
 }
 .icon-btn:hover, .icon-btn:focus-visible { color: var(--ink); background: var(--line); }
-/* Rate/delete on a dish-to-rate row need to read as two clearly different
-   buttons at a glance, not two identical circles that happen to differ only
-   by which icon is inside them. Rate is the primary action for this whole
-   card (that's what the row exists for) so it gets the filled, high-contrast
-   treatment; delete stays quiet/secondary but still visibly a button. */
+/* Rate/delete on a dish-to-rate row share the same quiet treatment — same
+   paper-inset fill and muted ink-soft glyph at the same 1.7 stroke — so neither
+   reads as heavier than the other; they differ only by icon. Hover darkens both. */
 .icon-btn.rate {
-  background: var(--paper-inset, #eee9dd); color: var(--ink);
+  background: var(--paper-inset, #eee9dd); color: var(--ink-soft);
 }
 .icon-btn.rate:hover, .icon-btn.rate:focus-visible { background: var(--line); color: var(--ink); }
 .icon-btn.delete {
