@@ -1,0 +1,11 @@
+-- Applied via Supabase MCP on 2026-07-18 (from the claude.ai side, while the menu-
+-- translation work was being specced). Recorded here 2026-07-18 after verifying the
+-- live column matches: dishes.names is jsonb, nullable, no default.
+--
+-- Presentation-only translation cache for the 語言對 globe picker (see
+-- docs/specs/language-pair-globe.md). name (en) and name_zh (zh) remain the
+-- CANONICAL stored identity of every dish — this column caches lazily-translated
+-- names for OTHER display languages (ja/ko/th/… keyed by lang code) and must never
+-- be treated as identity. Nothing reads or writes it yet; the column is live ahead
+-- of the feature build.
+alter table dishes add column if not exists names jsonb;
