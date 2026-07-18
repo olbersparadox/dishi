@@ -53,6 +53,10 @@ h1, h2, h3, .display { font-family: var(--font-display); font-weight: 500; lette
    English mode pulls display-serif letter-spacing back to near-normal. */
 .lang-en h1, .lang-en h2, .lang-en h3, .lang-en .display,
 .lang-en .card-title, .lang-en .join-table-title { letter-spacing: -0.01em; }
+/* The big section title (h1) is a light-weight 30px serif, so the -0.01em above
+   still reads airy in Latin ("Journal" next to the denser Chinese 食記). Pull it in
+   further. CJK titles keep the 0.06em base — they're only ever under .lang-zh. */
+.lang-en h1 { letter-spacing: -0.03em; }
 /* Dish-name tracking is NOT handled here: it's tagged per slot by the actual script
    (.dn-cjk / .dn-latin, set in DishName) so a Latin name tightens even when the chrome
    language is Chinese — which .lang-en never covered (and .lang-en isn't even applied
