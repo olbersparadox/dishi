@@ -96,10 +96,11 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
           <div style={{ display: 'flex', gap: 8, marginTop: 15 }}>
             {/* autoComplete="one-time-code" is what makes iOS offer the code from
                 Apple Mail as a chip above the keyboard — the whole point of the OTP
-                path. No hardcoded digit count: this project's Supabase OTP length is
-                8, not the 6 originally assumed, and capping the input silently
-                truncated real codes. Accept whatever's typed; let verifyOtp reject a
-                genuinely wrong code rather than the box pre-rejecting a right one. */}
+                path. Still no hardcoded digit count even though the Supabase OTP
+                length is set to 6: capping the input once truncated real codes when
+                the length turned out longer than assumed, so we accept whatever's
+                typed and let verifyOtp reject a genuinely wrong code rather than the
+                box pre-rejecting a right one. */}
             <input className="field code-input" inputMode="numeric" autoComplete="one-time-code"
               placeholder={t('auth.codeplaceholder')}
               value={code} onChange={e => setCode(e.target.value.replace(/\D/g, ''))} />

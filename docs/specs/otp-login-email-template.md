@@ -11,12 +11,10 @@ Supabase dashboard → **Authentication → Email Templates → Magic Link**.
 its body with the code-only version below turns every sign-in email into a pure
 OTP email.)
 
-Also check **Authentication → Providers → Email → Email OTP Expiration / OTP
-length**. This project's OTP length is **8 digits** (the app input is
-length-agnostic, so 6 or 8 both work — but the on-screen copy is deliberately
-digit-agnostic, so whichever length is set here stays honest). If you want the
-classic 6-digit hero, set OTP length to 6 here; nothing in the app needs to
-change.
+Also set **Authentication → Providers → Email → Email OTP Length** to **6**
+(the app copy now says "6-digit code"). The input itself stays length-agnostic,
+so a later change to 8 wouldn't break login — only the on-screen wording would
+need a tweak.
 
 ## Template body
 
