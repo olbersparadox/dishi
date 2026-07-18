@@ -135,6 +135,14 @@ button { font: inherit; cursor: pointer; }
   background: var(--paper-inset, #eee9dd); color: var(--ink-soft);
 }
 .icon-btn.delete:hover, .icon-btn.delete:focus-visible { background: var(--line); color: var(--ink); }
+/* Inline spinner for icon buttons mid-action (e.g. ✓ while translating). Inherits
+   the button's currentColor; reuses the ringSpin keyframe. */
+.icon-spinner {
+  width: 16px; height: 16px; border-radius: 50%;
+  border: 2px solid currentColor; border-top-color: transparent;
+  animation: ringSpin 0.7s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) { .icon-spinner { animation: none; } }
 
 .retake-photo-btn {
   position: absolute; right: 10px; bottom: 10px;

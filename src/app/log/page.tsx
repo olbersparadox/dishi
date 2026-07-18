@@ -520,7 +520,7 @@ function LogFlow() {
                   ? { background: 'var(--ink)', color: 'var(--paper-raised)' }
                   : (!hasName || confirmingName) ? { opacity: 0.4 } : undefined}
                 onClick={confirmName}>
-                <CheckIcon />
+                {confirmingName ? <span className="icon-spinner" aria-hidden /> : <CheckIcon />}
               </button>
             </div>
           </div></div>
