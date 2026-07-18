@@ -596,6 +596,8 @@ button { font: inherit; cursor: pointer; }
    perceptible), plus a per-row stagger so the list visibly cascades into place
    rather than the whole thing appearing at once. Capped at 10 steps so a long
    menu doesn't leave the last rows waiting a full second to appear. */
+/* Lift the whole ranked dish list closer to the meta line above it. */
+.scan-settle { margin-top: -15px; }
 /* No animation on the outer wrapper itself — each .scan-settle-row below handles
    the actual entrance so the per-row stagger is the only thing visibly happening.
    (Animating both would double-dim: nested opacity multiplies, not just the outer.) */
