@@ -12,8 +12,7 @@ import TasteExport from './TasteExport';
 import type { ExportDish } from '@/lib/tasteExport';
 
 type BuddyState = {
-  xp: number;
-  level: { name: string; level: number; size: number; progress: number; next: { name: string; remaining: number } | null };
+  level: { name: string; level: number; size: number; progress: number; next: { name: string } | null };
   strength: number;
   elements: { kind: string; id: string; label: string }[];
   hint: { key: string; params?: Record<string, number> };

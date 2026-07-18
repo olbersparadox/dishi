@@ -20,6 +20,65 @@
 const MEANINGFUL_THRESHOLD = 0.25;
 /** Above this, a preference is strong enough to state as a headline, not just list. */
 const STRONG_THRESHOLD = 0.55;
+/** A dim counts as "explored" (the engine has a real read on it) past this — same
+ * noise floor buddy.ts uses, kept here so evidenceConfidence needs no import. */
+const EXPLORED_THRESHOLD = 0.15;
+
+// ── Engine confidence: the ONE honest scale of "how much dishi knows your taste"
+// from real rating evidence. Rating VOLUME dominates; flavor-dimension COVERAGE
+// and cuisine VARIETY round it out (40 ratings that only ever exercised two
+// dimensions is not a solid profile, and this says so). Saturates near where
+// recommendations empirically stop shifting (~25 varied ratings). This is the
+// single source of truth for the export honesty note AND the unlock gate (spec
+// §1); the buddy bar (buddy.ts) layers an onboarding endowment on top of it, but
+// never feeds back into it — onboarding must never masquerade as trained signal.
+/** Confidence at/above which the export unlocks — the 'emerging' tier boundary. */
+export const EMERGING_AT = 0.33;
+/** Confidence at/above which the profile is 'solid' — rely on it for real recs. */
+export const SOLID_AT = 0.70;
+
+export type ConfidenceInputs = { ratingCount: number; exploredDimCount: number; distinctCuisines: number };
+
+export function evidenceConfidence({ ratingCount, exploredDimCount, distinctCuisines }: ConfidenceInputs): number {
+  const vol = Math.min(1, ratingCount / 25);
+  const cov = Math.min(1, exploredDimCount / 18);
+  const varty = Math.min(1, distinctCuisines / 6);
+  return Math.min(1, 0.55 * vol + 0.30 * cov + 0.15 * varty);
+}
+
+export type ConfidenceTier = 'thin' | 'emerging' | 'solid';
+export function confidenceTier(conf: number): ConfidenceTier {
+  return conf >= SOLID_AT ? 'solid' : conf >= EMERGING_AT ? 'emerging' : 'thin';
+}
+/** The export unlock gate (spec §1): unlocked once the engine reaches 'emerging'.
+ * Single source of truth — nothing else may invent its own threshold. */
+export function exportUnlocked(conf: number): boolean {
+  return conf >= EMERGING_AT;
+}
+
+/** Derive the confidence inputs from a raw profile, applying the explored-dim and
+ * positive-affinity rules in ONE place so every caller counts them identically. */
+export function confidenceInputsFrom(
+  vector: Record<string, number>, affinity: Record<string, number>, ratingCount: number,
+): ConfidenceInputs {
+  return {
+    ratingCount,
+    exploredDimCount: Object.values(vector).filter(v => Math.abs(v) > EXPLORED_THRESHOLD).length,
+    distinctCuisines: Object.values(affinity).filter(v => v > 0).length,
+  };
+}
+
+/** How many more ratings, at the profile's CURRENT coverage/variety, would cross
+ * the unlock. A live, honest countdown for the locked state — 0 once unlocked.
+ * Coverage and variety only lower it, so it never overstates the work left. */
+export function ratingsToUnlock(input: ConfidenceInputs): number {
+  if (exportUnlocked(evidenceConfidence(input))) return 0;
+  const cov = Math.min(1, input.exploredDimCount / 18);
+  const varty = Math.min(1, input.distinctCuisines / 6);
+  const volNeeded = Math.max(0, (EMERGING_AT - 0.30 * cov - 0.15 * varty) / 0.55);
+  const rcNeeded = Math.ceil(volNeeded * 25);
+  return Math.max(1, rcNeeded - input.ratingCount);
+}
 
 export type ExportDish = { name: string; name_zh?: string | null; score: number; restaurant?: string | null };
 
@@ -63,12 +122,14 @@ export function extractTasteSections(
   const lovedDishes = dishes.filter(d => d.score >= 0.4).sort((a, b) => b.score - a.score).slice(0, 8);
   const dislikedDishes = dishes.filter(d => d.score <= -0.4).sort((a, b) => a.score - b.score).slice(0, 5);
 
-  // Honest self-assessment, mirroring the app's own training gate (5 ratings before
-  // recommendations activate at all). The prompt tells the other AI how much to
-  // trust this — a profile built on 6 ratings must not be spoken about with the
-  // same authority as one built on 60.
-  const confidence: TasteExportSections['confidence'] =
-    input.ratingCount >= 25 ? 'solid' : input.ratingCount >= 10 ? 'emerging' : 'thin';
+  // Honest self-assessment. The prompt tells the other AI how much to trust this —
+  // a profile built on 6 ratings must not be spoken about with the same authority
+  // as one built on 60. Derived from the shared evidenceConfidence scale (rating
+  // count + dimension coverage + cuisine variety), so the export note, the unlock
+  // gate, and the buddy bar can never disagree about how much dishi knows.
+  const confidence = confidenceTier(
+    evidenceConfidence(confidenceInputsFrom(input.vector, input.affinity, input.ratingCount)),
+  );
 
   return {
     loves: pos.map(([d]) => dimLabel(d)),

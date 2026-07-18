@@ -1,7 +1,10 @@
 'use client';
 import { useState } from 'react';
 import { useLang, cuisineLabel } from '@/lib/i18n';
-import { extractTasteSections, buildTastePrompt, type ExportDish } from '@/lib/tasteExport';
+import {
+  extractTasteSections, buildTastePrompt, type ExportDish,
+  confidenceInputsFrom, evidenceConfidence, exportUnlocked, ratingsToUnlock,
+} from '@/lib/tasteExport';
 import { CopyIcon, CheckIcon } from './icons';
 
 /**
@@ -13,13 +16,16 @@ import { CopyIcon, CheckIcon } from './icons';
  * makes the AI you already use every day genuinely know your taste. That's the loop
  * worth putting front and centre — and it's the strongest reason to keep rating.
  *
- * Disabled below the training gate on purpose. Exporting a profile built on two
- * ratings would hand someone's AI a confident-sounding document with nothing behind
- * it — the exact opposite of the point, and a fast way to make the whole idea feel
- * fake. The button says how many more ratings it needs instead.
+ * Disabled below the unlock gate on purpose. Exporting a profile built on a handful
+ * of ratings would hand someone's AI a confident-sounding document with nothing
+ * behind it — the exact opposite of the point, and a fast way to make the whole
+ * idea feel fake. The button says how many more ratings it needs instead.
+ *
+ * The gate is now the shared 'emerging' engine-confidence boundary (spec §1),
+ * NOT a local rating count — so the button, the buddy bar, and the export's own
+ * honesty note all unlock at the same moment. (The full locked-state redesign —
+ * anticipation copy + album-path link — is the separate §5 UI slice.)
  */
-const EXPORT_GATE = 5;
-
 export default function TasteExport({
   vector, affinity, count, dishes,
 }: {
@@ -37,7 +43,8 @@ export default function TasteExport({
   const [isFirstExport, setIsFirstExport] = useState(true);
   const [generating, setGenerating] = useState(false);
 
-  const ready = count >= EXPORT_GATE;
+  const ci = confidenceInputsFrom(vector, affinity, count);
+  const ready = exportUnlocked(evidenceConfidence(ci));
 
   async function generate() {
     setGenerating(true);
@@ -88,7 +95,7 @@ export default function TasteExport({
 
       {!prompt ? (
         <button className="btn export" style={{ width: '100%' }} onClick={generate} disabled={!ready || generating}>
-          {ready ? t('export.button') : t('export.locked', { n: EXPORT_GATE - count })}
+          {ready ? t('export.button') : t('export.locked', { n: ratingsToUnlock(ci) })}
         </button>
       ) : (
         <>

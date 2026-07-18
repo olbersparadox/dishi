@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase/server';
 import { emptyTaste } from '@/lib/taste';
 import {
-  computeXP, levelFor, engineStrength,
+  engineConfidence, levelForConfidence,
   buddyElements, growthHint, exploredDims,
 } from '@/lib/buddy';
 
@@ -42,13 +42,14 @@ export async function GET() {
     cuisineAffinity: profile?.cuisine_affinity ?? {},
   };
 
-  const xp = computeXP(inputs);
+  // ONE confidence number drives the bar, the % readout, and (via the shared
+  // scale) the export unlock — rebased off the old flick-count XP (spec §2).
+  const confidence = engineConfidence(inputs);
   return NextResponse.json({
     species: buddy?.species ?? null,
     state: {
-      xp,
-      level: levelFor(xp),
-      strength: engineStrength(inputs),
+      level: levelForConfidence(confidence),
+      strength: Math.round(confidence * 100),
       elements: buddyElements(inputs),
       hint: growthHint(inputs),
       // Capability honesty: which dimensions the engine genuinely knows (>= 3

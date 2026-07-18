@@ -8,6 +8,7 @@
 // statement about how much signal the taste vector is built on.
 
 import { DIMS, type TasteVector } from './taste';
+import { evidenceConfidence, EMERGING_AT } from './tasteExport';
 
 export const SPECIES = ['shiba', 'redpanda', 'octo', 'frog', 'penguin'] as const;
 export type Species = (typeof SPECIES)[number];
@@ -28,56 +29,79 @@ export type BuddyInputs = {
 };
 
 // ---------------------------------------------------------------------------
-// XP + levels
+// Levels — ONE bar, one meaning: engine confidence ("how much dishi knows"),
+// rebased off flick-count XP onto the shared evidenceConfidence scale (spec §2).
+// The bar the user sees, the % readout, the export unlock, and the export's own
+// honesty note are now all the same number, so they can never disagree.
 // ---------------------------------------------------------------------------
-export const LEVELS = [
-  { xp: 0, name: 'Hatchling', size: 0 },
-  { xp: 5, name: 'Nibbler', size: 1 },
-  { xp: 15, name: 'Taster', size: 2 },
-  { xp: 35, name: 'Gourmand', size: 3 },
-  { xp: 70, name: 'Connoisseur', size: 4 },
-  { xp: 120, name: 'Legend of the Table', size: 5 },
-] as const;
 
 /** Dims the profile has real signal on — |preference| clear of noise. */
 export function exploredDims(vector: TasteVector): string[] {
   return DIMS.filter(d => Math.abs(vector[d] ?? 0) > 0.15);
 }
 
+/** Max of the onboarding endowment (spec §2). Capped low enough that onboarding
+ * alone can NEVER reach the export-unlock band — trained signal has to do that. */
+export const ONBOARDING_MAX = 0.25;
+
 /**
- * XP: each rating counts 1; each distinct cuisine counts 3; each explored flavor
- * dimension counts 2. The weights encode the engine's actual learning economics —
- * variety is worth more than volume, because that's true.
+ * Endowed progress, honestly: credit for REAL early acts that a day-1 user does,
+ * so the bar starts visibly non-zero without any fictional prefill. Each credited
+ * act genuinely feeds the engine — being here (account), logging a first dish
+ * (which IS a first rating in dishi), and getting a few ratings in. No credit for
+ * acts that teach the engine nothing, per the 識咗/摸緊 honesty ethos.
  */
-export function computeXP(inputs: BuddyInputs): number {
-  return inputs.ratingCount
-    + inputs.distinctCuisines * 3
-    + exploredDims(inputs.vector).length * 2;
+export function onboardingCredit(inputs: BuddyInputs): number {
+  let c = 0.08;                            // account exists (route is authenticated)
+  if (inputs.ratingCount >= 1) c += 0.09;  // first dish logged == first rating
+  if (inputs.ratingCount >= 3) c += 0.08;  // genuinely getting going
+  return Math.min(ONBOARDING_MAX, c);
 }
 
-export function levelFor(xp: number) {
-  let current: (typeof LEVELS)[number] = LEVELS[0];
-  for (const l of LEVELS) if (xp >= l.xp) current = l;
-  const idx = LEVELS.findIndex(l => l.name === current.name);
-  const next = LEVELS[idx + 1] ?? null;
+/**
+ * The buddy bar, 0..1. evidenceConfidence carries the LEARNING (shared with the
+ * export tier); onboardingCredit layers the head start on top. A maxed profile
+ * reaches 1.0; a fresh account with real onboarding acts sits ~0.25; a bare,
+ * ratingless account sits at the account floor. Monotonic in ratings/coverage.
+ */
+export function engineConfidence(inputs: BuddyInputs): number {
+  const ev = evidenceConfidence({
+    ratingCount: inputs.ratingCount,
+    exploredDimCount: exploredDims(inputs.vector).length,
+    distinctCuisines: inputs.distinctCuisines,
+  });
+  return Math.min(1, onboardingCredit(inputs) + ev * (1 - ONBOARDING_MAX));
+}
+
+/** The bar confidence at which the export unlocks: evidenceConfidence's 'emerging'
+ * point, with the onboarding endowment layered in. Defined from the SAME numbers
+ * as engineConfidence so the level boundary and the gate coincide exactly (≈0.50)
+ * — no floating-point gap between "reached 為食鬼" and "export unlocked". */
+export const UNLOCK_CONFIDENCE = ONBOARDING_MAX + EMERGING_AT * (1 - ONBOARDING_MAX);
+
+/** Confidence bands carrying the SAME level names as before, mapped onto the
+ * 0..1 confidence scale. The export unlocks on reaching 為食鬼/Gourmand. */
+export const CONFIDENCE_LEVELS = [
+  { at: 0.00, name: 'Hatchling', size: 0 },
+  { at: 0.14, name: 'Nibbler', size: 1 },
+  { at: 0.30, name: 'Taster', size: 2 },
+  { at: UNLOCK_CONFIDENCE, name: 'Gourmand', size: 3 },   // export unlock boundary (emerging)
+  { at: 0.72, name: 'Connoisseur', size: 4 },
+  { at: 0.90, name: 'Legend of the Table', size: 5 },
+] as const;
+
+export function levelForConfidence(conf: number) {
+  let current: (typeof CONFIDENCE_LEVELS)[number] = CONFIDENCE_LEVELS[0];
+  for (const l of CONFIDENCE_LEVELS) if (conf >= l.at) current = l;
+  const idx = CONFIDENCE_LEVELS.findIndex(l => l.name === current.name);
+  const next = CONFIDENCE_LEVELS[idx + 1] ?? null;
   return {
-    ...current,
+    name: current.name,
+    size: current.size,
     level: idx + 1,
-    next: next ? { name: next.name, xp: next.xp, remaining: next.xp - xp } : null,
-    progress: next ? Math.min(1, (xp - current.xp) / (next.xp - current.xp)) : 1,
+    next: next ? { name: next.name, at: next.at } : null,
+    progress: next ? Math.min(1, (conf - current.at) / (next.at - current.at)) : 1,
   };
-}
-
-/**
- * Engine strength (0-100): a truthful confidence readout, shown next to the buddy.
- * Saturates around ~25 varied ratings — which matches when recommendations
- * empirically stop shifting much per new rating.
- */
-export function engineStrength(inputs: BuddyInputs): number {
-  const s = inputs.ratingCount * 2
-    + inputs.distinctCuisines * 6
-    + exploredDims(inputs.vector).length * 3;
-  return Math.min(100, Math.round(s));
 }
 
 // ---------------------------------------------------------------------------

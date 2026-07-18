@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { extractTasteSections, buildTastePrompt } from '../src/lib/tasteExport';
+import {
+  extractTasteSections, buildTastePrompt,
+  evidenceConfidence, confidenceTier, exportUnlocked, ratingsToUnlock,
+  confidenceInputsFrom, EMERGING_AT, SOLID_AT,
+} from '../src/lib/tasteExport';
 
 const label = (d: string) => d.toUpperCase();
 const cuisine = (c: string) => c.toUpperCase();
@@ -41,11 +45,53 @@ describe('extractTasteSections', () => {
     expect(s.dislikedDishes.map(d => d.name)).toEqual(['Natto']);
   });
 
-  it('reports honest confidence, mirroring how much evidence actually exists', () => {
-    const base = { vector: {}, affinity: {} };
-    expect(extractTasteSections({ ...base, ratingCount: 6 }, label, cuisine).confidence).toBe('thin');
-    expect(extractTasteSections({ ...base, ratingCount: 12 }, label, cuisine).confidence).toBe('emerging');
-    expect(extractTasteSections({ ...base, ratingCount: 40 }, label, cuisine).confidence).toBe('solid');
+  it('reports honest confidence from evidence — coverage matters, not just count', () => {
+    const dims = (n: number) => Object.fromEntries([...Array(n)].map((_, i) => [`d${i}`, 0.5]));
+    const cuis = (n: number) => Object.fromEntries([...Array(n)].map((_, i) => [`c${i}`, 0.5]));
+    // few ratings, barely any explored dimensions -> thin
+    expect(extractTasteSections({ vector: dims(1), affinity: {}, ratingCount: 5 }, label, cuisine).confidence).toBe('thin');
+    // a realistically-varied dozen ratings -> emerging
+    expect(extractTasteSections({ vector: dims(4), affinity: cuis(2), ratingCount: 12 }, label, cuisine).confidence).toBe('emerging');
+    // many ratings across many dimensions and cuisines -> solid
+    expect(extractTasteSections({ vector: dims(9), affinity: cuis(5), ratingCount: 30 }, label, cuisine).confidence).toBe('solid');
+    // volume WITHOUT coverage is NOT solid — the honest correction the rebase makes
+    expect(extractTasteSections({ vector: dims(1), affinity: {}, ratingCount: 40 }, label, cuisine).confidence).not.toBe('solid');
+  });
+});
+
+describe('engine confidence + unlock gate (single source of truth)', () => {
+  it('rises with volume, coverage, and variety; stays in [0,1]', () => {
+    const low = evidenceConfidence({ ratingCount: 3, exploredDimCount: 1, distinctCuisines: 0 });
+    const high = evidenceConfidence({ ratingCount: 30, exploredDimCount: 12, distinctCuisines: 6 });
+    expect(low).toBeGreaterThanOrEqual(0);
+    expect(high).toBeLessThanOrEqual(1);
+    expect(high).toBeGreaterThan(low);
+  });
+
+  it('tiers key off the shared boundaries', () => {
+    expect(confidenceTier(EMERGING_AT - 0.001)).toBe('thin');
+    expect(confidenceTier(EMERGING_AT)).toBe('emerging');
+    expect(confidenceTier(SOLID_AT)).toBe('solid');
+    expect(exportUnlocked(EMERGING_AT)).toBe(true);
+    expect(exportUnlocked(EMERGING_AT - 0.001)).toBe(false);
+  });
+
+  it('ratingsToUnlock: positive while locked, 0 once unlocked, never overstated by coverage', () => {
+    const cold = confidenceInputsFrom({}, {}, 1);
+    expect(ratingsToUnlock(cold)).toBeGreaterThan(0);
+    // an already-emerging profile needs nothing more
+    const warm = confidenceInputsFrom(
+      Object.fromEntries([...Array(9)].map((_, i) => [`d${i}`, 0.5])),
+      Object.fromEntries([...Array(5)].map((_, i) => [`c${i}`, 0.5])),
+      30,
+    );
+    expect(exportUnlocked(evidenceConfidence(warm))).toBe(true);
+    expect(ratingsToUnlock(warm)).toBe(0);
+    // more coverage now => fewer ratings still needed later (never more)
+    const bareAt5 = ratingsToUnlock(confidenceInputsFrom({}, {}, 5));
+    const coveredAt5 = ratingsToUnlock(confidenceInputsFrom(
+      Object.fromEntries([...Array(6)].map((_, i) => [`d${i}`, 0.5])), { thai: 0.5, sichuan: 0.5 }, 5));
+    expect(coveredAt5).toBeLessThanOrEqual(bareAt5);
   });
 });
 
