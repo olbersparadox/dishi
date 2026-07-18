@@ -31,6 +31,25 @@ export function pickAreaFromComponents(components: AddressComponent[]): string |
   return null;
 }
 
+export type DistrictI18n = { zh: string | null; en: string | null };
+
+/**
+ * The district as a per-language map, for storing a language-aware, English-falling-
+ * back location that works in any country. Reverse-geocodes zh-HK + en in parallel;
+ * each empty slot inherits the other, so a place Google has no Chinese name for
+ * (e.g. an Australian suburb) ends up English in both — exactly the fallback rule.
+ * Returns null only when NEITHER language resolved (no usable coords/area).
+ */
+export async function districtI18n(lat: number, lng: number): Promise<DistrictI18n | null> {
+  const [zhR, enR] = await Promise.all([
+    reverseGeocode(lat, lng, 'zh-HK').catch(() => ({ area: null } as ReverseGeocodeResult)),
+    reverseGeocode(lat, lng, 'en').catch(() => ({ area: null } as ReverseGeocodeResult)),
+  ]);
+  const zh = zhR.area, en = enR.area;
+  if (!zh && !en) return null;
+  return { zh: zh ?? en, en: en ?? zh };
+}
+
 export async function reverseGeocode(lat: number, lng: number, languageCode = 'en'): Promise<ReverseGeocodeResult> {
   const apiKey = process.env.GOOGLE_PLACES_API_KEY;
   if (!apiKey) return { area: null, address: null };

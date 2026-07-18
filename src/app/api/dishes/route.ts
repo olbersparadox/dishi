@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase/server';
 import { inferDish } from '@/lib/vision';
 import { resolveOrCreateRestaurant } from '@/lib/restaurant';
+import { districtI18n } from '@/lib/geocode';
 
 export const maxDuration = 60;
 
@@ -56,11 +57,6 @@ export async function POST(req: NextRequest) {
   const eatenAtRaw = form.get('eaten_at') as string | null;
   const eatenAt = eatenAtRaw && !Number.isNaN(Date.parse(eatenAtRaw)) ? new Date(eatenAtRaw).toISOString() : null;
 
-  // District for a no-restaurant dish (home / skipped picker), reverse-geocoded
-  // client-side. Restaurant dishes leave this null and use restaurants.area.
-  const districtRaw = form.get('district') as string | null;
-  const district = districtRaw ? districtRaw.trim().slice(0, 80) || null : null;
-
   // Resolve restaurant: existing id, or create one from the quick-pick "add" path.
   let restaurantId = (form.get('restaurant_id') as string) || null;
   const newRestaurantRaw = form.get('new_restaurant') as string | null;
@@ -76,6 +72,13 @@ export async function POST(req: NextRequest) {
     restaurantId = resolved.id;
   }
 
+  // District for a no-restaurant dish (home / skipped picker): the client sends the
+  // log coords; we reverse-geocode a bilingual {zh,en} server-side (in parallel with
+  // vision below, so no added latency). Restaurant dishes leave this null and use
+  // restaurants.district.
+  const dLat = Number(form.get('lat')); const dLng = Number(form.get('lng'));
+  const wantDistrict = !restaurantId && Number.isFinite(dLat) && Number.isFinite(dLng);
+
   const bytes = Buffer.from(await photo.arrayBuffer());
   const mediaType = safeMediaType(photo.type);
   const path = `${user.id}/${Date.now()}-${(photo.name || 'photo.jpg').replace(/[^\w.\-]/g, '_')}`;
@@ -83,9 +86,10 @@ export async function POST(req: NextRequest) {
   // Storage upload and vision inference only need the bytes — run them in PARALLEL.
   // They were sequential before, which added the full storage round-trip to every
   // log's wait time for no reason.
-  const [{ error: upErr }, vision] = await Promise.all([
+  const [{ error: upErr }, vision, district] = await Promise.all([
     supabase.storage.from('dish-photos').upload(path, bytes, { contentType: mediaType }),
     inferDish(bytes.toString('base64'), mediaType),
+    wantDistrict ? districtI18n(dLat, dLng).catch(() => null) : Promise.resolve(null),
   ]);
   if (upErr) return NextResponse.json({ error: upErr.message }, { status: 500 });
   const { data: pub } = supabase.storage.from('dish-photos').getPublicUrl(path);
@@ -141,9 +145,11 @@ async function createFromName(req: NextRequest, supabase: any, userId: string) {
     restaurantId = resolved.id;
   }
 
-  // District for a no-restaurant typed dish (home / skipped), reverse-geocoded
-  // client-side; null for restaurant dishes (they use restaurants.area).
-  const district = typeof body?.district === 'string' ? body.district.trim().slice(0, 80) || null : null;
+  // District for a no-restaurant typed dish (home / skipped): reverse-geocode a
+  // bilingual {zh,en} from the client's log coords. Null for restaurant dishes.
+  const dLat = Number(body?.lat); const dLng = Number(body?.lng);
+  const district = (!restaurantId && Number.isFinite(dLat) && Number.isFinite(dLng))
+    ? await districtI18n(dLat, dLng).catch(() => null) : null;
 
   const { data: dish, error } = await supabase
     .from('dishes')

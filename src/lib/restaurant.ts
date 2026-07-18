@@ -1,4 +1,4 @@
-import { reverseGeocode } from './geocode';
+import { districtI18n } from './geocode';
 
 export type NewRestaurantInput = {
   name?: unknown; lat?: unknown; lng?: unknown; area?: unknown; address?: unknown;
@@ -151,16 +151,14 @@ export async function resolveOrCreateRestaurant(
     return { id: only.id };
   }
 
-  // 3. Create. If no area came in (a Google chip carries none), reverse-geocode the
-  // coords ONCE here so restaurant dishes can show a district ("name • 香港仔").
-  // zh-HK to match the zh-first product; fail-soft — area just stays null.
-  let resolvedArea = area;
-  if (!resolvedArea) {
-    try { resolvedArea = (await reverseGeocode(lat, lng, 'zh-HK')).area; } catch { /* stays null */ }
-  }
+  // 3. Create. Reverse-geocode a BILINGUAL district from the coords so restaurant
+  // dishes can show "name • 香港仔" in whichever language, with an English fallback
+  // (and it works in any country). `area` (text) stays as the legacy/manual field;
+  // `district` (jsonb) is the display source. Fail-soft — district just stays null.
+  const district = await districtI18n(lat, lng).catch(() => null);
   const { data: r, error } = await supabase
     .from('restaurants')
-    .insert({ name, lat, lng, area: resolvedArea, address, place_id: placeId, created_by: userId })
+    .insert({ name, lat, lng, area, address, place_id: placeId, district, created_by: userId })
     .select('id')
     .single();
   if (error) {
