@@ -250,7 +250,10 @@ button { font: inherit; cursor: pointer; }
 }
 .code-input {
   text-transform: uppercase; letter-spacing: 0.25em; font-weight: 800;
-  font-family: var(--font-display); text-align: center; font-size: 18px;
+  /* Monospace, not the CJK-serif display font: a numeric code reads as a code in
+     mono, and its Latin digits (unlike Songti TC's) are unmistakably not sans. */
+  font-family: ui-monospace, 'SF Mono', 'Menlo', 'Cascadia Mono', 'Courier New', monospace;
+  text-align: center; font-size: 18px;
 }
 .group-ring {
   width: 46px; height: 46px; border-radius: 50%; flex-shrink: 0;
