@@ -52,7 +52,11 @@ h1, h2, h3, .display { font-family: var(--font-display); font-weight: 500; lette
    glyphs reads well. On Latin headings/names the same tracking looks too airy, so
    English mode pulls display-serif letter-spacing back to near-normal. */
 .lang-en h1, .lang-en h2, .lang-en h3, .lang-en .display,
-.lang-en .card-title, .lang-en .dishname-primary, .lang-en .join-table-title { letter-spacing: -0.01em; }
+.lang-en .card-title, .lang-en .join-table-title { letter-spacing: -0.01em; }
+/* Dish-name tracking is NOT handled here: it's tagged per slot by the actual script
+   (.dn-cjk / .dn-latin, set in DishName) so a Latin name tightens even when the chrome
+   language is Chinese — which .lang-en never covered (and .lang-en isn't even applied
+   to the DOM). See .dishname-primary.dn-* below. */
 h1 { font-size: 30px; line-height: 1.15; }
 h3 { font-size: 16px; }
 
@@ -369,6 +373,13 @@ button { font: inherit; cursor: pointer; }
   font-size: 0.72em; font-weight: 300; color: var(--ink);
   letter-spacing: 0.01em; line-height: 1.3; margin-top: 1px;
 }
+/* Script-aware tracking, tagged per slot by DishName. The 0.05em base suits Han /
+   Kana / Hangul but runs Latin visibly loose, so CJK keeps the open tracking while
+   Latin tightens. .dn-cjk is stated explicitly so CJK is immune to any other cascade
+   (incl. a re-activated .lang-en); applies to whichever slot holds each script. */
+.dishname-primary.dn-cjk { letter-spacing: 0.05em; }
+.dishname-primary.dn-latin { letter-spacing: -0.01em; }
+.dishname-secondary.dn-latin { letter-spacing: normal; }
 .dishname-lg .dishname-primary { font-family: var(--font-display); font-size: 26px; font-weight: 700; }
 .dishname-lg .dishname-secondary { font-size: 14px; }
 

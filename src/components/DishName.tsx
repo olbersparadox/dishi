@@ -15,6 +15,14 @@ import { useTranslation } from '@/lib/translation';
  *     which appears when the batch lands.
  * If both slots resolve to the same string, only the primary renders (no dupes).
  */
+// Per-slot script tag so CSS can track Latin and CJK differently: the 0.05em base
+// tracking suits Han/Kana/Hangul but runs Latin text visibly loose. A name with ANY
+// CJK char (e.g. "300g 牛胸腹") counts as CJK — the Han glyphs are what need the room.
+const CJK_RE = /[　-鿿㐀-䶿가-힯豈-﫿＀-￯]/;
+function scriptClass(s: string): string {
+  return CJK_RE.test(s) ? 'dn-cjk' : 'dn-latin';
+}
+
 export default function DishName({
   id,
   name,
@@ -73,8 +81,8 @@ export default function DishName({
 
   return (
     <span className={`dishname ${size === 'lg' ? 'dishname-lg' : ''}`}>
-      <span className="dishname-primary">{prefix}{primary}{suffix}</span>
-      {secondary && <span className="dishname-secondary">{secondary}</span>}
+      <span className={`dishname-primary ${scriptClass(primary)}`}>{prefix}{primary}{suffix}</span>
+      {secondary && <span className={`dishname-secondary ${scriptClass(secondary)}`}>{secondary}</span>}
     </span>
   );
 }
