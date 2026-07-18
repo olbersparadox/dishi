@@ -140,7 +140,7 @@ export const dict: Record<string, { zh: string; en: string }> = {
   },
   'auth.placeholder': { zh: 'you@example.com', en: 'you@example.com' },
   'auth.send': { zh: '傳送數字碼', en: 'Send code' },
-  'auth.sent': { zh: '已寄咗個 6 位數碼去你嘅 email（唔使撳 link）。', en: 'We emailed you a 6-digit code — no link to tap.' },
+  'auth.sent': { zh: '已寄咗個 6 位數碼去你嘅 email', en: 'We emailed you a 6-digit code' },
   'auth.loading': { zh: '載入中…', en: 'Loading…' },
 
   // ---- home ----
