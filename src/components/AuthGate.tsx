@@ -7,16 +7,19 @@ import { ArrowRightIcon } from '@/components/icons';
 const EMAIL_KEY = 'dishi-email';
 
 /**
- * Magic-link auth + numeric-code fallback.
+ * Numeric-code (OTP) email auth.
  *
- * Why the code path exists: on phones, tapping the email link often opens the app's
- * in-app browser (Gmail, Outlook) — the session lands THERE, not in the browser the
- * person started in, so they appear "signed out" when they return. Typing the code
- * from the same email into the ORIGINAL browser creates the session in the right
- * place. (Requires adding {{ .Token }} to the Magic Link email template in Supabase.)
+ * Why code, not a magic link: on phones, tapping the email link opens whatever
+ * browser the mail app chooses (Gmail webview, default Safari), so the session
+ * lands in a DIFFERENT browser than where the person started — they appear
+ * "signed out" when they return. A code typed back into the ORIGINAL browser
+ * creates the session in the right place, every time. The email template leads
+ * with {{ .Token }} and no longer carries a link at all (see
+ * docs/specs/otp-login-email-template.md); the input declares
+ * autoComplete="one-time-code" so iOS surfaces the code from Apple Mail as a
+ * tappable chip above the keyboard.
  *
- * The email address is remembered on-device so returning users are one tap from a
- * fresh link — never retyping.
+ * The email address is remembered on-device so returning users never retype it.
  */
 export default function AuthGate({ children }: { children: React.ReactNode }) {
   const { t } = useLang();
@@ -47,14 +50,13 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     return () => sub.subscription.unsubscribe();
   }, []);
 
-  async function sendLink() {
+  async function sendCode() {
     setError('');
     try { localStorage.setItem(EMAIL_KEY, email); } catch { /* fine */ }
     const supabase = supabaseBrowser();
-    const { error: err } = await supabase.auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: window.location.origin },
-    });
+    // No emailRedirectTo: the template carries no magic link, so there's no
+    // redirect target — this is pure OTP. {{ .Token }} is delivered regardless.
+    const { error: err } = await supabase.auth.signInWithOtp({ email });
     if (err) { setError(err.message); return; }
     setSent(true);
   }
@@ -83,7 +85,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
           <input className="field" type="email" placeholder={t('auth.placeholder')}
             value={email} onChange={e => setEmail(e.target.value)} autoComplete="email" />
           <button className="join-go" aria-label={t('auth.send')} title={t('auth.send')}
-            onClick={sendLink} disabled={!email.includes('@')}>
+            onClick={sendCode} disabled={!email.includes('@')}>
             <ArrowRightIcon size={20} />
           </button>
         </div>
@@ -92,13 +94,14 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
           <p style={{ marginBottom: 2 }}>{t('auth.sent')}</p>
           <p className="card-meta" style={{ marginBottom: 8 }}>{t('auth.codehint')}</p>
           <div style={{ display: 'flex', gap: 8, marginTop: 15 }}>
-            {/* No hardcoded digit count: Supabase's actual default OTP length turned
-                out to be 8 digits, not the 6 originally assumed here — capping input
-                at the wrong length silently truncated every real code before it ever
-                reached the server. Accept whatever's typed; let verifyOtp reject a
-                genuinely wrong code rather than the input box pre-rejecting a right
-                one. */}
-            <input className="field code-input" inputMode="numeric" placeholder={t('auth.codeplaceholder')}
+            {/* autoComplete="one-time-code" is what makes iOS offer the code from
+                Apple Mail as a chip above the keyboard — the whole point of the OTP
+                path. No hardcoded digit count: this project's Supabase OTP length is
+                8, not the 6 originally assumed, and capping the input silently
+                truncated real codes. Accept whatever's typed; let verifyOtp reject a
+                genuinely wrong code rather than the box pre-rejecting a right one. */}
+            <input className="field code-input" inputMode="numeric" autoComplete="one-time-code"
+              placeholder={t('auth.codeplaceholder')}
               value={code} onChange={e => setCode(e.target.value.replace(/\D/g, ''))} />
             <button className="join-go" aria-label={t('auth.verify')} title={t('auth.verify')}
               onClick={verifyCode} disabled={code.trim().length === 0 || verifying}>

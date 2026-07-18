@@ -139,8 +139,8 @@ export const dict: Record<string, { zh: string; en: string }> = {
     en: 'Rate it all — the lobster, the leftovers, the cup noodles. Two seconds a flick. Your taste is in there somewhere, and Dishi finds it: built from what you actually ate, honest when it’s still guessing. Then take it anywhere — export your taste to any AI you use, and it finally knows your tongue.',
   },
   'auth.placeholder': { zh: 'you@example.com', en: 'you@example.com' },
-  'auth.send': { zh: '傳送連結', en: 'Send link' },
-  'auth.sent': { zh: '請查收電郵，撳登入連結。', en: 'Check your inbox for the sign-in link.' },
+  'auth.send': { zh: '傳送數字碼', en: 'Send code' },
+  'auth.sent': { zh: '已寄咗個數字碼去你嘅 email（唔使撳 link）。', en: 'We emailed you a code — no link to tap.' },
   'auth.loading': { zh: '載入中…', en: 'Loading…' },
 
   // ---- home ----
@@ -423,7 +423,7 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'buddy.hint.tune': { zh: '繼續滑 — 而家每一下都係微調。', en: 'Keep flicking — this is fine-tuning now.' },
   'buddy.hint.sharp': { zh: '我夠晒精準，一齊搵隱世好菜。', en: 'I\u2019m sharp. Let\u2019s find hidden gems.' },
 
-  'auth.codehint': { zh: '如果連結喺第二個瀏覽器打開咗，可以輸入電郵入面嘅數字碼：', en: 'If the link opened in a different browser, enter the code from the same email:' },
+  'auth.codehint': { zh: '喺下面輸入電郵入面嘅數字碼，就喺呢個瀏覽器登入：', en: 'Enter the code from that email below to sign in — right here in this browser:' },
   'auth.codeplaceholder': { zh: '數字碼', en: 'code' },
   'auth.verify': { zh: '確認', en: 'Verify' },
   'auth.verifying': { zh: '核對緊…', en: 'Verifying…' },
