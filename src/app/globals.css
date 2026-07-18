@@ -377,7 +377,7 @@ button { font: inherit; cursor: pointer; }
    was off-palette and is retired) */
 .dish-meta { font-size: 13px; font-weight: 400; color: var(--ink-soft); line-height: 1.35; margin-top: 2px; letter-spacing: 0.02em; }
 /* primary dish name in feed cards: bigger, serif, medium weight per handoff */
-.card-title .dishname-primary { font-size: 20px; font-weight: 900; }
+.card-title .dishname-primary { font-size: 20px; font-weight: 800; }
 .card-title .dishname-secondary { font-size: 13px; font-weight: 550; }
 
 
@@ -482,7 +482,7 @@ button { font: inherit; cursor: pointer; }
 .journal-info .card-title { line-height: 1.3; }
 .journal-info .dish-meta { margin-top: 6px; }
 .journal-info > *:not(:first-child) { margin-top: 6px; }
-.journal-date + .card-title { margin-top: 2px; }
+.journal-date + .card-title { margin-top: 1px; }
 /* Locked dish: a small filled dot where the kebab would be — "can't edit,
    someone else has rated this". */
 .journal-locked {
