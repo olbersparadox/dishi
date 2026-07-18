@@ -5,6 +5,7 @@ import {
   extractTasteSections, buildTastePrompt, type ExportDish,
   confidenceInputsFrom, evidenceConfidence, exportUnlocked, ratingsToUnlock,
 } from '@/lib/tasteExport';
+import { PERSONAS, PERSONA_META, type Persona } from '@/lib/persona';
 import { CopyIcon, CheckIcon } from './icons';
 
 /**
@@ -27,12 +28,15 @@ import { CopyIcon, CheckIcon } from './icons';
  * anticipation copy + album-path link — is the separate §5 UI slice.)
  */
 export default function TasteExport({
-  vector, affinity, count, dishes,
+  vector, affinity, count, dishes, persona, onPersona, name,
 }: {
   vector: Record<string, number>;
   affinity: Record<string, number>;
   count: number;
   dishes: ExportDish[];
+  persona: Persona;
+  onPersona: (p: Persona) => void;
+  name: string | null;
 }) {
   const { t, lang } = useLang();
   const [prompt, setPrompt] = useState<string | null>(null);
@@ -48,13 +52,19 @@ export default function TasteExport({
 
   async function generate() {
     setGenerating(true);
+    let exportVersion: number | undefined;
     try {
-      const res = await fetch('/api/taste/export', { method: 'POST' });
+      // Commit the chosen voice on export (persisted server-side) and get the version.
+      const res = await fetch('/api/taste/export', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ persona }),
+      });
       const json = await res.json().catch(() => ({}));
       if (res.ok) {
         setDelta(json.delta ?? []);
         setVersion(json.profile_version ?? null);
         setIsFirstExport(!!json.is_first_export);
+        exportVersion = json.profile_version ?? undefined;
       }
     } catch { /* version/delta are a bonus on top of the prompt, not required for it */ }
     const sections = extractTasteSections(
@@ -63,7 +73,8 @@ export default function TasteExport({
       c => cuisineLabel(c, lang),
     );
     // English-only, deliberately: this text is read by a MODEL, not by the person.
-    setPrompt(buildTastePrompt(sections));
+    // Rendered in the chosen persona voice, with the versioned header.
+    setPrompt(buildTastePrompt(sections, { persona, version: exportVersion, name }));
     setCopied(false);
     setGenerating(false);
   }
@@ -94,9 +105,27 @@ export default function TasteExport({
       </div>
 
       {!prompt ? (
-        <button className="btn export" style={{ width: '100%' }} onClick={generate} disabled={!ready || generating}>
-          {ready ? t('export.button') : t('export.locked', { n: ratingsToUnlock(ci) })}
-        </button>
+        <>
+          {/* Persona picker (spec §3) — the user chooses the voice their palate speaks
+              in. FUNCTIONAL layout only, reusing the existing .chip look; the final
+              visual treatment is the owner's §5 Claude Design pass. Only meaningful
+              once unlocked, so it's hidden while locked. */}
+          {ready && (
+            <div role="radiogroup" aria-label={t('persona.pick')}
+              style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center', marginBottom: 10 }}>
+              {PERSONAS.map(p => (
+                <button key={p} type="button" role="radio" aria-checked={persona === p}
+                  className={`chip${persona === p ? ' on' : ''}`} onClick={() => onPersona(p)}
+                  title={lang === 'zh' ? PERSONA_META[p].blurbZh : PERSONA_META[p].blurbEn}>
+                  {lang === 'zh' ? PERSONA_META[p].zh : PERSONA_META[p].en}
+                </button>
+              ))}
+            </div>
+          )}
+          <button className="btn export" style={{ width: '100%' }} onClick={generate} disabled={!ready || generating}>
+            {ready ? t('export.button') : t('export.locked', { n: ratingsToUnlock(ci) })}
+          </button>
+        </>
       ) : (
         <>
           <p className="taste-export-note" style={{ marginTop: 4 }}>

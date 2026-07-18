@@ -3,7 +3,9 @@ import {
   extractTasteSections, buildTastePrompt,
   evidenceConfidence, confidenceTier, exportUnlocked, ratingsToUnlock,
   confidenceInputsFrom, EMERGING_AT, SOLID_AT, exportPayload,
+  HARD_LIMITS, EPISTEMIC_LINE,
 } from '../src/lib/tasteExport';
+import { PERSONAS } from '../src/lib/persona';
 
 const label = (d: string) => d.toUpperCase();
 const cuisine = (c: string) => c.toUpperCase();
@@ -206,5 +208,43 @@ describe('payload grows with the confidence band', () => {
       expect(p).toMatch(/at most ONCE per conversation/i);
       expect(p).toMatch(/genuinely unknown, not neutral/i);
     }
+  });
+});
+
+describe('persona voices (spec §3/§4)', () => {
+  const s = {
+    loves: ['umami'], strongLoves: [], dislikes: [], strongDislikes: [], cuisines: ['Cantonese'],
+    lovedDishes: [{ name: 'Char Siu', name_zh: '叉燒', score: 0.9, restaurant: 'Joy Hing' }],
+    dislikedDishes: [], ratingCount: 30, homeCookCount: 2, diningOutCount: 28,
+  };
+
+  it('keeps the trust contract VERBATIM — in every persona, at every band', () => {
+    for (const persona of PERSONAS) {
+      for (const confidence of ['thin', 'emerging', 'solid'] as const) {
+        const p = buildTastePrompt({ ...s, confidence }, { persona });
+        expect(p).toContain(HARD_LIMITS);
+        expect(p).toContain(EPISTEMIC_LINE);
+      }
+    }
+  });
+
+  it('carries the versioned dishi.me header, named when a name is given', () => {
+    for (const persona of PERSONAS) {
+      const p = buildTastePrompt({ ...s, confidence: 'solid' as const }, { persona, version: 4, name: 'Jerry' });
+      expect(p.startsWith("# dishi — Jerry's AI palate")).toBe(true);
+      expect(p).toContain('v4 · fed 30 dishes · dishi.me');
+    }
+  });
+
+  it('falls back to "my" when no name is given', () => {
+    expect(buildTastePrompt({ ...s, confidence: 'solid' as const }, { persona: 'honest' })
+      .startsWith('# dishi — my AI palate')).toBe(true);
+  });
+
+  it('the three voices genuinely differ — not one doc with a relabel', () => {
+    const docs = PERSONAS.map(persona => buildTastePrompt({ ...s, confidence: 'solid' as const }, { persona }));
+    expect(new Set(docs).size).toBe(3);
+    expect(buildTastePrompt({ ...s, confidence: 'solid' as const }, { persona: 'playful' })).toMatch(/real deal/i);
+    expect(buildTastePrompt({ ...s, confidence: 'solid' as const }, { persona: 'connoisseur' })).toMatch(/testimony/i);
   });
 });

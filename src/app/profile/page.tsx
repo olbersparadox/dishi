@@ -8,6 +8,7 @@ import TasteFormCard from '@/components/TasteFormCard';
 import SealReveal, { type SealResult } from '@/components/SealReveal';
 import DishName from '@/components/DishName';
 import type { ExportDish } from '@/lib/tasteExport';
+import { isPersona, type Persona } from '@/lib/persona';
 import { RateIcon, TrashIcon, UtensilsIcon, HomeIcon, PhotoIcon } from '@/components/icons';
 import { setPendingPhoto } from '@/lib/pendingPhoto';
 import { wordKeyFor } from '@/lib/flickWords';
@@ -49,6 +50,8 @@ function TasteProfile() {
   const [sealReveal, setSealReveal] = useState<SealResult | null>(null);
   const [justLearned, setJustLearned] = useState<{ dim: string; dir: number }[] | null>(null);
   const [sealedIds, setSealedIds] = useState<Set<string>>(new Set());
+  const [persona, setPersona] = useState<Persona>('honest');
+  const [handle, setHandle] = useState<string | null>(null);
 
   useEffect(() => {
     // The rating flow lands here (not Home) the moment a rating is saved — this
@@ -74,14 +77,16 @@ function TasteProfile() {
       setUserId(uid);
       const [{ data: taste }, { data: prof }] = await Promise.all([
         supabase.from('taste_profiles').select('*').eq('user_id', uid).maybeSingle(),
-        supabase.from('profiles').select('points').eq('id', uid).maybeSingle(),
+        supabase.from('profiles').select('points, handle').eq('id', uid).maybeSingle(),
       ]);
       if (taste) {
         setVector(taste.vector ?? {});
         setAffinity(taste.cuisine_affinity ?? {});
         setCount(taste.rating_count ?? 0);
+        if (isPersona(taste.persona)) setPersona(taste.persona);
       }
       setPoints(prof?.points ?? 0);
+      setHandle(prof?.handle ?? null);
     });
     fetch('/api/my/dishes?unrated=1').then(r => r.json()).then(async j => {
       const dishes = j.dishes ?? [];
@@ -234,7 +239,8 @@ function TasteProfile() {
         </div>
       )}
 
-      {userId && <TasteFormCard vector={vector} affinity={affinity} count={count} dishes={exportDishes} userId={userId} />}
+      {userId && <TasteFormCard vector={vector} affinity={affinity} count={count} dishes={exportDishes} userId={userId}
+        persona={persona} onPersona={setPersona} name={handle} />}
 
       {/* 已評嘅菜 — flat, no-photo reference list below the AI export card per the
           design. Identity-grouped: a dish rated twice under linked names shows

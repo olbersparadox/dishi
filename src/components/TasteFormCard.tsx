@@ -10,6 +10,7 @@ import { topGlyphDims } from '@/lib/blobForm';
 import { useLang } from '@/lib/i18n';
 import TasteExport from './TasteExport';
 import type { ExportDish } from '@/lib/tasteExport';
+import type { Persona } from '@/lib/persona';
 
 type BuddyState = {
   level: { name: string; level: number; size: number; progress: number; next: { name: string } | null };
@@ -26,12 +27,15 @@ type BuddyState = {
 
 const MIGRATION_SEEN_KEY = 'dishi_form_migration_seen';
 
-export default function TasteFormCard({ vector, affinity, count, dishes, userId }: {
+export default function TasteFormCard({ vector, affinity, count, dishes, userId, persona, onPersona, name }: {
   vector: Record<string, number>;
   affinity: Record<string, number>;
   count: number;
   dishes: ExportDish[];
   userId: string;
+  persona: Persona;
+  onPersona: (p: Persona) => void;
+  name: string | null;
 }) {
   const { t } = useLang();
   const [state, setState] = useState<BuddyState | null>(null);
@@ -119,7 +123,8 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId 
       </div>
     </div>
 
-    <TasteExport vector={vector} affinity={affinity} count={count} dishes={dishes} />
+    <TasteExport vector={vector} affinity={affinity} count={count} dishes={dishes}
+      persona={persona} onPersona={onPersona} name={name} />
     </>
   );
 }

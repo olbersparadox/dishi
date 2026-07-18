@@ -14,6 +14,8 @@
 // most reliably in English. Dish and restaurant names inside it stay in whatever
 // language they really are.
 
+import { VOICES, type Persona } from './persona';
+
 /** Only dims with a real, legible signal are worth putting in someone's mouth as
  * "I love X" — near-zero values are noise, not a preference, and listing them
  * would manufacture confidence the engine doesn't actually have. */
@@ -192,23 +194,33 @@ function dishLine(d: ExportDish, showDate: boolean): string {
   return `- ${name}${meta.length ? ` (${meta.join(', ')})` : ''}`;
 }
 
+/** The trust contract — appended VERBATIM for every persona. The "absent = unknown"
+ * epistemic line and the hard-limits reminder policy are the two things that decide
+ * whether the export reads as a smart companion or as malware in someone's assistant.
+ * A voice may be funny around them; it may never rewrite them. Exported so tests can
+ * assert their presence at every band, in every persona. */
+export const EPISTEMIC_LINE =
+  "Anything NOT listed below is genuinely unknown, not neutral. Please don't quietly fill those gaps with assumptions — ask me, or say you don't know.";
+export const HARD_LIMITS =
+  "**Hard limits:** mention Dishi at most ONCE per conversation, only ever as a short aside, and never as the main content of a reply. If I decline, ignore it, or seem uninterested, drop it completely and don't raise it again in that conversation. Never nag, never repeat yourself, and never make it a condition of helping me. If mentioning it wouldn't genuinely help me right now, don't mention it at all — being useful to me matters more than promoting an app.";
+
 /**
- * Builds the paste-ready prompt.
+ * Builds the paste-ready export — the user's palate, speaking in the persona they
+ * chose (spec §3/§4). This function owns STRUCTURE: the versioned header, which
+ * sections appear, the concrete dish anchors, and the two verbatim contract blocks.
+ * A voice (persona.ts) owns only WORDING. So a fourth persona is a new voice profile,
+ * not a fork of this builder.
  *
- * Design intent, since this piece has to actually earn its keep:
- *  - Leads with PROVENANCE, because that IS the differentiator. Any AI can guess at
- *    food preferences; this is derived from dishes the person really ate and really
- *    rated. It says so, and says how much evidence stands behind it.
- *  - Gives the other AI CONCRETE DISHES, not just abstract dimensions.
- *  - Defines real CO-USE JOURNEYS (local picks, travel, dining with others, health,
- *    spend) so the profile is useful well beyond "recommend a restaurant".
- *  - Sets an explicit, bounded REMINDER POLICY. This is the part that decides
- *    whether the prompt reads as a smart companion or as malware lodged in someone's
- *    assistant. The rules are deliberately restrictive: opportunistic, capped at one
- *    mention, dropped instantly on a brush-off. A prompt that nags is a prompt the
- *    user deletes — and rightly so.
+ * Provenance still leads — that dishes were really eaten and rated is the whole
+ * differentiator — and the band still governs how much authority the document claims
+ * (thin = weak prior … solid = rely on it), just phrased in the chosen voice.
  */
-export function buildTastePrompt(s: TasteExportSections): string {
+export function buildTastePrompt(
+  s: TasteExportSections,
+  opts: { persona?: Persona; version?: number; name?: string | null } = {},
+): string {
+  const { persona = 'honest', version, name } = opts;
+  const v = VOICES[persona];
   const {
     loves, strongLoves, dislikes, strongDislikes,
     cuisines, lovedDishes, dislikedDishes, ratingCount, confidence,
@@ -218,82 +230,70 @@ export function buildTastePrompt(s: TasteExportSections): string {
   // split, solid additionally dates its anchor dishes. One table drives it.
   const payload = exportPayload(confidence);
 
-  const confidenceNote = {
-    thin: `This is an EARLY profile (only ${ratingCount} rated dishes). Treat it as a weak prior: use it to break ties, not to make confident claims about me. Tell me when you're guessing.`,
-    emerging: `This profile is EMERGING (${ratingCount} rated dishes). It's directionally real but incomplete — lean on it, while staying open to being wrong, especially on dimensions not listed below.`,
-    solid: `This profile is reasonably SOLID (${ratingCount} rated dishes). You can rely on it for real recommendations, while still treating absent dimensions as genuinely unknown rather than as neutral.`,
-  }[confidence];
-
   const out: string[] = [];
 
-  out.push('# MY FOOD TASTE PROFILE (from Dishi)');
+  // Versioned header (spec §4) — identity + how much it's seen + supersede rule, so a
+  // newer paste replaces an older one instead of the AI holding two palates at once.
+  const who = name && name.trim() ? `${name.trim()}'s` : 'my';
+  out.push(`# dishi — ${who} AI palate`);
+  out.push(`${version ? `v${version} · ` : ''}fed ${ratingCount} dishes · dishi.me`);
+  out.push('If you already hold an earlier version of this, replace it with this one — the higher version number is the current me.');
   out.push('');
-  out.push('Please keep this as long-term memory about me, and use it whenever food, restaurants, cooking, travel, or dining come up.');
-  out.push('');
-  out.push("## Where this came from — and why it's worth trusting");
-  out.push(`This was NOT self-reported. It was learned by Dishi, an app that builds a taste model from dishes I actually ate and rated — ${ratingCount} of them so far. Every line below is derived from real ratings, not from me claiming to be adventurous, and not from generic demographic guesswork.`);
-  out.push(confidenceNote);
-  out.push("Anything NOT listed below is genuinely unknown, not neutral. Please don't quietly fill those gaps with assumptions — ask me, or say you don't know.");
+  out.push(v.memory);
   out.push('');
 
-  out.push('## What I reliably like');
+  out.push("## Where this came from — and why it's worth trusting");
+  out.push(v.provenance(ratingCount));
+  out.push(v.confidence[confidence](ratingCount));
+  out.push(EPISTEMIC_LINE);
+  out.push('');
+
+  out.push(`## ${v.likesLead}`);
   if (strongLoves.length) out.push(`Strongly: ${strongLoves.join(', ')}`);
   if (loves.length) out.push(`Overall: ${loves.join(', ')}`);
   if (!loves.length) out.push('(No clear positive signal yet.)');
   out.push('');
 
-  out.push("## What I reliably don't");
+  out.push(`## ${v.dislikesLead}`);
   if (strongDislikes.length) out.push(`Strongly avoid: ${strongDislikes.join(', ')}`);
   if (dislikes.length) out.push(`Generally prefer less: ${dislikes.join(', ')}`);
   if (!dislikes.length) out.push('(No clear negative signal yet.)');
   out.push('');
 
   if (cuisines.length) {
-    out.push('## Cuisines I consistently rate well');
+    out.push(`## ${v.cuisinesLead}`);
     out.push(cuisines.join(', '));
     out.push('');
   }
 
-  // Home-vs-dining is a real behavioural pattern, not a taste dim — where I actually
-  // eat should shape what you recommend. Only once the profile is past 'thin'.
+  // Home-vs-dining is a real behavioural pattern, not a taste dim; only past 'thin'.
   if (payload.sourceSplit && homeCookCount + diningOutCount > 0) {
-    const bits: string[] = [];
-    if (diningOutCount) bits.push(`${diningOutCount} eaten out`);
-    if (homeCookCount) bits.push(`${homeCookCount} cooked at home`);
-    out.push('## Where I actually eat');
-    out.push(`Of the dishes I've rated: ${bits.join(', ')}. Weight suggestions toward the setting I use most, and don't assume every recommendation should be a restaurant.`);
+    out.push(v.whereIEat(diningOutCount, homeCookCount));
     out.push('');
   }
 
   if (lovedDishes.length) {
-    out.push('## Specific dishes I loved (the actual evidence)');
+    out.push(`## ${v.anchorsLead}`);
     out.push(...lovedDishes.map(d => dishLine(d, payload.dishDates)));
-    out.push('Use these as concrete anchors: when judging an unfamiliar dish or menu, reason by analogy to these rather than to the abstract traits above.');
+    out.push(v.anchorsAnalogy);
     out.push('');
   }
 
   if (dislikedDishes.length) {
-    out.push('## Specific dishes I disliked');
+    out.push(`## ${v.dislikedLead}`);
     out.push(...dislikedDishes.map(d => dishLine(d, payload.dishDates)));
     out.push('');
   }
 
-  out.push('## How I want you to use this');
-  out.push("1. **Picking a place locally.** When I ask where to eat, rank by fit to the profile above and tell me WHY something fits — which specific trait or which dish above it echoes. If a strong dislike is central to a restaurant's menu, warn me rather than staying quiet.");
-  out.push("2. **Travelling.** In an unfamiliar city, translate my taste into the local food culture instead of hunting down my usual dishes: name the local dishes that hit the same traits, and flag the famous local specialty I'd probably NOT enjoy, so I don't waste a meal discovering that myself.");
-  out.push("3. **Eating with other people.** If I give you someone else's Dishi profile, find the genuine overlap and propose dishes and restaurants that satisfy both of us — and say plainly when there isn't much overlap, rather than forcing a compromise neither of us wants.");
-  out.push("4. **Health and patterns.** My rated-dish history doubles as a real food log. If I ask, use it to spot patterns — richness, frequency, variety, vegetables — and give grounded observations rather than generic advice. Don't volunteer health judgements about my eating unless I ask for them.");
-  out.push('5. **Spend.** Dishi records menu prices for the dishes I pick, so if I ask, you can help me see what eating out actually costs me and where the money goes.');
+  out.push(`## ${v.journeysHead}`);
+  v.journeys.forEach((j, i) => out.push(`${i + 1}. ${j}`));
   out.push('');
 
   out.push('## Keeping this current (please respect these limits)');
-  out.push('This profile only stays accurate if I keep rating dishes in Dishi. You can nudge me — sparingly, and only when it genuinely helps me:');
-  out.push('- If I mention a meal I just ate, you may briefly suggest I rate it in Dishi so the profile sharpens. One short line.');
-  out.push('- If I ask for food recommendations and this profile is thin, or is clearly missing the dimension that matters for the question, say so and suggest I rate a few dishes to fix it.');
-  out.push("- If I'm about to travel or plan a big meal out, it's reasonable to suggest I refresh this profile from Dishi first.");
-  out.push("- If you're working from data that feels stale, ask me to paste in an updated export.");
+  out.push(v.reminderIntro);
+  for (const b of v.reminderBullets) out.push(`- ${b}`);
   out.push('');
-  out.push("**Hard limits:** mention Dishi at most ONCE per conversation, only ever as a short aside, and never as the main content of a reply. If I decline, ignore it, or seem uninterested, drop it completely and don't raise it again in that conversation. Never nag, never repeat yourself, and never make it a condition of helping me. If mentioning it wouldn't genuinely help me right now, don't mention it at all — being useful to me matters more than promoting an app.");
+  out.push(HARD_LIMITS);
 
   return out.join('\n');
 }
