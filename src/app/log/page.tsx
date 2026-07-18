@@ -7,7 +7,7 @@ import FlickRating from '@/components/FlickRating';
 import { normalizePhoto } from '@/lib/image';
 import DishName from '@/components/DishName';
 import PhotoPicker from '@/components/PhotoPicker';
-import { CloseIcon, CameraIcon, RateIcon, TrashIcon, EditIcon } from '@/components/icons';
+import { CloseIcon, CameraIcon, RateIcon, TrashIcon, EditIcon, CheckIcon } from '@/components/icons';
 import { useLang, cuisineLabel } from '@/lib/i18n';
 import { takePendingPhoto } from '@/lib/pendingPhoto';
 
@@ -47,6 +47,9 @@ function LogFlow() {
   const [typedZh, setTypedZh] = useState('');
   const [creatingNoPhoto, setCreatingNoPhoto] = useState(false);
   const [noPhotoError, setNoPhotoError] = useState('');
+  // The typed name must be explicitly CONFIRMED (the ✓ button) before the shared
+  // 繼續 button below the card activates — editing either field un-confirms it.
+  const [noPhotoConfirmed, setNoPhotoConfirmed] = useState(false);
   const [dish, setDish] = useState<Dish | null>(null);
   const [draftName, setDraftName] = useState('');
   const [draftNameZh, setDraftNameZh] = useState('');
@@ -452,38 +455,44 @@ function LogFlow() {
             {t('log.nophoto')}
           </button>
         )}
-        {!preview && noPhotoMode && (
+        {!preview && noPhotoMode && (() => {
+          const hasName = !!typedEn.trim() || !!typedZh.trim();
+          return (
           <div className="card" style={{ marginBottom: 28 }}><div className="card-body">
-            <label className="label" style={{ fontSize: 11.5 }}>{t('home.name.zh')}</label>
+            {/* Translate hint sits beside the first label — one line, not a footnote. */}
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 }}>
+              <label className="label" style={{ fontSize: 11.5 }}>{t('home.name.zh')}</label>
+              <span className="card-meta" style={{ fontSize: 11, textAlign: 'right' }}>{t('home.translateOnSave')}</span>
+            </div>
             <input className="field" style={{ marginBottom: 6 }} value={typedZh} autoFocus
-              onChange={e => setTypedZh(e.target.value)} placeholder="蝦餃" />
+              onChange={e => { setTypedZh(e.target.value); setNoPhotoConfirmed(false); }} placeholder="叉燒飯" />
             <label className="label" style={{ fontSize: 11.5 }}>{t('home.name.en')}</label>
             <input className="field" value={typedEn}
-              onChange={e => setTypedEn(e.target.value)} placeholder="Har gow" />
-            <p className="card-meta" style={{ marginTop: 4 }}>{t('home.translateOnSave')}</p>
+              onChange={e => { setTypedEn(e.target.value); setNoPhotoConfirmed(false); }} placeholder="Char siu rice" />
 
-            {/* Home-cooked: there IS no restaurant — the entire question is
-                removed, not just made skippable. */}
-            {mode !== 'home' && (
-              <div style={{ marginTop: 10 }}>
-                <RestaurantPicker onChange={setRestaurant} skipFirst={mode === 'album'} />
-              </div>
-            )}
-
+            {/* Restaurant lives in the shared "where" step below — not duplicated here. */}
             {noPhotoError && <p style={{ color: 'var(--lacquer)', fontSize: 12.5, marginTop: 6 }}>{noPhotoError}</p>}
-            <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-              <button className="btn primary" style={{ flex: 2 }}
-                disabled={creatingNoPhoto || (!typedEn.trim() && !typedZh.trim())}
-                onClick={createWithoutPhoto}>
-                {creatingNoPhoto ? t('log.saving') : t('log.nophoto.go')}
+
+            {/* Confirm (✓) / cancel (✕) as circles, bottom-right. Confirm just marks
+                the name ready — the actual proceed is the shared 繼續 below, which
+                activates only once confirmed. */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
+              <button className="icon-btn" aria-label={t('home.cancel')} title={t('home.cancel')}
+                onClick={() => { setNoPhotoMode(false); setNoPhotoError(''); setNoPhotoConfirmed(false); }}>
+                <CloseIcon />
               </button>
-              <button className="btn ghost" style={{ flex: 1 }} disabled={creatingNoPhoto}
-                onClick={() => { setNoPhotoMode(false); setNoPhotoError(''); }}>
-                {t('home.cancel')}
+              <button className="icon-btn" aria-label={t('home.confirm')} title={t('home.confirm')}
+                disabled={!hasName}
+                style={noPhotoConfirmed
+                  ? { background: 'var(--ink)', color: 'var(--paper-raised)' }
+                  : !hasName ? { opacity: 0.4 } : undefined}
+                onClick={() => setNoPhotoConfirmed(true)}>
+                <CheckIcon />
               </button>
             </div>
           </div></div>
-        )}
+          );
+        })()}
 
         {/* The "dishes to rate" shortcut is a landing-only prompt. The moment the
             user has picked a photo (or switched to typing a name), they're
@@ -529,13 +538,18 @@ function LogFlow() {
         )}
 
         {error && <p style={{ color: 'var(--lacquer)', marginTop: 12 }}>{error}</p>}
+        {/* Shared continue: the photo flow needs a photo; the no-photo flow needs a
+            CONFIRMED typed name (the ✓ in the card above). Darkens/enables only when
+            its path is ready. */}
         <button
           className="btn primary"
           style={{ width: '100%', marginTop: 28 }}
-          disabled={!photo || busy}
-          onClick={logDish}
+          disabled={noPhotoMode ? (!noPhotoConfirmed || creatingNoPhoto) : (!photo || busy)}
+          onClick={noPhotoMode ? createWithoutPhoto : logDish}
         >
-          {busy ? t('log.reading') : t('log.continue')}
+          {noPhotoMode
+            ? (creatingNoPhoto ? t('log.saving') : t('log.continue'))
+            : (busy ? t('log.reading') : t('log.continue'))}
         </button>
       </div>
     );
