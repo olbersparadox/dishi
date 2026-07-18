@@ -89,17 +89,21 @@ export async function GET(req: NextRequest) {
   const admin = supabaseAdmin();
   let hearts = new Map<string, number>();
   let myScores = new Map<string, number>();
-  let locked = new Map<string, boolean>();
+  let lockedSet = new Set<string>();
 
   if (ids.length) {
-    const [{ data: marks }, { data: ratings }, lockChecks] = await Promise.all([
+    // locked_dish_ids batches what used to be one is_dish_locked RPC PER dish (the
+    // journal's main slowness) into a single query returning just the locked ids.
+    const [{ data: marks }, { data: ratings }, { data: lockedRows }] = await Promise.all([
       admin.from('helpful_marks').select('dish_id').in('dish_id', ids),
       supabase.from('ratings').select('dish_id, score').eq('user_id', user.id).in('dish_id', ids),
-      Promise.all(ids.map(id => admin.rpc('is_dish_locked', { p_dish_id: id }))),
+      admin.rpc('locked_dish_ids', { p_dish_ids: ids }),
     ]);
     for (const m of marks ?? []) hearts.set(m.dish_id, (hearts.get(m.dish_id) ?? 0) + 1);
     for (const r of ratings ?? []) myScores.set(r.dish_id, r.score);
-    ids.forEach((id, i) => locked.set(id, !!lockChecks[i].data));
+    for (const row of (lockedRows ?? []) as unknown[]) {
+      lockedSet.add(typeof row === 'string' ? row : (row as { locked_dish_ids?: string }).locked_dish_ids ?? '');
+    }
   }
 
   return NextResponse.json({
@@ -114,7 +118,7 @@ export async function GET(req: NextRequest) {
       cooking_method: d.cooking_method, heaviness: d.heaviness, diet: d.diet ?? [],
       hearts: hearts.get(d.id) ?? 0,
       my_score: myScores.get(d.id) ?? null,
-      locked: locked.get(d.id) ?? false,
+      locked: lockedSet.has(d.id),
       created_at: d.created_at, // used as the next page's `before` cursor
       eaten_at: d.eaten_at ?? null, // photo-EXIF when-eaten; shown (not ordered by) on the card
     })),
