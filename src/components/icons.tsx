@@ -71,9 +71,11 @@ export function CloseIcon({ size = 16 }: IconProps) {
 export function RateIcon({ size = 16 }: IconProps) {
   return (
     <svg viewBox="0 0 24 24" width={size} height={size} aria-hidden="true">
-      <path d="M12 3v18" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-      <path d="M8 7l4-4 4 4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M8 17l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      {/* Vertical fader: a level you set up or down. Track breaks at the handle so
+          the line never runs through the hollow knob; both stroked at 1.7 to match
+          the TrashIcon's outline weight, handle ~12u wide like the trash. */}
+      <path d="M12 3V9.5M12 14.5V21" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+      <rect x="6" y="9.5" width="12" height="5" rx="2.5" fill="none" stroke="currentColor" strokeWidth="1.7" />
     </svg>
   );
 }
