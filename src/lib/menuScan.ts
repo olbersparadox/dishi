@@ -1,6 +1,7 @@
 import { DIMS, DishVector, LEARN_CUTOFF } from './taste';
 import { callClaude, callClaudeStream, imagePart, textPart, parseJsonResponse } from './openrouter';
 import { salvageJsonObjects } from './jsonSalvage';
+import { ZH_FROM_MENU_GUIDANCE } from './nameTranslate';
 
 // Menu Scanner perception layer.
 //
@@ -145,7 +146,8 @@ Respond with ONLY compact JSON, no markdown fences, minimal whitespace:
    "f": number 0..1 (confidence),
    "a": [18 numbers 0..1, ONE decimal place, in this exact order: ${DIMS.join(', ')}]
  }]}
-Keep output small: one decimal place everywhere, no extra fields. Extract at most 28 items; prefer mains and signatures over drinks and sides.`;
+Keep output small: one decimal place everywhere, no extra fields. Extract at most 28 items; prefer mains and signatures over drinks and sides.
+${ZH_FROM_MENU_GUIDANCE}`;
 
 export async function scanMenu(base64: string, mediaType: string): Promise<MenuScanResult> {
   // Mock ONLY when no key is configured. A failed/timed-out call with a real key
@@ -219,7 +221,8 @@ Respond with ONLY compact JSON, no markdown fences, minimal whitespace:
    "f": number 0..1 (confidence)
  }]}
 If "im" is false, "items" MUST be an empty array — do not guess dishes out of a non-menu photo.
-Extract at most 20 items; prefer mains and signatures over drinks and sides. Names, prices, and cuisine ONLY — no hooks, no flavor scoring, no diet flags, no cooking method, nothing else. Keep this fast.`;
+Extract at most 20 items; prefer mains and signatures over drinks and sides. Names, prices, and cuisine ONLY — no hooks, no flavor scoring, no diet flags, no cooking method, nothing else. Keep this fast.
+${ZH_FROM_MENU_GUIDANCE}`;
 
 export type OcrMenuItem = Omit<MenuItem, 'attributes'>;
 

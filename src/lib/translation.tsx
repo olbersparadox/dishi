@@ -10,7 +10,7 @@
 import { createContext, useCallback, useContext, useRef, useState } from 'react';
 import { dishNameKey, isCanonical, type LangCode } from './i18n-dict';
 
-type Item = { name: string; name_zh?: string | null; name_original?: string | null };
+type Item = { id?: string; name: string; name_zh?: string | null; name_original?: string | null };
 type Cache = Record<string, Record<string, string>>; // dishNameKey -> { langCode -> name }
 
 type TranslationContext = {
@@ -34,7 +34,7 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
     for (const [lang, itemsObj] of Object.entries(pending)) {
       const entries = Object.entries(itemsObj);
       if (!entries.length) continue;
-      const items = entries.map(([key, it]) => ({ key, name: it.name, name_zh: it.name_zh ?? null }));
+      const items = entries.map(([key, it]) => ({ key, id: it.id, name: it.name, name_zh: it.name_zh ?? null }));
       for (const [key] of entries) inflightRef.current.add(`${lang}:${key}`);
       try {
         const res = await fetch('/api/dishes/translate', {

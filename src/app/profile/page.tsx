@@ -208,7 +208,7 @@ function TasteProfile() {
             <div key={p.id} className="pick-card">
               <div style={{ minWidth: 0 }}>
                 <div className="pick-card-name">
-                <DishName name={p.name} name_zh={p.name_zh}
+                <DishName id={p.id} name={p.name} name_zh={p.name_zh}
                   suffix={sealedIds.has(p.id) && <span className="seal-stamp" title={t('seal.stamp.title')} aria-label={t('seal.stamp.title')}>印</span>} />
               </div>
                 <div className="pick-card-meta">{p.restaurant ?? t('home.homecooking')}</div>
@@ -244,7 +244,7 @@ function TasteProfile() {
             <div className="rated-flat-row" key={d.dish_identity_id ?? d.id}>
               <div style={{ minWidth: 0 }}>
                 <div className="card-title">
-                  <DishName name={d.identity_name ?? d.name} name_zh={d.identity_name_zh ?? d.name_zh} />
+                  <DishName id={d.id} name={d.identity_name ?? d.name} name_zh={d.identity_name_zh ?? d.name_zh} />
                 </div>
                 {d.restaurant && <div className="rated-flat-meta">{d.restaurant}</div>}
               </div>

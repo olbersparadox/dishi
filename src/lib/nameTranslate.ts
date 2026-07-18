@@ -18,6 +18,12 @@ export const TRANSLATE_GUIDANCE = `Translate each dish name by MEANING into the 
 - Chinese output is Traditional, HONG KONG register (吉列豬扒定食, 烏冬, 天婦羅, 刺身), not Mainland/Taiwan terms.
 - Figurative names translate by the actual dish, not the literal characters (e.g. 菠蘿包 is a pineapple-less "pineapple bun").`;
 
+/** Hardening for producing a REAL Traditional-Chinese (HK) canonical name from a
+ * menu in ANY language — appended to both scan prompts so a Japanese menu's stored
+ * `z`/name_zh is real Chinese, not kana passed through unread. Same false-friend
+ * set as TRANSLATE_GUIDANCE, phrased for the scan JSON's "z" field. */
+export const ZH_FROM_MENU_GUIDANCE = `The Traditional Chinese "z" MUST be real Hong Kong Chinese even when the menu is in another language: translate by MEANING, never pass kana/katakana or hangul through unread. Kanji false friends (write the actual DISH): 春雨 = 粉絲; 人参 = 紅蘿蔔; 大根 = 白蘿蔔; 玉子 = 蛋; Japanese 湯 = hot water, NOT soup. Use HK register (烏冬, 天婦羅, 刺身, 吉列).`;
+
 /** Build the system prompt for a target language. */
 export function buildTranslatePrompt(lang: LangCode): string {
   return `You translate Hong Kong restaurant dish names into ${languageLabel(lang)}.

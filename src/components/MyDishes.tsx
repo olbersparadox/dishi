@@ -428,7 +428,7 @@ export default function MyDishes({ t, lang }: { t: (k: string, p?: Record<string
                   {/* A linked dish's stored name is already the canonical name
                       (kept in sync server-side on link/owner-adopt), so the row's
                       own name is the right thing to show. */}
-                  <div className="card-title"><DishName name={d.name} name_zh={d.name_zh} /></div>
+                  <div className="card-title"><DishName id={d.id} name={d.name} name_zh={d.name_zh} /></div>
                   <div className="dish-meta">
                     {d.restaurant ?? t('home.homecooking')}
                     {cuisineLabel(d.cuisine, lang) ? ` · ${cuisineLabel(d.cuisine, lang)}` : ''}

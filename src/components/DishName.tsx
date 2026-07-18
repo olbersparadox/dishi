@@ -16,6 +16,7 @@ import { useTranslation } from '@/lib/translation';
  * If both slots resolve to the same string, only the primary renders (no dupes).
  */
 export default function DishName({
+  id,
   name,
   name_zh,
   name_original,
@@ -23,6 +24,10 @@ export default function DishName({
   prefix,
   suffix,
 }: {
+  /** Dish row id, when this name belongs to a saved dish. Enables persisting the
+   * translation to dishes.names (a second visit is then free). Omitted for
+   * not-yet-saved names (e.g. scan results), which translate ephemerally. */
+  id?: string;
   name: string;
   name_zh?: string | null;
   name_original?: string | null;
@@ -44,9 +49,9 @@ export default function DishName({
   // need never runs a state update during render.
   useEffect(() => {
     for (const code of [pair.primary, pair.secondary] as LangCode[]) {
-      if (!isCanonical(code) && !cache[key]?.[code]) register({ name, name_zh, name_original }, code);
+      if (!isCanonical(code) && !cache[key]?.[code]) register({ id, name, name_zh, name_original }, code);
     }
-  }, [pair.primary, pair.secondary, key, cache, register, name, name_zh, name_original]);
+  }, [pair.primary, pair.secondary, key, cache, register, id, name, name_zh, name_original]);
 
   const resolve = (code: LangCode): string | undefined => {
     if (code === 'en') return en;
