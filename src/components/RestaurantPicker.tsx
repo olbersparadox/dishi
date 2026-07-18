@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useLang } from '@/lib/i18n';
 import { namesMatch } from '@/lib/restaurant';
 
@@ -34,12 +34,17 @@ export type RestaurantChoice =
  * whenever Google or a prior Dishi record actually has both languages — never a
  * fabricated second line.
  */
-export default function RestaurantPicker({ onChange, skipFirst = false }: {
+export default function RestaurantPicker({ onChange, skipFirst = false, seedCoords = null }: {
   onChange: (c: RestaurantChoice) => void;
   /** Album mode (old camera-roll photos): the photo probably wasn't taken near
    * where the user is standing NOW, so "skip" leads the chip row instead of
    * trailing it — nearby suggestions become the fallback, not the assumption. */
   skipFirst?: boolean;
+  /** Photo EXIF coords: WHERE the photo was taken, which beats live GPS (where the
+   * phone is now) for a retrospective log. When present, the nearby list is seeded
+   * from here instead of geolocation — so a couch-logged restaurant dish still gets
+   * the right shortlist. null → fall back to live GPS. */
+  seedCoords?: { lat: number; lng: number } | null;
 }) {
   const { t, lang } = useLang();
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
@@ -56,23 +61,27 @@ export default function RestaurantPicker({ onChange, skipFirst = false }: {
   const [suggestion, setSuggestion] = useState<Nearby | null>(null);
   const [suggestionDismissed, setSuggestionDismissed] = useState(false);
 
+  const loadNearby = useCallback(async (lat: number, lng: number) => {
+    setCoords({ lat, lng });
+    try {
+      const res = await fetch(`/api/restaurants/nearby?lat=${lat}&lng=${lng}&lang=${lang}`);
+      const json = await res.json();
+      setNearby(json.restaurants ?? []);
+    } catch { /* empty list is handled below */ }
+    setStatus('ready');
+  }, [lang]);
+
   useEffect(() => {
+    // Photo location wins: it's where the dish was actually eaten, not where the
+    // phone is now. Fall back to live GPS only when there's no photo GPS to seed from.
+    if (seedCoords) { loadNearby(seedCoords.lat, seedCoords.lng); return; }
     if (!navigator.geolocation) { setStatus('denied'); return; }
     navigator.geolocation.getCurrentPosition(
-      async pos => {
-        const { latitude: lat, longitude: lng } = pos.coords;
-        setCoords({ lat, lng });
-        try {
-          const res = await fetch(`/api/restaurants/nearby?lat=${lat}&lng=${lng}&lang=${lang}`);
-          const json = await res.json();
-          setNearby(json.restaurants ?? []);
-        } catch { /* empty list is handled below */ }
-        setStatus('ready');
-      },
+      pos => loadNearby(pos.coords.latitude, pos.coords.longitude),
       () => setStatus('denied'),
       { enableHighAccuracy: true, timeout: 8000 },
     );
-  }, []);
+  }, [seedCoords, loadNearby]);
 
   function pick(r: Nearby) {
     const key = r.source === 'dishi' ? r.id! : r.place_id!;
@@ -152,6 +161,8 @@ export default function RestaurantPicker({ onChange, skipFirst = false }: {
     <div>
       {status === 'locating' && <p className="card-meta">{t('picker.finding')}</p>}
       {status === 'denied' && <p className="card-meta">{t('picker.denied')}</p>}
+      {/* Transparent, not magic: say the list is seeded from the photo's location. */}
+      {seedCoords && status === 'ready' && <p className="card-meta">{t('picker.fromphoto')}</p>}
 
       <div className="chips" style={{ marginTop: 8 }}>
         {skipFirst && (

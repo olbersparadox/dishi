@@ -257,6 +257,7 @@ export const dict: Record<string, { zh: string; en: string }> = {
 
   // ---- restaurant picker ----
   'picker.finding': { zh: '搵緊你附近嘅餐廳…', en: 'Finding restaurants near you…' },
+  'picker.fromphoto': { zh: '📍 呢張相影嗰度附近', en: '📍 Around where this photo was taken' },
   'picker.denied': { zh: '定位已關 — 可以自己輸入店名，或者跳過。', en: 'Location is off — add the place by name, or skip.' },
   'picker.add': { zh: '+ 加間舖', en: '+ Add a place' },
   'picker.skip': { zh: '唔喺餐廳', en: 'Not at a restaurant' },

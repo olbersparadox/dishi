@@ -5,6 +5,7 @@ import AuthGate from '@/components/AuthGate';
 import RestaurantPicker, { RestaurantChoice } from '@/components/RestaurantPicker';
 import FlickRating from '@/components/FlickRating';
 import { normalizePhoto } from '@/lib/image';
+import { readPhotoMeta } from '@/lib/photoMeta';
 import DishName from '@/components/DishName';
 import PhotoPicker from '@/components/PhotoPicker';
 import { CloseIcon, CameraIcon, RateIcon, TrashIcon, EditIcon, CheckIcon } from '@/components/icons';
@@ -39,6 +40,10 @@ function LogFlow() {
     return s === 'home' || s === 'album' ? s : 'restaurant';
   });
   const [photo, setPhoto] = useState<File | null>(null);
+  // Photo EXIF GPS (where the shot was taken) → seeds the restaurant picker instead
+  // of live GPS, so a photo logged later still finds the right place. Null = no
+  // readable GPS (stripped/screenshot/in-app camera) → picker uses live GPS.
+  const [photoCoords, setPhotoCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [restaurant, setRestaurant] = useState<RestaurantChoice>(null);
   // No-photo path: type what you ate instead of photographing it.
@@ -83,6 +88,13 @@ function LogFlow() {
       return f ? URL.createObjectURL(f) : null;
     });
     setDish(null);
+    // Read EXIF off the ORIGINAL file (before normalizePhoto re-encodes and strips
+    // it): the photo's GPS is WHERE it was taken, which beats live GPS for a
+    // retrospective log. Seeds the restaurant picker at the photo's location.
+    // Fire-and-forget, fails soft — a stripped/GPS-less photo just leaves this null
+    // and the picker falls back to live GPS. (takenAt is read too, for Phase 2.)
+    setPhotoCoords(null);
+    if (f) readPhotoMeta(f).then(m => setPhotoCoords(m.coords)).catch(() => {});
   }
 
   // Album entry (Taste tab "+相簿舊菜") opens the OS photo picker itself and hands
@@ -564,7 +576,7 @@ function LogFlow() {
         {mode !== 'home' && (
           <>
             <label className="label">{mode === 'album' ? t('log.album.where') : t('log.where')}</label>
-            <RestaurantPicker onChange={setRestaurant} skipFirst={mode === 'album'} />
+            <RestaurantPicker onChange={setRestaurant} skipFirst={mode === 'album'} seedCoords={photoCoords} />
           </>
         )}
 
