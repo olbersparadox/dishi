@@ -586,7 +586,7 @@ function LogFlow() {
           onClick={noPhotoMode ? createWithoutPhoto : logDish}
         >
           {noPhotoMode
-            ? (creatingNoPhoto ? t('log.saving') : t('log.continue'))
+            ? (creatingNoPhoto ? <span className="icon-spinner" aria-label={t('log.saving')} /> : t('log.continue'))
             : (busy ? t('log.reading') : t('log.continue'))}
         </button>
       </div>

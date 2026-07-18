@@ -138,6 +138,7 @@ button { font: inherit; cursor: pointer; }
 /* Inline spinner for icon buttons mid-action (e.g. ✓ while translating). Inherits
    the button's currentColor; reuses the ringSpin keyframe. */
 .icon-spinner {
+  display: inline-block; vertical-align: middle;
   width: 16px; height: 16px; border-radius: 50%;
   border: 2px solid currentColor; border-top-color: transparent;
   animation: ringSpin 0.7s linear infinite;
