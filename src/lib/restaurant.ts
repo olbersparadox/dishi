@@ -1,3 +1,5 @@
+import { reverseGeocode } from './geocode';
+
 export type NewRestaurantInput = {
   name?: unknown; lat?: unknown; lng?: unknown; area?: unknown; address?: unknown;
   place_id?: unknown; // Google Places id — present when the user tapped a Google chip
@@ -149,10 +151,16 @@ export async function resolveOrCreateRestaurant(
     return { id: only.id };
   }
 
-  // 3. Create.
+  // 3. Create. If no area came in (a Google chip carries none), reverse-geocode the
+  // coords ONCE here so restaurant dishes can show a district ("name • 香港仔").
+  // zh-HK to match the zh-first product; fail-soft — area just stays null.
+  let resolvedArea = area;
+  if (!resolvedArea) {
+    try { resolvedArea = (await reverseGeocode(lat, lng, 'zh-HK')).area; } catch { /* stays null */ }
+  }
   const { data: r, error } = await supabase
     .from('restaurants')
-    .insert({ name, lat, lng, area, address, place_id: placeId, created_by: userId })
+    .insert({ name, lat, lng, area: resolvedArea, address, place_id: placeId, created_by: userId })
     .select('id')
     .single();
   if (error) {

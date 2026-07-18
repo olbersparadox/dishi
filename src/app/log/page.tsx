@@ -48,6 +48,10 @@ function LogFlow() {
   // to dishes.eaten_at; not yet used for journal ordering (that's the open 食記
   // design). Null when no readable EXIF timestamp.
   const [photoTakenAt, setPhotoTakenAt] = useState<Date | null>(null);
+  // Coords the restaurant picker resolved to (photo seed or live GPS). With
+  // photoCoords, this is what we reverse-geocode into a district for a NO-restaurant
+  // dish (home / skipped), so the card shows where it was, not a bare 住家菜.
+  const [pickerCoords, setPickerCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [restaurant, setRestaurant] = useState<RestaurantChoice>(null);
   // No-photo path: type what you ate instead of photographing it.
@@ -127,6 +131,9 @@ function LogFlow() {
     if (creatingNoPhoto) return;
     setCreatingNoPhoto(true); setNoPhotoError('');
     try {
+      // District for a no-restaurant typed dish (home / skipped): from the picker's
+      // coords (a typed entry has no photo EXIF). Fail-soft.
+      const district = !restaurant ? await districtForCoords(photoCoords ?? pickerCoords) : null;
       const res = await fetch('/api/dishes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -136,6 +143,7 @@ function LogFlow() {
           restaurant_id: mode !== 'home' && restaurant?.kind === 'existing' ? restaurant.id : undefined,
           new_restaurant: mode !== 'home' && restaurant?.kind === 'new' ? restaurant : undefined,
           source: mode === 'home' ? 'home' : undefined, // typed entries default to 'manual' server-side
+          district: district || undefined,
         }),
       });
       const json = await res.json();
@@ -374,6 +382,17 @@ function LogFlow() {
     }
   }
 
+  /** Reverse-geocode coords to a district (zh-HK, to match restaurants.area). Used
+   * for a NO-restaurant dish so the card shows where it was. Fail-soft -> null. */
+  async function districtForCoords(c: { lat: number; lng: number } | null): Promise<string | null> {
+    if (!c) return null;
+    try {
+      const res = await fetch(`/api/geocode/reverse?lat=${c.lat}&lng=${c.lng}&lang=zh-HK`);
+      const j = await res.json();
+      return typeof j.area === 'string' && j.area.trim() ? j.area.trim() : null;
+    } catch { return null; }
+  }
+
   async function logDish() {
     if (!photo) return;
     setBusy(true); setError('');
@@ -390,6 +409,12 @@ function LogFlow() {
     // the real when-eaten — especially for album/retrospective logs. Silent capture;
     // journal ordering doesn't use it yet.
     if (photoTakenAt) form.append('eaten_at', photoTakenAt.toISOString());
+    // District for a no-restaurant dish (home cooking / picker skipped): reverse-
+    // geocode the log coords so the card shows WHERE, not a bare 住家菜.
+    if (!restaurant) {
+      const district = await districtForCoords(photoCoords ?? pickerCoords);
+      if (district) form.append('district', district);
+    }
     try {
       const res = await fetch('/api/dishes', { method: 'POST', body: form });
       const json = await res.json();
@@ -585,7 +610,7 @@ function LogFlow() {
         {mode !== 'home' && (
           <>
             <label className="label">{mode === 'album' ? t('log.album.where') : t('log.where')}</label>
-            <RestaurantPicker onChange={setRestaurant} skipFirst={mode === 'album'} seedCoords={photoCoords} />
+            <RestaurantPicker onChange={setRestaurant} skipFirst={mode === 'album'} seedCoords={photoCoords} onCoords={setPickerCoords} />
           </>
         )}
 

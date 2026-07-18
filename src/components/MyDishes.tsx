@@ -14,6 +14,7 @@ export type MyDish = {
   id: string; name: string; name_zh: string | null; cuisine: string | null;
   photo_url: string | null; restaurant: string | null; hearts: number; my_score: number | null;
   locked: boolean; created_at: string; eaten_at?: string | null;
+  restaurant_area?: string | null; district?: string | null; source?: string | null;
   restaurant_id?: string | null; dish_identity_id?: string | null;
   dish_identity_checked_at?: string | null;
   identity_name?: string | null; identity_name_zh?: string | null;
@@ -39,6 +40,15 @@ function formatEatenDate(iso: string, lang: 'zh' | 'en'): string {
   return lang === 'zh'
     ? `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`
     : d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+/** The location line: always shows WHERE the food is. Restaurant -> "name • area"
+ * (area = the restaurant's own district). No restaurant -> the log district; home
+ * cooking keeps its marker ("住家菜 • 葵芳"); a bare 住家菜 only when nothing's known. */
+function locationLabel(d: MyDish, homeLabel: string): string {
+  if (d.restaurant) return d.restaurant + (d.restaurant_area ? ` • ${d.restaurant_area}` : '');
+  if (d.source === 'home') return homeLabel + (d.district ? ` • ${d.district}` : '');
+  return d.district || homeLabel; // skipped picker: the district, or 住家菜 as a last resort
 }
 
 /** ISO instant -> yyyy-mm-dd for a native <input type="date"> value (local date). */
@@ -476,9 +486,8 @@ export default function MyDishes({ t, lang }: { t: (k: string, p?: Record<string
                       own name is the right thing to show. */}
                   <div className="card-title"><DishName id={d.id} name={d.name} name_zh={d.name_zh} /></div>
                   <div className="dish-meta">
-                    {d.restaurant ?? t('home.homecooking')}
-                    {cuisineLabel(d.cuisine, lang) ? ` · ${cuisineLabel(d.cuisine, lang)}` : ''}
-                    {bucketText && ` · ${bucketText}`}
+                    {[locationLabel(d, t('home.homecooking')), cuisineLabel(d.cuisine, lang), bucketText]
+                      .filter(Boolean).join(' · ')}
                   </div>
 
                   {/* Same diet/heaviness chips the menu-scan card uses — one shared

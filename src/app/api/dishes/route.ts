@@ -56,6 +56,11 @@ export async function POST(req: NextRequest) {
   const eatenAtRaw = form.get('eaten_at') as string | null;
   const eatenAt = eatenAtRaw && !Number.isNaN(Date.parse(eatenAtRaw)) ? new Date(eatenAtRaw).toISOString() : null;
 
+  // District for a no-restaurant dish (home / skipped picker), reverse-geocoded
+  // client-side. Restaurant dishes leave this null and use restaurants.area.
+  const districtRaw = form.get('district') as string | null;
+  const district = districtRaw ? districtRaw.trim().slice(0, 80) || null : null;
+
   // Resolve restaurant: existing id, or create one from the quick-pick "add" path.
   let restaurantId = (form.get('restaurant_id') as string) || null;
   const newRestaurantRaw = form.get('new_restaurant') as string | null;
@@ -101,6 +106,7 @@ export async function POST(req: NextRequest) {
       diet: vision.diet,
       source,
       eaten_at: eatenAt,
+      district,
     })
     .select()
     .single();
@@ -135,6 +141,10 @@ async function createFromName(req: NextRequest, supabase: any, userId: string) {
     restaurantId = resolved.id;
   }
 
+  // District for a no-restaurant typed dish (home / skipped), reverse-geocoded
+  // client-side; null for restaurant dishes (they use restaurants.area).
+  const district = typeof body?.district === 'string' ? body.district.trim().slice(0, 80) || null : null;
+
   const { data: dish, error } = await supabase
     .from('dishes')
     .insert({
@@ -161,6 +171,7 @@ async function createFromName(req: NextRequest, supabase: any, userId: string) {
       // the old check constraint — every no-photo log failed until the
       // dishes_source_expand_check migration widened it.)
       source: body?.source === 'home' ? 'home' : 'manual',
+      district,
     })
     .select()
     .single();

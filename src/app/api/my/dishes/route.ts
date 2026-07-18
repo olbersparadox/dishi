@@ -74,7 +74,7 @@ export async function GET(req: NextRequest) {
 
   let query = supabase
     .from('dishes')
-    .select('id, name, name_zh, cuisine, photo_url, created_at, eaten_at, restaurant_id, dish_identity_id, dish_identity_checked_at, cooking_method, heaviness, diet, restaurants(name), dish_identities(name, name_zh)')
+    .select('id, name, name_zh, cuisine, photo_url, created_at, eaten_at, district, source, restaurant_id, dish_identity_id, dish_identity_checked_at, cooking_method, heaviness, diet, restaurants(name, area), dish_identities(name, name_zh)')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
     .limit(PAGE_SIZE);
@@ -106,6 +106,7 @@ export async function GET(req: NextRequest) {
     dishes: (dishes ?? []).map((d: any) => ({
       id: d.id, name: d.name, name_zh: d.name_zh, cuisine: d.cuisine,
       photo_url: d.photo_url, restaurant: d.restaurants?.name ?? null,
+      restaurant_area: d.restaurants?.area ?? null, district: d.district ?? null, source: d.source ?? null,
       restaurant_id: d.restaurant_id ?? null, dish_identity_id: d.dish_identity_id ?? null,
       dish_identity_checked_at: d.dish_identity_checked_at ?? null,
       identity_name: d.dish_identities?.name ?? null, identity_name_zh: d.dish_identities?.name_zh ?? null,

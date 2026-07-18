@@ -34,8 +34,13 @@ export type RestaurantChoice =
  * whenever Google or a prior Dishi record actually has both languages — never a
  * fabricated second line.
  */
-export default function RestaurantPicker({ onChange, skipFirst = false, seedCoords = null }: {
+export default function RestaurantPicker({ onChange, skipFirst = false, seedCoords = null, onCoords }: {
   onChange: (c: RestaurantChoice) => void;
+  /** Reports the coords the picker resolved to (photo seed or live GPS), so the log
+   * page can reverse-geocode a district when the user skips (no restaurant chosen).
+   * Only the coords — the reverse-geocode itself is done at submit, and only for a
+   * no-restaurant dish, to keep the Geocoding cost off every log. */
+  onCoords?: (c: { lat: number; lng: number } | null) => void;
   /** Album mode (old camera-roll photos): the photo probably wasn't taken near
    * where the user is standing NOW, so "skip" leads the chip row instead of
    * trailing it — nearby suggestions become the fallback, not the assumption. */
@@ -63,13 +68,14 @@ export default function RestaurantPicker({ onChange, skipFirst = false, seedCoor
 
   const loadNearby = useCallback(async (lat: number, lng: number) => {
     setCoords({ lat, lng });
+    onCoords?.({ lat, lng });
     try {
       const res = await fetch(`/api/restaurants/nearby?lat=${lat}&lng=${lng}&lang=${lang}`);
       const json = await res.json();
       setNearby(json.restaurants ?? []);
     } catch { /* empty list is handled below */ }
     setStatus('ready');
-  }, [lang]);
+  }, [lang, onCoords]);
 
   useEffect(() => {
     // Photo location wins: it's where the dish was actually eaten, not where the
