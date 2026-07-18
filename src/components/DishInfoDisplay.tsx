@@ -217,6 +217,12 @@ export default function DishInfoDisplay({ info, compact = false, hideHook = fals
   // or a 🥜 peanut ingredient next to the 🥜 花生 flag), so it's dropped: the diet
   // chip wins, since it's the derived, higher-signal one.
   const dietIcons = new Set(diet.map(d => DIET_ICON[d]).filter(Boolean));
+  // A chip is redundant not only when it shares a diet ICON but also when it shows
+  // the same rendered LABEL as a diet flag — e.g. ヒレカツ膳 surfaced 🐮 牛肉 (beef
+  // diet) AND 🥩 牛肉 (beef ingredient): different icons, same word. Seed the
+  // seen-labels set with the diet labels, then drop any ingredient chip whose label
+  // is already shown (by a diet flag or an earlier ingredient chip).
+  const seenLabels = new Set(diet.map(d => t(`scan.diet.${d}`)));
   // Key ingredients become chips in the SAME row as the diet flags (icon + name),
   // matching the 🌱 素 / 🌶️ 辣 treatment. Only the ones with a confident icon are
   // shown; the rest are dropped, and the full text list is a future dish-detail
@@ -226,7 +232,8 @@ export default function DishInfoDisplay({ info, compact = false, hideHook = fals
   const ingredientChips = ingredients
     .map(name => ({ name, icon: ingredientIcon(name) }))
     .filter((x): x is { name: string; icon: string } => !!x.icon && !dietIcons.has(x.icon))
-    .map(({ name, icon }) => ({ label: lang === 'zh' ? (ingredientZh(name) ?? name) : name, icon }));
+    .map(({ name, icon }) => ({ label: lang === 'zh' ? (ingredientZh(name) ?? name) : name, icon }))
+    .filter(({ label }) => { if (seenLabels.has(label)) return false; seenLabels.add(label); return true; });
   const hasChips = diet.length > 0 || ingredientChips.length > 0 || !!info.heaviness;
 
   if (!showHook && !hasChips) return null;

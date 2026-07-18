@@ -12,7 +12,7 @@ import { sumPrices } from '@/lib/price';
 import { CameraIcon, MenuBookIcon, ArrowRightIcon, CloseIcon, SpeechIcon } from '@/components/icons';
 import { sameDishInSession, restaurantKeptNote } from '@/lib/menuMerge';
 import { getScanSession, setScanSession, clearScanSession } from '@/lib/scanSession';
-import { useLang, menuLanguageToCode, languageLabel } from '@/lib/i18n';
+import { useLang, menuLanguageToCode, languageLabel, hasNonChineseScript } from '@/lib/i18n';
 
 type ScannedItem = {
   name: string; name_zh?: string | null; name_original: string; section: string | null; description: string | null;
@@ -448,6 +448,27 @@ function Scanner() {
         },
       ).catch(() => {}); // best-effort: a failed enrichment batch must never block scoring or settle
 
+      // Kana/hangul tripwire (語言對 fix v2). The skeleton model sometimes leaves
+      // the printed Japanese/Korean name in name_zh despite the prompt telling it
+      // to translate. A deterministic script check catches those; a single batched
+      // call re-authors just the tripped ones through the proven translate path.
+      // Runs CONCURRENTLY with enrichment/scoring and only when something tripped —
+      // zero cost on Chinese/English menus — and patches only name_zh (matched by
+      // name_original), so it can never clobber the other stages' fields.
+      const tripped = items.filter(it => hasNonChineseScript(it.name_zh));
+      const namefixPromise = (meta.mock || tripped.length === 0) ? Promise.resolve() : fetch('/api/menu-scan/fix-names', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: tripped.map(it => ({ key: it.name_original, name: it.name, name_zh: it.name_zh })) }),
+      })
+        .then(r => r.ok ? r.json() : { names: {} })
+        .then((j: { names?: Record<string, string> }) => {
+          const names = j.names ?? {};
+          if (!Object.keys(names).length) return;
+          setResult(prev => prev ? { ...prev, items: prev.items.map(it => names[it.name_original] ? { ...it, name_zh: names[it.name_original] } : it) } : prev);
+        })
+        .catch(() => {}); // best-effort: a failed re-author leaves the printed name, never blocks
+
       // Phase 2 (scoring): one small call PER DISH, several in parallel (capped).
       // Each ring lights up the moment ITS call finishes — no waiting for the
       // slowest dish to unblock everyone else's result. Original menu order is
@@ -484,6 +505,7 @@ function Scanner() {
       await scorePromise;
       setSettled(true);
       await enrichPromise; // usually already resolved by now; awaited so this function doesn't return early
+      await namefixPromise; // same: a re-author still in flight shouldn't be dropped on return
       return;
     } catch (e: any) {
       // Known reasons get localized copy (this app is zh-first by default, and a

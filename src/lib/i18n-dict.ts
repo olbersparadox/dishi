@@ -470,6 +470,22 @@ export const dict: Record<string, { zh: string; en: string }> = {
 export const CJK = /[\u3400-\u9fff\u3040-\u30ff]/;
 
 /**
+ * Kana/hangul tripwire. True iff the string contains hiragana, katakana (incl.
+ * phonetic extensions) or hangul \u2014 scripts that must NEVER survive into a
+ * Traditional-Chinese "z". A PURE script check: it cannot false-positive on real
+ * Chinese, which lives in the CJK-ideograph block (\u5409\u5217\u8c6c\u6252\u5b9a\u98df \u2192 false). This is
+ * the mechanical GUARANTEE the scan prompt hardening can't give us on its own \u2014
+ * qwen leaks the printed Japanese/Korean name into "z" often enough that wording
+ * alone is unreliable; when this trips, the caller re-authors "z" through the
+ * proven translate path.
+ */
+export function hasNonChineseScript(s: string | null | undefined): boolean {
+  // \u3040-\u30ff hiragana+katakana, \u31f0-\u31ff katakana phonetic ext,
+  // \uac00-\ud7af hangul syllables. NOT the CJK-ideograph block, so Chinese passes.
+  return /[\u3040-\u30ff\u31f0-\u31ff\uac00-\ud7af]/.test(s ?? '');
+}
+
+/**
  * Resolve a dish's bilingual name pair from whatever fields exist.
  * name is English by convention (vision output); name_zh is the explicit Traditional
  * Chinese; name_original (menus) fills the Chinese slot when it's actually CJK.

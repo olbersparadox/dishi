@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import {
   chromeLangOf, menuLanguageToCode, dishNameKey, resolveNamePair,
-  CANONICAL_PAIR, isCanonical, LANGUAGES, type LangPair,
+  CANONICAL_PAIR, isCanonical, LANGUAGES, hasNonChineseScript, type LangPair,
 } from '../src/lib/i18n-dict';
 
 // ── chrome language derivation ──────────────────────────────────────────────────
@@ -49,6 +49,26 @@ describe('menuLanguageToCode', () => {
     expect(menuLanguageToCode('JA')).toBe('ja');
     expect(menuLanguageToCode('chinese + english')).toBe('zh');
     expect(menuLanguageToCode('english')).toBe('en'); // English alone still maps to en
+  });
+});
+
+// ── kana/hangul tripwire (Fix 3: the mechanical guarantee) ──────────────────────
+describe('hasNonChineseScript', () => {
+  it('trips on kana and hangul, never on real Chinese', () => {
+    // katakana / hiragana / hangul present -> tripped
+    expect(hasNonChineseScript('特選ロースかつ膳')).toBe(true); // katakana + hiragana + kanji
+    expect(hasNonChineseScript('ヒレカツ膳')).toBe(true);       // katakana + kanji
+    expect(hasNonChineseScript('うどん')).toBe(true);            // pure hiragana
+    expect(hasNonChineseScript('김치찌개')).toBe(true);          // hangul
+    // pure Traditional Chinese (incl. the HK-conventional name) -> never trips
+    expect(hasNonChineseScript('吉列豬扒定食')).toBe(false);
+    expect(hasNonChineseScript('金錢肚')).toBe(false);
+    expect(hasNonChineseScript('刺身')).toBe(false); // shared kanji, valid Chinese too
+    // latin / empty / nullish -> false
+    expect(hasNonChineseScript('Pork Cutlet Set')).toBe(false);
+    expect(hasNonChineseScript('')).toBe(false);
+    expect(hasNonChineseScript(null)).toBe(false);
+    expect(hasNonChineseScript(undefined)).toBe(false);
   });
 });
 
@@ -135,6 +155,27 @@ describe('translateNames', () => {
     (callClaude as any).mockClear();
     expect(await translateNames([{ key: 'k', name: 'x', name_zh: 'x' }], 'en')).toEqual({});
     expect(await translateNames([], 'ja')).toEqual({});
+    expect((callClaude as any)).not.toHaveBeenCalled();
+  });
+});
+
+describe('reauthorZhNames (Fix 3 re-author)', () => {
+  it('re-authors z TO Chinese — the one path that may call the model for zh', async () => {
+    const { reauthorZhNames } = await import('../src/lib/nameTranslate');
+    const { callClaude } = await import('../src/lib/openrouter');
+    (callClaude as any).mockClear();
+    // the skeleton left katakana in z; re-author uses the reliable English name
+    (callClaude as any).mockResolvedValueOnce('{"ロースカツ膳":"吉列豬扒定食"}');
+    const out = await reauthorZhNames([{ key: 'ロースカツ膳', name: 'Pork Cutlet Set', name_zh: 'ロースカツ膳' }]);
+    expect(out).toEqual({ 'ロースカツ膳': '吉列豬扒定食' });
+    expect((callClaude as any)).toHaveBeenCalledTimes(1); // zh, yet it DID call — unlike translateNames
+  });
+
+  it('makes no call for an empty batch', async () => {
+    const { reauthorZhNames } = await import('../src/lib/nameTranslate');
+    const { callClaude } = await import('../src/lib/openrouter');
+    (callClaude as any).mockClear();
+    expect(await reauthorZhNames([])).toEqual({});
     expect((callClaude as any)).not.toHaveBeenCalled();
   });
 });

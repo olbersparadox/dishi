@@ -49,7 +49,25 @@ Respond with ONLY a compact JSON object mapping each item's "key" to its ${langu
  * so callers fall back to the canonical name.
  */
 export async function translateNames(items: TranslateItem[], lang: LangCode): Promise<Record<string, string>> {
-  if (isCanonical(lang) || items.length === 0) return {};
+  if (isCanonical(lang)) return {};
+  return translateBatch(items, lang);
+}
+
+/**
+ * Re-author a REAL Traditional-Chinese (HK) name for items whose skeleton "z"
+ * tripped {@link hasNonChineseScript}. Runs the same demonstrably-compliant
+ * translate machinery, but TO Chinese — which {@link translateNames} refuses
+ * (zh is canonical: normally we already have it). We blank name_zh so the model
+ * translates from the reliable English `name` rather than echoing the bad kana.
+ * One batched call; caller invokes it only when something actually tripped.
+ */
+export async function reauthorZhNames(items: TranslateItem[]): Promise<Record<string, string>> {
+  return translateBatch(items.map(i => ({ key: i.key, name: i.name, name_zh: null })), 'zh');
+}
+
+/** Shared core: one batched LLM call to `lang`, keyed by item. Fails soft to {}. */
+async function translateBatch(items: TranslateItem[], lang: LangCode): Promise<Record<string, string>> {
+  if (items.length === 0) return {};
   const payload = items.map(i => ({ key: i.key, name: i.name, name_zh: i.name_zh ?? '' }));
   const text = await callClaude(buildTranslatePrompt(lang), JSON.stringify(payload), { maxTokens: 40 + items.length * 40, expectJson: true });
   const parsed = parseJsonResponse<Record<string, unknown>>(text);
