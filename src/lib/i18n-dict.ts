@@ -69,6 +69,18 @@ export function chromeLangOf(pair: LangPair): Lang {
   return pair.primary === 'zh' ? 'zh' : 'en';
 }
 
+/** BCP-47 locale for a pair language. The chrome dictionary stays zh/en, but data the
+ * browser can format itself — dates — can follow the PRIMARY slot into any of these
+ * with no authored copy: Intl already knows 年月日 for ja, 년/월/일 for ko, Thai/Viet/
+ * etc. Unknown -> en-US. */
+const LOCALE_OF: Record<LangCode, string> = {
+  zh: 'zh-HK', en: 'en-US', ja: 'ja-JP', ko: 'ko-KR', th: 'th-TH',
+  vi: 'vi-VN', id: 'id-ID', tl: 'fil-PH', es: 'es-ES', fr: 'fr-FR',
+};
+export function localeOf(code: LangCode): string {
+  return LOCALE_OF[code] ?? 'en-US';
+}
+
 /** Stable in-memory cache key for a dish's non-canonical translations, from its
  * canonical identity. Lets DishName look up / request a translation without needing
  * a DB id (persistence by id is a later slice). */

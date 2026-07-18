@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import DishName from '@/components/DishName';
 import RestaurantPicker, { RestaurantChoice } from '@/components/RestaurantPicker';
 import FlickRating from '@/components/FlickRating';
-import { cuisineLabel } from '@/lib/i18n';
+import { cuisineLabel, localeOf, type LangCode } from '@/lib/i18n';
 import { wordKeyFor } from '@/lib/flickWords';
 import { EditIcon, TrashIcon, MoreIcon } from './icons';
 import { cookingBucket, type CookingMethod } from '@/lib/menuScan';
@@ -35,13 +35,16 @@ function formatRatedDate(iso: string, lang: 'zh' | 'en'): string {
 }
 
 /** When-eaten label (no weekday, to read as a diary date not a log timestamp):
- * 2026年7月12日 / Jul 12, 2026. */
-function formatEatenDate(iso: string, lang: 'zh' | 'en'): string {
+ * 2026年7月12日 / Jul 12, 2026 / 2026年7月12日(ja) / 2026. 7. 12.(ko) … It follows the
+ * PRIMARY dish-name language, not the zh/en chrome — the date is data the browser can
+ * localize itself. zh/en keep their exact existing formats; any other primary formats
+ * through its own Intl locale (no authored copy). */
+function formatEatenDate(iso: string, code: LangCode): string {
   const d = new Date(iso);
   if (isNaN(d.getTime())) return '';
-  return lang === 'zh'
-    ? `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`
-    : d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  if (code === 'zh') return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`;
+  if (code === 'en') return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  return d.toLocaleDateString(localeOf(code), { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
 /** A district in the viewer's language, English-falling-back (works for any country:
@@ -107,7 +110,7 @@ function JournalSkeleton() {
  * does — it's a clean upsert, so "editing" a rating and "re-rating" a dish are
  * the same real action, not two different code paths pretending to be one).
  */
-export default function MyDishes({ t, lang }: { t: (k: string, p?: Record<string, string | number>) => string; lang: 'zh' | 'en' }) {
+export default function MyDishes({ t, lang, infoLang }: { t: (k: string, p?: Record<string, string | number>) => string; lang: 'zh' | 'en'; infoLang: LangCode }) {
   // Restore the list from the module cache on mount (lazy initializers, so this reads
   // the snapshot once). A tab switch away and back lands here with the rows already in
   // state — no skeleton, no refetch. First-ever load (no cache) starts null → skeleton.
@@ -523,7 +526,7 @@ export default function MyDishes({ t, lang }: { t: (k: string, p?: Record<string
                       stays logged (created_at) — your album is already chronological;
                       Dishi just surfaces the diary date, editable via a native picker. */}
                   <label className="journal-date journal-date-edit" onClick={e => e.stopPropagation()}>
-                    {d.eaten_at ? formatEatenDate(d.eaten_at, lang) : t('journal.setdate')}
+                    {d.eaten_at ? formatEatenDate(d.eaten_at, infoLang) : t('journal.setdate')}
                     <input
                       type="date" className="journal-date-input"
                       value={d.eaten_at ? toDateInputValue(d.eaten_at) : ''}
