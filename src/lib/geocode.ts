@@ -35,8 +35,15 @@ export async function reverseGeocode(lat: number, lng: number, languageCode = 'e
 
   try {
     const res = await fetch(url.toString());
-    if (!res.ok) return { area: null, address: null };
+    if (!res.ok) { console.error('Reverse geocode HTTP', res.status); return { area: null, address: null }; }
     const json = await res.json();
+    // The Geocoding API answers 200 even on auth failure, putting the real reason in
+    // `status` (e.g. REQUEST_DENIED when the Geocoding API isn't enabled for the key).
+    // Surface it — silently returning null here is exactly what hid the misconfig.
+    if (json?.status && json.status !== 'OK' && json.status !== 'ZERO_RESULTS') {
+      console.error('Reverse geocode status', json.status, json.error_message ?? '');
+      return { area: null, address: null };
+    }
     const result = json?.results?.[0];
     if (!result) return { area: null, address: null };
 
