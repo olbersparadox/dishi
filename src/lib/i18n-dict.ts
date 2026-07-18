@@ -60,10 +60,13 @@ export function menuLanguageToCode(menuLanguage: string | null | undefined): Lan
 }
 
 export type LangPair = { primary: LangCode; secondary: LangCode };
-/** Chrome language derived from a pair: zh if EITHER slot is 中文, else en (spec's
- * ripple-containment rule — keeps ja/ko/… out of chrome, which stays zh/en only). */
+/** Chrome language derived from a pair: it follows the PRIMARY slot, so the section
+ * titles + info lines (date, cuisine/location meta, chips) read in the language you
+ * chose to lead with. Chinese only when Chinese is primary; any other primary —
+ * English, or a non-chrome language like ja/ko the dictionary can't render — falls
+ * back to English. Chrome still stays zh/en only (ripple-containment preserved). */
 export function chromeLangOf(pair: LangPair): Lang {
-  return pair.primary === 'zh' || pair.secondary === 'zh' ? 'zh' : 'en';
+  return pair.primary === 'zh' ? 'zh' : 'en';
 }
 
 /** Stable in-memory cache key for a dish's non-canonical translations, from its

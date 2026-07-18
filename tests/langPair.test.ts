@@ -7,12 +7,13 @@ import {
 
 // ── chrome language derivation ──────────────────────────────────────────────────
 describe('chromeLangOf', () => {
-  it('is zh when either slot is 中文, else en', () => {
+  it('follows the primary slot: zh only when zh is primary, else en', () => {
     expect(chromeLangOf({ primary: 'zh', secondary: 'en' })).toBe('zh');
-    expect(chromeLangOf({ primary: 'en', secondary: 'zh' })).toBe('zh');
+    expect(chromeLangOf({ primary: 'en', secondary: 'zh' })).toBe('en'); // primary leads
     expect(chromeLangOf({ primary: 'zh', secondary: 'ja' })).toBe('zh');
     expect(chromeLangOf({ primary: 'ja', secondary: 'en' })).toBe('en');
-    expect(chromeLangOf({ primary: 'ja', secondary: 'ko' })).toBe('en'); // no zh -> en
+    expect(chromeLangOf({ primary: 'ja', secondary: 'zh' })).toBe('en'); // exotic primary -> en, not the zh secondary
+    expect(chromeLangOf({ primary: 'ja', secondary: 'ko' })).toBe('en');
   });
 });
 
