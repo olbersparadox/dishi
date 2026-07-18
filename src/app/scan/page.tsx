@@ -720,7 +720,7 @@ function Scanner() {
         </p>
       )}
       {foreignSecondary && !overridden && (
-        <p className="card-meta" style={{ marginTop: -10, marginBottom: 18, color: 'var(--ink-soft)' }} role="status">
+        <p className="card-meta" style={{ marginTop: -13, marginBottom: 18, color: 'var(--ink-soft)' }} role="status">
           {t('lang.foreignmenu', { lang: languageLabel(foreignSecondary) })}
         </p>
       )}
