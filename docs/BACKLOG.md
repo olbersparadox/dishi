@@ -12,8 +12,9 @@ Model tier per item: **[S]** = Sonnet (well-specified build) · **[F]** = Fable/
 - [ ] **[S] 語言對 fixes (live-test failures).** Japanese-menu acceptance test
   fails on ec16af0: scan z-instruction never received the katakana/false-friend
   hardening (it landed only in nameTranslate.ts), and bilingual menus defeat
-  menuLanguageToCode so the foreign-secondary preset never fires. Two-point fix +
-  shared prompt-rule constant so the two sites can't drift.
+  menuLanguageToCode so the foreign-secondary preset never fires. v2: prompt wording alone is unreliable on the skeleton model (qwen) — add the
+  kana/hangul tripwire that re-authors z through the proven translate path, plus
+  chip label-dedupe.
   Full spec: `docs/specs/language-pair-globe-fixes.md`.
 - [ ] **[F] dishi — your AI palate (export redesign).** Replace "prompt export"
   with a persona: the user's palate, unlocked (not given) once the engine

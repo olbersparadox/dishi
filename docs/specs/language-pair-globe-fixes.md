@@ -53,3 +53,47 @@ The spec's original money test, for real this time: rescan the Imakatsu photo
 with pair 中文/English → primary is real Chinese (特選吉列豬扒定食-style),
 session note offers 日本語 as secondary, and choosing it shows the exact
 printed originals.
+
+---
+
+# v2 addendum (after the 11:42 rescan on c8af257)
+
+Timeline: c8af257 went READY ~11:39-40; the rescan was 11:42 — probably the new
+prompt, but borderline. Regardless, this is the SECOND prompt-wording attempt at
+making the skeleton model (qwen) translate z, with at least one confirmed
+failure. Conclusion: stop relying on prompt compliance from the skeleton vision
+model. Add a mechanical guarantee.
+
+## Fix 3 — kana/hangul tripwire + re-author via the proven translate path
+
+- Deterministic detector on every skeleton item's z (and n if it ever matters):
+  `/[\u3040-\u30ff\u31f0-\u31ff\uac00-\ud7af]/` (hiragana, katakana incl.
+  extensions, hangul). Pure script check — cannot false-positive on real
+  Chinese. Exported + unit-tested (`hasNonChineseScript` or similar).
+- In the scan pipeline (both stream and one-shot), after skeleton parse:
+  collect tripped items, batch re-author their z in ONE call through the
+  nameTranslate zh path (buildTranslatePrompt machinery — the demonstrably
+  compliant model/prompt), then emit the corrected names through the existing
+  enrichment-update event so the UI patches progressively. Bounded: one batch
+  call per scan, only when tripped; zero cost on Chinese/English menus.
+- Keep the prompt hardening (it reduces trips) but treat it as optimization,
+  not guarantee. The tripwire is the guarantee — and covers ko/th menus free.
+- Tests: detector cases (katakana, hiragana, hangul, pure Traditional Chinese
+  incl. 吉列豬扒定食 → false, mixed kanji+kana → true); pipeline test with a
+  mocked skeleton returning Japanese z → re-author call made once, corrected z
+  emitted.
+
+## Fix 4 — chip dedupe by LABEL, not just icon
+
+ヒレカツ膳 rendered 牛肉 twice: beef diet flag (🐮 牛肉) + beef ingredient
+(🥩 牛肉) — the ingredient-chip dedupe (71447a6) compares icons only. Dedupe by
+rendered LABEL too in DishInfoDisplay. (The beef-on-pork-fillet hallucination
+itself is noted but not chased here: flag and ingredient corroborate each
+other, so dietSuspicion structurally can't catch mutual hallucination —
+accepted limitation, revisit only if it recurs visibly.)
+
+## Acceptance (v2)
+
+Same Imakatsu money test, plus: force a mock skeleton with kana in z → UI never
+shows kana in the primary Chinese slot at any point after enrichment settles;
+ヒレカツ膳 card shows at most one 牛肉 chip.
