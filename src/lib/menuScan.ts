@@ -135,10 +135,11 @@ Menus are messy: multiple columns, section headers, prices in odd places, mixed 
 For each dish, estimate sensory attributes from culinary knowledge.
 
 Respond with ONLY compact JSON, no markdown fences, minimal whitespace:
-{"menu_language": string, "restaurant_guess": string|null,
+{"menu_language": string (the menu's PRIMARY language as ONE lowercase word, e.g. "japanese"; if the menu is bilingual with English, report the NON-English language — that's the language the dishes are really in),
+ "restaurant_guess": string|null,
  "items": [{
    "n": string (English name; translate if needed),
-   "z": string (Traditional Chinese name; translate if needed),
+   "z": string (Traditional Chinese name, HK register — if the menu isn't Chinese, TRANSLATE by meaning; NEVER leave kana/hangul in "z"; see the "z" rules below),
    "o": string (name exactly as printed),
    "p": string|null (price exactly as printed),
    "c": string (cuisine, lowercase),
@@ -211,10 +212,11 @@ Menus are messy: multiple columns, section headers, prices in odd places, mixed 
 
 Respond with ONLY compact JSON, no markdown fences, minimal whitespace:
 {"im": boolean (true if this is a photo of a menu at all, false if it clearly is not),
- "menu_language": string, "restaurant_guess": string|null,
+ "menu_language": string (the menu's PRIMARY language as ONE lowercase word, e.g. "japanese"; if bilingual with English, report the NON-English language),
+ "restaurant_guess": string|null,
  "items": [{
    "n": string (English name; translate if needed),
-   "z": string (Traditional Chinese name; translate if needed),
+   "z": string (Traditional Chinese name, HK register — if the menu isn't Chinese, TRANSLATE by meaning; NEVER leave kana/hangul in "z"; see the "z" rules below),
    "o": string (name exactly as printed),
    "p": string|null (price exactly as printed),
    "c": string (cuisine, lowercase),
@@ -223,6 +225,10 @@ Respond with ONLY compact JSON, no markdown fences, minimal whitespace:
 If "im" is false, "items" MUST be an empty array — do not guess dishes out of a non-menu photo.
 Extract at most 20 items; prefer mains and signatures over drinks and sides. Names, prices, and cuisine ONLY — no hooks, no flavor scoring, no diet flags, no cooking method, nothing else. Keep this fast.
 ${ZH_FROM_MENU_GUIDANCE}`;
+
+/** The two scan prompt sites (one-shot + skeleton/stream) — exported so a test can
+ * assert both embed the shared z-rule hardening and can't silently drop it again. */
+export const SCAN_PROMPTS = [SYSTEM, SKELETON_SYSTEM];
 
 export type OcrMenuItem = Omit<MenuItem, 'attributes'>;
 

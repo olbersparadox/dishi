@@ -36,19 +36,27 @@ export const languageLabel = (code: LangCode) => LANGUAGES.find(l => l.code === 
  * Drives the foreign-menu preset + the point-and-order fidelity rule. */
 export function menuLanguageToCode(menuLanguage: string | null | undefined): LangCode | null {
   const m = (menuLanguage ?? '').trim().toLowerCase();
-  const map: Record<string, LangCode> = {
-    japanese: 'ja', ja: 'ja', 日本語: 'ja',
-    korean: 'ko', ko: 'ko', 한국어: 'ko',
-    thai: 'th', th: 'th',
-    vietnamese: 'vi', vi: 'vi',
-    indonesian: 'id', id: 'id', malay: 'id',
-    filipino: 'tl', tagalog: 'tl', tl: 'tl',
-    spanish: 'es', es: 'es',
-    french: 'fr', fr: 'fr',
-    english: 'en', en: 'en',
-    chinese: 'zh', cantonese: 'zh', mandarin: 'zh', 'traditional chinese': 'zh', zh: 'zh',
-  };
-  return map[m] ?? null;
+  if (!m) return null;
+  // Bare 2-letter codes, exact.
+  const exact: Record<string, LangCode> = { ja: 'ja', ko: 'ko', th: 'th', vi: 'vi', id: 'id', tl: 'tl', es: 'es', fr: 'fr', zh: 'zh', en: 'en' };
+  if (exact[m]) return exact[m];
+  // Distinctive substrings, NON-English probed first — so a compound/bilingual
+  // value like "japanese and english" or "bilingual japanese-english" resolves to
+  // the non-English language (that's what the dishes are really in).
+  const probes: [string, LangCode][] = [
+    ['japan', 'ja'], ['日本', 'ja'],
+    ['korea', 'ko'], ['한국', 'ko'],
+    ['thai', 'th'],
+    ['viet', 'vi'],
+    ['indones', 'id'], ['malay', 'id'], ['bahasa', 'id'],
+    ['filipino', 'tl'], ['tagalog', 'tl'],
+    ['spanish', 'es'], ['español', 'es'], ['espanol', 'es'],
+    ['french', 'fr'], ['français', 'fr'], ['francais', 'fr'],
+    ['chinese', 'zh'], ['cantonese', 'zh'], ['mandarin', 'zh'], ['中文', 'zh'], ['粵', 'zh'],
+  ];
+  for (const [needle, code] of probes) if (m.includes(needle)) return code;
+  if (m.includes('english')) return 'en'; // only after every non-English probe missed
+  return null;
 }
 
 export type LangPair = { primary: LangCode; secondary: LangCode };

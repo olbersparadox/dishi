@@ -40,6 +40,16 @@ describe('menuLanguageToCode', () => {
     expect(menuLanguageToCode('klingon')).toBeNull();
     expect(menuLanguageToCode(null)).toBeNull();
   });
+
+  it('resolves bilingual/compound values to the non-English language', () => {
+    // the live Imakatsu failure: the model reported a compound value.
+    expect(menuLanguageToCode('Japanese and English')).toBe('ja');
+    expect(menuLanguageToCode('japanese/english')).toBe('ja');
+    expect(menuLanguageToCode('bilingual japanese-english')).toBe('ja');
+    expect(menuLanguageToCode('JA')).toBe('ja');
+    expect(menuLanguageToCode('chinese + english')).toBe('zh');
+    expect(menuLanguageToCode('english')).toBe('en'); // English alone still maps to en
+  });
 });
 
 describe('dishNameKey', () => {
@@ -130,12 +140,28 @@ describe('translateNames', () => {
 });
 
 describe('prompt hardening', () => {
-  it('translation guidance forbids wrong-script output and names ja/zh false friends', async () => {
+  it('translation + scan guidance forbid wrong-script output, name false friends, and give HK-conventional examples', async () => {
     const { TRANSLATE_GUIDANCE, buildTranslatePrompt, ZH_FROM_MENU_GUIDANCE } = await import('../src/lib/nameTranslate');
     for (const text of [TRANSLATE_GUIDANCE, buildTranslatePrompt('ja'), ZH_FROM_MENU_GUIDANCE]) {
       expect(text.toLowerCase()).toContain('katakana');
-      expect(text).toContain('春雨');
+      expect(text).toContain('春雨'); // false friend
       expect(text).toContain('人参');
+      expect(text).toContain('吉列豬扒定食'); // HK-conventional example — the piece the live test showed was missing
     }
+  });
+
+  it('the scan z-field rule and the translate rule share their false-friend + HK-name constants (cannot drift)', async () => {
+    const { JA_ZH_FALSE_FRIENDS, HK_FOREIGN_DISH_NAMES, TRANSLATE_GUIDANCE, ZH_FROM_MENU_GUIDANCE } = await import('../src/lib/nameTranslate');
+    for (const shared of [JA_ZH_FALSE_FRIENDS, HK_FOREIGN_DISH_NAMES]) {
+      expect(TRANSLATE_GUIDANCE).toContain(shared);
+      expect(ZH_FROM_MENU_GUIDANCE).toContain(shared);
+    }
+  });
+
+  it('both scan prompts embed the shared z-rule constant', async () => {
+    const { SCAN_PROMPTS } = await import('../src/lib/menuScan');
+    const { ZH_FROM_MENU_GUIDANCE } = await import('../src/lib/nameTranslate');
+    expect(SCAN_PROMPTS.length).toBe(2);
+    for (const p of SCAN_PROMPTS) expect(p).toContain(ZH_FROM_MENU_GUIDANCE);
   });
 });
