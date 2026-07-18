@@ -16,13 +16,18 @@ type Cache = Record<string, Record<string, string>>; // dishNameKey -> { langCod
 type TranslationContext = {
   cache: Cache;
   register: (item: Item, lang: LangCode) => void;
+  // `${lang}:${key}` currently being resolved (debounce window + in-flight fetch), as
+  // REACTIVE state so DishName can show a spinner beside a name it's still translating
+  // — and clear it whether the fetch succeeds OR fails (so it never spins forever).
+  loading: Record<string, true>;
 };
 
-const Ctx = createContext<TranslationContext>({ cache: {}, register: () => {} });
+const Ctx = createContext<TranslationContext>({ cache: {}, register: () => {}, loading: {} });
 
 export function TranslationProvider({ children }: { children: React.ReactNode }) {
   const [cache, setCache] = useState<Cache>({});
   const cacheRef = useRef<Cache>(cache); cacheRef.current = cache;
+  const [loading, setLoading] = useState<Record<string, true>>({});
   // Plain objects (not Maps) so iteration needs no downlevelIteration flag.
   const pendingRef = useRef<Record<string, Record<string, Item>>>({}); // lang -> key -> item
   const inflightRef = useRef<Set<string>>(new Set());
@@ -51,7 +56,17 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
           });
         }
       } catch { /* leave uncached — the canonical fallback stays on screen */ }
-      finally { for (const [key] of entries) inflightRef.current.delete(`${lang}:${key}`); }
+      finally {
+        for (const [key] of entries) inflightRef.current.delete(`${lang}:${key}`);
+        // Clear the loading flags whether we cached a translation or failed — the
+        // spinner stops either way (success swaps in the name; failure keeps the
+        // fallback), never leaving a name spinning forever.
+        setLoading(prev => {
+          const next = { ...prev };
+          for (const [key] of entries) delete next[`${lang}:${key}`];
+          return next;
+        });
+      }
     }
   }, []);
 
@@ -64,11 +79,12 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
     if (!p[lang]) p[lang] = {};
     if (p[lang][key]) return;
     p[lang][key] = item;
+    setLoading(prev => prev[`${lang}:${key}`] ? prev : { ...prev, [`${lang}:${key}`]: true });
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(flush, 250); // debounce one batch per screen per language
   }, [flush]);
 
-  return <Ctx.Provider value={{ cache, register }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ cache, register, loading }}>{children}</Ctx.Provider>;
 }
 
 export function useTranslation() { return useContext(Ctx); }

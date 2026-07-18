@@ -147,6 +147,17 @@ button { font: inherit; cursor: pointer; }
 }
 @media (prefers-reduced-motion: reduce) { .icon-spinner { animation: none; } }
 
+/* Tiny spinner beside a dish name that's still being translated (globe switch to a
+   non-canonical language). Quiet ink, sized to the name via em, reuses ringSpin. */
+.dishname-spinner {
+  display: inline-block; vertical-align: middle;
+  width: 0.7em; height: 0.7em; margin-left: 0.35em;
+  border: 1.5px solid var(--ink); border-top-color: transparent; border-radius: 50%;
+  opacity: 0.45; letter-spacing: normal;
+  animation: ringSpin 0.7s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) { .dishname-spinner { animation: none; } }
+
 .retake-photo-btn {
   position: absolute; right: 10px; bottom: 10px;
   width: 36px; height: 36px; border-radius: 50%; border: none;

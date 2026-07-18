@@ -59,9 +59,16 @@ export default function DishName({
 }) {
   const { pair: ctxPair, lang } = useLang();
   const pair = pairOverride ?? ctxPair;
-  const { cache, register } = useTranslation();
+  const { cache, register, loading } = useTranslation();
   const { en, zh } = pickNames({ name, name_zh, name_original });
   const key = dishNameKey({ name, name_zh });
+
+  // A slot is mid-translation when its (non-canonical, non-menu) language isn't cached
+  // yet AND a fetch for it is registered/in-flight. During that window the slot shows
+  // the canonical fallback, so a spinner beside it signals "translating…" instead of
+  // looking like nothing happened when you switch to e.g. Japanese.
+  const isTranslating = (code: LangCode): boolean =>
+    !isCanonical(code) && code !== menuLanguage && !cache[key]?.[code] && !!loading[`${code}:${key}`];
 
   // Request any non-canonical slot we don't yet have — EXCEPT a slot that matches
   // the menu's own language, where we render the printed original (no call). In an
@@ -79,10 +86,21 @@ export default function DishName({
   });
   if (!primary) return null;
 
+  const primaryTranslating = isTranslating(pair.primary);
+  const secondaryTranslating = isTranslating(pair.secondary);
+
   return (
     <span className={`dishname ${size === 'lg' ? 'dishname-lg' : ''}`}>
-      <span className={`dishname-primary ${scriptClass(primary)}`}>{prefix}{primary}{suffix}</span>
-      {secondary && <span className={`dishname-secondary ${scriptClass(secondary)}`}>{secondary}</span>}
+      <span className={`dishname-primary ${scriptClass(primary)}`}>
+        {prefix}{primary}{suffix}
+        {primaryTranslating && <span className="dishname-spinner" aria-label="translating" role="status" />}
+      </span>
+      {secondary && (
+        <span className={`dishname-secondary ${scriptClass(secondary)}`}>
+          {secondary}
+          {secondaryTranslating && <span className="dishname-spinner" aria-label="translating" role="status" />}
+        </span>
+      )}
     </span>
   );
 }
