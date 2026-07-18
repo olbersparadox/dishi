@@ -11,6 +11,7 @@ import PhotoPicker from '@/components/PhotoPicker';
 import { CloseIcon, CameraIcon, RateIcon, TrashIcon, EditIcon, CheckIcon } from '@/components/icons';
 import { useLang, cuisineLabel } from '@/lib/i18n';
 import { takePendingPhoto } from '@/lib/pendingPhoto';
+import { clearJournalCache } from '@/lib/journalCache';
 
 type Dish = { id: string; name: string; name_zh?: string | null; cuisine: string; photo_url: string | null; vision_confidence?: number; is_dish?: boolean; vision_failed?: boolean };
 type Pick = { id: string; name: string; name_zh: string | null; cuisine: string; source: string; restaurant: string | null };
@@ -452,6 +453,10 @@ function LogFlow() {
         body: JSON.stringify({ dish_id: dish.id, score: rating }),
       });
       const json = await res.json().catch(() => ({}));
+      // A dish just entered the 食記 journal, but this flow lands on Taste, not the
+      // journal — so the journal won't remount to notice. Invalidate its cache so the
+      // next visit refetches instead of showing a stale (missing-this-dish) list.
+      if (res.ok) clearJournalCache();
       if (res.ok && Array.isArray(json.taught) && json.taught.length > 0) {
         setLearnedDims(json.taught.slice(0, 4));
         await new Promise(r => setTimeout(r, 1400));

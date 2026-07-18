@@ -9,6 +9,7 @@ import { EditIcon, TrashIcon, MoreIcon } from './icons';
 import { cookingBucket, type CookingMethod } from '@/lib/menuScan';
 import DishInfoDisplay from './DishInfoDisplay';
 import { normalizePhoto } from '@/lib/image';
+import { getJournalCache, setJournalCache } from '@/lib/journalCache';
 
 export type MyDish = {
   id: string; name: string; name_zh: string | null; cuisine: string | null;
@@ -77,7 +78,7 @@ function toDateInputValue(iso: string): string {
 function JournalSkeleton() {
   return (
     <div aria-hidden>
-      {[0, 1, 2].map(i => (
+      {[0, 1, 2, 3, 4].map(i => (
         <article className="rated-dish-row" key={`skel-${i}`}>
           <div className="card-body journal-row">
             <div className="journal-photo skel-box" />
@@ -107,7 +108,10 @@ function JournalSkeleton() {
  * the same real action, not two different code paths pretending to be one).
  */
 export default function MyDishes({ t, lang }: { t: (k: string, p?: Record<string, string | number>) => string; lang: 'zh' | 'en' }) {
-  const [dishes, setDishes] = useState<MyDish[] | null>(null);
+  // Restore the list from the module cache on mount (lazy initializers, so this reads
+  // the snapshot once). A tab switch away and back lands here with the rows already in
+  // state — no skeleton, no refetch. First-ever load (no cache) starts null → skeleton.
+  const [dishes, setDishes] = useState<MyDish[] | null>(() => getJournalCache()?.dishes ?? null);
   const [editing, setEditing] = useState<string | null>(null);
   // Which row's "more actions" (edit/delete) menu is currently open — a single
   // kebab button replaces the previous always-visible edit+delete icon pair,
@@ -141,7 +145,7 @@ export default function MyDishes({ t, lang }: { t: (k: string, p?: Record<string
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [relearnedId, setRelearnedId] = useState<string | null>(null);
-  const [hasMore, setHasMore] = useState(false);
+  const [hasMore, setHasMore] = useState(() => getJournalCache()?.hasMore ?? false);
   const [loadingMore, setLoadingMore] = useState(false);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
@@ -242,7 +246,19 @@ export default function MyDishes({ t, lang }: { t: (k: string, p?: Record<string
       .catch(() => setDishes([]));
   }, []);
 
-  useEffect(() => { refetchFirstPage(); }, [refetchFirstPage]);
+  // Load only on the first visit of the session; a cached return already has its rows
+  // in state. "Scroll down to reload" is the browser's own pull-to-refresh — a full
+  // reload tears down the heap, dropping the cache, so the next mount refetches.
+  useEffect(() => {
+    if (getJournalCache()) return;
+    refetchFirstPage();
+  }, [refetchFirstPage]);
+
+  // Mirror the live list back into the module cache so a tab switch restores exactly
+  // what was on screen — in-journal edits and any extra pages scrolled in included.
+  useEffect(() => {
+    if (dishes !== null) setJournalCache({ dishes, hasMore });
+  }, [dishes, hasMore]);
 
   const loadMore = useCallback(async () => {
     if (loadingMore || !hasMore || !dishes || dishes.length === 0) return;
