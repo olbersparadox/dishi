@@ -334,7 +334,40 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: 'Others have rated this dish — it\u2019s locked to protect their history.' }, { status: 409 });
   }
 
+  // Did the owner rate this dish? The journal only lists rated dishes, but check
+  // explicitly so the taste replay below only fires when a delete truly removes a
+  // rating from history.
+  const { count: ratedCount } = await supabase
+    .from('ratings').select('*', { count: 'exact', head: true })
+    .eq('user_id', user.id).eq('dish_id', dish_id);
+
+  // Detach any points_ledger reference first: that FK is ON DELETE NO ACTION, so a
+  // points row would otherwise block the whole delete. Points already earned stay in
+  // the ledger, just no longer pointing at a dish that no longer exists. Everything
+  // else referencing the dish (ratings, sealed_predictions, duels, helpful_marks…)
+  // is ON DELETE CASCADE and clears itself.
+  await admin.from('points_ledger').update({ dish_id: null }).eq('dish_id', dish_id);
+
   const { error } = await supabase.from('dishes').delete().eq('id', dish_id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // The rating just cascaded away with the dish — but the taste profile is a stored
+  // snapshot that still reflects it. Replay the remaining ratings so the profile
+  // honestly rewinds to a world where this dish was never rated (the same heal
+  // mechanism the rename cascade and re-rate use), and drop rating_count to match —
+  // it gates the buddy/unlock threshold, so it must not count a rating that's gone.
+  if ((ratedCount ?? 0) > 0) {
+    const rebuilt = await replayProfile(supabase, user.id);
+    if (rebuilt) {
+      await supabase.from('taste_profiles').update({
+        vector: rebuilt.vector,
+        evidence: rebuilt.evidence,
+        cuisine_affinity: rebuilt.cuisine_affinity,
+        rating_count: rebuilt.replayed,
+        updated_at: new Date().toISOString(),
+      }).eq('user_id', user.id);
+    }
+  }
+
   return NextResponse.json({ ok: true });
 }

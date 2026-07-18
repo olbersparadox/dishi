@@ -436,7 +436,7 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'home.changerestaurant': { zh: '轉餐廳', en: 'Change restaurant' },
   'home.changerating': { zh: '重新評分', en: 'Re-rate' },
   'home.ratingsaved': { zh: '已更新評分', en: 'Rating updated' },
-  'home.delete.confirm': { zh: '刪除呢道菜？其他人會見唔到，但你嘅口味檔案唔會倒帶。', en: 'Delete this dish? Others won\u2019t see it, but your taste profile isn\u2019t rewound.' },
+  'home.delete.confirm': { zh: '刪除呢道菜同你嘅評分？', en: 'Delete this dish and your rating?' },
   'home.hearts': { zh: '{n} 個心心', en: '{n} hearts' },
   'home.name.locked': { zh: '名跟餐牌，改唔到（口味同餐廳仍然改得）', en: 'Name follows the menu — not editable here (rating and restaurant still are)' },
   'home.name.en': { zh: '英文名', en: 'English name' },
