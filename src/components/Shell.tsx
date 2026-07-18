@@ -2,19 +2,23 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { LanguageProvider, useLang } from '@/lib/i18n';
+import { TranslationProvider } from '@/lib/translation';
 import { ScanMenuIcon } from './icons';
 import NotificationBell from './NotificationBell';
+import LanguagePicker from './LanguagePicker';
 
 export default function Shell({ children }: { children: React.ReactNode }) {
   return (
     <LanguageProvider>
-      <ShellInner>{children}</ShellInner>
+      <TranslationProvider>
+        <ShellInner>{children}</ShellInner>
+      </TranslationProvider>
     </LanguageProvider>
   );
 }
 
 function ShellInner({ children }: { children: React.ReactNode }) {
-  const { lang, setLang, t } = useLang();
+  const { lang, t } = useLang();
   const path = usePathname();
 
   return (
@@ -26,12 +30,9 @@ function ShellInner({ children }: { children: React.ReactNode }) {
         <header className="topbar">
           <div className="wordmark">dish<em>i</em></div>
           <div className="topbar-right">
-            {/* Always-visible notification bell, just left of the language toggle. */}
+            {/* Always-visible notification bell, then the globe language-pair picker. */}
             <NotificationBell />
-            <div className="lang-toggle" role="group" aria-label="Language / 語言">
-              <button className={lang === 'zh' ? 'on' : ''} onClick={() => setLang('zh')} aria-pressed={lang === 'zh'}>中</button>
-              <button className={lang === 'en' ? 'on' : ''} onClick={() => setLang('en')} aria-pressed={lang === 'en'}>EN</button>
-            </div>
+            <LanguagePicker />
           </div>
         </header>
         {children}

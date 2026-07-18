@@ -1,6 +1,49 @@
 // Pure i18n data + helpers — no React, so tests can run it under plain node.
 
+// Chrome language stays a binary (zh-Hant HK / en) — EVERY t() call and the whole
+// dictionary key off this. See i18n.tsx: it's DERIVED from the language pair below,
+// never set independently, so no existing t() call site changes.
 export type Lang = 'zh' | 'en';
+
+// The dish-name language PAIR is a richer set. name (en) + name_zh (zh) are the
+// CANONICAL stored identity of every dish (see dishIdentity.ts / the globe spec) —
+// this constant names that pair so translation code never hardcodes 'zh'/'en', and
+// a future regional deployment is a constant change, not a rewrite.
+export type LangCode = 'zh' | 'en' | 'ja' | 'ko' | 'th' | 'vi' | 'id' | 'tl' | 'es' | 'fr';
+export const CANONICAL_PAIR = ['zh', 'en'] as const;
+export function isCanonical(code: LangCode): code is 'zh' | 'en' {
+  return code === 'zh' || code === 'en';
+}
+
+/** Curated picker list — each language shown in its OWN language (self-identifying),
+ * canonical pair first. */
+export const LANGUAGES: { code: LangCode; label: string }[] = [
+  { code: 'zh', label: '中文' },
+  { code: 'en', label: 'English' },
+  { code: 'ja', label: '日本語' },
+  { code: 'ko', label: '한국어' },
+  { code: 'th', label: 'ไทย' },
+  { code: 'vi', label: 'Tiếng Việt' },
+  { code: 'id', label: 'Bahasa Indonesia' },
+  { code: 'tl', label: 'Filipino' },
+  { code: 'es', label: 'Español' },
+  { code: 'fr', label: 'Français' },
+];
+export const languageLabel = (code: LangCode) => LANGUAGES.find(l => l.code === code)?.label ?? code;
+
+export type LangPair = { primary: LangCode; secondary: LangCode };
+/** Chrome language derived from a pair: zh if EITHER slot is 中文, else en (spec's
+ * ripple-containment rule — keeps ja/ko/… out of chrome, which stays zh/en only). */
+export function chromeLangOf(pair: LangPair): Lang {
+  return pair.primary === 'zh' || pair.secondary === 'zh' ? 'zh' : 'en';
+}
+
+/** Stable in-memory cache key for a dish's non-canonical translations, from its
+ * canonical identity. Lets DishName look up / request a translation without needing
+ * a DB id (persistence by id is a later slice). */
+export function dishNameKey(d: { name: string; name_zh?: string | null }): string {
+  return `${d.name_zh ?? ''}|${d.name}`;
+}
 
 export const dict: Record<string, { zh: string; en: string }> = {
   // ---- shell ----
@@ -66,6 +109,11 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'duel.tieresult': { zh: '兩樣都差唔多，記低咗', en: 'About even — noted' },
   'duel.learned': { zh: '學到：{dims}', en: 'Learned: {dims}' },
   'duel.ok': { zh: '好', en: 'OK' },
+  // 語言對 globe picker (dish-name languages only — chrome stays zh/en)
+  'lang.title': { zh: '菜名語言', en: 'Dish-name languages' },
+  'lang.primary': { zh: '主要', en: 'Primary' },
+  'lang.secondary': { zh: '次要', en: 'Secondary' },
+  'lang.swap': { zh: '對調', en: 'Swap' },
   // Notification bell list
   'notif.title': { zh: '通知', en: 'Notifications' },
   'notif.empty': { zh: '暫時冇新通知', en: 'Nothing new right now' },

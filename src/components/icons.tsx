@@ -207,6 +207,18 @@ export function SpeechIcon({ size = 16 }: IconProps) {
   );
 }
 
+/** Globe — the dish-name language-pair picker (replaces the 中/EN switcher). */
+export function GlobeIcon({ size = 22 }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor"
+      strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M3 12h18" />
+      <path d="M12 3a14 14 0 010 18a14 14 0 010-18z" />
+    </svg>
+  );
+}
+
 /** Bell — the header notification affordance (currently: a taste duel is waiting). */
 export function BellIcon({ size = 22 }: IconProps) {
   return (

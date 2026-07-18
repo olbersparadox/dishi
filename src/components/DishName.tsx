@@ -1,12 +1,19 @@
 'use client';
-import { useLang, pickNames } from '@/lib/i18n';
+import { useEffect } from 'react';
+import { useLang, pickNames, isCanonical, dishNameKey, type LangCode } from '@/lib/i18n';
+import { useTranslation } from '@/lib/translation';
 
 /**
- * The bilingual dish-name treatment:
- *   zh mode -> 麻婆豆腐 (big, bold) / Mapo tofu (small, thin, underneath)
- *   en mode -> Mapo tofu (big, bold) / 麻婆豆腐 (small, thin, underneath)
- * If only one language exists for a dish, it renders alone at primary size —
- * no fake translations, no empty slots.
+ * The dish-name treatment, now driven by the language PAIR (globe picker):
+ *   primary (big, bold) over secondary (small, thin), each in its slot's language.
+ * Default pair 中文/English -> identical to before.
+ *
+ * Resolution per slot language L:
+ *   - L is canonical (zh/en) -> name_zh / name directly.
+ *   - else -> the cached translation if present; otherwise fall back to the
+ *     CHROME-language canonical (shown instantly) and request the translation,
+ *     which appears when the batch lands.
+ * If both slots resolve to the same string, only the primary renders (no dupes).
  */
 export default function DishName({
   name,
@@ -28,11 +35,30 @@ export default function DishName({
    * than floating beside the whole two-line bilingual block. */
   suffix?: React.ReactNode;
 }) {
-  const { lang } = useLang();
+  const { pair, lang } = useLang();
+  const { cache, register } = useTranslation();
   const { en, zh } = pickNames({ name, name_zh, name_original });
+  const key = dishNameKey({ name, name_zh });
 
-  const primary = lang === 'zh' ? (zh ?? en) : (en ?? zh);
-  const secondary = lang === 'zh' ? (primary === zh ? en : undefined) : (primary === en ? zh : undefined);
+  // Request any non-canonical slot we don't yet have. In an effect so registering a
+  // need never runs a state update during render.
+  useEffect(() => {
+    for (const code of [pair.primary, pair.secondary] as LangCode[]) {
+      if (!isCanonical(code) && !cache[key]?.[code]) register({ name, name_zh, name_original }, code);
+    }
+  }, [pair.primary, pair.secondary, key, cache, register, name, name_zh, name_original]);
+
+  const resolve = (code: LangCode): string | undefined => {
+    if (code === 'en') return en;
+    if (code === 'zh') return zh;
+    return cache[key]?.[code]; // translated, or undefined while it loads
+  };
+  // While a translation is missing, show the chrome-language canonical in its place.
+  const fallback = (lang === 'zh' ? zh : en) ?? en ?? zh;
+
+  const primary = resolve(pair.primary) ?? fallback;
+  let secondary = resolve(pair.secondary) ?? fallback;
+  if (secondary === primary) secondary = undefined; // never render the same string twice
   if (!primary) return null;
 
   return (
