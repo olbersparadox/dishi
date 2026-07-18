@@ -474,6 +474,11 @@ button { font: inherit; cursor: pointer; }
 /* Looser vertical rhythm than before — date, name, meta and chips each get
    real breathing room rather than stacking tight. */
 .journal-date { font-size: 13px; color: var(--ink-soft); margin-bottom: 3px; letter-spacing: 0.03em; }
+/* Tappable eaten-date: the visible label sits above an invisible full-size native
+   date input, so tapping the date opens the OS picker while we keep full control of
+   the shown text (incl. the 某年某月某日 placeholder). */
+.journal-date-edit { position: relative; display: inline-block; cursor: pointer; border-bottom: 1px dashed var(--line); }
+.journal-date-input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; border: 0; padding: 0; cursor: pointer; }
 .journal-info .card-title { line-height: 1.3; }
 .journal-info .dish-meta { margin-top: 6px; }
 .journal-info > *:not(:first-child) { margin-top: 6px; }

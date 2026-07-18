@@ -213,6 +213,7 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'buddy.learning.count': { zh: '摸緊 {n} 味', en: 'learning {n}' },
   'log.willTranslate': { zh: '會由你嘅輸入自動翻譯', en: 'Will be translated from your input' },
   'log.relearned': { zh: '已根據你嘅修改，重新學過你嘅口味', en: 'Re-learned your taste from your correction' },
+  'journal.setdate': { zh: '某年某月某日', en: 'Add eaten date' },
   'log.samedish.title': { zh: '{restaurant} 有兩味：', en: '{restaurant} has two dishes:' },
   'log.samedish.pair': { zh: '「{a}」同「{b}」', en: '\u201c{a}\u201d and \u201c{b}\u201d' },
   'log.samedish.q': { zh: '係咪同一味菜？', en: 'Are they the same dish?' },

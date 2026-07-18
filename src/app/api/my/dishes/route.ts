@@ -74,7 +74,7 @@ export async function GET(req: NextRequest) {
 
   let query = supabase
     .from('dishes')
-    .select('id, name, name_zh, cuisine, photo_url, created_at, restaurant_id, dish_identity_id, dish_identity_checked_at, cooking_method, heaviness, diet, restaurants(name), dish_identities(name, name_zh)')
+    .select('id, name, name_zh, cuisine, photo_url, created_at, eaten_at, restaurant_id, dish_identity_id, dish_identity_checked_at, cooking_method, heaviness, diet, restaurants(name), dish_identities(name, name_zh)')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
     .limit(PAGE_SIZE);
@@ -114,6 +114,7 @@ export async function GET(req: NextRequest) {
       my_score: myScores.get(d.id) ?? null,
       locked: locked.get(d.id) ?? false,
       created_at: d.created_at, // used as the next page's `before` cursor
+      eaten_at: d.eaten_at ?? null, // photo-EXIF when-eaten; shown (not ordered by) on the card
     })),
     has_more: (dishes ?? []).length === PAGE_SIZE,
   });

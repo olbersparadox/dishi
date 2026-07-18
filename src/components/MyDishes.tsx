@@ -13,7 +13,7 @@ import { normalizePhoto } from '@/lib/image';
 export type MyDish = {
   id: string; name: string; name_zh: string | null; cuisine: string | null;
   photo_url: string | null; restaurant: string | null; hearts: number; my_score: number | null;
-  locked: boolean; created_at: string;
+  locked: boolean; created_at: string; eaten_at?: string | null;
   restaurant_id?: string | null; dish_identity_id?: string | null;
   dish_identity_checked_at?: string | null;
   identity_name?: string | null; identity_name_zh?: string | null;
@@ -29,6 +29,24 @@ function formatRatedDate(iso: string, lang: 'zh' | 'en'): string {
     return `${d.getMonth() + 1}月${d.getDate()}日 ${weekday}`;
   }
   return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }); // Sat, Jul 11
+}
+
+/** When-eaten label (no weekday, to read as a diary date not a log timestamp):
+ * 2026年7月12日 / Jul 12, 2026. */
+function formatEatenDate(iso: string, lang: 'zh' | 'en'): string {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  return lang === 'zh'
+    ? `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`
+    : d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+/** ISO instant -> yyyy-mm-dd for a native <input type="date"> value (local date). */
+function toDateInputValue(iso: string): string {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
 
 /**
@@ -280,6 +298,21 @@ export default function MyDishes({ t, lang }: { t: (k: string, p?: Record<string
     setChangingRating(false);
   }
 
+  /** Set/clear a dish's when-eaten date from the card's tappable date. dateStr is
+   * yyyy-mm-dd from the native input (''=clear); stored at local noon so the
+   * calendar day can't drift across time zones. Optimistic — personal metadata,
+   * its own endpoint (no lock/replay), reverts on next fetch if the save fails. */
+  async function setEaten(id: string, dateStr: string) {
+    const iso = dateStr ? new Date(`${dateStr}T12:00:00`).toISOString() : null;
+    setDishes(prev => prev?.map(d => d.id === id ? { ...d, eaten_at: iso } : d) ?? null);
+    try {
+      await fetch('/api/dishes/eaten-date', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dish_id: id, eaten_at: iso }),
+      });
+    } catch { /* optimistic; reverts on next real fetch */ }
+  }
+
   async function remove(id: string) {
     if (!confirm(t('home.delete.confirm'))) return;
     const prevDishes = dishes;
@@ -424,7 +457,20 @@ export default function MyDishes({ t, lang }: { t: (k: string, p?: Record<string
                 </div>
               ) : (
                 <>
-                  <div className="journal-date">{formatRatedDate(d.created_at, lang)}</div>
+                  {/* When-EATEN date (not when-logged): shown from photo EXIF when
+                      known, else a tappable "某年某月某日" placeholder. The list order
+                      stays logged (created_at) — your album is already chronological;
+                      Dishi just surfaces the diary date, editable via a native picker. */}
+                  <label className="journal-date journal-date-edit" onClick={e => e.stopPropagation()}>
+                    {d.eaten_at ? formatEatenDate(d.eaten_at, lang) : t('journal.setdate')}
+                    <input
+                      type="date" className="journal-date-input"
+                      value={d.eaten_at ? toDateInputValue(d.eaten_at) : ''}
+                      max={toDateInputValue(new Date().toISOString())}
+                      onChange={e => setEaten(d.id, e.target.value)}
+                      aria-label={t('journal.setdate')}
+                    />
+                  </label>
                   {/* A linked dish's stored name is already the canonical name
                       (kept in sync server-side on link/owner-adopt), so the row's
                       own name is the right thing to show. */}
