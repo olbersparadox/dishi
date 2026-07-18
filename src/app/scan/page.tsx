@@ -776,11 +776,16 @@ function Scanner() {
         <article className={`card scan-pickable ${picked.has(item.name_original) ? 'picked' : ''}`} key={`plain-${i}`}
           onClick={() => togglePick(item.name_original)}>
           <div className="card-body">
-            <div className="dish-row">
-              <div className="card-title"><DishName prefix={`${i + 1}. `} name={item.name} name_zh={item.name_zh} name_original={item.name_original} pair={scanPair} menuLanguage={menuCode} />{item.isNew && <span className="scan-new-tag">{t('scan.new')}</span>}</div>
-              {item.price && <span className="dish-price">{item.price}</span>}
+            <div className="scan-item">
+              <span className="scan-rank">{i + 1}.</span>
+              <div className="scan-item-main">
+                <div className="dish-row">
+                  <div className="card-title"><DishName name={item.name} name_zh={item.name_zh} name_original={item.name_original} pair={scanPair} menuLanguage={menuCode} />{item.isNew && <span className="scan-new-tag">{t('scan.new')}</span>}</div>
+                  {item.price && <span className="dish-price">{item.price}</span>}
+                </div>
+                <DishDetails item={item} t={t} lang={lang} pickedBy={pickersFor(item, tablePicks)} />
+              </div>
             </div>
-            <DishDetails item={item} t={t} lang={lang} pickedBy={pickersFor(item, tablePicks)} />
           </div>
         </article>
       ))}
@@ -791,14 +796,19 @@ function Scanner() {
         <article className={`card scan-pickable ${picked.has(item.name_original) ? 'picked' : ''}`} key={`scoring-${i}`}
           onClick={() => togglePick(item.name_original)}>
           <div className="card-body">
-            <div className="dish-row">
-              <div className="card-title"><DishName prefix={`${i + 1}. `} name={item.name} name_zh={item.name_zh} name_original={item.name_original} pair={scanPair} menuLanguage={menuCode} />{item.isNew && <span className="scan-new-tag">{t('scan.new')}</span>}</div>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-                {item.match === undefined && <Spinner size={16} />}
-                {item.price && <span className="dish-price">{item.price}</span>}
-              </span>
+            <div className="scan-item">
+              <span className="scan-rank">{i + 1}.</span>
+              <div className="scan-item-main">
+                <div className="dish-row">
+                  <div className="card-title"><DishName name={item.name} name_zh={item.name_zh} name_original={item.name_original} pair={scanPair} menuLanguage={menuCode} />{item.isNew && <span className="scan-new-tag">{t('scan.new')}</span>}</div>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                    {item.match === undefined && <Spinner size={16} />}
+                    {item.price && <span className="dish-price">{item.price}</span>}
+                  </span>
+                </div>
+                <DishDetails item={item} t={t} lang={lang} pickedBy={pickersFor(item, tablePicks)} />
+              </div>
             </div>
-            <DishDetails item={item} t={t} lang={lang} pickedBy={pickersFor(item, tablePicks)} />
           </div>
         </article>
       ))}
@@ -818,21 +828,26 @@ function Scanner() {
                 onClick={() => togglePick(item.name_original)}
               >
                 <div className="card-body">
-                  <div className="dish-row">
-                    <div className="card-title" style={{ display: 'flex', alignItems: 'baseline', gap: 7, minWidth: 0 }}>
-                      <DishName prefix={`${i + 1}. `} name={item.name} name_zh={item.name_zh} name_original={item.name_original} pair={scanPair} menuLanguage={menuCode}
-                        suffix={fire ? <span className="scan-fire scan-fire-pop" aria-label={t('scan.fire')}>{'\uD83D\uDD25'}</span> : undefined} />
-                      {item.isNew && <span className="scan-new-tag">{t('scan.new')}</span>}
+                  <div className="scan-item">
+                    <span className="scan-rank">{i + 1}.</span>
+                    <div className="scan-item-main">
+                      <div className="dish-row">
+                        <div className="card-title" style={{ display: 'flex', alignItems: 'baseline', gap: 7, minWidth: 0 }}>
+                          <DishName name={item.name} name_zh={item.name_zh} name_original={item.name_original} pair={scanPair} menuLanguage={menuCode}
+                            suffix={fire ? <span className="scan-fire scan-fire-pop" aria-label={t('scan.fire')}>{'\uD83D\uDD25'}</span> : undefined} />
+                          {item.isNew && <span className="scan-new-tag">{t('scan.new')}</span>}
+                        </div>
+                        {item.price && <span className="dish-price">{item.price}</span>}
+                      </div>
+                      <DishDetails item={item} t={t} lang={lang} pickedBy={pickersFor(item, tablePicks)} />
+                      {fire && item.reason && (
+                        <p className="scan-reason fade-in">
+                          <span className="scan-reason-icon" aria-hidden><SpeechIcon size={18} /></span>
+                          <span>{item.reason}</span>
+                        </p>
+                      )}
                     </div>
-                    {item.price && <span className="dish-price">{item.price}</span>}
                   </div>
-                  <DishDetails item={item} t={t} lang={lang} pickedBy={pickersFor(item, tablePicks)} />
-                  {fire && item.reason && (
-                    <p className="scan-reason fade-in">
-                      <span className="scan-reason-icon" aria-hidden><SpeechIcon size={18} /></span>
-                      <span>{item.reason}</span>
-                    </p>
-                  )}
                 </div>
               </article>
             );

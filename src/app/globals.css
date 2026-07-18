@@ -715,6 +715,13 @@ button { font: inherit; cursor: pointer; }
 }
 .scan-pickable .card-body { padding: 16px 4px; }
 .scan-pickable .card-title { font-family: var(--font-display); font-size: 18px; font-weight: 700; }
+/* Rank ("N.") as a hanging gutter: pulled OUT of the dish-name line so the name, its
+   secondary translation, and the detail line all share ONE left edge (the name's),
+   instead of the secondary + details sitting under the number while the name starts
+   after it. Rank matches the name (.card-title .dishname-primary → 20px / 800). */
+.scan-item { display: flex; align-items: baseline; gap: 6px; }
+.scan-rank { flex-shrink: 0; font-family: var(--font-display); font-size: 20px; font-weight: 800; letter-spacing: -0.01em; }
+.scan-item-main { flex: 1; min-width: 0; }
 .scan-pickable.picked {
   background: var(--paper-inset); border-bottom-color: transparent; border-radius: 16px;
   margin-bottom: 10px;
