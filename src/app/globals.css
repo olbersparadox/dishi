@@ -388,13 +388,26 @@ button { font: inherit; cursor: pointer; }
   border-bottom: 1px solid var(--line);
 }
 .grow2-top .grow-barwrap { margin-top: 14px; }
-/* ink blob — grows with confidence, a soft pop on each bump */
+/* the ink blob sits centred; learned-taste words float around it as an aura */
+.grow-blobwrap { position: relative; height: 176px; display: flex; align-items: center; justify-content: center; }
 .grow-blob {
-  display: inline-block; transform-origin: center;
+  transform-origin: center;
   transition: transform 550ms cubic-bezier(0.34, 1.42, 0.5, 1);
 }
 .grow-blob svg { display: block; }
-.grow2-title { font-size: 22px; margin: 10px 0 4px; }
+.grow-aura-word {
+  position: absolute; left: 50%; top: 50%; white-space: nowrap;
+  transform: translate(-50%, -50%) translate(var(--x), var(--y));
+  font-family: var(--font-display); font-size: 13px; font-weight: 650;
+  color: var(--ink-soft); letter-spacing: 0.02em;
+  animation: auraIn 480ms cubic-bezier(0.3, 1.25, 0.5, 1) both;
+}
+@keyframes auraIn {
+  from { opacity: 0; transform: translate(-50%, -50%) translate(calc(var(--x) * 0.35), calc(var(--y) * 0.35)) scale(0.6); }
+  to   { opacity: 1; transform: translate(-50%, -50%) translate(var(--x), var(--y)) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) { .grow-aura-word { animation: none; } }
+.grow2-title { font-size: 22px; margin: 6px 0 4px; }
 .grow2-sub { font-size: 13px; color: var(--ink-soft); margin: 0; }
 
 .learn-list { list-style: none; display: flex; flex-direction: column; gap: 10px; margin: 14px 0 0; padding: 0; }
