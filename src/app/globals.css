@@ -245,9 +245,9 @@ button { font: inherit; cursor: pointer; }
   /* Glass over the page beneath (the Taste AI section): the live page shows
      through, blurred + darkened, so the card + rating float on top of it rather
      than on a separate black screen. */
-  background: rgba(18, 14, 10, 0.52);
-  backdrop-filter: blur(18px) saturate(0.85);
-  -webkit-backdrop-filter: blur(18px) saturate(0.85);
+  background: rgba(18, 14, 10, 0.40);
+  backdrop-filter: blur(14px) saturate(0.85);
+  -webkit-backdrop-filter: blur(14px) saturate(0.85);
   touch-action: none; user-select: none; -webkit-user-select: none;
   overscroll-behavior: contain;
 }
