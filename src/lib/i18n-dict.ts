@@ -407,6 +407,7 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'grow.done.title': { zh: '你嘅 Taste AI 更懂你', en: 'Your Taste AI knows you better' },
   'grow.done.sub': { zh: '{n} 味幫佢成長咗', en: 'grew from {n} dishes' },
   'grow.analysing': { zh: '分析緊…', en: 'analysing…' },
+  'grow.finding': { zh: '搵緊附近餐廳…', en: 'finding restaurants nearby…' },
   'grow.learned': { zh: '學到', en: 'learned' },
   'place.home': { zh: '住家菜', en: 'Home cooked' },
   'grow.leave.bg': { zh: '之後再睇（喺後台繼續分析）', en: 'Leave — finishes in the background' },

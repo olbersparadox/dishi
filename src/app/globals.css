@@ -373,7 +373,7 @@ button { font: inherit; cursor: pointer; }
 .grow-bar { height: 12px; border-radius: 99px; background: var(--paper-inset); overflow: hidden; }
 .grow-fill {
   display: block; height: 100%; border-radius: 99px; background: var(--ink);
-  transition: width 900ms cubic-bezier(0.22, 0.9, 0.3, 1);
+  transition: width 500ms cubic-bezier(0.22, 0.9, 0.3, 1);
 }
 .grow-unlock { margin-top: 8px; text-align: left; }
 .grow-done { margin-top: 28px; min-width: 160px; }
@@ -388,7 +388,13 @@ button { font: inherit; cursor: pointer; }
   border-bottom: 1px solid var(--line);
 }
 .grow2-top .grow-barwrap { margin-top: 14px; }
-.grow2-title { font-size: 22px; margin: 8px 0 4px; }
+/* ink blob — grows with confidence, a soft pop on each bump */
+.grow-blob {
+  display: inline-block; transform-origin: center;
+  transition: transform 550ms cubic-bezier(0.34, 1.42, 0.5, 1);
+}
+.grow-blob svg { display: block; }
+.grow2-title { font-size: 22px; margin: 10px 0 4px; }
 .grow2-sub { font-size: 13px; color: var(--ink-soft); margin: 0; }
 
 .learn-list { list-style: none; display: flex; flex-direction: column; gap: 10px; margin: 14px 0 0; padding: 0; }
@@ -411,8 +417,15 @@ button { font: inherit; cursor: pointer; }
 .learn-name { font-family: var(--font-display); font-weight: 700; font-size: 16px; color: var(--ink); }
 .learn-skel { color: var(--ink-soft); font-weight: 600; }
 .learn-word { font-size: 13px; color: var(--ink-soft); }
-.learn-ing { font-size: 12px; color: var(--ink-soft); }
+/* ingredient tags stream in one by one */
+.learn-chips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 2px; }
+.learn-tag {
+  font-size: 11px; padding: 3px 9px; border-radius: 99px;
+  background: var(--paper-inset); color: var(--ink-soft); animation: chipIn 240ms ease-out;
+}
+.learn-finding { font-size: 12px; color: var(--ink-soft); font-style: italic; }
 .learn-learned { font-size: 12px; color: var(--seal); font-weight: 600; }
+@keyframes chipIn { from { opacity: 0; transform: scale(0.82); } to { opacity: 1; transform: none; } }
 .learn-place { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 5px; }
 .learn-chip {
   font-size: 12px; padding: 5px 11px; border-radius: 99px; cursor: pointer;
