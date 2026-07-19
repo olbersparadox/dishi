@@ -75,6 +75,7 @@ export default function SnapRating({
   const [locked, setLocked] = useState<number | null>(null);
   const [skip, setSkip] = useState(false);
   const [active, setActive] = useState(false);
+  const [imgOk, setImgOk] = useState(true); // false if the photo can't decode (e.g. a HEIC we couldn't convert)
 
   const startX = useRef(0);
   const startY = useRef(0);
@@ -195,11 +196,12 @@ export default function SnapRating({
 
       <div className="snap-card"
         style={{ transform: `translate3d(${render.x}px, ${-render.y}px, 0)`, opacity: 1 - 0.5 * overEdge }}>
-        {photoUrl ? (
+        {photoUrl && imgOk ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={photoUrl} alt="Your dish" className="snap-photo" draggable={false}
-            style={{ filter: filterFor(locked) }} />
+            style={{ filter: filterFor(locked) }} onError={() => setImgOk(false)} />
         ) : (
+          // no photo, or one the browser couldn't decode — still fully ratable/skippable
           <div className="snap-photo flick-nophoto"><span>{displayName ?? '🍽️'}</span></div>
         )}
       </div>
