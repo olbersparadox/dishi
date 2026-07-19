@@ -1,14 +1,13 @@
 'use client';
 // The reward + light review, MERGED (rating-flow revamp). You land here and WATCH
-// your Taste AI learn — data STREAMS in like a response: each dish expands piece by
-// piece (bilingual name → ingredient/diet chips → all the nearby restaurants). The
-// taste qualities it LEARNS fly INTO the ink blob and are absorbed, growing it. The
-// confidence bar + blob grow only on real learning, never the raw rating count.
-// Wrong guesses are correctable in place (confirm the restaurant / home-cooked).
+// your Taste AI learn — data STREAMS in like a response: each dish expands (bilingual
+// name → ingredient/diet icon chips → all the nearby restaurants). Learned qualities
+// FLY INTO the ink blob and grow it. And REFINING is rewarded: pick the right
+// restaurant or fix a name and the bar + blob respond — every correction teaches more.
+// The bar never moves on the raw rating count, only on real learning, so it's honest.
 //
-// Uses the app's real DishName (bilingual) + DishInfoDisplay (icon chips) so the
-// mock matches production. DEMO NOTE: enrichment is SIMULATED on a staggered event
-// timeline — no real EXIF / vision. The real version drives these off background prep.
+// Uses the app's real DishName + DishInfoDisplay + .xp-bar / .chip / .stat vocabulary
+// so it matches production. DEMO NOTE: enrichment is SIMULATED — no real EXIF / vision.
 import { useEffect, useRef, useState } from 'react';
 import { useLang } from '@/lib/i18n';
 import { wordKeyFor } from '@/lib/flickWords';
@@ -19,18 +18,11 @@ export type GrowItem = { photoUrl: string | null; score: number };
 
 type Dish = {
   named: boolean;
-  ing: string[];              // english (DishInfoDisplay maps → icon + zh label)
-  diet: string[];
-  heaviness?: string;
-  places: string[];
-  placeLoading: boolean;
-  hasLocation: boolean;
-  choice?: string;
-  done: boolean;
+  ing: string[]; diet: string[]; heaviness?: string;
+  places: string[]; placeLoading: boolean; hasLocation: boolean;
+  choice?: string; done: boolean;
 };
 
-// Stand-in for vision + EXIF. Ingredients are the english keys DishInfoDisplay
-// iconifies; `places` is "every eatery near where the photo was taken" (8–10).
 const POOL: {
   zh: string; en: string; ing: string[]; diet: string[]; heaviness: string;
   learned: string[]; places: string[] | null;
@@ -54,13 +46,24 @@ type Flyer = { id: number; word: string; x: number; y: number };
 export default function TasteGrowth({ items, onExit }: { items: GrowItem[]; onExit: () => void }) {
   const { t } = useLang();
   const [dishes, setDishes] = useState<Dish[]>(() => items.map(emptyDish));
+  const [names, setNames] = useState<(string | undefined)[]>(() => items.map(() => undefined)); // name overrides (edits)
   const [fill, setFill] = useState(BASE);
-  const [absorbed, setAbsorbed] = useState(0); // learned qualities the blob has eaten
+  const [absorbed, setAbsorbed] = useState(0);
   const [flyers, setFlyers] = useState<Flyer[]>([]);
+  const [editIdx, setEditIdx] = useState<number | null>(null);
+  const [editVal, setEditVal] = useState('');
   const flyId = useRef(0);
 
-  // Streaming timeline: name → ingredients → diet/heaviness → find + list restaurants
-  // → learned qualities (each flies into the blob). Each event bumps the bar.
+  // A quality (or a refinement) flies into the blob → blob absorbs + grows, bar bumps.
+  const absorb = (word: string, bump: number) => {
+    const ang = Math.random() * Math.PI * 2, rad = 72 + Math.random() * 40;
+    const id = ++flyId.current;
+    setFlyers(prev => [...prev, { id, word, x: Math.cos(ang) * rad, y: Math.sin(ang) * rad * 0.68 }]);
+    window.setTimeout(() => setFlyers(prev => prev.filter(f => f.id !== id)), 900);
+    setAbsorbed(a => a + 1);
+    setFill(f => Math.min(100, f + bump));
+  };
+
   useEffect(() => {
     type Step = { i: number; apply?: (d: Dish) => Dish; learn?: string };
     type Ev = Step & { at: number };
@@ -87,14 +90,7 @@ export default function TasteGrowth({ items, onExit }: { items: GrowItem[]; onEx
     evs.forEach(ev => {
       timers.push(window.setTimeout(() => {
         if (ev.apply) setDishes(prev => prev.map((d, j) => (j === ev.i ? ev.apply!(d) : d)));
-        if (ev.learn) {
-          const ang = Math.random() * Math.PI * 2, rad = 72 + Math.random() * 40;
-          const id = ++flyId.current;
-          const fl: Flyer = { id, word: ev.learn, x: Math.cos(ang) * rad, y: Math.sin(ang) * rad * 0.68 };
-          setFlyers(prev => [...prev, fl]);
-          setAbsorbed(a => a + 1);
-          timers.push(window.setTimeout(() => setFlyers(prev => prev.filter(f => f.id !== id)), 900));
-        }
+        if (ev.learn) { absorb(ev.learn, 0); n += 1; setFill(Math.min(CAP, BASE + n * per)); return; }
         n += 1; setFill(Math.min(CAP, BASE + n * per));
       }, ev.at));
     });
@@ -103,11 +99,20 @@ export default function TasteGrowth({ items, onExit }: { items: GrowItem[]; onEx
   }, []);
 
   const doneCount = dishes.filter(d => d.done).length;
+  const confirmed = dishes.filter(d => d.choice).length;
   const allDone = doneCount === items.length;
   const remain = Math.max(0, Math.round(100 - fill));
-  const blobScale = 0.72 + Math.min(absorbed, 14) * 0.045; // grows as qualities are absorbed
+  const blobScale = 0.72 + Math.min(absorbed, 16) * 0.04;
 
-  const choose = (i: number, place: string) => setDishes(prev => prev.map((d, j) => (j === i ? { ...d, choice: place } : d)));
+  // refinement = reward: picking a place or fixing a name teaches more.
+  const choose = (i: number, place: string) => { setDishes(prev => prev.map((d, j) => (j === i ? { ...d, choice: place } : d))); absorb('✓', 2.5); };
+  const startEdit = (i: number, cur: string) => { setEditIdx(i); setEditVal(cur); };
+  const commitEdit = () => {
+    if (editIdx === null) return;
+    const i = editIdx, v = editVal.trim();
+    if (v) { setNames(prev => prev.map((n, j) => (j === i ? v : n))); absorb(v, 2.5); }
+    setEditIdx(null);
+  };
 
   return (
     <div className="grow2">
@@ -115,9 +120,7 @@ export default function TasteGrowth({ items, onExit }: { items: GrowItem[]; onEx
         <div className="grow-blobwrap">
           {flyers.map(f => (
             <span key={f.id} className="blob-flyer"
-              style={{ ['--x' as string]: `${f.x}px`, ['--y' as string]: `${f.y}px` } as React.CSSProperties}>
-              {f.word}
-            </span>
+              style={{ ['--x' as string]: `${f.x}px`, ['--y' as string]: `${f.y}px` } as React.CSSProperties}>{f.word}</span>
           ))}
           <div className="grow-blob" style={{ transform: `scale(${blobScale.toFixed(3)})` }} aria-hidden>
             <svg viewBox="0 0 100 100" width="66" height="66">
@@ -126,11 +129,15 @@ export default function TasteGrowth({ items, onExit }: { items: GrowItem[]; onEx
           </div>
         </div>
         <h2 className="grow2-title">{allDone ? t('grow.done.title') : t('grow.work.title')}</h2>
-        <p className="grow2-sub">{allDone ? t('grow.done.sub', { n: items.length }) : t('grow.work.sub', { done: doneCount, n: items.length })}</p>
-        <div className="grow-barwrap">
-          <div className="grow-level">{t('rate.grow.level', { n: 3 })}</div>
-          <div className="grow-bar"><span className="grow-fill" style={{ width: `${fill}%` }} /></div>
-          <p className="card-meta grow-unlock">{fill >= 100 ? t('rate.grow.unlocked') : t('rate.grow.remain', { p: remain })}</p>
+        <p className="grow2-sub">{allDone ? t('grow.refine.hint') : t('grow.work.sub', { done: doneCount, n: items.length })}</p>
+
+        <div className="xp-bar" role="progressbar" aria-valuenow={Math.round(fill)}><div className="xp-fill" style={{ width: `${fill}%` }} /></div>
+        <p className="grow2-unlock">{fill >= 100 ? t('rate.grow.unlocked') : t('rate.grow.remain', { p: remain })}</p>
+
+        <div className="stat-row grow2-stats">
+          <div className="stat"><div className="stat-num">{doneCount}</div><div className="stat-label">{t('grow.stat.dishes')}</div></div>
+          <div className="stat"><div className="stat-num">{absorbed}</div><div className="stat-label">{t('grow.stat.learned')}</div></div>
+          <div className="stat"><div className="stat-num">{confirmed}</div><div className="stat-label">{t('grow.stat.placed')}</div></div>
         </div>
       </div>
 
@@ -138,6 +145,7 @@ export default function TasteGrowth({ items, onExit }: { items: GrowItem[]; onEx
         {items.map((it, i) => {
           const d = dishes[i];
           const p = POOL[i % POOL.length];
+          const zh = names[i] ?? p.zh;
           const showPlace = d.placeLoading || d.places.length > 0 || (d.done && !d.hasLocation);
           return (
             <li key={i} className={`learn-row ${d.done ? 'is-done' : 'is-working'}`}>
@@ -149,9 +157,16 @@ export default function TasteGrowth({ items, onExit }: { items: GrowItem[]; onEx
               </div>
               <div className="learn-main">
                 <div className="learn-head">
-                  {d.named
-                    ? <DishName name={p.en} name_zh={p.zh} size="md" />
-                    : <span className="learn-name learn-skel">{t('grow.analysing')}</span>}
+                  {!d.named
+                    ? <span className="learn-name learn-skel">{t('grow.analysing')}</span>
+                    : editIdx === i
+                      ? <input className="learn-edit field" value={editVal} autoFocus
+                          onChange={e => setEditVal(e.target.value)} onBlur={commitEdit}
+                          onKeyDown={e => { if (e.key === 'Enter') commitEdit(); if (e.key === 'Escape') setEditIdx(null); }} />
+                      : <button className="learn-namebtn" onClick={() => startEdit(i, zh)} aria-label={t('grow.rename')}>
+                          <DishName name={p.en} name_zh={zh} size="md" />
+                          <span className="learn-editicon" aria-hidden>✎</span>
+                        </button>}
                   <span className="learn-word">{t(wordKeyFor(it.score))}</span>
                 </div>
 
@@ -160,13 +175,13 @@ export default function TasteGrowth({ items, onExit }: { items: GrowItem[]; onEx
                 )}
 
                 {showPlace && (
-                  <div className="learn-place">
+                  <div className="chips learn-place">
                     {d.placeLoading && d.places.length === 0 && <span className="learn-finding">{t('grow.finding')}</span>}
                     {d.places.map(pl => (
-                      <button key={pl} className={`learn-chip ${d.choice === pl ? 'on' : ''}`} onClick={() => choose(i, pl)}>{pl}</button>
+                      <button key={pl} className={`chip ${d.choice === pl ? 'on' : ''}`} onClick={() => choose(i, pl)}>{pl}</button>
                     ))}
                     {(d.places.length > 0 || (d.done && !d.hasLocation)) && (
-                      <button className={`learn-chip ${d.choice === t('place.home') ? 'on' : ''}`} onClick={() => choose(i, t('place.home'))}>{t('place.home')}</button>
+                      <button className={`chip chip-util ${d.choice === t('place.home') ? 'on' : ''}`} onClick={() => choose(i, t('place.home'))}>{t('place.home')}</button>
                     )}
                   </div>
                 )}
