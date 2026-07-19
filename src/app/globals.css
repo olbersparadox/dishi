@@ -420,11 +420,13 @@ button { font: inherit; cursor: pointer; }
 }
 .learn-editicon { font-size: 12px; color: var(--ink-soft); flex: 0 0 auto; }
 /* two-field name editor — same mechanic as the Eat Journal (edit one clears + retranslates the other) */
-.learn-nameedit { display: flex; flex-direction: column; width: 100%; max-width: 300px; }
-.learn-editlabel { font-size: 11px; margin: 4px 0 2px; }
-.learn-editlabel:first-child { margin-top: 0; }
-.learn-translatenote { margin-top: 5px; }
-.learn-editactions { display: flex; gap: 8px; margin-top: 8px; }
+.learn-nameedit { display: flex; flex-direction: column; width: 100%; max-width: 320px; }
+.learn-editlabel { font-size: 11px; margin: 6px 0 2px; }
+.learn-editactions { display: flex; gap: 8px; margin-top: 10px; }
+/* name-edit label row: the "auto-translate" note sits BESIDE the 中文 label (shared
+   with the Eat Journal so both edit surfaces read identically) */
+.name-edit-labelrow { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 3px; }
+.name-edit-note { flex: 0 1 auto; text-align: right; line-height: 1.3; }
 
 .learn-list { list-style: none; display: flex; flex-direction: column; gap: 10px; margin: 14px 0 0; padding: 0; }
 .learn-row {

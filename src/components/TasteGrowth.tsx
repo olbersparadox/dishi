@@ -167,7 +167,10 @@ export default function TasteGrowth({ items, onExit }: { items: GrowItem[]; onEx
                     ? <span className="learn-name learn-skel">{t('grow.analysing')}</span>
                     : editIdx === i
                       ? <div className="learn-nameedit">
-                          <label className="label learn-editlabel">{t('home.name.zh')}</label>
+                          <div className="name-edit-labelrow">
+                            <label className="label learn-editlabel">{t('home.name.zh')}</label>
+                            <span className="card-meta name-edit-note">{t('home.translateOnSave')}</span>
+                          </div>
                           <input className="field" value={dZh} autoFocus
                             placeholder={edEn && !edZh ? t('log.willTranslate') : undefined}
                             onChange={e => { setDZh(e.target.value); setEdZh(true); if (!edEn) setDEn(''); }} />
@@ -175,7 +178,6 @@ export default function TasteGrowth({ items, onExit }: { items: GrowItem[]; onEx
                           <input className="field" value={dEn}
                             placeholder={edZh && !edEn ? t('log.willTranslate') : undefined}
                             onChange={e => { setDEn(e.target.value); setEdEn(true); if (!edZh) setDZh(''); }} />
-                          <p className="card-meta learn-translatenote">{t('home.translateOnSave')}</p>
                           <div className="learn-editactions">
                             <button className="btn ghost small" onClick={cancelEdit}>{t('home.cancel')}</button>
                             <button className="btn primary small" onClick={commitEdit}>{t('home.save')}</button>
