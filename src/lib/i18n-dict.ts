@@ -377,6 +377,8 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'profile.owner': { zh: '開餐廳？', en: 'Own a restaurant?' },
   'persona.pick': { zh: '揀 dishi 講嘢嘅語氣', en: "Pick your palate's voice" },
   'rate.stack.title': { zh: '{n} 張相 · 準備評分', en: '{n} photos · ready to rate' },
+  'rate.stack.progress': { zh: '第 {i} / {n} 味', en: '{i} of {n}' },
+  'rate.stack.doneproto': { zh: '評咗 {n} 味 · 之後會有升級動畫', en: 'Rated {n} · level-up celebration comes next' },
   'export.button': { zh: '將我嘅口味引擎接入 AI', en: 'Connect my taste engine to AI' },
   'export.locked': { zh: '再評多 {n} 味就生成到', en: '{n} more ratings to unlock' },
   'export.version': { zh: 'v{v} \u2014 同上次比較冇乜變。', en: 'v{v} \u2014 little has changed since last time.' },

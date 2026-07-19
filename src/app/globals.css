@@ -234,6 +234,23 @@ button { font: inherit; cursor: pointer; }
   .flick-photo { transition: none; }
 }
 
+/* Magnetic-snap rating card (album stack) — FIRST-PASS visuals, owner to refine.
+   The photo settles between 6 detents with a springy overshoot; a rail of dots
+   shows which slot you're in. scale(1.45) on the photo keeps the frame covered as
+   it nudges. Spring: back-ease so the settle "clunks" into place. */
+.snap-stage { overflow: hidden; }
+.snap-photo { transition: transform 160ms cubic-bezier(0.34, 1.5, 0.5, 1); will-change: transform; }
+.snap-rail {
+  position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+  display: flex; flex-direction: column; gap: 9px; z-index: 2;
+}
+.snap-tick {
+  width: 6px; height: 6px; border-radius: 50%; background: #ffffff88;
+  box-shadow: 0 1px 3px #0000004d; transition: background 120ms ease, transform 120ms ease;
+}
+.snap-tick.on { background: #fff; transform: scale(1.7); }
+@media (prefers-reduced-motion: reduce) { .snap-photo { transition: none; } }
+
 .bars { display: grid; gap: 8px; }
 .bar-row { display: grid; grid-template-columns: 76px 1fr; align-items: center; gap: 10px; font-size: 13px; }
 .bar-track { position: relative; height: 8px; background: #fff; border: 1px solid var(--line); border-radius: 99px; }

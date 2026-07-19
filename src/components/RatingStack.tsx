@@ -1,26 +1,29 @@
 'use client';
-// The album-batch rating flow (rating-flow revamp). You multi-select a roll of
-// food photos; they arrive here as a flick STACK to rate one after another, while
-// the dish name / place / date / taste fill in silently in the background. Nothing
-// is committed until the end-of-stack consent step (the trust rule).
+// The album-batch rating flow (rating-flow revamp). You multi-select a roll of food
+// photos; they arrive here as a flick STACK — one magnetic-snap card at a time.
 //
-// Slice 1 (this): receive the handed-off photos and stand up the screen. The flick
-// stack, per-card background prep, and the consent + level-up summary come next.
+// THIS PASS: the feel prototype — real photos, the SnapRating card, advance on each
+// rating. Nothing is created or committed yet (the trust rule): background prep
+// (create · seal · EXIF · enrich) and the end-of-stack CONSENT + level-up summary
+// are the next slice. Ratings are just held locally so we can feel the rhythm.
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { takePendingPhotos } from '@/lib/pendingPhoto';
 import { useLang } from '@/lib/i18n';
 import { CloseIcon } from '@/components/icons';
+import SnapRating from '@/components/SnapRating';
 
 export default function RatingStack() {
   const router = useRouter();
   const { t } = useLang();
   const [photos, setPhotos] = useState<File[] | null>(null);
   const [previews, setPreviews] = useState<string[]>([]);
+  const [idx, setIdx] = useState(0);
+  const [ratings, setRatings] = useState<number[]>([]); // held locally — NOT committed yet
 
   useEffect(() => {
-    // The photos are a one-shot hand-off from the Taste-AI entry. A direct hit or a
-    // refresh has nothing to consume, so bounce back rather than show an empty stack.
+    // One-shot hand-off from the Taste-AI entry; a direct hit / refresh has nothing
+    // to consume, so bounce back rather than show an empty stack.
     const fs = takePendingPhotos();
     if (!fs.length) { router.replace('/profile'); return; }
     setPhotos(fs);
@@ -32,21 +35,29 @@ export default function RatingStack() {
 
   if (!photos) return null;
 
+  // End of stack — placeholder for the consent + level-up summary (next slice).
+  if (idx >= previews.length) {
+    return (
+      <div style={{ textAlign: 'center', paddingTop: 40 }}>
+        <p className="label" style={{ justifyContent: 'center' }}>{t('rate.stack.doneproto', { n: ratings.length })}</p>
+        <button className="btn primary" style={{ marginTop: 16 }} onClick={() => router.push('/profile')}>{t('log.done')}</button>
+      </div>
+    );
+  }
+
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-        <label className="label" style={{ margin: 0 }}>{t('rate.stack.title', { n: photos.length })}</label>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+        <label className="label" style={{ margin: 0 }}>{t('rate.stack.progress', { i: idx + 1, n: previews.length })}</label>
         <button className="icon-btn" onClick={() => router.push('/profile')} aria-label={t('log.cancelflow')} title={t('log.cancelflow')}>
           <CloseIcon size={20} />
         </button>
       </div>
-      {/* Slice-1 scaffold: the picked roll. Becomes the flick stack in Slice 2. */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
-        {previews.map((p, i) => (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img key={i} src={p} alt="" style={{ width: '100%', aspectRatio: '1 / 1', objectFit: 'cover', borderRadius: 12, display: 'block' }} />
-        ))}
-      </div>
+      <SnapRating
+        key={idx}
+        photoUrl={previews[idx]}
+        onRate={(score) => { setRatings(r => [...r, score]); setIdx(i => i + 1); }}
+      />
     </div>
   );
 }
