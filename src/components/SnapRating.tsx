@@ -60,6 +60,21 @@ function filterFor(slot: number | null): string {
   return `saturate(${(1 + v * 0.5).toFixed(3)}) brightness(${(1 + v * 0.08).toFixed(3)})`;
 }
 
+// Continuous MOOD tint for the glass backdrop — flows warm (loved) at the top,
+// through neutral, to cool (never) at the bottom, following the card's vertical
+// position so it changes smoothly as the card slides (not just on a click). Kept
+// at the same light scrim alpha as the neutral glass.
+const MOOD_NEUTRAL = [22, 18, 14];
+const MOOD_WARM = [150, 70, 34];
+const MOOD_COOL = [34, 58, 92];
+function moodBg(y: number): string {
+  const t = clamp(y / MAXY, -1, 1); // −1 (worst) … +1 (best)
+  const to = t >= 0 ? MOOD_WARM : MOOD_COOL;
+  const k = Math.abs(t);
+  const mix = (i: number) => Math.round(MOOD_NEUTRAL[i] + (to[i] - MOOD_NEUTRAL[i]) * k);
+  return `rgba(${mix(0)}, ${mix(1)}, ${mix(2)}, 0.30)`;
+}
+
 export default function SnapRating({
   photoUrl, dishName, dishNameZh, onRate, onSkip, progress, onClose,
 }: {
@@ -188,6 +203,7 @@ export default function SnapRating({
   return (
     <div
       className="snap-overlay"
+      style={{ background: moodBg(exitDir !== null ? cur.current.y : render.y) }}
       onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}
       role="slider" aria-label={t('flick.aria')} aria-valuemin={-1} aria-valuemax={1}
       aria-valuenow={locked !== null ? SLOTS[locked].value : 0}
