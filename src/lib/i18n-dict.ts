@@ -129,7 +129,7 @@ export const dict: Record<string, { zh: string; en: string }> = {
   // ---- shell ----
   'nav.feed': { zh: '食記', en: 'Journal' },
   'nav.scan': { zh: '掃餐牌', en: 'Scan' },
-  'nav.taste': { zh: '味 AI', en: 'Taste' },
+  'nav.taste': { zh: '味 AI', en: 'Taste AI' },
 
   // ---- auth ----
   'auth.title': { zh: '電郵登入', en: 'Sign in to start' },
