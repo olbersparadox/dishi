@@ -46,12 +46,16 @@ type Flyer = { id: number; word: string; x: number; y: number };
 export default function TasteGrowth({ items, onExit }: { items: GrowItem[]; onExit: () => void }) {
   const { t } = useLang();
   const [dishes, setDishes] = useState<Dish[]>(() => items.map(emptyDish));
-  const [names, setNames] = useState<(string | undefined)[]>(() => items.map(() => undefined)); // name overrides (edits)
+  const [names, setNames] = useState<({ zh: string; en: string } | undefined)[]>(() => items.map(() => undefined)); // name overrides
   const [fill, setFill] = useState(BASE);
   const [absorbed, setAbsorbed] = useState(0);
   const [flyers, setFlyers] = useState<Flyer[]>([]);
+  // Name editing mirrors the Eat Journal exactly: two fields (zh primary / en
+  // secondary); editing one CLEARS the other (which shows a "will translate"
+  // placeholder and is re-translated on save).
   const [editIdx, setEditIdx] = useState<number | null>(null);
-  const [editVal, setEditVal] = useState('');
+  const [dZh, setDZh] = useState(''); const [dEn, setDEn] = useState('');
+  const [edZh, setEdZh] = useState(false); const [edEn, setEdEn] = useState(false);
   const flyId = useRef(0);
 
   // A quality (or a refinement) flies into the blob → blob absorbs + grows, bar bumps.
@@ -105,11 +109,21 @@ export default function TasteGrowth({ items, onExit }: { items: GrowItem[]; onEx
 
   // refinement = reward: picking a place or fixing a name teaches more.
   const choose = (i: number, place: string) => { setDishes(prev => prev.map((d, j) => (j === i ? { ...d, choice: place } : d))); absorb('✓', 2.5); };
-  const startEdit = (i: number, cur: string) => { setEditIdx(i); setEditVal(cur); };
+  const startEdit = (i: number) => {
+    const p = POOL[i % POOL.length], cur = names[i];
+    setEditIdx(i); setDZh(cur?.zh ?? p.zh); setDEn(cur?.en ?? p.en); setEdZh(false); setEdEn(false);
+  };
+  const cancelEdit = () => setEditIdx(null);
   const commitEdit = () => {
     if (editIdx === null) return;
-    const i = editIdx, v = editVal.trim();
-    if (v) { setNames(prev => prev.map((n, j) => (j === i ? v : n))); absorb(v, 2.5); }
+    const i = editIdx, p = POOL[i % POOL.length];
+    if (edZh || edEn) {
+      const zh = dZh.trim(), en = dEn.trim();
+      // Real app re-translates the cleared field on save; the demo falls back to the
+      // pool value as a stand-in so both slots always display.
+      setNames(prev => prev.map((n, j) => (j === i ? { zh: zh || p.zh, en: en || p.en } : n)));
+      absorb(zh || en || '✓', 2.5);
+    }
     setEditIdx(null);
   };
 
@@ -138,7 +152,6 @@ export default function TasteGrowth({ items, onExit }: { items: GrowItem[]; onEx
         {items.map((it, i) => {
           const d = dishes[i];
           const p = POOL[i % POOL.length];
-          const zh = names[i] ?? p.zh;
           const showPlace = d.placeLoading || d.places.length > 0 || (d.done && !d.hasLocation);
           return (
             <li key={i} className={`learn-row ${d.done ? 'is-done' : 'is-working'}`}>
@@ -153,14 +166,26 @@ export default function TasteGrowth({ items, onExit }: { items: GrowItem[]; onEx
                   {!d.named
                     ? <span className="learn-name learn-skel">{t('grow.analysing')}</span>
                     : editIdx === i
-                      ? <input className="learn-edit field" value={editVal} autoFocus
-                          onChange={e => setEditVal(e.target.value)} onBlur={commitEdit}
-                          onKeyDown={e => { if (e.key === 'Enter') commitEdit(); if (e.key === 'Escape') setEditIdx(null); }} />
-                      : <button className="learn-namebtn" onClick={() => startEdit(i, zh)} aria-label={t('grow.rename')}>
-                          <DishName name={p.en} name_zh={zh} size="md" />
+                      ? <div className="learn-nameedit">
+                          <label className="label learn-editlabel">{t('home.name.zh')}</label>
+                          <input className="field" value={dZh} autoFocus
+                            placeholder={edEn && !edZh ? t('log.willTranslate') : undefined}
+                            onChange={e => { setDZh(e.target.value); setEdZh(true); if (!edEn) setDEn(''); }} />
+                          <label className="label learn-editlabel">{t('home.name.en')}</label>
+                          <input className="field" value={dEn}
+                            placeholder={edZh && !edEn ? t('log.willTranslate') : undefined}
+                            onChange={e => { setDEn(e.target.value); setEdEn(true); if (!edZh) setDZh(''); }} />
+                          <p className="card-meta learn-translatenote">{t('home.translateOnSave')}</p>
+                          <div className="learn-editactions">
+                            <button className="btn ghost small" onClick={cancelEdit}>{t('home.cancel')}</button>
+                            <button className="btn primary small" onClick={commitEdit}>{t('home.save')}</button>
+                          </div>
+                        </div>
+                      : <button className="learn-namebtn" onClick={() => startEdit(i)} aria-label={t('grow.rename')}>
+                          <DishName name={names[i]?.en ?? p.en} name_zh={names[i]?.zh ?? p.zh} size="md" />
                           <span className="learn-editicon" aria-hidden>✎</span>
                         </button>}
-                  <span className="learn-word">{t(wordKeyFor(it.score))}</span>
+                  {editIdx !== i && <span className="learn-word">{t(wordKeyFor(it.score))}</span>}
                 </div>
 
                 {(d.ing.length > 0 || d.diet.length > 0) && (
