@@ -1,5 +1,7 @@
 'use client';
 
+import { toDisplayable } from './heic';
+
 /**
  * Downscale + normalize any user photo to a JPEG before upload.
  *
@@ -8,7 +10,8 @@
  *     (Vercel: ~4.5MB) and vision tokens cost by size. 1600px is plenty for both
  *     dish recognition and menu text.
  *  2. Format — iPhones often hand the browser HEIC, which the vision API rejects.
- *     Canvas re-encoding always outputs JPEG regardless of input format.
+ *     Chrome/Firefox can't even decode HEIC to a canvas (only Safari can), so we
+ *     first convert HEIC→JPEG (toDisplayable), THEN canvas-normalize.
  *  3. Missing/odd MIME types — some mobile browsers report an empty type on camera
  *     capture; the output here is always a well-formed image/jpeg File.
  *
@@ -16,6 +19,8 @@
  * the server-side type guard is the next line of defense).
  */
 export async function normalizePhoto(file: File, maxDim = 1600, quality = 0.85): Promise<File> {
+  // HEIC first: createImageBitmap below can't decode it in Chrome/Firefox.
+  file = await toDisplayable(file);
   try {
     const bitmap = await createImageBitmap(file);
     const scale = Math.min(1, maxDim / Math.max(bitmap.width, bitmap.height));
