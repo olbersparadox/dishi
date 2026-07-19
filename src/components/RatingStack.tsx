@@ -54,6 +54,7 @@ export default function RatingStack() {
       progress={t('rate.stack.progress', { i: idx + 1, n: previews.length })}
       onClose={() => router.push('/profile')}
       onRate={(score) => { setRatings(r => [...r, score]); setIdx(i => i + 1); }}
+      onSkip={() => setIdx(i => i + 1)}
     />
   );
 }

@@ -276,17 +276,24 @@ button { font: inherit; cursor: pointer; }
   box-shadow: 0 1px 4px #00000066; transition: background 110ms ease, transform 110ms ease;
 }
 .snap-tick.on { background: #fff; transform: scale(1.9); }
-/* rating name — bottom-centre of the SCREEN, not on the card */
+/* status word — bottom-centre of the SCREEN, not on the card */
 .snap-word {
   position: absolute; left: 50%; bottom: 52px; transform: translateX(-50%);
   z-index: 4; pointer-events: none; text-align: center; white-space: nowrap;
   font-family: var(--font-display); font-weight: 800; font-size: 30px; color: #fff;
   text-shadow: 0 2px 16px #000a; letter-spacing: -0.01em;
 }
-.snap-progress {
-  position: absolute; top: 18px; left: 18px; z-index: 4;
-  color: #ffffffcc; font-size: 13px; font-weight: 650; letter-spacing: 0.02em;
+.snap-word.is-skip { color: #9aa7ad; font-weight: 700; } /* dismiss reads neutral, not a verdict */
+/* title + subtitle, top-centre */
+.snap-head {
+  position: absolute; top: 22px; left: 0; right: 0; z-index: 4; text-align: center;
+  pointer-events: none;
 }
+.snap-title {
+  font-family: var(--font-display); font-weight: 800; font-size: 19px; color: #fff;
+  text-shadow: 0 1px 10px #0009; letter-spacing: -0.01em;
+}
+.snap-sub { margin-top: 3px; color: #ffffffb0; font-size: 13px; font-weight: 600; letter-spacing: 0.02em; }
 .snap-close {
   position: absolute; top: 12px; right: 12px; z-index: 4;
   display: grid; place-items: center; width: 40px; height: 40px;

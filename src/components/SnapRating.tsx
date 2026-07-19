@@ -2,12 +2,13 @@
 // Magnetic-snap rating — the signature interaction of the album stack.
 //
 // FEEL model (v4, from owner testing):
-//  - FULL-SCREEN overlay; the portrait photo is a card you hold.
+//  - FULL-SCREEN glass overlay; the portrait photo is a card you hold.
 //  - VERTICAL is the rating: a magnetic detent with hysteresis pulls the card
 //    into the nearest of 6 slots and CLICKS to the next only past BREAK. Once
 //    locked it sits dead-still at the slot centre (no give → no jitter).
-//  - HORIZONTAL is free physical play (doesn't affect the rating); it springs
-//    home when you let go without rating.
+//  - HORIZONTAL past SKIP_ARM is a Tinder-style DISMISS: fling the card toward the
+//    edge and the bottom label turns to "Skip"; release there and the dish is
+//    skipped (no rating). Small sideways drift is just free play.
 //  - Motion is a JS SPRING, not a CSS transition. Pushing new transform values
 //    into a CSS transition every frame restarts the ease each frame — that was
 //    the shake/blur on approach. The spring eases toward a target we control and
@@ -42,8 +43,9 @@ const SLOTS = SLOT_META.map((m, i) => ({ ...m, drag: (2.5 - i) * GAP })); // +20
 // tiny. CAPTURE < BREAK is the hysteresis (harder to leave than to enter).
 const CAPTURE = 34;
 const BREAK = 46;     // just above CAPTURE — a light tug pops it out of the slot
-const XFOLLOW = 0.7;  // horizontal play, damped (never affects the rating)
-const XCLAMP = 120;
+const XFOLLOW = 0.7;  // small horizontal drift, damped (free play, no effect)
+const SKIP_ARM = 92;  // horizontal past this = DISMISS intent (label turns to Skip)
+const XCLAMP = 200;   // let the card travel toward the edge when flinging to skip
 const MAXY = 2.5 * GAP + 50;
 const SPRING = 0.44;  // per-frame ease toward the target (higher = snappier)
 
@@ -58,23 +60,26 @@ function filterFor(slot: number | null): string {
 }
 
 export default function SnapRating({
-  photoUrl, dishName, dishNameZh, onRate, progress, onClose,
+  photoUrl, dishName, dishNameZh, onRate, onSkip, progress, onClose,
 }: {
   photoUrl: string | null;
   dishName?: string;
   dishNameZh?: string | null;
   onRate: (score: number) => void; // release-while-locked = rated; parent advances
-  progress?: string;               // e.g. "3 / 12" overlayed top-left
+  onSkip?: () => void;             // release past SKIP_ARM = dismissed; parent advances, no rating
+  progress?: string;               // subtitle under the title, e.g. "1 / 12 dishes"
   onClose?: () => void;
 }) {
   const { t, lang } = useLang();
   const [render, setRender] = useState({ x: 0, y: 0 });
   const [locked, setLocked] = useState<number | null>(null);
+  const [skip, setSkip] = useState(false);
   const [active, setActive] = useState(false);
 
   const startX = useRef(0);
   const startY = useRef(0);
   const lockRef = useRef<number | null>(null);
+  const skipRef = useRef(false);
   const activeRef = useRef(false);
   const target = useRef({ x: 0, y: 0 }); // where the card wants to be
   const cur = useRef({ x: 0, y: 0 });    // where it is (spring-integrated)
@@ -97,9 +102,31 @@ export default function SnapRating({
     anim.current = requestAnimationFrame(step);
   }
 
+  function setLock(next: number | null) {
+    if (next === lockRef.current) return;
+    if (next !== null) { try { navigator.vibrate?.(12); } catch { /* iOS no-op */ } }
+    lockRef.current = next;
+    setLocked(next);
+  }
+  function setSkipping(next: boolean) {
+    if (next === skipRef.current) return;
+    if (next) { try { navigator.vibrate?.(8); } catch { /* iOS no-op */ } }
+    skipRef.current = next;
+    setSkip(next);
+  }
+
   function retarget(clientX: number, clientY: number) {
     const rawY = clamp(startY.current - clientY, -MAXY, MAXY); // up positive
     const rawX = clamp(clientX - startX.current, -XCLAMP, XCLAMP);
+    const skipping = Math.abs(rawX) >= SKIP_ARM;
+    setSkipping(skipping);
+
+    if (skipping) {
+      // dismiss mode — no rating; the card slides toward the edge with your thumb.
+      setLock(null);
+      target.current = { x: rawX, y: rawY * 0.5 };
+      return;
+    }
 
     let lock = lockRef.current;
     if (lock !== null && Math.abs(rawY - SLOTS[lock].drag) > BREAK) lock = null; // popped out
@@ -108,12 +135,8 @@ export default function SnapRating({
       SLOTS.forEach((s, i) => { const d = Math.abs(s.drag - rawY); if (d < bestD) { bestD = d; best = i; } });
       if (bestD < CAPTURE) lock = best;
     }
-    if (lock !== lockRef.current) {                 // crossed a well boundary → click
-      if (lock !== null) { try { navigator.vibrate?.(12); } catch { /* iOS no-op */ } }
-      lockRef.current = lock;
-      setLocked(lock);
-    }
-    // vertical pins to the slot centre when locked; horizontal is always free play
+    setLock(lock);
+    // vertical pins to the slot centre when locked; horizontal is small free play
     target.current = { x: rawX * XFOLLOW, y: lock !== null ? SLOTS[lock].drag : rawY };
   }
 
@@ -133,19 +156,23 @@ export default function SnapRating({
     if (!activeRef.current) return;
     activeRef.current = false;
     setActive(false);
+    const skipping = skipRef.current;
     const lock = lockRef.current;
-    lockRef.current = null;
-    setLocked(null);
-    if (lock !== null) {
+    setLock(null);
+    setSkipping(false);
+    if (skipping && onSkip) { onSkip(); return; }        // dismissed → advance, no rating
+    if (!skipping && lock !== null) {
       try { navigator.vibrate?.(20); } catch { /* iOS no-op */ }
-      onRate(SLOTS[lock].value); // the lock WAS the confirmation → commit + advance
-    } else {
-      target.current = { x: 0, y: 0 }; // nothing chosen → spring home
-      runSpring();
+      onRate(SLOTS[lock].value);                          // the lock WAS the confirmation
+      return;
     }
+    target.current = { x: 0, y: 0 };                      // nothing chosen → spring home
+    runSpring();
   }
 
   const displayName = lang === 'zh' ? (dishNameZh || dishName) : (dishName || dishNameZh);
+  // fade the card as it's flung past the skip threshold, toward "gone".
+  const overEdge = Math.min(1, Math.max(0, (Math.abs(render.x) - SKIP_ARM) / (XCLAMP - SKIP_ARM)));
 
   return (
     <div
@@ -153,17 +180,21 @@ export default function SnapRating({
       onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}
       role="slider" aria-label={t('flick.aria')} aria-valuemin={-1} aria-valuemax={1}
       aria-valuenow={locked !== null ? SLOTS[locked].value : 0}
-      aria-valuetext={locked !== null ? t(SLOTS[locked].key) : t('flick.notyet')}
+      aria-valuetext={skip ? t('rate.skip') : locked !== null ? t(SLOTS[locked].key) : t('flick.notyet')}
       tabIndex={0}
     >
-      {progress && <div className="snap-progress">{progress}</div>}
+      <div className="snap-head">
+        <div className="snap-title">{t('rate.title')}</div>
+        {progress && <div className="snap-sub">{progress}</div>}
+      </div>
       {onClose && (
         <button className="snap-close" onClick={onClose} aria-label={t('log.cancelflow')} title={t('log.cancelflow')}>
           <CloseIcon size={22} />
         </button>
       )}
 
-      <div className="snap-card" style={{ transform: `translate3d(${render.x}px, ${-render.y}px, 0)` }}>
+      <div className="snap-card"
+        style={{ transform: `translate3d(${render.x}px, ${-render.y}px, 0)`, opacity: 1 - 0.5 * overEdge }}>
         {photoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={photoUrl} alt="Your dish" className="snap-photo" draggable={false}
@@ -174,12 +205,15 @@ export default function SnapRating({
       </div>
 
       <div className="snap-rail" aria-hidden>
-        {SLOTS.map((s, i) => <span key={i} className={`snap-tick ${locked === i ? 'on' : ''}`} />)}
+        {SLOTS.map((s, i) => <span key={i} className={`snap-tick ${!skip && locked === i ? 'on' : ''}`} />)}
       </div>
 
-      {/* rating name lives at the bottom-centre of the SCREEN, off the card */}
-      {locked !== null && <div className="snap-word">{t(SLOTS[locked].key)}</div>}
-      {locked === null && !active && <div className="flick-hint">{t('flick.hint')}</div>}
+      {/* status word — bottom-centre of the SCREEN, off the card */}
+      {skip
+        ? <div className="snap-word is-skip">{t('rate.skip')}</div>
+        : locked !== null
+          ? <div className="snap-word">{t(SLOTS[locked].key)}</div>
+          : null}
     </div>
   );
 }

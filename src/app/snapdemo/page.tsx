@@ -1,10 +1,10 @@
 'use client';
 // PUBLIC, no-login FEEL DEMO of the whole album rating ARC (rating-flow revamp):
-// pick photos → magnetic-snap flick each → end-of-stack CONSENT/review → the
-// "growing your Taste AI" level-up reward. Lets the owner feel + design-tune the
-// full flow on their phone WITHOUT the preview auth wall. Nothing is saved or sent
-// anywhere; growth numbers are mocked. Throwaway harness — the real flow is
-// RatingStack behind /rate. Removable once the feel is dialled in.
+// pick photos → magnetic-snap flick each (or fling sideways to skip) → end-of-stack
+// CONSENT/review → the "growing your Taste AI" level-up reward. Lets the owner feel +
+// design-tune the full flow on their phone WITHOUT the preview auth wall. Nothing is
+// saved or sent anywhere; growth numbers are mocked. Throwaway harness — the real
+// flow is RatingStack behind /rate. Removable once the feel is dialled in.
 import { useState } from 'react';
 import { useLang } from '@/lib/i18n';
 import SnapRating from '@/components/SnapRating';
@@ -17,28 +17,28 @@ export default function SnapDemo() {
   const { t } = useLang();
   const [previews, setPreviews] = useState<string[]>([]);
   const [idx, setIdx] = useState(0);
-  const [ratings, setRatings] = useState<number[]>([]); // one per photo — held, NOT committed
+  const [rated, setRated] = useState<ReviewItem[]>([]); // only RATED cards (skips omitted) — held, NOT committed
   const [phase, setPhase] = useState<Phase>('flick');
   const [taught, setTaught] = useState(0);
 
   function reset(urls: string[] = []) {
     previews.forEach(u => URL.revokeObjectURL(u));
-    setPreviews(urls); setIdx(0); setRatings([]); setPhase('flick'); setTaught(0);
+    setPreviews(urls); setIdx(0); setRated([]); setPhase('flick'); setTaught(0);
   }
   function pick(files: FileList | null) {
     const fs = Array.from(files ?? []);
     if (fs.length) reset(fs.map(f => URL.createObjectURL(f)));
   }
 
-  function onRate(score: number) {
-    const last = idx + 1 >= previews.length;
-    setRatings(r => [...r, score]);
-    if (last) setPhase('review'); else setIdx(i => i + 1);
+  // Rate pushes a card; skip drops it. Both advance; the last one opens review
+  // (unless everything was skipped, in which case there's nothing to review).
+  function advance(next: ReviewItem[]) {
+    setRated(next);
+    if (idx + 1 >= previews.length) { if (next.length) setPhase('review'); else reset(); }
+    else setIdx(i => i + 1);
   }
-  function onConfirm(kept: ReviewItem[]) {
-    setTaught(kept.length);
-    setPhase('grow');
-  }
+  const onRate = (score: number) => advance([...rated, { photoUrl: previews[idx], score }]);
+  const onSkip = () => advance(rated);
 
   const pickButton = (
     <label className="btn primary" style={{ display: 'inline-flex', cursor: 'pointer' }}>
@@ -47,8 +47,7 @@ export default function SnapDemo() {
     </label>
   );
 
-  // FLICK phase renders the full-screen overlay itself; the other phases sit in the
-  // normal page column.
+  // FLICK phase renders the full-screen overlay itself; other phases sit in the column.
   if (previews.length && phase === 'flick' && idx < previews.length) {
     return (
       <SnapRating
@@ -56,6 +55,7 @@ export default function SnapDemo() {
         photoUrl={previews[idx]}
         progress={t('rate.stack.progress', { i: idx + 1, n: previews.length })}
         onRate={onRate}
+        onSkip={onSkip}
       />
     );
   }
@@ -69,8 +69,8 @@ export default function SnapDemo() {
     <div style={{ maxWidth: 460, margin: '0 auto', padding: '28px 16px 96px' }}>
       {phase === 'review' ? (
         <RatingReview
-          items={previews.map((url, i) => ({ photoUrl: url, score: ratings[i] }))}
-          onConfirm={onConfirm}
+          items={rated}
+          onConfirm={(kept) => { setTaught(kept.length); setPhase('grow'); }}
           onDiscard={() => reset()}
         />
       ) : phase === 'grow' ? (
