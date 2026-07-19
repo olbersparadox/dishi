@@ -99,7 +99,6 @@ export default function TasteGrowth({ items, onExit }: { items: GrowItem[]; onEx
   }, []);
 
   const doneCount = dishes.filter(d => d.done).length;
-  const confirmed = dishes.filter(d => d.choice).length;
   const allDone = doneCount === items.length;
   const remain = Math.max(0, Math.round(100 - fill));
   const blobScale = 0.72 + Math.min(absorbed, 16) * 0.04;
@@ -129,16 +128,10 @@ export default function TasteGrowth({ items, onExit }: { items: GrowItem[]; onEx
           </div>
         </div>
         <h2 className="grow2-title">{allDone ? t('grow.done.title') : t('grow.work.title')}</h2>
-        <p className="grow2-sub">{allDone ? t('grow.refine.hint') : t('grow.work.sub', { done: doneCount, n: items.length })}</p>
+        <p className="grow2-sub">{t('grow.refine.ask')}</p>
 
         <div className="xp-bar" role="progressbar" aria-valuenow={Math.round(fill)}><div className="xp-fill" style={{ width: `${fill}%` }} /></div>
         <p className="grow2-unlock">{fill >= 100 ? t('rate.grow.unlocked') : t('rate.grow.remain', { p: remain })}</p>
-
-        <div className="stat-row grow2-stats">
-          <div className="stat"><div className="stat-num">{doneCount}</div><div className="stat-label">{t('grow.stat.dishes')}</div></div>
-          <div className="stat"><div className="stat-num">{absorbed}</div><div className="stat-label">{t('grow.stat.learned')}</div></div>
-          <div className="stat"><div className="stat-num">{confirmed}</div><div className="stat-label">{t('grow.stat.placed')}</div></div>
-        </div>
       </div>
 
       <ul className="learn-list">
