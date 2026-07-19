@@ -48,7 +48,6 @@ const GIVE_Y = 0.42;  // while locked the card still FOLLOWS the finger this muc
 const XFOLLOW = 0.7;  // small horizontal drift, damped (free play, no effect)
 const SKIP_ARM = 92;  // horizontal past this = DISMISS intent (label turns to Skip)
 const XCLAMP = 200;   // let the card travel toward the edge when flinging to skip
-const MAXY = 380;     // generous — the card keeps moving well past the top/bottom slot
 const SPRING = 0.5;   // per-frame ease toward the target (higher = snappier)
 const TOP_SLOT = 0;
 const BOT_SLOT = 5;   // SLOTS.length - 1
@@ -123,7 +122,7 @@ export default function SnapRating({
   }
 
   function retarget(clientX: number, clientY: number) {
-    const rawY = clamp(startY.current - clientY, -MAXY, MAXY); // up positive
+    const rawY = startY.current - clientY; // up positive — UNBOUNDED (drag it right off-screen)
     const rawX = clamp(clientX - startX.current, -XCLAMP, XCLAMP);
     const skipping = Math.abs(rawX) >= SKIP_ARM;
     setSkipping(skipping);
@@ -150,9 +149,14 @@ export default function SnapRating({
       }
     }
     setLock(lock);
-    // The card FOLLOWS the finger, eased toward the locked slot — a soft detent, so
-    // it never stops dead under your thumb (the old rigid pin felt stuck/sluggish).
-    const y = lock !== null ? SLOTS[lock].drag + (rawY - SLOTS[lock].drag) * GIVE_Y : rawY;
+    // Card position: PAST the top/bottom slot it follows the finger 1:1 (so you can
+    // fling it clean off-screen — no boundary). In the middle it eases toward the
+    // locked slot (a soft detent), never rigidly pinned (that felt stuck/sluggish).
+    const overTop = lock === TOP_SLOT && rawY > SLOTS[TOP_SLOT].drag;
+    const overBot = lock === BOT_SLOT && rawY < SLOTS[BOT_SLOT].drag;
+    const y = (overTop || overBot) ? rawY
+      : lock !== null ? SLOTS[lock].drag + (rawY - SLOTS[lock].drag) * GIVE_Y
+      : rawY;
     target.current = { x: rawX * XFOLLOW, y };
   }
 
