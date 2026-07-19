@@ -24,7 +24,7 @@ import { CloseIcon } from '@/components/icons';
 // Slots stack top(most positive) → bottom. `drag` = the vertical offset (px, up
 // positive) the card centres on. Evenly spaced around rest (0), which sits
 // between the two middle slots so a fresh card is "not rated yet".
-const GAP = 100;
+const GAP = 80;
 const SLOT_META: { key: string; value: number }[] = [
   { key: 'flick.inhaled',  value: 1 },
   { key: 'flick.loved',    value: 0.6 },
@@ -38,9 +38,9 @@ const SLOTS = SLOT_META.map((m, i) => ({ ...m, drag: (2.5 - i) * GAP })); // +15
 // Wide, strong wells that nearly touch: the card stays pinned to a slot through
 // almost the whole transit and CLICKS over to the next only past BREAK — so the
 // "in-between" free zone (where thumb tremor read as shake) is tiny.
-const CAPTURE = 42;   // enter a well within this of its centre
-const BREAK = 70;     // must exceed this from the locked centre to escape (>CAPTURE = hysteresis)
-const GIVE_Y = 0.2;   // rubber-band: while locked the card barely follows the thumb (lower = more pinned)
+const CAPTURE = 34;   // enter a well within this of its centre
+const BREAK = 58;     // must exceed this from the locked centre to escape (>CAPTURE = hysteresis)
+const GIVE_Y = 0.06;  // once locked the card sits ~dead-still at the slot (kills the on-snap shake)
 const XLOCK = 0.12;   // while locked, horizontal drift eases back toward centre
 const XFOLLOW = 0.7;  // while free, horizontal follows the thumb (damped)
 const XCLAMP = 130;
