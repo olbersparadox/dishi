@@ -908,7 +908,7 @@ button { font: inherit; cursor: pointer; }
 /* AI sparkle badge on the globe's top-right. Ink fill with a paper "cutout" outline
    (paint-order: stroke) so it stays legible sitting over the globe's lines. */
 .lang-globe-ai {
-  position: absolute; top: 1px; right: 1px;
+  position: absolute; top: -1px; right: -1px;
   fill: var(--ink); stroke: var(--glaze); stroke-width: 2.5px; paint-order: stroke;
 }
 .lang-scrim { position: fixed; inset: 0; z-index: 55; }
