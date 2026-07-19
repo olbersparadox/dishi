@@ -1,29 +1,31 @@
 'use client';
 // Magnetic-snap rating — the signature interaction of the album stack.
 //
-// FEEL model (v3, from owner testing):
-//  - FULL-SCREEN overlay. The photo is a card you hold in your hand.
-//  - You drag it freely in 2D (x AND y). The rating is the vertical slot; the
-//    horizontal drift is just physical play that eases back as it locks.
-//  - MAGNETIC DETENT with hysteresis: as the card nears a slot it's pulled the
-//    last few px and LOCKS (a crisp click). Leaving costs more than entering —
-//    you must drag past a stronger BREAK threshold to pop out of the well. That
-//    asymmetry is the "magnet" feel and the confirmation that you picked a level.
-//  - RATE ON RELEASE: because the lock itself confirms the choice, letting go
-//    while locked commits the rating (a Next button was pure friction). Release
-//    while NOT locked (mid-transit) rates nothing and springs back.
-//  - 6 discrete slots, not a fuzzy continuum: people can't feel +0.6 vs +0.5;
-//    the anchors are what teach the engine.
+// FEEL model (v4, from owner testing):
+//  - FULL-SCREEN overlay; the portrait photo is a card you hold.
+//  - VERTICAL is the rating: a magnetic detent with hysteresis pulls the card
+//    into the nearest of 6 slots and CLICKS to the next only past BREAK. Once
+//    locked it sits dead-still at the slot centre (no give → no jitter).
+//  - HORIZONTAL is free physical play (doesn't affect the rating); it springs
+//    home when you let go without rating.
+//  - Motion is a JS SPRING, not a CSS transition. Pushing new transform values
+//    into a CSS transition every frame restarts the ease each frame — that was
+//    the shake/blur on approach. The spring eases toward a target we control and
+//    settles to an exact pixel, so the snap is smooth and the rest is crisp.
+//  - RATE ON RELEASE: the lock is the confirmation, so letting go while locked
+//    commits + advances (no Next button). Release mid-transit rates nothing.
+//  - As you cross into a slot the photo's saturation/brightness shifts (warmer &
+//    richer up top, cooler & dimmer at the bottom) — discrete, so it's cheap.
 //
-// Haptic: navigator.vibrate is a no-op on iOS Safari, so the lock "click" is
-// carried visually (dot pop + card glide); vibrate still fires on Android.
-import { useRef, useState } from 'react';
+// Haptic: navigator.vibrate is a no-op on iOS Safari; the lock "click" is carried
+// by the snap + the colour shift. vibrate still fires on Android.
+import { useEffect, useRef, useState } from 'react';
 import { useLang } from '@/lib/i18n';
 import { CloseIcon } from '@/components/icons';
 
 // Slots stack top(most positive) → bottom. `drag` = the vertical offset (px, up
-// positive) the card centres on. Evenly spaced around rest (0), which sits
-// between the two middle slots so a fresh card is "not rated yet".
+// positive) the card centres on. Rest (0) sits between the two middle slots so a
+// fresh card is "not rated yet".
 const GAP = 80;
 const SLOT_META: { key: string; value: number }[] = [
   { key: 'flick.inhaled',  value: 1 },
@@ -33,18 +35,27 @@ const SLOT_META: { key: string; value: number }[] = [
   { key: 'flick.notforme', value: -0.5 },
   { key: 'flick.never',    value: -0.9 },
 ];
-const SLOTS = SLOT_META.map((m, i) => ({ ...m, drag: (2.5 - i) * GAP })); // +155 … −155
+const SLOTS = SLOT_META.map((m, i) => ({ ...m, drag: (2.5 - i) * GAP })); // +200 … −200
 
-// Wide, strong wells that nearly touch: the card stays pinned to a slot through
-// almost the whole transit and CLICKS over to the next only past BREAK — so the
-// "in-between" free zone (where thumb tremor read as shake) is tiny.
-const CAPTURE = 34;   // enter a well within this of its centre
-const BREAK = 58;     // must exceed this from the locked centre to escape (>CAPTURE = hysteresis)
-const GIVE_Y = 0.06;  // once locked the card sits ~dead-still at the slot (kills the on-snap shake)
-const XLOCK = 0.12;   // while locked, horizontal drift eases back toward centre
-const XFOLLOW = 0.7;  // while free, horizontal follows the thumb (damped)
-const XCLAMP = 130;
+// Wide, strong wells that nearly touch: the card stays pinned through almost the
+// whole transit and clicks over only past BREAK, so the tremor-prone free zone is
+// tiny. CAPTURE < BREAK is the hysteresis (harder to leave than to enter).
+const CAPTURE = 34;
+const BREAK = 58;
+const XFOLLOW = 0.7;  // horizontal play, damped (never affects the rating)
+const XCLAMP = 120;
 const MAXY = 2.5 * GAP + 50;
+const SPRING = 0.34;  // per-frame ease toward the target (higher = snappier)
+
+const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+
+// Discrete colour feedback for the locked slot — a static filter that only
+// changes on a click, so it costs nothing per frame.
+function filterFor(slot: number | null): string {
+  if (slot === null) return 'none';
+  const v = SLOTS[slot].value; // −0.9 … 1
+  return `saturate(${(1 + v * 0.32).toFixed(3)}) brightness(${(1 + v * 0.05).toFixed(3)})`;
+}
 
 export default function SnapRating({
   photoUrl, dishName, dishNameZh, onRate, progress, onClose,
@@ -57,69 +68,83 @@ export default function SnapRating({
   onClose?: () => void;
 }) {
   const { t, lang } = useLang();
-  const [render, setRender] = useState({ x: 0, y: 0 }); // rendered card offset
+  const [render, setRender] = useState({ x: 0, y: 0 });
   const [locked, setLocked] = useState<number | null>(null);
   const [active, setActive] = useState(false);
+
   const startX = useRef(0);
   const startY = useRef(0);
-  const lockRef = useRef<number | null>(null); // authoritative during a drag (no state lag)
-  const raf = useRef(0);
-  const pend = useRef({ x: 0, y: 0 });
+  const lockRef = useRef<number | null>(null);
+  const activeRef = useRef(false);
+  const target = useRef({ x: 0, y: 0 }); // where the card wants to be
+  const cur = useRef({ x: 0, y: 0 });    // where it is (spring-integrated)
+  const anim = useRef(0);
+
+  useEffect(() => () => { if (anim.current) cancelAnimationFrame(anim.current); }, []);
+
+  function runSpring() {
+    if (anim.current) return;
+    const step = () => {
+      const t = target.current, c = cur.current;
+      c.x += (t.x - c.x) * SPRING;
+      c.y += (t.y - c.y) * SPRING;
+      const settled = Math.abs(t.x - c.x) < 0.4 && Math.abs(t.y - c.y) < 0.4;
+      if (settled) { c.x = t.x; c.y = t.y; }        // land exactly → crisp, no shimmer
+      setRender({ x: c.x, y: c.y });
+      if (settled && !activeRef.current) { anim.current = 0; return; } // done resting
+      anim.current = requestAnimationFrame(step);
+    };
+    anim.current = requestAnimationFrame(step);
+  }
+
+  function retarget(clientX: number, clientY: number) {
+    const rawY = clamp(startY.current - clientY, -MAXY, MAXY); // up positive
+    const rawX = clamp(clientX - startX.current, -XCLAMP, XCLAMP);
+
+    let lock = lockRef.current;
+    if (lock !== null && Math.abs(rawY - SLOTS[lock].drag) > BREAK) lock = null; // popped out
+    if (lock === null) {
+      let best = 0, bestD = Infinity;
+      SLOTS.forEach((s, i) => { const d = Math.abs(s.drag - rawY); if (d < bestD) { bestD = d; best = i; } });
+      if (bestD < CAPTURE) lock = best;
+    }
+    if (lock !== lockRef.current) {                 // crossed a well boundary → click
+      if (lock !== null) { try { navigator.vibrate?.(12); } catch { /* iOS no-op */ } }
+      lockRef.current = lock;
+      setLocked(lock);
+    }
+    // vertical pins to the slot centre when locked; horizontal is always free play
+    target.current = { x: rawX * XFOLLOW, y: lock !== null ? SLOTS[lock].drag : rawY };
+  }
 
   function down(e: React.PointerEvent) {
     (e.currentTarget as Element).setPointerCapture(e.pointerId);
     startX.current = e.clientX;
     startY.current = e.clientY;
+    activeRef.current = true;
     setActive(true);
+    runSpring();
   }
-
   function move(e: React.PointerEvent) {
-    if (!active) return;
-    const rawY = Math.max(-MAXY, Math.min(MAXY, startY.current - e.clientY)); // up positive
-    const rawX = Math.max(-XCLAMP, Math.min(XCLAMP, e.clientX - startX.current));
-
-    let lock = lockRef.current;
-    if (lock !== null && Math.abs(rawY - SLOTS[lock].drag) > BREAK) lock = null; // popped out
-    if (lock === null) {
-      // nearest well; capture only if within its mouth
-      let best = 0, bestD = Infinity;
-      SLOTS.forEach((s, i) => { const d = Math.abs(s.drag - rawY); if (d < bestD) { bestD = d; best = i; } });
-      if (bestD < CAPTURE) lock = best;
-    }
-
-    let y: number, x: number;
-    if (lock !== null) {
-      y = SLOTS[lock].drag + (rawY - SLOTS[lock].drag) * GIVE_Y; // stuck in the well
-      x = rawX * XLOCK;                                          // pulled back to centre
-    } else {
-      y = rawY;
-      x = rawX * XFOLLOW;
-    }
-
-    if (lock !== lockRef.current) {              // just crossed a well boundary → click
-      if (lock !== null) { try { navigator.vibrate?.(12); } catch { /* iOS no-op */ } }
-      lockRef.current = lock;
-      setLocked(lock);
-    }
-    pend.current = { x, y };
-    if (!raf.current) raf.current = requestAnimationFrame(() => { raf.current = 0; setRender(pend.current); });
+    if (!activeRef.current) return;
+    retarget(e.clientX, e.clientY);
   }
-
   function up() {
-    if (!active) return;
+    if (!activeRef.current) return;
+    activeRef.current = false;
     setActive(false);
-    if (raf.current) { cancelAnimationFrame(raf.current); raf.current = 0; }
     const lock = lockRef.current;
     lockRef.current = null;
     setLocked(null);
-    setRender({ x: 0, y: 0 }); // spring home (parent unmounts us on a rating)
     if (lock !== null) {
       try { navigator.vibrate?.(20); } catch { /* iOS no-op */ }
       onRate(SLOTS[lock].value); // the lock WAS the confirmation → commit + advance
+    } else {
+      target.current = { x: 0, y: 0 }; // nothing chosen → spring home
+      runSpring();
     }
   }
 
-  const curSlot = locked;
   const displayName = lang === 'zh' ? (dishNameZh || dishName) : (dishName || dishNameZh);
 
   return (
@@ -127,8 +152,8 @@ export default function SnapRating({
       className="snap-overlay"
       onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}
       role="slider" aria-label={t('flick.aria')} aria-valuemin={-1} aria-valuemax={1}
-      aria-valuenow={curSlot !== null ? SLOTS[curSlot].value : 0}
-      aria-valuetext={curSlot !== null ? t(SLOTS[curSlot].key) : t('flick.notyet')}
+      aria-valuenow={locked !== null ? SLOTS[locked].value : 0}
+      aria-valuetext={locked !== null ? t(SLOTS[locked].key) : t('flick.notyet')}
       tabIndex={0}
     >
       {progress && <div className="snap-progress">{progress}</div>}
@@ -138,22 +163,23 @@ export default function SnapRating({
         </button>
       )}
 
-      <div className={`snap-card ${active ? 'dragging' : ''}`}
-        style={{ transform: `translate(${render.x}px, ${-render.y}px)` }}>
+      <div className="snap-card" style={{ transform: `translate3d(${render.x}px, ${-render.y}px, 0)` }}>
         {photoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={photoUrl} alt="Your dish" className="snap-photo" draggable={false} />
+          <img src={photoUrl} alt="Your dish" className="snap-photo" draggable={false}
+            style={{ filter: filterFor(locked) }} />
         ) : (
           <div className="snap-photo flick-nophoto"><span>{displayName ?? '🍽️'}</span></div>
         )}
-        {curSlot !== null && <div className="flick-word snap-word">{t(SLOTS[curSlot].key)}</div>}
       </div>
 
       <div className="snap-rail" aria-hidden>
-        {SLOTS.map((s, i) => <span key={i} className={`snap-tick ${curSlot === i ? 'on' : ''}`} />)}
+        {SLOTS.map((s, i) => <span key={i} className={`snap-tick ${locked === i ? 'on' : ''}`} />)}
       </div>
 
-      {curSlot === null && !active && <div className="flick-hint">{t('flick.hint')}</div>}
+      {/* rating name lives at the bottom-centre of the SCREEN, off the card */}
+      {locked !== null && <div className="snap-word">{t(SLOTS[locked].key)}</div>}
+      {locked === null && !active && <div className="flick-hint">{t('flick.hint')}</div>}
     </div>
   );
 }
