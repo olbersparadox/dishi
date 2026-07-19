@@ -189,8 +189,8 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'duel.learned': { zh: '學到：{dims}', en: 'Learned: {dims}' },
   'duel.ok': { zh: '好', en: 'OK' },
   // 語言對 globe picker (dish-name languages only — chrome stays zh/en)
-  'lang.title': { zh: '掃世界任何語言餐牌', en: 'Scan a menu in any language, worldwide' },
-  'lang.subtitle': { zh: '自動翻譯2種語言', en: 'Auto-translated into your 2 languages' },
+  'lang.title': { zh: '掃世界任何語言餐牌', en: 'Scan Any Menu' },
+  'lang.subtitle': { zh: '自動翻譯2種語言', en: 'Choose 2 languages to translate into' },
   'lang.primary': { zh: '主要', en: 'Primary' },
   'lang.secondary': { zh: '次要', en: 'Secondary' },
   'lang.swap': { zh: '對調', en: 'Swap' },
