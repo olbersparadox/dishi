@@ -57,7 +57,6 @@ export default function SnapDemo() {
       <SnapRating
         key={idx}
         photoUrl={previews[idx]}
-        progress={t('rate.stack.progress', { i: idx + 1, n: previews.length })}
         onRate={onRate}
         onSkip={onSkip}
       />

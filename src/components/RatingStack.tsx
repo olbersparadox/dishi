@@ -61,7 +61,6 @@ export default function RatingStack({ photos, onExit }: { photos: File[]; onExit
       <SnapRating
         key={idx}
         photoUrl={pv[idx]}
-        progress={t('rate.stack.progress', { i: idx + 1, n: pv.length })}
         onClose={onExit}
         onRate={onRate}
         onSkip={onSkip}

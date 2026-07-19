@@ -62,14 +62,13 @@ function filterFor(slot: number | null): string {
 }
 
 export default function SnapRating({
-  photoUrl, dishName, dishNameZh, onRate, onSkip, progress, onClose,
+  photoUrl, dishName, dishNameZh, onRate, onSkip, onClose,
 }: {
   photoUrl: string | null;
   dishName?: string;
   dishNameZh?: string | null;
   onRate: (score: number) => void; // release-while-locked = rated; parent advances
   onSkip?: () => void;             // release past SKIP_ARM = dismissed; parent advances, no rating
-  progress?: string;               // subtitle under the title, e.g. "1 / 12 dishes"
   onClose?: () => void;
 }) {
   const { t, lang } = useLang();
@@ -210,7 +209,6 @@ export default function SnapRating({
       aria-valuetext={skip ? t('rate.skip') : locked !== null ? t(SLOTS[locked].key) : t('flick.notyet')}
       tabIndex={0}
     >
-      {progress && <div className="snap-head"><div className="snap-sub">{progress}</div></div>}
       {onClose && (
         <button className="snap-close" onClick={onClose} aria-label={t('log.cancelflow')} title={t('log.cancelflow')}>
           <CloseIcon size={22} />
