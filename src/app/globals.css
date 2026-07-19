@@ -934,6 +934,7 @@ button { font: inherit; cursor: pointer; }
    centred so it straddles both rows (per the annotation). padding-right on the
    container reserves the lane so the circle never overlaps the selects. */
 .lang-rows { position: relative; padding-right: 42px; }
+.lang-rows .lang-row + .lang-row { margin-top: 10px; }
 .lang-swap {
   position: absolute; right: 0; top: 50%; transform: translateY(-50%); margin: 0;
   width: 32px; height: 32px; border-radius: 50%;
