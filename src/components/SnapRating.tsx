@@ -48,6 +48,7 @@ const SKIP_ARM = 92;  // horizontal past this = DISMISS intent (label turns to S
 const XCLAMP = 200;   // let the card travel toward the edge when flinging to skip
 const MAXY = 2.5 * GAP + 50;
 const SPRING = 0.44;  // per-frame ease toward the target (higher = snappier)
+const EXIT_MS = 320;  // fling-off duration on skip before the parent advances
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
@@ -76,6 +77,7 @@ export default function SnapRating({
   const [skip, setSkip] = useState(false);
   const [active, setActive] = useState(false);
   const [imgOk, setImgOk] = useState(true); // false if the photo can't decode (e.g. a HEIC we couldn't convert)
+  const [exitDir, setExitDir] = useState<number | null>(null); // ±1 while the card flings off on skip
 
   const startX = useRef(0);
   const startY = useRef(0);
@@ -161,7 +163,15 @@ export default function SnapRating({
     const lock = lockRef.current;
     setLock(null);
     setSkipping(false);
-    if (skipping && onSkip) { onSkip(); return; }        // dismissed → advance, no rating
+    if (skipping && onSkip) {
+      // fling the card off the way it was thrown, then advance (parent unmounts us).
+      if (anim.current) { cancelAnimationFrame(anim.current); anim.current = 0; }
+      const dir = cur.current.x >= 0 ? 1 : -1;
+      setExitDir(dir);
+      try { navigator.vibrate?.(10); } catch { /* iOS no-op */ }
+      window.setTimeout(onSkip, EXIT_MS);
+      return;
+    }
     if (!skipping && lock !== null) {
       try { navigator.vibrate?.(20); } catch { /* iOS no-op */ }
       onRate(SLOTS[lock].value);                          // the lock WAS the confirmation
@@ -194,8 +204,13 @@ export default function SnapRating({
         </button>
       )}
 
-      <div className="snap-card"
-        style={{ transform: `translate3d(${render.x}px, ${-render.y}px, 0)`, opacity: 1 - 0.5 * overEdge }}>
+      <div className={`snap-card ${exitDir !== null ? 'exiting' : ''}`}
+        style={exitDir !== null
+          ? {  // toss it off-screen the way it was flung: sideways, a touch of fall + spin, fading out
+              transform: `translate3d(${exitDir * 130}vw, ${-cur.current.y + 90}px, 0) rotate(${exitDir * 12}deg)`,
+              opacity: 0, pointerEvents: 'none',
+            }
+          : { transform: `translate3d(${render.x}px, ${-render.y}px, 0)`, opacity: 1 - 0.5 * overEdge }}>
         {photoUrl && imgOk ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={photoUrl} alt="Your dish" className="snap-photo" draggable={false}
