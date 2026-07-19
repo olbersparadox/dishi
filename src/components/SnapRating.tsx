@@ -43,8 +43,10 @@ const SLOTS = SLOT_META.map((m, i) => ({ ...m, drag: (2.5 - i) * GAP })); // +20
 // tiny. CAPTURE < BREAK is the hysteresis (harder to leave than to enter).
 const CAPTURE = 34;
 const BREAK = 46;     // just above CAPTURE — a light tug pops it out of the slot
-const GIVE_Y = 1;     // card follows the finger 1:1 — NO pull-back to a slot at all
-                      // (the rating still snaps via the lock indicator, not the card)
+const SNAP_STRENGTH = 0.78; // magnetic detent: how hard the card is sucked INTO a slot
+                            // centre. Strong right at the centre, fading to free-follow
+                            // by the midpoint between slots — so you feel each notch
+                            // click without the card trailing/yanking as you drag.
 const XFOLLOW = 0.7;  // small horizontal drift, damped (free play, no effect)
 const SKIP_ARM = 92;  // horizontal past this = DISMISS intent (label turns to Skip)
 const XCLAMP = 200;   // let the card travel toward the edge when flinging to skip
@@ -149,14 +151,18 @@ export default function SnapRating({
       }
     }
     setLock(lock);
-    // Card position: PAST the top/bottom slot it follows the finger 1:1 (so you can
-    // fling it clean off-screen — no boundary). In the middle it eases toward the
-    // locked slot (a soft detent), never rigidly pinned (that felt stuck/sluggish).
+    // Card position. PAST the top/bottom slot it follows the finger 1:1 (fling it
+    // clean off-screen — no boundary). Otherwise a MAGNETIC DETENT: the card is
+    // sucked toward the locked slot's centre, strongly right at the centre and fading
+    // to free-follow by the midpoint — so it flows between slots but snaps into each.
     const overTop = lock === TOP_SLOT && rawY > SLOTS[TOP_SLOT].drag;
     const overBot = lock === BOT_SLOT && rawY < SLOTS[BOT_SLOT].drag;
-    const y = (overTop || overBot) ? rawY
-      : lock !== null ? SLOTS[lock].drag + (rawY - SLOTS[lock].drag) * GIVE_Y
-      : rawY;
+    let y = rawY;
+    if (!overTop && !overBot && lock !== null) {
+      const d = rawY - SLOTS[lock].drag;                       // distance from the slot centre
+      const prox = 1 - clamp(Math.abs(d) / (GAP * 0.5), 0, 1); // 1 at centre → 0 at the midpoint
+      y = rawY - d * prox * SNAP_STRENGTH;                     // pulled in near the centre, free between
+    }
     target.current = { x: rawX * XFOLLOW, y };
   }
 
