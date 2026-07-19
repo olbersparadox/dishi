@@ -382,6 +382,8 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'snapdemo.title': { zh: '評分手感試玩', en: 'Snap feel demo' },
   'snapdemo.blurb': { zh: '揀幾張相，拖上拖落感受個 snap（唔會儲存任何嘢）', en: 'Pick a few photos, drag each up/down to feel the snap. Nothing is saved.' },
   'snapdemo.pick': { zh: '揀相試玩', en: 'Pick photos' },
+  'rate.next': { zh: '下一張 →', en: 'Next →' },
+  'rate.adjust': { zh: '拖返上落改分', en: 'drag again to change' },
   'snapdemo.done': { zh: '試完 {n} 張 · 再試多次？', en: 'Felt {n} · pick more?' },
   'export.button': { zh: '將我嘅口味引擎接入 AI', en: 'Connect my taste engine to AI' },
   'export.locked': { zh: '再評多 {n} 味就生成到', en: '{n} more ratings to unlock' },

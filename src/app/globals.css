@@ -235,21 +235,31 @@ button { font: inherit; cursor: pointer; }
 }
 
 /* Magnetic-snap rating card (album stack) — FIRST-PASS visuals, owner to refine.
-   The photo settles between 6 detents with a springy overshoot; a rail of dots
-   shows which slot you're in. scale(1.45) on the photo keeps the frame covered as
-   it nudges. Spring: back-ease so the settle "clunks" into place. */
-.snap-stage { overflow: hidden; }
-.snap-photo { transition: transform 160ms cubic-bezier(0.34, 1.5, 0.5, 1); will-change: transform; }
+   The whole CARD follows the thumb 1:1 while dragging, then spring-settles into the
+   nearest of 6 slots on release. A rail of dots shows the slot; the word names it. */
+.snap-stage {
+  position: relative; touch-action: none; user-select: none; -webkit-user-select: none;
+  /* Room above + below for the card to travel into without clipping the header. */
+  padding: 24px 0; overflow: hidden;
+}
+.snap-card {
+  position: relative; border-radius: var(--radius); overflow: hidden;
+  box-shadow: 0 10px 30px rgba(20, 16, 12, 0.20);
+  will-change: transform; transition: transform 240ms cubic-bezier(0.22, 1.28, 0.4, 1);
+}
+.snap-card.dragging { transition: none; } /* 1:1 with the thumb while pressing */
+.snap-photo { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; }
 .snap-rail {
-  position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
-  display: flex; flex-direction: column; gap: 9px; z-index: 2;
+  position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+  display: flex; flex-direction: column; gap: 11px; z-index: 3;
 }
 .snap-tick {
-  width: 6px; height: 6px; border-radius: 50%; background: #ffffff88;
-  box-shadow: 0 1px 3px #0000004d; transition: background 120ms ease, transform 120ms ease;
+  width: 7px; height: 7px; border-radius: 50%; background: #ffffff99;
+  box-shadow: 0 1px 3px #00000055; transition: background 110ms ease, transform 110ms ease;
 }
-.snap-tick.on { background: #fff; transform: scale(1.7); }
-@media (prefers-reduced-motion: reduce) { .snap-photo { transition: none; } }
+.snap-tick.on { background: #fff; transform: scale(1.75); }
+.snap-word { z-index: 3; }
+@media (prefers-reduced-motion: reduce) { .snap-card { transition: none; } }
 
 .bars { display: grid; gap: 8px; }
 .bar-row { display: grid; grid-template-columns: 76px 1fr; align-items: center; gap: 10px; font-size: 13px; }

@@ -1,31 +1,40 @@
 'use client';
-// Magnetic-snap rating — the signature interaction of the album stack. You press the
-// photo and drag; instead of a fuzzy continuous value, it SETTLES into 6 detents
-// (the same 6 levels the engine already treats as meaningful), each with a haptic
-// tick, a word, and a rail dot. Overshoot-and-settle gives a satisfying "clunk into
-// the slot" that IS the confirmation of your call. Release on a slot commits it.
+// Magnetic-snap rating — the signature interaction of the album stack.
 //
-// Snapping to 6 discrete levels is deliberately cleaner than the old continuous drag
-// for learning: people can't feel the difference between +0.6 and +0.5, so those
-// in-between values were noise — the 6 chip anchors are what actually teach.
+// FEEL model (v2, from owner testing):
+//  - The whole card follows your thumb 1:1 while dragging (like moving a real card),
+//    then SPRING-SNAPS to the nearest of 6 slots on release.
+//  - Release only SETS the rating (shown on the card, re-draggable) — it does NOT
+//    commit or advance. A deliberate Next moves on, so a slip can't lock in a wrong
+//    rating and skip ahead. (Final commit is the end-of-stack consent step.)
+//  - Snapping to 6 discrete levels is cleaner for learning than a fuzzy continuous
+//    value: people can't feel +0.6 vs +0.5; the 6 anchors are what actually teach.
 //
-// FEEL is judged by thumb; spacing / spring / haptic are meant to be tuned live.
+// Haptic: navigator.vibrate is a no-op on iOS Safari (web has no haptics there), so
+// the snap "click" is carried visually (dot pop + settle); vibrate still fires on
+// Android. Real iPhone haptics would need a native shell.
 import { useRef, useState } from 'react';
 import { useLang } from '@/lib/i18n';
 
-// Top slot = most drag-up = most positive. `drag` = target vertical offset in px
-// (up positive) the image magnetically snaps to. Even 48px spacing; the ±24 gap
-// across zero is the "not rated yet" resting zone.
+// Top slot = most drag-up = most positive. `drag` = the vertical offset (px, up
+// positive) the card snaps to. The ±REST_GAP around zero is "not rated yet".
 const SLOTS: { key: string; value: number; drag: number }[] = [
-  { key: 'flick.inhaled',  value: 1,    drag:  120 },
-  { key: 'flick.loved',    value: 0.6,  drag:  72 },
-  { key: 'flick.good',     value: 0.35, drag:  24 },
-  { key: 'flick.fine',     value: 0.1,  drag: -24 },
-  { key: 'flick.notforme', value: -0.5, drag: -72 },
-  { key: 'flick.never',    value: -0.9, drag: -120 },
+  { key: 'flick.inhaled',  value: 1,    drag:  115 },
+  { key: 'flick.loved',    value: 0.6,  drag:  69 },
+  { key: 'flick.good',     value: 0.35, drag:  23 },
+  { key: 'flick.fine',     value: 0.1,  drag: -23 },
+  { key: 'flick.notforme', value: -0.5, drag: -69 },
+  { key: 'flick.never',    value: -0.9, drag: -115 },
 ];
-const CLAMP = 150;   // max drag travel
-const REST_GAP = 12; // below this |drag|, no slot is chosen (resting)
+const CLAMP = 130;
+const REST_GAP = 14;
+
+function nearest(y: number): number | null {
+  if (Math.abs(y) < REST_GAP) return null;
+  let best = 0, bestD = Infinity;
+  SLOTS.forEach((s, i) => { const d = Math.abs(s.drag - y); if (d < bestD) { bestD = d; best = i; } });
+  return best;
+}
 
 export default function SnapRating({
   photoUrl, dishName, dishNameZh, onRate,
@@ -33,75 +42,73 @@ export default function SnapRating({
   photoUrl: string | null;
   dishName?: string;
   dishNameZh?: string | null;
-  onRate: (score: number) => void;
+  onRate: (score: number) => void; // "rating set" — the PARENT decides when to advance
 }) {
   const { t, lang } = useLang();
-  const [slot, setSlot] = useState<number | null>(null); // snapped slot index
+  const [live, setLive] = useState(0);                       // live drag offset while pressing
+  const [rated, setRated] = useState<number | null>(null);   // slot chosen on release
   const [active, setActive] = useState(false);
   const startY = useRef(0);
   const lastSlot = useRef<number | null>(null);
-
-  function nearest(dragY: number): number | null {
-    if (Math.abs(dragY) < REST_GAP) return null;
-    let best = 0, bestD = Infinity;
-    SLOTS.forEach((s, i) => { const d = Math.abs(s.drag - dragY); if (d < bestD) { bestD = d; best = i; } });
-    return best;
-  }
+  const raf = useRef(0);
+  const pend = useRef(0);
 
   function down(e: React.PointerEvent) {
     (e.target as Element).setPointerCapture(e.pointerId);
     startY.current = e.clientY;
+    lastSlot.current = rated;
     setActive(true);
   }
   function move(e: React.PointerEvent) {
     if (!active) return;
-    const dragY = Math.max(-CLAMP, Math.min(CLAMP, startY.current - e.clientY)); // up positive
-    const idx = nearest(dragY);
-    if (idx !== lastSlot.current) {
-      lastSlot.current = idx;
-      setSlot(idx);
-      if (idx !== null) { try { navigator.vibrate?.(10); } catch { /* unsupported */ } } // tick on each snap
-    }
+    const y = Math.max(-CLAMP, Math.min(CLAMP, startY.current - e.clientY));
+    pend.current = y;
+    const s = nearest(y);
+    if (s !== lastSlot.current) { lastSlot.current = s; if (s !== null) { try { navigator.vibrate?.(9); } catch { /* iOS no-op */ } } }
+    if (!raf.current) raf.current = requestAnimationFrame(() => { raf.current = 0; setLive(pend.current); });
   }
   function up() {
     if (!active) return;
     setActive(false);
-    if (slot !== null) { try { navigator.vibrate?.(16); } catch { /* unsupported */ } onRate(SLOTS[slot].value); }
-    // resting (slot null): a tap/tremor, not a rating — leave it.
+    if (raf.current) { cancelAnimationFrame(raf.current); raf.current = 0; }
+    const s = nearest(pend.current);
+    setLive(0);
+    if (s === null) return; // released in the rest zone — keep whatever was there (or nothing)
+    setRated(s);
+    try { navigator.vibrate?.(18); } catch { /* iOS no-op */ }
+    onRate(SLOTS[s].value); // report the SET value; parent shows it + a Next action
   }
 
-  // Image nudges toward the slot (a fraction of the drag — full travel would reveal
-  // the frame edge; scale(1.45) keeps it covered). The rail + haptic carry the
-  // precise level. IMG_TRAVEL is a feel knob to tune live.
-  const IMG_TRAVEL = 0.4;
-  const y = (slot !== null ? -SLOTS[slot].drag : 0) * IMG_TRAVEL;
+  // While dragging the card tracks the thumb (1:1, no transition); otherwise it rests
+  // at the chosen slot with a springy settle.
+  const offset = active ? live : (rated !== null ? SLOTS[rated].drag : 0);
+  const curSlot = active ? nearest(pend.current) : rated;
   const displayName = lang === 'zh' ? (dishNameZh || dishName) : (dishName || dishNameZh);
 
   return (
     <div
-      className={`flick-stage snap-stage card ${active ? 'dragging' : ''}`}
+      className="snap-stage"
       onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}
       role="slider" aria-label={t('flick.aria')} aria-valuemin={-1} aria-valuemax={1}
-      aria-valuenow={slot !== null ? SLOTS[slot].value : 0}
-      aria-valuetext={slot !== null ? t(SLOTS[slot].key) : t('flick.notyet')}
+      aria-valuenow={rated !== null ? SLOTS[rated].value : 0}
+      aria-valuetext={curSlot !== null ? t(SLOTS[curSlot].key) : t('flick.notyet')}
       tabIndex={0}
     >
-      {photoUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={photoUrl} alt="Your dish" className="card-photo snap-photo" style={{ transform: `translateY(${y}px) scale(1.45)` }} draggable={false} />
-      ) : (
-        <div className="card-photo snap-photo flick-nophoto" style={{ transform: `translateY(${y}px) scale(1.45)` }}>
-          <span>{displayName ?? '🍽️'}</span>
-        </div>
-      )}
-
-      {/* Rail of 6 detent dots — you SEE which slot you're settling into. */}
-      <div className="snap-rail" aria-hidden>
-        {SLOTS.map((s, i) => <span key={i} className={`snap-tick ${slot === i ? 'on' : ''}`} />)}
+      <div className={`snap-card ${active ? 'dragging' : ''}`} style={{ transform: `translateY(${-offset}px)` }}>
+        {photoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={photoUrl} alt="Your dish" className="snap-photo" draggable={false} />
+        ) : (
+          <div className="snap-photo flick-nophoto"><span>{displayName ?? '🍽️'}</span></div>
+        )}
       </div>
 
-      {slot !== null && <div className="flick-word snap-word">{t(SLOTS[slot].key)}</div>}
-      {slot === null && !active && <div className="flick-hint">{t('flick.hint')}</div>}
+      <div className="snap-rail" aria-hidden>
+        {SLOTS.map((s, i) => <span key={i} className={`snap-tick ${curSlot === i ? 'on' : ''}`} />)}
+      </div>
+
+      {curSlot !== null && <div className="flick-word snap-word">{t(SLOTS[curSlot].key)}</div>}
+      {curSlot === null && !active && rated === null && <div className="flick-hint">{t('flick.hint')}</div>}
     </div>
   );
 }

@@ -20,6 +20,7 @@ export default function RatingStack() {
   const [previews, setPreviews] = useState<string[]>([]);
   const [idx, setIdx] = useState(0);
   const [ratings, setRatings] = useState<number[]>([]); // held locally — NOT committed yet
+  const [rating, setRating] = useState<number | null>(null); // current card, set on release
 
   useEffect(() => {
     // One-shot hand-off from the Taste-AI entry; a direct hit / refresh has nothing
@@ -53,11 +54,16 @@ export default function RatingStack() {
           <CloseIcon size={20} />
         </button>
       </div>
-      <SnapRating
-        key={idx}
-        photoUrl={previews[idx]}
-        onRate={(score) => { setRatings(r => [...r, score]); setIdx(i => i + 1); }}
-      />
+      <SnapRating key={idx} photoUrl={previews[idx]} onRate={setRating} />
+      {/* Release SETS the rating; a deliberate Next advances (a slip never commits +
+          skips). Re-drag to change. Real commit is the end-of-stack consent. */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 14 }}>
+        <span className="card-meta">{rating !== null ? t('rate.adjust') : t('flick.hint')}</span>
+        <button className="btn primary" disabled={rating === null}
+          onClick={() => { setRatings(r => [...r, rating as number]); setRating(null); setIdx(i => i + 1); }}>
+          {t('rate.next')}
+        </button>
+      </div>
     </div>
   );
 }
