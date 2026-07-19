@@ -44,6 +44,7 @@ export default function LanguagePicker() {
           <div className="lang-scrim" onClick={() => setOpen(false)} />
           <div className="lang-sheet" role="dialog" aria-label={t('lang.title')}>
             <div className="lang-sheet-title">{t('lang.title')}</div>
+            <div className="lang-sheet-subtitle">{t('lang.subtitle')}</div>
             <div className="lang-rows">
               <label className="lang-row">
                 <span className="lang-slot-label">{t('lang.primary')}</span>
