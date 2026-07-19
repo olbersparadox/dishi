@@ -318,9 +318,9 @@ button { font: inherit; cursor: pointer; }
 @keyframes snapHintBob { 0%, 100% { transform: translateY(-8px); } 50% { transform: translateY(8px); } }
 @media (prefers-reduced-motion: reduce) { .snap-hint-inner { animation: none; } }
 .snap-close {
-  position: absolute; top: 12px; right: 12px; z-index: 4;
+  position: absolute; top: 12px; right: 12px; z-index: 6;
   display: grid; place-items: center; width: 40px; height: 40px;
-  color: #fff; background: transparent; border: 0; cursor: pointer; opacity: 0.85;
+  color: #141210; background: transparent; border: 0; cursor: pointer; opacity: 0.7;
 }
 @media (prefers-reduced-motion: reduce) {
   .snap-photo { transition: none; } /* card motion is a JS spring; only the filter eases */

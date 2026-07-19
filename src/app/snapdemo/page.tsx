@@ -58,6 +58,7 @@ export default function SnapDemo() {
         key={idx}
         photoUrl={previews[idx]}
         showHint={idx === 0}
+        onClose={() => reset()}
         onRate={onRate}
         onSkip={onSkip}
       />
