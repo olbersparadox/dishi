@@ -293,7 +293,7 @@ button { font: inherit; cursor: pointer; }
   position: absolute; left: 50%; bottom: 52px; transform: translateX(-50%);
   z-index: 4; pointer-events: none; text-align: center; white-space: nowrap;
   font-family: var(--font-display); font-weight: 800; font-size: 40px; color: #fff;
-  text-shadow: 0 2px 16px #000a; letter-spacing: -0.01em;
+  letter-spacing: -0.01em;
 }
 .snap-word.is-skip { color: #9aa7ad; font-weight: 700; } /* dismiss reads neutral, not a verdict */
 /* count subtitle, top-centre */
