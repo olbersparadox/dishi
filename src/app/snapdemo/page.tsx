@@ -1,62 +1,86 @@
 'use client';
-// PUBLIC, no-login FEEL DEMO of the magnetic-snap rating (rating-flow revamp).
-// Purpose: let the owner feel the SnapRating interaction on their phone WITHOUT the
-// preview deployment's auth wall — pick photos from the roll, flick each, see the
-// value it snapped to. Nothing is saved or sent anywhere; it's a throwaway harness
-// on the branch, removable once the feel is dialled in.
+// PUBLIC, no-login FEEL DEMO of the whole album rating ARC (rating-flow revamp):
+// pick photos → magnetic-snap flick each → end-of-stack CONSENT/review → the
+// "growing your Taste AI" level-up reward. Lets the owner feel + design-tune the
+// full flow on their phone WITHOUT the preview auth wall. Nothing is saved or sent
+// anywhere; growth numbers are mocked. Throwaway harness — the real flow is
+// RatingStack behind /rate. Removable once the feel is dialled in.
 import { useState } from 'react';
 import { useLang } from '@/lib/i18n';
 import SnapRating from '@/components/SnapRating';
-import { WORD_KEYS } from '@/lib/flickWords';
+import RatingReview, { type ReviewItem } from '@/components/RatingReview';
+import TasteGrowth from '@/components/TasteGrowth';
 
-function wordFor(score: number): string {
-  for (const [min, key] of WORD_KEYS) if (score >= min) return key;
-  return 'flick.never';
-}
+type Phase = 'flick' | 'review' | 'grow';
 
 export default function SnapDemo() {
   const { t } = useLang();
   const [previews, setPreviews] = useState<string[]>([]);
   const [idx, setIdx] = useState(0);
-  const [rating, setRating] = useState<number | null>(null); // set on release; NOT committed
+  const [ratings, setRatings] = useState<number[]>([]); // one per photo — held, NOT committed
+  const [phase, setPhase] = useState<Phase>('flick');
+  const [taught, setTaught] = useState(0);
 
+  function reset(urls: string[] = []) {
+    previews.forEach(u => URL.revokeObjectURL(u));
+    setPreviews(urls); setIdx(0); setRatings([]); setPhase('flick'); setTaught(0);
+  }
   function pick(files: FileList | null) {
     const fs = Array.from(files ?? []);
-    if (!fs.length) return;
-    previews.forEach(u => URL.revokeObjectURL(u));
-    setPreviews(fs.map(f => URL.createObjectURL(f)));
-    setIdx(0);
-    setRating(null);
+    if (fs.length) reset(fs.map(f => URL.createObjectURL(f)));
+  }
+
+  function onRate(score: number) {
+    const last = idx + 1 >= previews.length;
+    setRatings(r => [...r, score]);
+    if (last) setPhase('review'); else setIdx(i => i + 1);
+  }
+  function onConfirm(kept: ReviewItem[]) {
+    setTaught(kept.length);
+    setPhase('grow');
   }
 
   const pickButton = (
     <label className="btn primary" style={{ display: 'inline-flex', cursor: 'pointer' }}>
-      {t('snapdemo.pick')}
+      {previews.length ? t('snapdemo.again') : t('snapdemo.pick')}
       <input type="file" accept="image/*" multiple hidden onChange={e => { pick(e.target.files); e.target.value = ''; }} />
     </label>
   );
 
-  return (
-    <div style={{ maxWidth: 420, margin: '0 auto', padding: '28px 16px 96px' }}>
-      <h1 style={{ marginBottom: 6 }}>{t('snapdemo.title')}</h1>
-      <p className="card-meta" style={{ marginBottom: 18 }}>{t('snapdemo.blurb')}</p>
+  // FLICK phase renders the full-screen overlay itself; the other phases sit in the
+  // normal page column.
+  if (previews.length && phase === 'flick' && idx < previews.length) {
+    return (
+      <SnapRating
+        key={idx}
+        photoUrl={previews[idx]}
+        progress={t('rate.stack.progress', { i: idx + 1, n: previews.length })}
+        onRate={onRate}
+      />
+    );
+  }
 
-      {previews.length === 0 ? (
-        pickButton
-      ) : idx >= previews.length ? (
-        <div style={{ textAlign: 'center', paddingTop: 24 }}>
-          <p className="label" style={{ justifyContent: 'center' }}>{t('snapdemo.done', { n: previews.length })}</p>
-          {rating !== null && <p className="card-meta" style={{ marginTop: 6 }}>{t('snapdemo.last', { word: t(wordFor(rating)), v: rating })}</p>}
-          <div style={{ marginTop: 14 }}>{pickButton}</div>
-        </div>
-      ) : (
-        // Full-screen magnetic-snap overlay; releasing while locked rates + advances.
-        <SnapRating
-          key={idx}
-          photoUrl={previews[idx]}
-          progress={t('rate.stack.progress', { i: idx + 1, n: previews.length })}
-          onRate={(score) => { setRating(score); setIdx(i => i + 1); }}
+  // Mocked engine growth so the reward is feelable: a base confidence that each
+  // taught dish nudges up. Real numbers come from the taste engine in RatingStack.
+  const fromPct = 46;
+  const toPct = Math.min(100, fromPct + taught * 9);
+
+  return (
+    <div style={{ maxWidth: 460, margin: '0 auto', padding: '28px 16px 96px' }}>
+      {phase === 'review' ? (
+        <RatingReview
+          items={previews.map((url, i) => ({ photoUrl: url, score: ratings[i] }))}
+          onConfirm={onConfirm}
+          onDiscard={() => reset()}
         />
+      ) : phase === 'grow' ? (
+        <TasteGrowth taught={taught} fromPct={fromPct} toPct={toPct} level={3} onDone={() => reset()} />
+      ) : (
+        <>
+          <h1 style={{ marginBottom: 6 }}>{t('snapdemo.title')}</h1>
+          <p className="card-meta" style={{ marginBottom: 18 }}>{t('snapdemo.blurb')}</p>
+          {pickButton}
+        </>
       )}
     </div>
   );
