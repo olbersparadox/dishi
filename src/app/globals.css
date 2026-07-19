@@ -248,9 +248,10 @@ button { font: inherit; cursor: pointer; }
 }
 .snap-card {
   position: relative; border-radius: var(--radius); overflow: hidden;
-  /* a normal photo card — the whole overlay is its playground, so dragging it
-     around the screen never clips it (the old small stage cropped the travel). */
-  width: min(78vw, 360px); aspect-ratio: 4 / 3;
+  /* a normal PORTRAIT photo card — the whole overlay is its playground, so dragging
+     it around the screen never clips it (the old small stage cropped the travel).
+     Kept compact so the ±250px slot travel stays on-screen. */
+  width: min(60vw, 270px); aspect-ratio: 3 / 4; max-height: 50vh;
   box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
   will-change: transform;
   /* springy settle on release / spring-home; a short glide during drag turns the
