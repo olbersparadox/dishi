@@ -378,7 +378,6 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'persona.pick': { zh: '揀 dishi 講嘢嘅語氣', en: "Pick your palate's voice" },
   'rate.stack.title': { zh: '{n} 張相 · 準備評分', en: '{n} photos · ready to rate' },
   'rate.stack.progress': { zh: '第 {i} / {n} 道', en: '{i} / {n} dishes' },
-  'rate.title': { zh: '為你嘅菜評分', en: 'Rate your dish' },
   'rate.preparing': { zh: '整緊啲相…', en: 'Preparing photos…' },
   'rate.skip': { zh: '跳過', en: 'Skip' },
   'rate.stack.doneproto': { zh: '評咗 {n} 味 · 之後會有升級動畫', en: 'Rated {n} · level-up celebration comes next' },

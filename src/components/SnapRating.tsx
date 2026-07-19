@@ -43,11 +43,15 @@ const SLOTS = SLOT_META.map((m, i) => ({ ...m, drag: (2.5 - i) * GAP })); // +20
 // tiny. CAPTURE < BREAK is the hysteresis (harder to leave than to enter).
 const CAPTURE = 34;
 const BREAK = 46;     // just above CAPTURE — a light tug pops it out of the slot
+const GIVE_Y = 0.42;  // while locked the card still FOLLOWS the finger this much (never
+                      // rigidly pinned = never feels stuck); the slot just biases it
 const XFOLLOW = 0.7;  // small horizontal drift, damped (free play, no effect)
 const SKIP_ARM = 92;  // horizontal past this = DISMISS intent (label turns to Skip)
 const XCLAMP = 200;   // let the card travel toward the edge when flinging to skip
-const MAXY = 2.5 * GAP + 50;
-const SPRING = 0.44;  // per-frame ease toward the target (higher = snappier)
+const MAXY = 380;     // generous — the card keeps moving well past the top/bottom slot
+const SPRING = 0.5;   // per-frame ease toward the target (higher = snappier)
+const TOP_SLOT = 0;
+const BOT_SLOT = 5;   // SLOTS.length - 1
 const EXIT_MS = 320;  // fling-off duration on skip before the parent advances
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
@@ -58,21 +62,6 @@ function filterFor(slot: number | null): string {
   if (slot === null) return 'none';
   const v = SLOTS[slot].value; // −0.9 … 1
   return `saturate(${(1 + v * 0.5).toFixed(3)}) brightness(${(1 + v * 0.08).toFixed(3)})`;
-}
-
-// Continuous MOOD tint for the glass backdrop — flows warm (loved) at the top,
-// through neutral, to cool (never) at the bottom, following the card's vertical
-// position so it changes smoothly as the card slides (not just on a click). Kept
-// at the same light scrim alpha as the neutral glass.
-const MOOD_NEUTRAL = [22, 18, 14];
-const MOOD_WARM = [150, 70, 34];
-const MOOD_COOL = [34, 58, 92];
-function moodBg(y: number): string {
-  const t = clamp(y / MAXY, -1, 1); // −1 (worst) … +1 (best)
-  const to = t >= 0 ? MOOD_WARM : MOOD_COOL;
-  const k = Math.abs(t);
-  const mix = (i: number) => Math.round(MOOD_NEUTRAL[i] + (to[i] - MOOD_NEUTRAL[i]) * k);
-  return `rgba(${mix(0)}, ${mix(1)}, ${mix(2)}, 0.30)`;
 }
 
 export default function SnapRating({
@@ -147,15 +136,24 @@ export default function SnapRating({
     }
 
     let lock = lockRef.current;
-    if (lock !== null && Math.abs(rawY - SLOTS[lock].drag) > BREAK) lock = null; // popped out
-    if (lock === null) {
-      let best = 0, bestD = Infinity;
-      SLOTS.forEach((s, i) => { const d = Math.abs(s.drag - rawY); if (d < bestD) { bestD = d; best = i; } });
-      if (bestD < CAPTURE) lock = best;
+    // Open-ended extremes: drag past the top slot and it's the best rating, past the
+    // bottom and it's the worst — no dead zone, no boundary. Middle slots use the
+    // hysteresis wells.
+    if (rawY >= SLOTS[TOP_SLOT].drag) lock = TOP_SLOT;
+    else if (rawY <= SLOTS[BOT_SLOT].drag) lock = BOT_SLOT;
+    else {
+      if (lock !== null && Math.abs(rawY - SLOTS[lock].drag) > BREAK) lock = null; // popped out
+      if (lock === null) {
+        let best = 0, bestD = Infinity;
+        SLOTS.forEach((s, i) => { const d = Math.abs(s.drag - rawY); if (d < bestD) { bestD = d; best = i; } });
+        if (bestD < CAPTURE) lock = best;
+      }
     }
     setLock(lock);
-    // vertical pins to the slot centre when locked; horizontal is small free play
-    target.current = { x: rawX * XFOLLOW, y: lock !== null ? SLOTS[lock].drag : rawY };
+    // The card FOLLOWS the finger, eased toward the locked slot — a soft detent, so
+    // it never stops dead under your thumb (the old rigid pin felt stuck/sluggish).
+    const y = lock !== null ? SLOTS[lock].drag + (rawY - SLOTS[lock].drag) * GIVE_Y : rawY;
+    target.current = { x: rawX * XFOLLOW, y };
   }
 
   function down(e: React.PointerEvent) {
@@ -203,17 +201,13 @@ export default function SnapRating({
   return (
     <div
       className="snap-overlay"
-      style={{ background: moodBg(exitDir !== null ? cur.current.y : render.y) }}
       onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}
       role="slider" aria-label={t('flick.aria')} aria-valuemin={-1} aria-valuemax={1}
       aria-valuenow={locked !== null ? SLOTS[locked].value : 0}
       aria-valuetext={skip ? t('rate.skip') : locked !== null ? t(SLOTS[locked].key) : t('flick.notyet')}
       tabIndex={0}
     >
-      <div className="snap-head">
-        <div className="snap-title">{t('rate.title')}</div>
-        {progress && <div className="snap-sub">{progress}</div>}
-      </div>
+      {progress && <div className="snap-head"><div className="snap-sub">{progress}</div></div>}
       {onClose && (
         <button className="snap-close" onClick={onClose} aria-label={t('log.cancelflow')} title={t('log.cancelflow')}>
           <CloseIcon size={22} />
