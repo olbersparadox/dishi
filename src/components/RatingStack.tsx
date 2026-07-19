@@ -61,6 +61,7 @@ export default function RatingStack({ photos, onExit }: { photos: File[]; onExit
       <SnapRating
         key={idx}
         photoUrl={pv[idx]}
+        showHint={idx === 0}
         onClose={onExit}
         onRate={onRate}
         onSkip={onSkip}

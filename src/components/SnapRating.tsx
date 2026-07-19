@@ -22,6 +22,7 @@
 // by the snap + the colour shift. vibrate still fires on Android.
 import { useEffect, useRef, useState } from 'react';
 import { useLang } from '@/lib/i18n';
+import { dict } from '@/lib/i18n-dict';
 import { CloseIcon } from '@/components/icons';
 
 // Slots stack top(most positive) → bottom. `drag` = the vertical offset (px, up
@@ -58,11 +59,12 @@ const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v
 function filterFor(slot: number | null): string {
   if (slot === null) return 'none';
   const v = SLOTS[slot].value; // −0.9 … 1
-  return `saturate(${(1 + v * 0.5).toFixed(3)}) brightness(${(1 + v * 0.08).toFixed(3)})`;
+  // Drastic swing: near black-and-white at the worst, extra-vibrant at the best.
+  return `saturate(${Math.max(0, 1 + v * 1.05).toFixed(3)}) brightness(${(1 + v * 0.1).toFixed(3)})`;
 }
 
 export default function SnapRating({
-  photoUrl, dishName, dishNameZh, onRate, onSkip, onClose,
+  photoUrl, dishName, dishNameZh, onRate, onSkip, onClose, showHint,
 }: {
   photoUrl: string | null;
   dishName?: string;
@@ -70,6 +72,7 @@ export default function SnapRating({
   onRate: (score: number) => void; // release-while-locked = rated; parent advances
   onSkip?: () => void;             // release past SKIP_ARM = dismissed; parent advances, no rating
   onClose?: () => void;
+  showHint?: boolean;              // first card only — show the drag-to-rate gesture hint
 }) {
   const { t, lang } = useLang();
   const [render, setRender] = useState({ x: 0, y: 0 });
@@ -78,6 +81,7 @@ export default function SnapRating({
   const [active, setActive] = useState(false);
   const [imgOk, setImgOk] = useState(true); // false if the photo can't decode (e.g. a HEIC we couldn't convert)
   const [exitDir, setExitDir] = useState<number | null>(null); // ±1 while the card flings off on skip
+  const [touched, setTouched] = useState(false); // dismiss the gesture hint once they start dragging
 
   const startX = useRef(0);
   const startY = useRef(0);
@@ -164,6 +168,7 @@ export default function SnapRating({
     startY.current = e.clientY;
     activeRef.current = true;
     setActive(true);
+    if (!touched) setTouched(true);
     runSpring();
   }
   function move(e: React.PointerEvent) {
@@ -236,11 +241,25 @@ export default function SnapRating({
         {SLOTS.map((s, i) => <span key={i} className={`snap-tick ${!skip && locked === i ? 'on' : ''}`} />)}
       </div>
 
-      {/* status word — bottom-centre of the SCREEN, off the card */}
+      {/* first-card onboarding: a pointing hand + up/down arrows say "drag to rate" */}
+      {showHint && !touched && !skip && locked === null && (
+        <div className="snap-hint" aria-hidden>
+          <div className="snap-hint-inner">
+            <div className="snap-hint-arrow">▲</div>
+            <div className="snap-hint-hand">👆</div>
+            <div className="snap-hint-arrow">▼</div>
+          </div>
+        </div>
+      )}
+
+      {/* verdict — big native word with a small English line above it — bottom-left */}
       {skip
-        ? <div className="snap-word is-skip">{t('rate.skip')}</div>
+        ? <div className="snap-verdict"><div className="snap-word is-skip">{t('rate.skip')}</div></div>
         : locked !== null
-          ? <div className="snap-word">{t(SLOTS[locked].key)}</div>
+          ? <div className="snap-verdict">
+              {lang === 'zh' && <div className="snap-word-en">{dict[SLOTS[locked].key].en}</div>}
+              <div className="snap-word">{t(SLOTS[locked].key)}</div>
+            </div>
           : null}
     </div>
   );

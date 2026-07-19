@@ -57,6 +57,7 @@ export default function SnapDemo() {
       <SnapRating
         key={idx}
         photoUrl={previews[idx]}
+        showHint={idx === 0}
         onRate={onRate}
         onSkip={onSkip}
       />
