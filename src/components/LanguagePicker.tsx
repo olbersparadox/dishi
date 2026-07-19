@@ -32,7 +32,7 @@ export default function LanguagePicker() {
         </svg>
         {/* AI sparkle: signals the globe does more than switch language — it also
             translates dish names on the fly. Paper-outlined so it reads over the globe. */}
-        <svg className="lang-globe-ai" viewBox="0 0 24 24" width={11} height={11} aria-hidden="true">
+        <svg className="lang-globe-ai" viewBox="0 0 24 24" width={14} height={14} aria-hidden="true">
           <path d="M12 3 C12.7 9.3 14.7 11.3 21 12 C14.7 12.7 12.7 14.7 12 21 C11.3 14.7 9.3 12.7 3 12 C9.3 11.3 11.3 9.3 12 3 Z" />
         </svg>
       </button>
