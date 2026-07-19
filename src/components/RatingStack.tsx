@@ -5,18 +5,19 @@
 // this). You multi-select a roll; it becomes a flick STACK → end-of-stack consent →
 // the "growing your Taste AI" reward.
 //
-// TRUST RULE / STATE OF PLAY: nothing is committed yet. Ratings are held locally and
-// the growth numbers are placeholders — real persistence (create · seal · EXIF ·
-// enrich) + real engine confidence from buddy.ts are the next slice. Confirm/Discard
-// both just close for now.
+// FLOW: pick → flick stack → straight to the "watch your Taste AI learn" screen
+// (reward + light review MERGED; the standalone review screen is skipped).
+//
+// STATE OF PLAY: nothing is committed yet and the growth/enrichment is SIMULATED in
+// TasteGrowth — real persistence (create · seal · EXIF · enrich) + real engine
+// confidence from buddy.ts are the next slice.
 import { useEffect, useState } from 'react';
 import { useLang } from '@/lib/i18n';
 import { toDisplayableAll } from '@/lib/heic';
 import SnapRating from '@/components/SnapRating';
-import RatingReview, { type ReviewItem } from '@/components/RatingReview';
-import TasteGrowth from '@/components/TasteGrowth';
+import TasteGrowth, { type GrowItem } from '@/components/TasteGrowth';
 
-type Phase = 'flick' | 'review' | 'grow';
+type Phase = 'flick' | 'grow';
 
 export default function RatingStack({ photos, onExit }: { photos: File[]; onExit: () => void }) {
   const { t } = useLang();
@@ -34,9 +35,8 @@ export default function RatingStack({ photos, onExit }: { photos: File[]; onExit
   }, [photos]);
 
   const [idx, setIdx] = useState(0);
-  const [rated, setRated] = useState<ReviewItem[]>([]); // only RATED cards (skips omitted) — held, NOT committed
+  const [rated, setRated] = useState<GrowItem[]>([]); // only RATED cards (skips omitted)
   const [phase, setPhase] = useState<Phase>('flick');
-  const [taught, setTaught] = useState(0);
 
   // Still decoding (e.g. HEIC → JPEG) — a brief loading sheet.
   if (!previews) return (
@@ -45,11 +45,11 @@ export default function RatingStack({ photos, onExit }: { photos: File[]; onExit
   if (!previews.length) return null;
   const pv = previews;
 
-  // Rate pushes a card; skip drops it. Both advance; the last one opens review
-  // (unless everything was skipped — then there's nothing to review, so close).
-  const advance = (next: ReviewItem[]) => {
+  // Rate pushes a card; skip drops it. Both advance; the last one lands on the growth
+  // screen (unless everything was skipped — then there's nothing to grow from, close).
+  const advance = (next: GrowItem[]) => {
     setRated(next);
-    if (idx + 1 >= pv.length) { if (next.length) setPhase('review'); else onExit(); }
+    if (idx + 1 >= pv.length) { if (next.length) setPhase('grow'); else onExit(); }
     else setIdx(i => i + 1);
   };
   const onRate = (score: number) => advance([...rated, { photoUrl: pv[idx], score }]);
@@ -69,22 +69,11 @@ export default function RatingStack({ photos, onExit }: { photos: File[]; onExit
     );
   }
 
-  // Consent + reward ride in a full-screen sheet over the page.
-  // Mocked engine growth so the reward is feelable; real numbers come from buddy.ts.
-  const fromPct = 46;
-  const toPct = Math.min(100, fromPct + taught * 9);
+  // The "watch your Taste AI learn" screen rides in a full-screen sheet over the page.
   return (
     <div className="rate-sheet">
       <div className="rate-sheet-inner">
-        {phase === 'review' ? (
-          <RatingReview
-            items={rated}
-            onConfirm={(kept) => { setTaught(kept.length); setPhase('grow'); }}
-            onDiscard={onExit}
-          />
-        ) : (
-          <TasteGrowth taught={taught} fromPct={fromPct} toPct={toPct} level={3} onDone={onExit} />
-        )}
+        <TasteGrowth items={rated} onExit={onExit} />
       </div>
     </div>
   );

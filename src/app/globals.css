@@ -379,6 +379,51 @@ button { font: inherit; cursor: pointer; }
 .grow-done { margin-top: 28px; min-width: 160px; }
 @media (prefers-reduced-motion: reduce) { .grow-fill { transition: none; } }
 
+/* ---- Progressive "watch your Taste AI learn" screen (TasteGrowth) — FIRST-PASS ---- */
+.grow2 { padding-top: 4px; }
+/* the reward header stays pinned while the dish stream scrolls under it */
+.grow2-top {
+  position: sticky; top: 0; z-index: 2; background: var(--glaze);
+  text-align: center; padding: 12px 0 16px; margin-bottom: 6px;
+  border-bottom: 1px solid var(--line);
+}
+.grow2-top .grow-barwrap { margin-top: 14px; }
+.grow2-title { font-size: 22px; margin: 8px 0 4px; }
+.grow2-sub { font-size: 13px; color: var(--ink-soft); margin: 0; }
+
+.learn-list { list-style: none; display: flex; flex-direction: column; gap: 10px; margin: 14px 0 0; padding: 0; }
+.learn-row {
+  display: flex; gap: 12px; padding: 10px; border-radius: var(--radius);
+  background: var(--paper-raised); border: 1px solid var(--line);
+  animation: learnIn 320ms ease-out;
+}
+.learn-row.is-working { opacity: 0.75; }
+@keyframes learnIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.learn-thumb {
+  flex: 0 0 auto; width: 54px; height: 54px; border-radius: 10px; overflow: hidden;
+  background: var(--paper-inset); display: grid; place-items: center; font-size: 22px;
+}
+.learn-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.learn-row.is-working .learn-thumb { animation: learnPulse 1.1s ease-in-out infinite; }
+@keyframes learnPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+.learn-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.learn-titleline { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+.learn-name { font-family: var(--font-display); font-weight: 700; font-size: 16px; color: var(--ink); }
+.learn-skel { color: var(--ink-soft); font-weight: 600; }
+.learn-word { font-size: 13px; color: var(--ink-soft); }
+.learn-ing { font-size: 12px; color: var(--ink-soft); }
+.learn-learned { font-size: 12px; color: var(--seal); font-weight: 600; }
+.learn-place { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 5px; }
+.learn-chip {
+  font-size: 12px; padding: 5px 11px; border-radius: 99px; cursor: pointer;
+  border: 1px solid var(--line); background: var(--paper-inset); color: var(--ink-soft);
+}
+.learn-chip.on { background: var(--ink); border-color: var(--ink); color: #fff; }
+.grow2-leave { display: block; margin: 22px auto 0; }
+@media (prefers-reduced-motion: reduce) {
+  .learn-row, .learn-row.is-working .learn-thumb { animation: none; }
+}
+
 .bars { display: grid; gap: 8px; }
 .bar-row { display: grid; grid-template-columns: 76px 1fr; align-items: center; gap: 10px; font-size: 13px; }
 .bar-track { position: relative; height: 8px; background: #fff; border: 1px solid var(--line); border-radius: 99px; }
