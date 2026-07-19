@@ -43,12 +43,12 @@ const SLOTS = SLOT_META.map((m, i) => ({ ...m, drag: (2.5 - i) * GAP })); // +20
 // tiny. CAPTURE < BREAK is the hysteresis (harder to leave than to enter).
 const CAPTURE = 34;
 const BREAK = 46;     // just above CAPTURE — a light tug pops it out of the slot
-const GIVE_Y = 0.42;  // while locked the card still FOLLOWS the finger this much (never
-                      // rigidly pinned = never feels stuck); the slot just biases it
+const GIVE_Y = 0.82;  // the card mostly FOLLOWS the finger (free flow); the slot only
+                      // faintly biases it, so it isn't yanked back to a level as you drag
 const XFOLLOW = 0.7;  // small horizontal drift, damped (free play, no effect)
 const SKIP_ARM = 92;  // horizontal past this = DISMISS intent (label turns to Skip)
 const XCLAMP = 200;   // let the card travel toward the edge when flinging to skip
-const SPRING = 0.5;   // per-frame ease toward the target (higher = snappier)
+const SPRING = 0.6;   // per-frame ease toward the target (higher = snappier / tighter)
 const TOP_SLOT = 0;
 const BOT_SLOT = 5;   // SLOTS.length - 1
 const EXIT_MS = 320;  // fling-off duration on skip before the parent advances
