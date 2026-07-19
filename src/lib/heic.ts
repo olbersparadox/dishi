@@ -19,7 +19,10 @@ function isHeic(file: File): boolean {
 export async function toDisplayable(file: File): Promise<File> {
   if (!isHeic(file)) return file;
   try {
-    const heic2any = (await import('heic2any')).default;
+    // Resolve the callable whether the interop hands us `.default` or the module itself.
+    const mod = await import('heic2any');
+    const heic2any = (mod as unknown as { default?: typeof mod.default }).default
+      ?? (mod as unknown as typeof mod.default);
     const out = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.9 });
     const blob = Array.isArray(out) ? out[0] : out;
     return new File([blob], file.name.replace(/\.hei[cf]$/i, '.jpg'), { type: 'image/jpeg' });
