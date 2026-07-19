@@ -29,8 +29,6 @@ export default function SnapDemo() {
     setRating(null);
   }
 
-  function next() { setRating(null); setIdx(i => i + 1); }
-
   const pickButton = (
     <label className="btn primary" style={{ display: 'inline-flex', cursor: 'pointer' }}>
       {t('snapdemo.pick')}
@@ -48,26 +46,17 @@ export default function SnapDemo() {
       ) : idx >= previews.length ? (
         <div style={{ textAlign: 'center', paddingTop: 24 }}>
           <p className="label" style={{ justifyContent: 'center' }}>{t('snapdemo.done', { n: previews.length })}</p>
+          {rating !== null && <p className="card-meta" style={{ marginTop: 6 }}>{t('snapdemo.last', { word: t(wordFor(rating)), v: rating })}</p>}
           <div style={{ marginTop: 14 }}>{pickButton}</div>
         </div>
       ) : (
-        <>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-            <span className="card-meta">{t('rate.stack.progress', { i: idx + 1, n: previews.length })}</span>
-            {rating !== null && <span className="card-meta" style={{ color: 'var(--ink)', fontWeight: 700 }}>{t(wordFor(rating))} · {rating}</span>}
-          </div>
-          <SnapRating
-            key={idx}
-            photoUrl={previews[idx]}
-            onRate={(score) => setRating(score)}
-          />
-          {/* Release only SETS the rating — advance is a deliberate tap, so a slip
-              never commits + skips. Re-drag the card to change it. */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 14 }}>
-            <span className="card-meta">{rating !== null ? t('rate.adjust') : t('flick.hint')}</span>
-            <button className="btn primary" onClick={next} disabled={rating === null}>{t('rate.next')}</button>
-          </div>
-        </>
+        // Full-screen magnetic-snap overlay; releasing while locked rates + advances.
+        <SnapRating
+          key={idx}
+          photoUrl={previews[idx]}
+          progress={t('rate.stack.progress', { i: idx + 1, n: previews.length })}
+          onRate={(score) => { setRating(score); setIdx(i => i + 1); }}
+        />
       )}
     </div>
   );
