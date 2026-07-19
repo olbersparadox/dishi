@@ -44,23 +44,26 @@ export default function LanguagePicker() {
           <div className="lang-scrim" onClick={() => setOpen(false)} />
           <div className="lang-sheet" role="dialog" aria-label={t('lang.title')}>
             <div className="lang-sheet-title">{t('lang.title')}</div>
-            <label className="lang-row">
-              <span className="lang-slot-label">{t('lang.primary')}</span>
-              <select className="field lang-select" value={pair.primary} onChange={e => clearPresetThen(() => setSlot('primary', e.target.value as LangCode))}>
-                {LANGUAGES.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
-              </select>
-            </label>
-            <button className="lang-swap" onClick={() => clearPresetThen(swapPair)} aria-label={t('lang.swap')} title={t('lang.swap')}>⇅</button>
-            <label className="lang-row">
-              <span className="lang-slot-label">{t('lang.secondary')}</span>
-              <select className="field lang-select" value={secondaryValue} onChange={e => clearPresetThen(() => setSlot('secondary', e.target.value as LangCode))}>
-                {LANGUAGES.map(l => (
-                  <option key={l.code} value={l.code}>
-                    {l.code === effectiveSecondary ? `${l.label}（${t('lang.menuoriginal')}）` : l.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <div className="lang-rows">
+              <label className="lang-row">
+                <span className="lang-slot-label">{t('lang.primary')}</span>
+                <select className="field lang-select" value={pair.primary} onChange={e => clearPresetThen(() => setSlot('primary', e.target.value as LangCode))}>
+                  {LANGUAGES.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
+                </select>
+              </label>
+              <label className="lang-row">
+                <span className="lang-slot-label">{t('lang.secondary')}</span>
+                <select className="field lang-select" value={secondaryValue} onChange={e => clearPresetThen(() => setSlot('secondary', e.target.value as LangCode))}>
+                  {LANGUAGES.map(l => (
+                    <option key={l.code} value={l.code}>
+                      {l.code === effectiveSecondary ? `${l.label}（${t('lang.menuoriginal')}）` : l.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {/* Swap: a round button on the right, vertically straddling the two rows. */}
+              <button className="lang-swap" onClick={() => clearPresetThen(swapPair)} aria-label={t('lang.swap')} title={t('lang.swap')}>⇅</button>
+            </div>
           </div>
         </>
       )}

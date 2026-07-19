@@ -930,7 +930,18 @@ button { font: inherit; cursor: pointer; }
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237a7468' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
   background-repeat: no-repeat; background-position: right 14px center;
 }
-.lang-swap { display: block; margin: 6px auto; background: none; border: none; color: var(--ink-soft); font-size: 18px; line-height: 1; cursor: pointer; }
+/* The two selects stack; the swap sits as a round button on the RIGHT, vertically
+   centred so it straddles both rows (per the annotation). padding-right on the
+   container reserves the lane so the circle never overlaps the selects. */
+.lang-rows { position: relative; padding-right: 42px; }
+.lang-swap {
+  position: absolute; right: 0; top: 50%; transform: translateY(-50%); margin: 0;
+  width: 32px; height: 32px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--glaze); border: 1px solid var(--line);
+  color: var(--ink-soft); font-size: 14px; line-height: 1; cursor: pointer;
+}
+.lang-swap:hover, .lang-swap:focus-visible { color: var(--ink); border-color: var(--ink-soft); }
 
 /* Floating overlay */
 .duel-overlay { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; padding: 20px; animation: duel-fade-in 240ms ease; }
