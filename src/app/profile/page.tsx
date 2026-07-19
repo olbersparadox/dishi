@@ -10,7 +10,7 @@ import DishName from '@/components/DishName';
 import type { ExportDish } from '@/lib/tasteExport';
 import { isPersona, type Persona } from '@/lib/persona';
 import { RateIcon, TrashIcon, UtensilsIcon, HomeIcon, PhotoIcon } from '@/components/icons';
-import { setPendingPhoto } from '@/lib/pendingPhoto';
+import { setPendingPhotos } from '@/lib/pendingPhoto';
 import { wordKeyFor } from '@/lib/flickWords';
 import { useLang, cuisineLabel } from '@/lib/i18n';
 
@@ -196,10 +196,12 @@ function TasteProfile() {
             <label> so the tap natively opens the picker with a real user gesture. */}
         <label className="log-src">
           <PhotoIcon size={42} /><span>+{t('logsrc.album')}</span>
-          <input type="file" accept="image/*" hidden onChange={e => {
-            const f = e.target.files?.[0];
-            e.target.value = ''; // allow re-picking the same file next time
-            if (f) { setPendingPhoto(f); router.push('/log?source=album'); }
+          {/* MULTI-select now: pick a whole roll and rate it as a flick stack (the
+              revamp). One photo still works — it's just a stack of one. */}
+          <input type="file" accept="image/*" multiple hidden onChange={e => {
+            const fs = Array.from(e.target.files ?? []);
+            e.target.value = ''; // allow re-picking the same files next time
+            if (fs.length) { setPendingPhotos(fs); router.push('/rate'); }
           }} />
         </label>
       </div>
