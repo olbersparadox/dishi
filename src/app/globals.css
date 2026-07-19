@@ -904,7 +904,13 @@ button { font: inherit; cursor: pointer; }
 
 /* 語言對 globe picker (replaces the 中/EN switcher) */
 .lang-picker { position: relative; display: inline-flex; }
-.lang-globe { display: inline-flex; padding: 4px; background: none; border: none; color: var(--ink); cursor: pointer; }
+.lang-globe { position: relative; display: inline-flex; padding: 4px; background: none; border: none; color: var(--ink); cursor: pointer; }
+/* AI sparkle badge on the globe's top-right. Ink fill with a paper "cutout" outline
+   (paint-order: stroke) so it stays legible sitting over the globe's lines. */
+.lang-globe-ai {
+  position: absolute; top: 1px; right: 1px;
+  fill: var(--ink); stroke: var(--glaze); stroke-width: 2.5px; paint-order: stroke;
+}
 .lang-scrim { position: fixed; inset: 0; z-index: 55; }
 .lang-sheet {
   position: absolute; top: calc(100% + 8px); right: 0; z-index: 56;
