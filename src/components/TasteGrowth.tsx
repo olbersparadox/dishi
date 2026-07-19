@@ -25,14 +25,14 @@ type Dish = {
 
 const POOL: {
   zh: string; en: string; ing: string[]; diet: string[]; heaviness: string;
-  learned: string[]; places: string[] | null;
+  learned: string[]; places: string[] | null; uncertain?: boolean;
 }[] = [
   { zh: '叉燒飯', en: 'Char siu rice', ing: ['egg', 'scallion', 'garlic'], diet: ['pork'], heaviness: 'medium', learned: ['鮮味', '油香', '鹹'],
     places: ['大家樂（銅鑼灣）', '翠華餐廳', '太興', '東海堂', '再興燒臘', '一樂燒鵝', '華姐清湯腩', '甘牌燒鵝', '鏞記酒家', '敏華冰廳'] },
   { zh: '豚骨拉麵', en: 'Tonkotsu ramen', ing: ['egg', 'mushroom', 'scallion'], diet: ['pork'], heaviness: 'heavy', learned: ['濃郁', '鹹鮮', '油'],
     places: ['一蘭', '豚王', '麵屋一燈', '山頭火', '一風堂', '花丸烏冬', '拉麵Jo', '鵬天', '梅光軒'] },
   { zh: '紐約芝士蛋糕', en: 'NY cheesecake', ing: ['lemon', 'egg'], diet: ['dairy', 'egg'], heaviness: 'heavy', learned: ['香甜', '奶香', '微酸'], places: null },
-  { zh: '水晶蝦餃', en: 'Har gow', ing: ['ginger'], diet: ['shellfish', 'seafood'], heaviness: 'light', learned: ['鮮甜', '煙韌'],
+  { zh: '水晶蝦餃', en: 'Har gow', ing: ['ginger'], diet: ['shellfish', 'seafood'], heaviness: 'light', learned: ['鮮甜', '煙韌'], uncertain: true,
     places: ['添好運', '點心到（中環）', '倫敦大酒樓', '稻香', '一點心', '明閣', '龍景軒', '陸羽茶室', '鴻星海鮮', '嘉麟樓'] },
   { zh: '牛油果沙律', en: 'Avocado salad', ing: ['avocado', 'tomato', 'lettuce', 'lemon'], diet: ['veg'], heaviness: 'light', learned: ['清新', 'creamy'], places: null },
 ];
@@ -50,6 +50,10 @@ export default function TasteGrowth({ items, onExit }: { items: GrowItem[]; onEx
   const [fill, setFill] = useState(BASE);
   const [absorbed, setAbsorbed] = useState(0);
   const [flyers, setFlyers] = useState<Flyer[]>([]);
+  // A dish's place is auto-confirmed to the top EXIF guess; the user only opens the
+  // full nearby list (kept collapsed to cut load) when they tap "唔啱?".
+  const [expanded, setExpanded] = useState<Set<number>>(() => new Set());
+  const home = t('place.home');
   // Name editing mirrors the Eat Journal exactly: two fields (zh primary / en
   // secondary); editing one CLEARS the other (which shows a "will translate"
   // placeholder and is re-translated on save).
@@ -80,9 +84,11 @@ export default function TasteGrowth({ items, onExit }: { items: GrowItem[]; onEx
       seq.push({ i, apply: d => ({ ...d, diet: p.diet, heaviness: p.heaviness }) });
       if (p.places) {
         seq.push({ i, apply: d => ({ ...d, hasLocation: true, placeLoading: true }) });
-        seq.push({ i, apply: d => ({ ...d, places: p.places as string[], placeLoading: false }) });
+        // Confident guess = auto-confirm the nearest (top) place; low-confidence
+        // guess is left unset so the row asks the user to pick (pull-forward).
+        seq.push({ i, apply: d => ({ ...d, places: p.places as string[], placeLoading: false, choice: d.choice ?? (p.uncertain ? undefined : (p.places as string[])[0]) }) });
       } else {
-        seq.push({ i, apply: d => ({ ...d, hasLocation: false }) });
+        seq.push({ i, apply: d => ({ ...d, hasLocation: false, choice: d.choice ?? home }) });
       }
       p.learned.forEach(l => seq.push({ i, learn: l }));
       seq.push({ i, apply: d => ({ ...d, done: true }) });
@@ -108,7 +114,12 @@ export default function TasteGrowth({ items, onExit }: { items: GrowItem[]; onEx
   const blobScale = 0.72 + Math.min(absorbed, 16) * 0.04;
 
   // refinement = reward: picking a place or fixing a name teaches more.
-  const choose = (i: number, place: string) => { setDishes(prev => prev.map((d, j) => (j === i ? { ...d, choice: place } : d))); absorb('✓', 2.5); };
+  const choose = (i: number, place: string) => {
+    setDishes(prev => prev.map((d, j) => (j === i ? { ...d, choice: place } : d)));
+    setExpanded(prev => { const n = new Set(prev); n.delete(i); return n; }); // collapse back to the single confirmed chip
+    absorb('✓', 2.5);
+  };
+  const expand = (i: number) => setExpanded(prev => new Set(prev).add(i));
   const startEdit = (i: number) => {
     const p = POOL[i % POOL.length], cur = names[i];
     setEditIdx(i); setDZh(cur?.zh ?? p.zh); setDEn(cur?.en ?? p.en); setEdZh(false); setEdEn(false);
@@ -142,7 +153,6 @@ export default function TasteGrowth({ items, onExit }: { items: GrowItem[]; onEx
           </div>
         </div>
         <h2 className="grow2-title">{allDone ? t('grow.done.title') : t('grow.work.title')}</h2>
-        <p className="grow2-sub">{t('grow.refine.ask')}</p>
 
         <div className="xp-bar" role="progressbar" aria-valuenow={Math.round(fill)}><div className="xp-fill" style={{ width: `${fill}%` }} /></div>
         <p className="grow2-unlock">{fill >= 100 ? t('rate.grow.unlocked') : t('rate.grow.remain', { p: remain })}</p>
@@ -153,8 +163,12 @@ export default function TasteGrowth({ items, onExit }: { items: GrowItem[]; onEx
           const d = dishes[i];
           const p = POOL[i % POOL.length];
           const showPlace = d.placeLoading || d.places.length > 0 || (d.done && !d.hasLocation);
+          const isHome = d.choice === home;
+          const showList = expanded.has(i) || (showPlace && !d.choice && !d.placeLoading);
+          // low-confidence guess with no pick yet → pull the row forward for a look.
+          const needsLook = !!p.uncertain && d.done && !d.choice;
           return (
-            <li key={i} className={`learn-row ${d.done ? 'is-done' : 'is-working'}`}>
+            <li key={i} className={`learn-row ${d.done ? 'is-done' : 'is-working'}${needsLook ? ' needs-look' : ''}`}>
               <div className="learn-thumb">
                 {it.photoUrl
                   // eslint-disable-next-line @next/next/no-img-element
@@ -195,15 +209,23 @@ export default function TasteGrowth({ items, onExit }: { items: GrowItem[]; onEx
                 )}
 
                 {showPlace && (
-                  <div className="chips learn-place">
-                    {d.placeLoading && d.places.length === 0 && <span className="learn-finding">{t('grow.finding')}</span>}
-                    {d.places.map(pl => (
-                      <button key={pl} className={`chip ${d.choice === pl ? 'on' : ''}`} onClick={() => choose(i, pl)}>{pl}</button>
-                    ))}
-                    {(d.places.length > 0 || (d.done && !d.hasLocation)) && (
-                      <button className={`chip chip-util ${d.choice === t('place.home') ? 'on' : ''}`} onClick={() => choose(i, t('place.home'))}>{t('place.home')}</button>
-                    )}
-                  </div>
+                  d.placeLoading && d.places.length === 0
+                    ? <div className="learn-place"><span className="learn-finding">{t('grow.finding')}</span></div>
+                    : !showList && d.choice
+                      // Resolved: one confirmed chip (the top EXIF guess) + a quiet "唔啱?" to open the list.
+                      ? <div className="learn-place learn-confirm">
+                          <span className="chip on learn-confirm-chip">{isHome ? '🏠' : '📍'} {d.choice}</span>
+                          <button className="learn-wrong" onClick={() => expand(i)}>{t('grow.notright')}</button>
+                        </div>
+                      // Expanded (or low-confidence with no guess): the full nearby list to pick from.
+                      : <div className="chips learn-place">
+                          {d.places.map(pl => (
+                            <button key={pl} className={`chip ${d.choice === pl ? 'on' : ''}`} onClick={() => choose(i, pl)}>{pl}</button>
+                          ))}
+                          {(d.places.length > 0 || (d.done && !d.hasLocation)) && (
+                            <button className={`chip chip-util ${isHome ? 'on' : ''}`} onClick={() => choose(i, home)}>{home}</button>
+                          )}
+                        </div>
                 )}
               </div>
             </li>

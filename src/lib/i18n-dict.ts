@@ -404,11 +404,11 @@ export const dict: Record<string, { zh: string; en: string }> = {
   // Progressive "watch your Taste AI learn" screen (merged reward + review)
   'grow.work.title': { zh: '由你嘅評分學緊…', en: 'Learning from your ratings…' },
   'grow.done.title': { zh: '由你嘅評分學到咗', en: 'Learned from your ratings' },
-  'grow.refine.ask': { zh: '睇下啱唔啱 — 揀返餐廳、改個名，佢就學多啲', en: 'Check it looks right — pick the spot or fix a name and it learns more' },
   'grow.analysing': { zh: '分析緊…', en: 'analysing…' },
   'grow.finding': { zh: '搵緊附近餐廳…', en: 'finding restaurants nearby…' },
   'grow.learned': { zh: '學到', en: 'learned' },
   'grow.rename': { zh: '改名', en: 'Rename' },
+  'grow.notright': { zh: '唔啱？', en: 'Not right?' },
   'place.home': { zh: '住家菜', en: 'Home cooked' },
   'grow.leave.bg': { zh: '遲啲再改（後台會繼續分析）', en: 'Refine later — keeps analysing in the background' },
   'grow.leave.done': { zh: '得喇 · 之後都改得返', en: 'Done — you can still refine anytime' },
