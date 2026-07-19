@@ -9,8 +9,9 @@
 // the growth numbers are placeholders — real persistence (create · seal · EXIF ·
 // enrich) + real engine confidence from buddy.ts are the next slice. Confirm/Discard
 // both just close for now.
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useLang } from '@/lib/i18n';
+import { toDisplayableAll } from '@/lib/heic';
 import SnapRating from '@/components/SnapRating';
 import RatingReview, { type ReviewItem } from '@/components/RatingReview';
 import TasteGrowth from '@/components/TasteGrowth';
@@ -19,33 +20,48 @@ type Phase = 'flick' | 'review' | 'grow';
 
 export default function RatingStack({ photos, onExit }: { photos: File[]; onExit: () => void }) {
   const { t } = useLang();
-  const previews = useMemo(() => photos.map(f => URL.createObjectURL(f)), [photos]);
-  useEffect(() => () => previews.forEach(u => URL.revokeObjectURL(u)), [previews]);
+  // Convert any HEIC (iPhone default) to JPEG before previewing — Chrome can't
+  // render HEIC in an <img>. null = still decoding.
+  const [previews, setPreviews] = useState<string[] | null>(null);
+  useEffect(() => {
+    let alive = true; let urls: string[] = [];
+    toDisplayableAll(photos).then(fs => {
+      if (!alive) return;
+      urls = fs.map(f => URL.createObjectURL(f));
+      setPreviews(urls);
+    });
+    return () => { alive = false; urls.forEach(u => URL.revokeObjectURL(u)); };
+  }, [photos]);
 
   const [idx, setIdx] = useState(0);
   const [rated, setRated] = useState<ReviewItem[]>([]); // only RATED cards (skips omitted) — held, NOT committed
   const [phase, setPhase] = useState<Phase>('flick');
   const [taught, setTaught] = useState(0);
 
+  // Still decoding (e.g. HEIC → JPEG) — a brief loading sheet.
+  if (!previews) return (
+    <div className="rate-sheet"><div className="rate-sheet-inner rate-loading">{t('rate.preparing')}</div></div>
+  );
+  if (!previews.length) return null;
+  const pv = previews;
+
   // Rate pushes a card; skip drops it. Both advance; the last one opens review
   // (unless everything was skipped — then there's nothing to review, so close).
-  function advance(next: ReviewItem[]) {
+  const advance = (next: ReviewItem[]) => {
     setRated(next);
-    if (idx + 1 >= previews.length) { if (next.length) setPhase('review'); else onExit(); }
+    if (idx + 1 >= pv.length) { if (next.length) setPhase('review'); else onExit(); }
     else setIdx(i => i + 1);
-  }
-  const onRate = (score: number) => advance([...rated, { photoUrl: previews[idx], score }]);
+  };
+  const onRate = (score: number) => advance([...rated, { photoUrl: pv[idx], score }]);
   const onSkip = () => advance(rated);
-
-  if (!previews.length) return null;
 
   if (phase === 'flick') {
     // Full-screen glass overlay over the Taste AI page.
     return (
       <SnapRating
         key={idx}
-        photoUrl={previews[idx]}
-        progress={t('rate.stack.progress', { i: idx + 1, n: previews.length })}
+        photoUrl={pv[idx]}
+        progress={t('rate.stack.progress', { i: idx + 1, n: pv.length })}
         onClose={onExit}
         onRate={onRate}
         onSkip={onSkip}

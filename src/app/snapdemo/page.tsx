@@ -8,6 +8,7 @@
 // the feel is dialled in.
 import { useState } from 'react';
 import { useLang } from '@/lib/i18n';
+import { toDisplayableAll } from '@/lib/heic';
 import SnapRating from '@/components/SnapRating';
 import RatingReview, { type ReviewItem } from '@/components/RatingReview';
 import TasteGrowth from '@/components/TasteGrowth';
@@ -26,9 +27,11 @@ export default function SnapDemo() {
     previews.forEach(u => URL.revokeObjectURL(u));
     setPreviews(urls); setIdx(0); setRated([]); setPhase('flick'); setTaught(0);
   }
-  function pick(files: FileList | null) {
+  async function pick(files: FileList | null) {
     const fs = Array.from(files ?? []);
-    if (fs.length) reset(fs.map(f => URL.createObjectURL(f)));
+    if (!fs.length) return;
+    const disp = await toDisplayableAll(fs); // HEIC → JPEG so Chrome can render it
+    reset(disp.map(f => URL.createObjectURL(f)));
   }
 
   // Rate pushes a card; skip drops it. Both advance; the last one opens review

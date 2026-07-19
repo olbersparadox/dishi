@@ -310,6 +310,7 @@ button { font: inherit; cursor: pointer; }
   background: var(--glaze); overscroll-behavior: contain;
 }
 .rate-sheet-inner { max-width: 460px; margin: 0 auto; padding: 28px 16px 96px; min-height: 100%; }
+.rate-loading { display: grid; place-items: center; color: var(--ink-soft); font-size: 14px; }
 
 /* ---- End-of-stack consent / review (RatingReview) — FIRST-PASS, owner to refine ---- */
 .review-title { font-size: 21px; margin: 6px 0 4px; }
