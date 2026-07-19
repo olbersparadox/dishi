@@ -27,7 +27,9 @@ export default function LanguagePicker() {
     <div className="lang-picker">
       <button className="lang-globe" onClick={() => setOpen(o => !o)} aria-haspopup="dialog" aria-expanded={open} aria-label={t('lang.title')}>
         {/* globe glyph via icon */}
-        <svg viewBox="0 0 24 24" width={22} height={22} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        {/* strokeWidth 1.45 (not 1.6): the globe renders at 22px vs the bell's 20px, so
+            a matched 1.6 would read ~10% thicker. 1.45×22 ≈ 1.6×20 → same line weight. */}
+        <svg viewBox="0 0 24 24" width={22} height={22} fill="none" stroke="currentColor" strokeWidth="1.45" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <circle cx="12" cy="12" r="9" /><path d="M3 12h18" /><path d="M12 3a14 14 0 010 18a14 14 0 010-18z" />
         </svg>
         {/* AI sparkle: signals the globe does more than switch language — it also
