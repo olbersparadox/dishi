@@ -918,10 +918,14 @@ button { font: inherit; cursor: pointer; }
   background: var(--glaze); border: 1px solid var(--line); border-radius: 14px;
   box-shadow: 0 12px 32px rgba(20, 16, 12, 0.16); padding: 14px; animation: duel-pop 200ms ease;
 }
+/* Reserve a constant block for title+subtitle (= the taller Chinese layout) so the
+   larger English title grows WITHIN it instead of pushing the pickers/card. Text is
+   bottom-aligned, so the subtitle→pickers gap is identical in both languages. */
+.lang-sheet-head { min-height: 43px; margin-bottom: 12px; display: flex; flex-direction: column; justify-content: flex-end; }
 .lang-sheet-title { font-family: var(--font-display); font-size: 17px; font-weight: 700; margin-bottom: 2px; }
 /* English title only: larger, pulled tighter to the subtitle. zh keeps its size/gap. */
 .lang-en .lang-sheet-title { font-size: 20px; line-height: 1.1; margin-bottom: -1px; }
-.lang-sheet-subtitle { font-size: 12.5px; color: var(--ink-soft); line-height: 1.35; margin-bottom: 12px; }
+.lang-sheet-subtitle { font-size: 12.5px; color: var(--ink-soft); line-height: 1.35; }
 /* Open the tracking for the Chinese subtitle only — Latin (the en string) stays tight. */
 .lang-zh .lang-sheet-subtitle { letter-spacing: 0.1em; }
 .lang-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
