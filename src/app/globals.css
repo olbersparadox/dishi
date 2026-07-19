@@ -245,9 +245,9 @@ button { font: inherit; cursor: pointer; }
   /* Glass over the page beneath (the Taste AI section): the live page shows
      through, blurred + darkened, so the card + rating float on top of it rather
      than on a separate black screen. */
-  background: rgba(18, 14, 10, 0.18);
-  backdrop-filter: blur(14px) saturate(0.9);
-  -webkit-backdrop-filter: blur(14px) saturate(0.9);
+  background: rgba(18, 14, 10, 0.04);
+  backdrop-filter: blur(14px) saturate(1);
+  -webkit-backdrop-filter: blur(14px) saturate(1);
   touch-action: none; user-select: none; -webkit-user-select: none;
   overscroll-behavior: contain;
 }
@@ -293,7 +293,7 @@ button { font: inherit; cursor: pointer; }
   position: absolute; left: 24px; bottom: 40px; max-width: 74%;
   z-index: 4; pointer-events: none; text-align: left; white-space: normal;
   font-family: var(--font-display); font-weight: 800;
-  font-size: clamp(52px, 18vw, 88px); line-height: 1.0; letter-spacing: -0.02em;
+  font-size: 130px; line-height: 0.96; letter-spacing: -0.02em;
   color: #141210;
 }
 .snap-word.is-skip { color: #6d757a; font-weight: 700; } /* dismiss reads neutral, not a verdict */
