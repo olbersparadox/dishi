@@ -241,20 +241,26 @@ export default function SnapRating({
         {SLOTS.map((s, i) => <span key={i} className={`snap-tick ${!skip && locked === i ? 'on' : ''}`} />)}
       </div>
 
-      {/* first-card onboarding: a pointing hand + up/down arrows say "drag to rate" */}
+      {/* first-card onboarding: a touch dot between up/down arrows say "drag to rate" */}
       {showHint && !touched && !skip && locked === null && (
         <div className="snap-hint" aria-hidden>
           <div className="snap-hint-inner">
-            <div className="snap-hint-arrow">▲</div>
-            <div className="snap-hint-hand">👆</div>
-            <div className="snap-hint-arrow">▼</div>
+            <svg width="20" height="11" viewBox="0 0 20 11"><path d="M10 0 L19 10 L1 10 Z" fill="#fff" /></svg>
+            <svg width="48" height="48" viewBox="0 0 48 48">
+              <circle cx="24" cy="24" r="20" fill="none" stroke="#fff" strokeWidth="2.6" />
+              <circle cx="24" cy="24" r="8" fill="#fff" />
+            </svg>
+            <svg width="20" height="11" viewBox="0 0 20 11"><path d="M10 11 L1 1 L19 1 Z" fill="#fff" /></svg>
           </div>
         </div>
       )}
 
-      {/* verdict — big native word with a small English line above it — bottom-left */}
+      {/* verdict — big native word with a small (uppercase) English line above it */}
       {skip
-        ? <div className="snap-verdict"><div className="snap-word is-skip">{t('rate.skip')}</div></div>
+        ? <div className="snap-verdict">
+            {lang === 'zh' && <div className="snap-word-en is-skip">{dict['rate.skip'].en}</div>}
+            <div className="snap-word is-skip">{t('rate.skip')}</div>
+          </div>
         : locked !== null
           ? <div className="snap-verdict">
               {lang === 'zh' && <div className="snap-word-en">{dict[SLOTS[locked].key].en}</div>}

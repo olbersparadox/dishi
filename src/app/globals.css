@@ -293,8 +293,9 @@ button { font: inherit; cursor: pointer; }
 .snap-verdict { position: absolute; left: 24px; bottom: 40px; max-width: 82%; z-index: 4; pointer-events: none; }
 .snap-word-en {
   font-family: var(--font-display); font-weight: 700; font-size: 22px;
-  color: #141210; letter-spacing: 0.01em; margin-bottom: 4px;
+  color: #141210; letter-spacing: 0.04em; margin-bottom: 4px; text-transform: uppercase;
 }
+.snap-word-en.is-skip { color: #6d757a; }
 .snap-word {
   text-align: left; white-space: normal;
   font-family: var(--font-display); font-weight: 800;
@@ -303,14 +304,17 @@ button { font: inherit; cursor: pointer; }
 }
 .snap-word.is-skip { color: #6d757a; font-weight: 700; } /* dismiss reads neutral, not a verdict */
 
-/* first-card drag-to-rate hint — a pointing hand between up/down arrows, gently bobbing */
+/* first-card drag-to-rate hint — a white touch dot between up/down arrows, bobbing */
 .snap-hint {
   position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
-  z-index: 5; pointer-events: none; text-align: center;
+  z-index: 5; pointer-events: none;
 }
-.snap-hint-inner { animation: snapHintBob 1.5s ease-in-out infinite; }
-.snap-hint-hand { font-size: 44px; line-height: 1; }
-.snap-hint-arrow { font-size: 18px; line-height: 1.1; color: #141210; opacity: 0.7; }
+.snap-hint-inner {
+  display: flex; flex-direction: column; align-items: center; gap: 9px;
+  animation: snapHintBob 1.5s ease-in-out infinite;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.45)); /* legible on any photo */
+}
+.snap-hint-inner svg { display: block; }
 @keyframes snapHintBob { 0%, 100% { transform: translateY(-8px); } 50% { transform: translateY(8px); } }
 @media (prefers-reduced-motion: reduce) { .snap-hint-inner { animation: none; } }
 .snap-close {
