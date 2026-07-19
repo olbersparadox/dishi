@@ -303,6 +303,14 @@ button { font: inherit; cursor: pointer; }
   .snap-photo { transition: none; } /* card motion is a JS spring; only the filter eases */
 }
 
+/* Review + reward ride in a full-screen sheet over the Taste AI page (the flick
+   phase uses the glass .snap-overlay instead). */
+.rate-sheet {
+  position: fixed; inset: 0; z-index: 50; overflow-y: auto;
+  background: var(--glaze); overscroll-behavior: contain;
+}
+.rate-sheet-inner { max-width: 460px; margin: 0 auto; padding: 28px 16px 96px; min-height: 100%; }
+
 /* ---- End-of-stack consent / review (RatingReview) — FIRST-PASS, owner to refine ---- */
 .review-title { font-size: 21px; margin: 6px 0 4px; }
 .review-blurb { margin-bottom: 18px; }

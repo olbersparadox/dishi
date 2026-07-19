@@ -4,7 +4,8 @@
 // CONSENT/review → the "growing your Taste AI" level-up reward. Lets the owner feel +
 // design-tune the full flow on their phone WITHOUT the preview auth wall. Nothing is
 // saved or sent anywhere; growth numbers are mocked. Throwaway harness — the real
-// flow is RatingStack behind /rate. Removable once the feel is dialled in.
+// flow is RatingStack, opened as an overlay from the Taste AI tab. Removable once
+// the feel is dialled in.
 import { useState } from 'react';
 import { useLang } from '@/lib/i18n';
 import SnapRating from '@/components/SnapRating';

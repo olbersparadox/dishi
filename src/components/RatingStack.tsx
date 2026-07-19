@@ -1,60 +1,75 @@
 'use client';
-// The album-batch rating flow (rating-flow revamp). You multi-select a roll of food
-// photos; they arrive here as a flick STACK — one magnetic-snap card at a time.
+// The album-batch rating flow (rating-flow revamp), rendered as an OVERLAY on top
+// of the Taste AI page so the drag-and-rate glass shows the live section blurred
+// behind it (the page beneath stays mounted — the parent just conditionally renders
+// this). You multi-select a roll; it becomes a flick STACK → end-of-stack consent →
+// the "growing your Taste AI" reward.
 //
-// THIS PASS: the feel prototype — real photos, the SnapRating card, advance on each
-// rating. Nothing is created or committed yet (the trust rule): background prep
-// (create · seal · EXIF · enrich) and the end-of-stack CONSENT + level-up summary
-// are the next slice. Ratings are just held locally so we can feel the rhythm.
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { takePendingPhotos } from '@/lib/pendingPhoto';
+// TRUST RULE / STATE OF PLAY: nothing is committed yet. Ratings are held locally and
+// the growth numbers are placeholders — real persistence (create · seal · EXIF ·
+// enrich) + real engine confidence from buddy.ts are the next slice. Confirm/Discard
+// both just close for now.
+import { useEffect, useMemo, useState } from 'react';
 import { useLang } from '@/lib/i18n';
 import SnapRating from '@/components/SnapRating';
+import RatingReview, { type ReviewItem } from '@/components/RatingReview';
+import TasteGrowth from '@/components/TasteGrowth';
 
-export default function RatingStack() {
-  const router = useRouter();
+type Phase = 'flick' | 'review' | 'grow';
+
+export default function RatingStack({ photos, onExit }: { photos: File[]; onExit: () => void }) {
   const { t } = useLang();
-  const [photos, setPhotos] = useState<File[] | null>(null);
-  const [previews, setPreviews] = useState<string[]>([]);
+  const previews = useMemo(() => photos.map(f => URL.createObjectURL(f)), [photos]);
+  useEffect(() => () => previews.forEach(u => URL.revokeObjectURL(u)), [previews]);
+
   const [idx, setIdx] = useState(0);
-  const [ratings, setRatings] = useState<number[]>([]); // held locally — NOT committed yet
+  const [rated, setRated] = useState<ReviewItem[]>([]); // only RATED cards (skips omitted) — held, NOT committed
+  const [phase, setPhase] = useState<Phase>('flick');
+  const [taught, setTaught] = useState(0);
 
-  useEffect(() => {
-    // One-shot hand-off from the Taste-AI entry; a direct hit / refresh has nothing
-    // to consume, so bounce back rather than show an empty stack.
-    const fs = takePendingPhotos();
-    if (!fs.length) { router.replace('/profile'); return; }
-    setPhotos(fs);
-    const urls = fs.map(f => URL.createObjectURL(f));
-    setPreviews(urls);
-    return () => urls.forEach(u => URL.revokeObjectURL(u));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Rate pushes a card; skip drops it. Both advance; the last one opens review
+  // (unless everything was skipped — then there's nothing to review, so close).
+  function advance(next: ReviewItem[]) {
+    setRated(next);
+    if (idx + 1 >= previews.length) { if (next.length) setPhase('review'); else onExit(); }
+    else setIdx(i => i + 1);
+  }
+  const onRate = (score: number) => advance([...rated, { photoUrl: previews[idx], score }]);
+  const onSkip = () => advance(rated);
 
-  if (!photos) return null;
+  if (!previews.length) return null;
 
-  // End of stack — placeholder for the consent + level-up summary (next slice).
-  if (idx >= previews.length) {
+  if (phase === 'flick') {
+    // Full-screen glass overlay over the Taste AI page.
     return (
-      <div style={{ textAlign: 'center', paddingTop: 40 }}>
-        <p className="label" style={{ justifyContent: 'center' }}>{t('rate.stack.doneproto', { n: ratings.length })}</p>
-        <button className="btn primary" style={{ marginTop: 16 }} onClick={() => router.push('/profile')}>{t('log.done')}</button>
-      </div>
+      <SnapRating
+        key={idx}
+        photoUrl={previews[idx]}
+        progress={t('rate.stack.progress', { i: idx + 1, n: previews.length })}
+        onClose={onExit}
+        onRate={onRate}
+        onSkip={onSkip}
+      />
     );
   }
 
-  // Full-screen magnetic-snap overlay. The lock IS the confirmation, so releasing
-  // while locked rates + advances (no Next button). Ratings stay LOCAL — nothing is
-  // committed until the end-of-stack consent step (next slice).
+  // Consent + reward ride in a full-screen sheet over the page.
+  // Mocked engine growth so the reward is feelable; real numbers come from buddy.ts.
+  const fromPct = 46;
+  const toPct = Math.min(100, fromPct + taught * 9);
   return (
-    <SnapRating
-      key={idx}
-      photoUrl={previews[idx]}
-      progress={t('rate.stack.progress', { i: idx + 1, n: previews.length })}
-      onClose={() => router.push('/profile')}
-      onRate={(score) => { setRatings(r => [...r, score]); setIdx(i => i + 1); }}
-      onSkip={() => setIdx(i => i + 1)}
-    />
+    <div className="rate-sheet">
+      <div className="rate-sheet-inner">
+        {phase === 'review' ? (
+          <RatingReview
+            items={rated}
+            onConfirm={(kept) => { setTaught(kept.length); setPhase('grow'); }}
+            onDiscard={onExit}
+          />
+        ) : (
+          <TasteGrowth taught={taught} fromPct={fromPct} toPct={toPct} level={3} onDone={onExit} />
+        )}
+      </div>
+    </div>
   );
 }
