@@ -41,11 +41,11 @@ const SLOTS = SLOT_META.map((m, i) => ({ ...m, drag: (2.5 - i) * GAP })); // +20
 // whole transit and clicks over only past BREAK, so the tremor-prone free zone is
 // tiny. CAPTURE < BREAK is the hysteresis (harder to leave than to enter).
 const CAPTURE = 34;
-const BREAK = 58;
+const BREAK = 46;     // just above CAPTURE — a light tug pops it out of the slot
 const XFOLLOW = 0.7;  // horizontal play, damped (never affects the rating)
 const XCLAMP = 120;
 const MAXY = 2.5 * GAP + 50;
-const SPRING = 0.34;  // per-frame ease toward the target (higher = snappier)
+const SPRING = 0.44;  // per-frame ease toward the target (higher = snappier)
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
@@ -54,7 +54,7 @@ const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v
 function filterFor(slot: number | null): string {
   if (slot === null) return 'none';
   const v = SLOTS[slot].value; // −0.9 … 1
-  return `saturate(${(1 + v * 0.32).toFixed(3)}) brightness(${(1 + v * 0.05).toFixed(3)})`;
+  return `saturate(${(1 + v * 0.5).toFixed(3)}) brightness(${(1 + v * 0.08).toFixed(3)})`;
 }
 
 export default function SnapRating({
