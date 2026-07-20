@@ -742,6 +742,16 @@ button { font: inherit; cursor: pointer; }
   display: flex; align-items: center; justify-content: center;
   flex: 1 1 auto; min-width: 0; width: auto; height: auto;
 }
+/* The scan banner (the menu-scan dropzone specifically) is INKED: a solid black card
+   with white icons + tip — a confident CTA, distinct from the quiet dashed pickers
+   used elsewhere (log/table/owner). Scoped via :has to this dropzone only; the hover
+   variant is pinned too so the base .photo-picker:hover (which flips color to ink)
+   can't turn the text/icons dark-on-black. */
+.photo-picker:has(.scan-dropzone-content),
+.photo-picker:has(.scan-dropzone-content):hover {
+  background: var(--ink); border: 1px solid var(--ink); color: var(--glaze);
+}
+.photo-picker:has(.scan-dropzone-content) .scan-dropzone-tip { color: var(--glaze); }
 /* Scan dropzone: icon pair on the left, tip text on the right, inside the box. */
 .scan-dropzone-content { display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 16px; min-width: 0; }
 .scan-dropzone-icons { display: inline-flex; align-items: center; gap: 2px; flex-shrink: 0; margin-left: 15px; position: relative; top: -1px; }
