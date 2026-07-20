@@ -1,6 +1,5 @@
 'use client';
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import AuthGate from '@/components/AuthGate';
 import { supabaseBrowser } from '@/lib/supabase/client';
@@ -191,29 +190,29 @@ function TasteProfile() {
           Taste) — this is the bridge so photographing and rating a dish directly
           (not via a menu-scan pick) is still one tap away, right where Jerry
           asked for "rate a dish" to live. */}
-      {/* The single ＋記錄口味 button is REPLACED by its three entry paths, so the
-          surface itself teaches that anything counts: a restaurant dish, tonight's
-          home cooking, or a food shot buried in the camera roll. Each path lands
-          in a log flow with the steps IT doesn't need already removed (home has no
-          restaurant question; album is photo-first with skip-first restaurant). */}
-      <div className="log-src-row">
-        <Link href="/log" className="log-src"><UtensilsIcon size={42} /><span>+{t('logsrc.rest')}</span></Link>
-        <Link href="/log?source=home" className="log-src"><HomeIcon size={42} /><span>+{t('logsrc.home')}</span></Link>
-        {/* Album entry opens the OS photo picker directly — an "old photo" log IS a
-            camera-roll shot, so there's no reason to detour through the capture
-            screen first. The chosen file is handed to the album flow (which then
-            lands with it already loaded) via the pendingPhoto singleton. It's a
-            <label> so the tap natively opens the picker with a real user gesture. */}
-        <label className="log-src">
-          <PhotoIcon size={42} /><span>+{t('logsrc.album')}</span>
-          {/* MULTI-select now: pick a whole roll and rate it as a flick stack (the
-              revamp). One photo still works — it's just a stack of one. */}
-          <input type="file" accept="image/*" multiple hidden onChange={e => {
-            const fs = Array.from(e.target.files ?? []);
-            e.target.value = ''; // allow re-picking the same files next time
-            if (fs.length) setRatePhotos(fs); // open the rating overlay in place
-          }} />
-        </label>
+      {/* ONE merged entry pill, three segments split by a thin hairline. All three do
+          the EXACT SAME thing — open the photo library (multi-select) and hand the roll
+          to the flick rating flow. The three labels are purely a TEACHING surface: they
+          tell the person everything counts — a restaurant dish, tonight's home cooking,
+          or an old camera-roll shot — but there's no behavioural difference. EXIF (when
+          present) supplies where + when for all of them; home vs restaurant vs skip is
+          chosen per-dish inside the flow. Each segment is a <label> so the tap natively
+          opens the picker with a real user gesture. */}
+      <div className="log-src-merged">
+        {([
+          { id: 'rest', icon: <UtensilsIcon size={42} />, key: 'logsrc.rest' },
+          { id: 'home', icon: <HomeIcon size={42} />, key: 'logsrc.home' },
+          { id: 'album', icon: <PhotoIcon size={42} />, key: 'logsrc.album' },
+        ] as const).map(seg => (
+          <label key={seg.id} className="log-src-seg">
+            {seg.icon}<span>+{t(seg.key)}</span>
+            <input type="file" accept="image/*" multiple hidden onChange={e => {
+              const fs = Array.from(e.target.files ?? []);
+              e.target.value = ''; // allow re-picking the same files next time
+              if (fs.length) setRatePhotos(fs); // open the rating overlay in place
+            }} />
+          </label>
+        ))}
       </div>
 
       {/* Rating flow as a full-screen overlay ON TOP of this Taste AI page (kept

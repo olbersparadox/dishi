@@ -111,6 +111,10 @@ export async function POST(req: NextRequest) {
       source,
       eaten_at: eatenAt,
       district,
+      // Keep the raw EXIF coords (not just the reverse-geocoded district) so a later
+      // "switch restaurant" edit seeds the picker from WHERE THE PHOTO WAS TAKEN.
+      lat: Number.isFinite(dLat) ? dLat : null,
+      lng: Number.isFinite(dLng) ? dLng : null,
     })
     .select()
     .single();
@@ -178,6 +182,8 @@ async function createFromName(req: NextRequest, supabase: any, userId: string) {
       // dishes_source_expand_check migration widened it.)
       source: body?.source === 'home' ? 'home' : 'manual',
       district,
+      lat: Number.isFinite(dLat) ? dLat : null,
+      lng: Number.isFinite(dLng) ? dLng : null,
     })
     .select()
     .single();

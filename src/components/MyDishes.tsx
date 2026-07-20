@@ -17,6 +17,7 @@ export type MyDish = {
   locked: boolean; created_at: string; eaten_at?: string | null;
   restaurant_area?: string | null; source?: string | null;
   district?: DistrictMap | null; restaurant_district?: DistrictMap | null;
+  lat?: number | null; lng?: number | null; // photo EXIF coords → seed "switch restaurant"
   restaurant_id?: string | null; dish_identity_id?: string | null;
   dish_identity_checked_at?: string | null;
   identity_name?: string | null; identity_name_zh?: string | null;
@@ -502,7 +503,14 @@ export default function MyDishes({ t, lang }: { t: (k: string, p?: Record<string
                   </div>
                   {changingRestaurant && (
                     <div style={{ marginTop: 8 }}>
-                      <RestaurantPicker onChange={setDraftRestaurant} />
+                      {/* Seed from WHERE THE PHOTO WAS TAKEN (stored EXIF coords), not the
+                          device's live GPS — this is a retrospective edit, the person is
+                          almost never standing where they ate. null coords (old dishes /
+                          EXIF-stripped photos) fall back to live GPS, as before. */}
+                      <RestaurantPicker
+                        onChange={setDraftRestaurant}
+                        seedCoords={d.lat != null && d.lng != null ? { lat: d.lat, lng: d.lng } : null}
+                      />
                     </div>
                   )}
                   {changingRating && (

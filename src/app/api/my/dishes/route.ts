@@ -79,7 +79,7 @@ export async function GET(req: NextRequest) {
 
   let query = supabase
     .from('dishes')
-    .select('id, name, name_zh, cuisine, photo_url, created_at, eaten_at, district, source, restaurant_id, dish_identity_id, dish_identity_checked_at, cooking_method, heaviness, diet, restaurants(name, area, district), dish_identities(name, name_zh)')
+    .select('id, name, name_zh, cuisine, photo_url, created_at, eaten_at, district, lat, lng, source, restaurant_id, dish_identity_id, dish_identity_checked_at, cooking_method, heaviness, diet, restaurants(name, area, district), dish_identities(name, name_zh)')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
     .limit(PAGE_SIZE);
@@ -117,6 +117,8 @@ export async function GET(req: NextRequest) {
       photo_url: d.photo_url, restaurant: d.restaurants?.name ?? null,
       restaurant_area: d.restaurants?.area ?? null, restaurant_district: d.restaurants?.district ?? null,
       district: d.district ?? null, source: d.source ?? null,
+      lat: d.lat ?? null, lng: d.lng ?? null, // photo EXIF coords → seed the "switch restaurant" picker
+
       restaurant_id: d.restaurant_id ?? null, dish_identity_id: d.dish_identity_id ?? null,
       dish_identity_checked_at: d.dish_identity_checked_at ?? null,
       identity_name: d.dish_identities?.name ?? null, identity_name_zh: d.dish_identities?.name_zh ?? null,
