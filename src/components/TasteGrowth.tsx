@@ -88,9 +88,12 @@ const emptyDish = (): Dish => ({ named: false, ing: [], diet: [], places: [], pl
 
 type Flyer = { id: number; word: string; x: number; y: number };
 
-export default function TasteGrowth({ items, live, onExit, onPickPlace }: {
+export type NameEdit = { zh: string; en: string; edZh: boolean; edEn: boolean };
+export default function TasteGrowth({ items, live, onExit, onPickPlace, onEditName, onReclassify }: {
   items?: GrowItem[]; live?: GrowDish[]; onExit: () => void;
-  onPickPlace?: (i: number, label: string) => void; // live mode: RatingStack persists the pick
+  onPickPlace?: (i: number, label: string) => void;    // live: RatingStack persists the pick
+  onEditName?: (i: number, edit: NameEdit) => void;     // live: persist a rename (full cascade)
+  onReclassify?: (i: number, edit: NameEdit) => void;   // live: "it IS food" → name + rate it
 }) {
   const { t } = useLang();
   const isLive = !!live;
@@ -268,10 +271,16 @@ export default function TasteGrowth({ items, live, onExit, onPickPlace }: {
     const i = editIdx, p = srcOf(i);
     if (edZh || edEn) {
       const zh = dZh.trim(), en = dEn.trim();
-      // Real app re-translates the cleared field on save; the demo falls back to the
-      // pool value as a stand-in so both slots always display. A reclassified non-dish
-      // has empty pool values, so it keeps exactly what was typed.
-      setNames(prev => prev.map((n, j) => (j === i ? { zh: zh || p.zh, en: en || p.en } : n)));
+      if (isLive) {
+        // Live: RatingStack persists (rename cascade / reclassify+rate); the canonical
+        // name + re-derived data flow back via the stream.
+        if (editReclassify) onReclassify?.(i, { zh, en, edZh, edEn });
+        else onEditName?.(i, { zh, en, edZh, edEn });
+      } else {
+        // Sim: the demo falls back to the pool value for a cleared field so both slots
+        // always display.
+        setNames(prev => prev.map((nm, j) => (j === i ? { zh: zh || p.zh, en: en || p.en } : nm)));
+      }
       absorb(zh || en || '✓', 2.5);
       setEditReclassify(false); setEditIdx(null);
       reReenrich(i); // the name changed → re-derive the ingredient chips with animation

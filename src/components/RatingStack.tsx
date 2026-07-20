@@ -22,7 +22,7 @@ import { useLang } from '@/lib/i18n';
 import { toDisplayableAll } from '@/lib/heic';
 import { readPhotoMeta, type PhotoMeta } from '@/lib/photoMeta';
 import SnapRating from '@/components/SnapRating';
-import TasteGrowth, { type GrowDish, type GrowPlace } from '@/components/TasteGrowth';
+import TasteGrowth, { type GrowDish, type GrowPlace, type NameEdit } from '@/components/TasteGrowth';
 
 type Phase = 'flick' | 'grow';
 type Prepared = { file: File; url: string; meta: PhotoMeta };
@@ -70,6 +70,41 @@ export default function RatingStack({ photos, onExit }: { photos: File[]; onExit
     }).catch(() => {});
   };
 
+  // ── Shared pipeline steps (reused by the first run AND a not-a-dish reclassify) ──
+  const seal = (dishId: string) =>
+    fetch('/api/seals', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dish_id: dishId }) }).catch(() => {});
+  const rate = (dishId: string, score: number) =>
+    fetch('/api/ratings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dish_id: dishId, score }) }).catch(() => {});
+  const enrich = (i: number, dishId: string) =>
+    fetch('/api/dishes/enrich', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: dishId }) })
+      .then(r => (r.ok ? r.json() : null))
+      .then(j => { if (j?.dish) patch(i, { ingredients: j.dish.ingredients ?? [], diet: j.dish.diet ?? [], heaviness: j.dish.heaviness ?? null, name_zh: j.dish.name_zh ?? undefined, enriched: true }); })
+      .catch(() => {});
+  // EXIF coords → real nearby list → auto-confirm + persist the nearest (correctable).
+  const loadNearby = async (i: number, dishId: string, coords: { lat: number; lng: number }) => {
+    patch(i, { coords, hasLocation: true, placeLoading: true });
+    try {
+      const nr = await fetch(`/api/restaurants/nearby?lat=${coords.lat}&lng=${coords.lng}&lang=${lang === 'zh' ? 'zh' : 'en'}`);
+      const nj = await nr.json().catch(() => null);
+      const list: any[] = nj?.restaurants ?? [];
+      const rich: GrowPlace[] = list.map((r: any) => ({
+        label: String(lang === 'zh' ? (r.name_zh ?? r.name) : r.name),
+        lat: r.lat, lng: r.lng, source: r.source,
+        restaurant_id: r.source === 'dishi' ? r.id : undefined,
+        place_id: r.source === 'google' ? r.place_id : undefined,
+      })).filter(p => p.label);
+      const top = rich[0] ?? null;
+      patch(i, { nearby: rich, placeLoading: false, choice: top ? top.label : null });
+      if (top) persistPlace(dishId, top); // optimistic-commit the nearest; correctable
+    } catch { patch(i, { placeLoading: false }); }
+  };
+  // The full rename cascade (name_edited_at + translate the cleared field + reanalyzeAnchored).
+  const renamePatch = (dishId: string, e: NameEdit) =>
+    fetch('/api/my/dishes', {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dish_id: dishId, name: e.en || undefined, name_zh: e.zh || null, edited_en: e.edEn, edited_zh: e.edZh }),
+    }).then(r => (r.ok ? r.json() : null)).catch(() => null);
+
   // The REAL pipeline for one rated card. Runs detached (the user has already moved on
   // to the next card); each step patches this dish's row in place as it lands.
   async function runPipeline(file: File, score: number, i: number, meta: PhotoMeta) {
@@ -84,60 +119,21 @@ export default function RatingStack({ photos, onExit }: { photos: File[]; onExit
       const json = await res.json().catch(() => null);
       if (!res.ok || !json?.dish) { patch(i, { status: 'failed' }); return; }
       const d = json.dish;
+      const isDish = d.is_dish !== false;
       patch(i, {
-        status: 'ready', dishId: d.id, isDish: d.is_dish !== false,
+        status: 'ready', dishId: d.id, isDish,
         name: d.name, name_zh: d.name_zh, cuisine: d.cuisine ?? null,
-        diet: d.diet ?? [], heaviness: d.heaviness ?? null,
+        diet: d.diet ?? [], heaviness: d.heaviness ?? null, coords: meta.coords ?? null,
       });
 
-      // Seal BEFORE the rating — awaited so the ordering is guaranteed. Below the seal
-      // gate this is a clean no-op; either way the rating is recorded only after it.
-      await fetch('/api/seals', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dish_id: d.id }),
-      }).catch(() => {});
+      // NOT FOOD: never sealed, rated, or enriched — a non-dish must never move the taste
+      // engine. (Reclassifying via "係嘢食嚟" starts the real pipeline; see onReclassify.)
+      if (!isDish) return;
 
-      // Now the held flick score becomes the rating (which reveals any seal).
-      await fetch('/api/ratings', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dish_id: d.id, score }),
-      }).catch(() => {});
-
-      // Enrich in the background — ingredients / diet / cooking / heaviness. The route
-      // re-runs taste replay if the dish was already rated (it was), so nothing learns
-      // from empty attributes.
-      fetch('/api/dishes/enrich', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: d.id }),
-      })
-        .then(r => (r.ok ? r.json() : null))
-        .then(j => {
-          if (j?.dish) patch(i, {
-            ingredients: j.dish.ingredients ?? [], diet: j.dish.diet ?? [],
-            heaviness: j.dish.heaviness ?? null, name_zh: j.dish.name_zh ?? undefined, enriched: true,
-          });
-        })
-        .catch(() => {});
-
-      // Location: EXIF coords → the real nearby list (distance-ranked fixed-10) → auto-
-      // confirm the nearest as an optimistic guess (persisted) that the user can change.
-      if (meta.coords) {
-        patch(i, { coords: meta.coords, hasLocation: true, placeLoading: true });
-        try {
-          const nr = await fetch(`/api/restaurants/nearby?lat=${meta.coords.lat}&lng=${meta.coords.lng}&lang=${lang === 'zh' ? 'zh' : 'en'}`);
-          const nj = await nr.json().catch(() => null);
-          const list: any[] = nj?.restaurants ?? [];
-          const rich: GrowPlace[] = list.map((r: any) => ({
-            label: String(lang === 'zh' ? (r.name_zh ?? r.name) : r.name),
-            lat: r.lat, lng: r.lng, source: r.source,
-            restaurant_id: r.source === 'dishi' ? r.id : undefined,
-            place_id: r.source === 'google' ? r.place_id : undefined,
-          })).filter(p => p.label);
-          const top = rich[0] ?? null;
-          patch(i, { nearby: rich, placeLoading: false, choice: top ? top.label : null });
-          if (top) persistPlace(d.id, top); // optimistic-commit the nearest; correctable
-        } catch { patch(i, { placeLoading: false }); }
-      }
+      await seal(d.id);   // seal BEFORE the rating (honesty contract), awaited for ordering
+      await rate(d.id, score); // the held flick score becomes the rating (reveals any seal)
+      enrich(i, d.id);    // background: ingredients / diet / cooking / heaviness
+      if (meta.coords) loadNearby(i, d.id, meta.coords);
     } catch { patch(i, { status: 'failed' }); }
   }
 
@@ -151,6 +147,34 @@ export default function RatingStack({ photos, onExit }: { photos: File[]; onExit
     if (label === t('grow.addplace')) return;
     const place = (gd.nearby ?? []).find(p => p.label === label);
     if (place) persistPlace(gd.dishId, place);
+  };
+
+  // Rename on the growth screen → persist the full cascade, then re-derive the chips.
+  const onEditName = (i: number, e: NameEdit) => {
+    const gd = dishes[i];
+    if (!gd?.dishId) return;
+    const dishId = gd.dishId;
+    patch(i, { name: e.en || gd.name, name_zh: e.zh || gd.name_zh }); // optimistic
+    renamePatch(dishId, e).then(j => {
+      if (j?.dish) patch(i, { name: j.dish.name, name_zh: j.dish.name_zh ?? gd.name_zh, diet: j.dish.diet ?? gd.diet });
+      enrich(i, dishId); // the identity changed → re-derive ingredients for the new name
+    });
+  };
+
+  // "It IS food" on a mis-flagged non-dish → name it, then run the REAL pipeline (now it
+  // teaches): rename cascade → seal → rate the held flick score → enrich → nearby.
+  const onReclassify = (i: number, e: NameEdit) => {
+    const gd = dishes[i];
+    if (!gd?.dishId) return;
+    const dishId = gd.dishId;
+    patch(i, { isDish: true, name: e.en || gd.name, name_zh: e.zh || gd.name_zh });
+    (async () => {
+      await renamePatch(dishId, e);
+      await seal(dishId);
+      await rate(dishId, gd.score);
+      enrich(i, dishId);
+      if (gd.coords) loadNearby(i, dishId, gd.coords);
+    })();
   };
 
   // Still decoding (e.g. HEIC → JPEG) — a brief loading sheet.
@@ -188,7 +212,7 @@ export default function RatingStack({ photos, onExit }: { photos: File[]; onExit
   return (
     <div className="rate-sheet">
       <div className="rate-sheet-inner">
-        <TasteGrowth live={dishes} onExit={onExit} onPickPlace={onPickPlace} />
+        <TasteGrowth live={dishes} onExit={onExit} onPickPlace={onPickPlace} onEditName={onEditName} onReclassify={onReclassify} />
       </div>
     </div>
   );
