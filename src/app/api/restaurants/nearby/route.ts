@@ -45,7 +45,13 @@ export async function GET(req: NextRequest) {
   try {
     const places = await cachedNearbyPlaces(lat, lng, googleLang);
     const deduped = dedupeAgainstDishi(places, dishi);
-    google = deduped.slice(0, 8 - dishi.length).map(p => ({
+    // No combined cap. Show ALL Dishi rows (the RPC already caps at 8) PLUS every
+    // deduped Google result (Places already caps at 10). The old `slice(0, 8 - dishi)`
+    // squeezed Google down to backfill an 8-slot total — which, once Dishi had a few
+    // nearby rows, could drop the actual restaurant the user was standing in. Explicit
+    // product call: the chip row wraps, and a longer honest list beats a short wrong
+    // one. (Distance ranking upstream means these are the NEAREST places, not random.)
+    google = deduped.map(p => ({
       place_id: p.place_id, name: p.name, lat: p.lat, lng: p.lng, address: p.address,
       distance_m: null, source: 'google' as const,
     }));

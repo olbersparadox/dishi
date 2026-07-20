@@ -48,6 +48,13 @@ export async function searchNearbyRestaurants(
     body: JSON.stringify({
       includedTypes: ['restaurant'],
       maxResultCount: 10,
+      // Rank by DISTANCE, not the default POPULARITY. In dense HK a well-known spot
+      // the user is literally standing in routinely misses the 10 prominence slots
+      // (the 新容記 Tin Wan miss), and a "closest 10" is a far more honest quick-pick
+      // than "most-reviewed 10 in a 300m blast radius". The radius restriction is
+      // still REQUIRED with DISTANCE ranking (verified against the current Places
+      // New docs) — it just bounds the candidate set the 10 nearest are drawn from.
+      rankPreference: 'DISTANCE',
       languageCode,
       locationRestriction: {
         circle: { center: { latitude: lat, longitude: lng }, radius: radiusMeters },
