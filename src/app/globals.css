@@ -126,7 +126,13 @@ button { font: inherit; cursor: pointer; }
 /* Locked export: keep the full vermillion (don't dim like a normal :disabled) — it
    reads as "coming, keep rating" not "unavailable". Still non-interactive (disabled),
    and the lock icon carries the locked meaning. The icon + count sit centred inline. */
-.btn.export.is-locked { display: inline-flex; align-items: center; justify-content: center; gap: 7px; }
+.btn.export.is-locked {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  /* Locked label is SANS (overrides .btn's display serif) + heavier — reads as a
+     firm status line, not a titled CTA. Latin uses Schibsted; Chinese falls to the
+     system sans. 650 (.btn base) + 200. */
+  font-family: var(--font-body), system-ui, sans-serif; font-weight: 850;
+}
 .btn.export.is-locked:disabled { opacity: 1; }
 /* Small icon-only actions (edit/delete on a rated dish) — a quiet round tap
    target rather than a bordered .btn, since a row of these next to a dish's
