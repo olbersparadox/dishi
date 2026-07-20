@@ -215,7 +215,13 @@ export default function SnapRating({
       tabIndex={0}
     >
       {onClose && (
-        <button className="snap-close" onClick={onClose} aria-label={t('log.cancelflow')} title={t('log.cancelflow')}>
+        // stopPropagation on pointerdown: the overlay's own onPointerDown (above) sets
+        // pointer CAPTURE on itself for the drag-to-rate gesture, and since this button
+        // is a child, a tap on it bubbles up and triggers that capture too — which
+        // swallows the button's click before it fires. Stopping it here keeps the tap
+        // from ever reaching the drag handler.
+        <button className="snap-close" onPointerDown={e => e.stopPropagation()} onClick={onClose}
+          aria-label={t('log.cancelflow')} title={t('log.cancelflow')}>
           <CloseIcon size={22} />
         </button>
       )}
