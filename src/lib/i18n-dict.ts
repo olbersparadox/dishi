@@ -183,7 +183,7 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'duel.title': { zh: '調校口味', en: 'Refining your taste' },
   'duel.q': { zh: '揀一樣唔好諗', en: 'Pick one — don’t overthink' },
   'duel.tie': { zh: '揀唔落', en: 'Can’t separate them' },
-  'duel.hit': { zh: '估中咗', en: 'Called it' },
+  'duel.hit': { zh: 'dishi 估中咗', en: 'dishi called it' },
   'duel.miss': { zh: '估錯咗', en: 'Got that wrong' },
   'duel.tieresult': { zh: '兩樣都差唔多，記低咗', en: 'About even — noted' },
   'duel.learned': { zh: '學到：{dims}', en: 'Learned: {dims}' },
