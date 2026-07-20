@@ -3,7 +3,7 @@ import { supabaseServer } from '@/lib/supabase/server';
 import { emptyTaste } from '@/lib/taste';
 import {
   engineConfidence, levelForConfidence,
-  buddyElements, growthHint, exploredDims,
+  buddyElements, growthHint, exploredDims, UNLOCK_CONFIDENCE,
 } from '@/lib/buddy';
 
 /**
@@ -50,6 +50,9 @@ export async function GET() {
     state: {
       level: levelForConfidence(confidence),
       strength: Math.round(confidence * 100),
+      // The AI-export unlock threshold (為食鬼/Gourmand), as a %, so clients — e.g. the
+      // rating-flow growth screen — can show honest progress toward "Taste AI ready".
+      unlockAt: Math.round(UNLOCK_CONFIDENCE * 100),
       elements: buddyElements(inputs),
       hint: growthHint(inputs),
       // Capability honesty: which dimensions the engine genuinely knows (>= 3

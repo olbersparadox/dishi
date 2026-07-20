@@ -53,6 +53,24 @@ export default function RatingStack({ photos, onExit }: { photos: File[]; onExit
   const [idx, setIdx] = useState(0);
   const [dishes, setDishes] = useState<GrowDish[]>([]); // one per RATED card (skips omitted)
   const [phase, setPhase] = useState<Phase>('flick');
+  // The REAL engine state (from /api/buddy) that drives the growth bar — actual taste
+  // confidence toward the AI-export unlock, not a demo mapping. Refreshed as ratings +
+  // enrichment land (both move the profile).
+  const [engine, setEngine] = useState<{ fill: number; ready: boolean; hintKey: string; hintParams?: Record<string, number> } | null>(null);
+  const refreshBuddy = async () => {
+    try {
+      const j = await fetch('/api/buddy').then(r => (r.ok ? r.json() : null));
+      const s = j?.state;
+      if (!s || typeof s.strength !== 'number') return;
+      const unlockAt = s.unlockAt || 50;
+      setEngine({
+        fill: Math.min(100, (s.strength / unlockAt) * 100),
+        ready: s.strength >= unlockAt,
+        hintKey: s.hint?.key ?? 'buddy.hint.tune',
+        hintParams: s.hint?.params,
+      });
+    } catch { /* keep the last good reading */ }
+  };
   const countRef = useRef(0); // stable index into `dishes` for out-of-order pipeline patches
   const sessionDishIds = useRef<string[]>([]); // every dish this session created (for cancel)
 
@@ -90,7 +108,7 @@ export default function RatingStack({ photos, onExit }: { photos: File[]; onExit
   const enrich = (i: number, dishId: string) =>
     fetch('/api/dishes/enrich', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: dishId }) })
       .then(r => (r.ok ? r.json() : null))
-      .then(j => { if (j?.dish) patch(i, { ingredients: j.dish.ingredients ?? [], diet: j.dish.diet ?? [], heaviness: j.dish.heaviness ?? null, name_zh: j.dish.name_zh ?? undefined, enriched: true }); })
+      .then(j => { if (j?.dish) patch(i, { ingredients: j.dish.ingredients ?? [], diet: j.dish.diet ?? [], heaviness: j.dish.heaviness ?? null, name_zh: j.dish.name_zh ?? undefined, enriched: true }); refreshBuddy(); })
       .catch(() => {});
   // EXIF coords → real nearby list → auto-confirm + persist the nearest (correctable).
   const loadNearby = async (i: number, dishId: string, coords: { lat: number; lng: number }) => {
@@ -145,6 +163,7 @@ export default function RatingStack({ photos, onExit }: { photos: File[]; onExit
 
       await seal(d.id);   // seal BEFORE the rating (honesty contract), awaited for ordering
       await rate(d.id, score); // the held flick score becomes the rating (reveals any seal)
+      refreshBuddy();     // real engine confidence just moved → update the bar
       enrich(i, d.id);    // background: ingredients / diet / cooking / heaviness
       if (meta.coords) loadNearby(i, d.id, meta.coords);
     } catch { patch(i, { status: 'failed' }); }
@@ -185,6 +204,7 @@ export default function RatingStack({ photos, onExit }: { photos: File[]; onExit
       await renamePatch(dishId, e);
       await seal(dishId);
       await rate(dishId, gd.score);
+      refreshBuddy();
       enrich(i, dishId);
       if (gd.coords) loadNearby(i, dishId, gd.coords);
     })();
@@ -225,7 +245,7 @@ export default function RatingStack({ photos, onExit }: { photos: File[]; onExit
   return (
     <div className="rate-sheet">
       <div className="rate-sheet-inner">
-        <TasteGrowth live={dishes} onExit={onExit} onCancel={cancelSession} onPickPlace={onPickPlace} onEditName={onEditName} onReclassify={onReclassify} />
+        <TasteGrowth live={dishes} engine={engine} onExit={onExit} onCancel={cancelSession} onPickPlace={onPickPlace} onEditName={onEditName} onReclassify={onReclassify} />
       </div>
     </div>
   );

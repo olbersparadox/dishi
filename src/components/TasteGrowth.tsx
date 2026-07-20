@@ -89,8 +89,10 @@ const emptyDish = (): Dish => ({ named: false, ing: [], diet: [], places: [], pl
 type Flyer = { id: number; word: string; x: number; y: number };
 
 export type NameEdit = { zh: string; en: string; edZh: boolean; edEn: boolean };
-export default function TasteGrowth({ items, live, onExit, onCancel, onPickPlace, onEditName, onReclassify }: {
+export type GrowEngine = { fill: number; ready: boolean; hintKey: string; hintParams?: Record<string, number> };
+export default function TasteGrowth({ items, live, engine, onExit, onCancel, onPickPlace, onEditName, onReclassify }: {
   items?: GrowItem[]; live?: GrowDish[]; onExit: () => void;
+  engine?: GrowEngine | null;                            // live: REAL taste-engine confidence for the bar
   onCancel?: () => void;                                 // the ✕ = discard the session (live)
   onPickPlace?: (i: number, label: string) => void;    // live: RatingStack persists the pick
   onEditName?: (i: number, edit: NameEdit) => void;     // live: persist a rename (full cascade)
@@ -221,10 +223,14 @@ export default function TasteGrowth({ items, live, onExit, onCancel, onPickPlace
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [live]);
 
-  // Progress toward "Taste AI 1.0", expressed as dishes-to-go rather than a raw % —
-  // the honest bar still drives it, so refining (which raises fill) lowers the count.
-  // DEMO mapping; the real screen reads engine confidence.
+  // The bar: in LIVE mode it reads REAL taste-engine confidence toward the AI-export
+  // unlock (from /api/buddy), with the honest growth hint under it. The SIM falls back
+  // to the session-progress mapping ("仲差 N 碟").
   const dishesLeft = Math.max(0, Math.ceil((100 - fill) / 10));
+  const barFill = engine ? engine.fill : fill;
+  const barLine = engine
+    ? (engine.ready ? t('grow.ready') : t(engine.hintKey, engine.hintParams))
+    : (dishesLeft <= 0 ? t('grow.ready') : t('grow.toready', { n: dishesLeft }));
   const blobScale = 0.72 + Math.min(absorbed, 16) * 0.04;
 
   // refinement = reward: picking a place or fixing a name teaches more.
@@ -310,8 +316,8 @@ export default function TasteGrowth({ items, live, onExit, onCancel, onPickPlace
         </div>
         <h2 className="grow2-title">{t('grow.build.title')}</h2>
 
-        <div className="xp-bar" role="progressbar" aria-valuenow={Math.round(fill)}><div className="xp-fill" style={{ width: `${fill}%` }} /></div>
-        <p className="grow2-toready">{dishesLeft <= 0 ? t('grow.ready') : t('grow.toready', { n: dishesLeft })}</p>
+        <div className="xp-bar" role="progressbar" aria-valuenow={Math.round(barFill)}><div className="xp-fill" style={{ width: `${barFill}%` }} /></div>
+        <p className="grow2-toready">{barLine}</p>
       </div>
 
       {/* One ask above the rows: confirming/refining is what makes the engine accurate,
