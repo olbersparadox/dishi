@@ -5,9 +5,13 @@ const CACHE_TTL_HOURS = 12;
 
 /** Round to ~111m grid cells so nearby lookups share a cache entry. Language is
  * part of the bucket now — English and Chinese results are genuinely different
- * data, not the same data displayed differently. */
+ * data, not the same data displayed differently. The `:v2` suffix namespaces the
+ * bucket AFTER the switch to DISTANCE ranking (see places.ts): without it, up to
+ * 12h of pre-change prominence-ranked results would keep serving post-deploy,
+ * hiding the very fix. Bump the suffix again on any future change to what Google
+ * is asked for. */
 function bucketFor(lat: number, lng: number, lang: string): string {
-  return `${lat.toFixed(3)},${lng.toFixed(3)},${lang}`;
+  return `${lat.toFixed(3)},${lng.toFixed(3)},${lang}:v2`;
 }
 
 /**
