@@ -15,7 +15,26 @@ import DishName from '@/components/DishName';
 import DishInfoDisplay from '@/components/DishInfoDisplay';
 import { CheckIcon, CloseIcon } from '@/components/icons';
 
+// snapdemo harness (no auth): photo + score only; the dishes are SIMULATED from POOL.
 export type GrowItem = { photoUrl: string | null; score: number };
+
+// The real flow (RatingStack): each rated card's live pipeline state, streamed in as
+// /api/dishes → seal → rate → enrich resolve. When `live` is passed the screen renders
+// REAL dishes (no POOL); when only `items` is passed it runs the POOL simulation.
+export type GrowDish = {
+  photoUrl: string | null;
+  score: number;
+  status: 'creating' | 'ready' | 'failed';
+  dishId: string | null;
+  isDish: boolean;
+  name: string;
+  name_zh: string | null;
+  cuisine: string | null;
+  ingredients: string[];
+  diet: string[];
+  heaviness: string | null;
+  enriched: boolean;
+};
 
 type Dish = {
   named: boolean;
@@ -50,10 +69,19 @@ const emptyDish = (): Dish => ({ named: false, ing: [], diet: [], places: [], pl
 
 type Flyer = { id: number; word: string; x: number; y: number };
 
-export default function TasteGrowth({ items, onExit }: { items: GrowItem[]; onExit: () => void }) {
+export default function TasteGrowth({ items, live, onExit }: { items?: GrowItem[]; live?: GrowDish[]; onExit: () => void }) {
   const { t } = useLang();
-  const [dishes, setDishes] = useState<Dish[]>(() => items.map(emptyDish));
-  const [names, setNames] = useState<({ zh: string; en: string } | undefined)[]>(() => items.map(() => undefined)); // name overrides
+  const isLive = !!live;
+  // Unified per-row source: photo + score come from whichever mode; length drives all state.
+  const rows: { photoUrl: string | null; score: number }[] = live ?? items ?? [];
+  const rowCount = rows.length;
+  // Per-row NAME/ingredient source: real dish in live mode, POOL entry in the sim.
+  const srcOf = (i: number): { zh: string; en: string; ing: string[]; uncertain?: boolean } =>
+    live
+      ? { zh: live[i]?.name_zh ?? '', en: live[i]?.name ?? '', ing: live[i]?.ingredients ?? [], uncertain: false }
+      : POOL[i % POOL.length];
+  const [dishes, setDishes] = useState<Dish[]>(() => Array.from({ length: rowCount }, emptyDish));
+  const [names, setNames] = useState<({ zh: string; en: string } | undefined)[]>(() => Array.from({ length: rowCount }, () => undefined)); // name overrides
   const [fill, setFill] = useState(BASE);
   const [absorbed, setAbsorbed] = useState(0);
   const [flyers, setFlyers] = useState<Flyer[]>([]);
@@ -84,7 +112,9 @@ export default function TasteGrowth({ items, onExit }: { items: GrowItem[]; onEx
     setFill(f => Math.min(100, f + bump));
   };
 
+  // SIM path (snapdemo): stagger POOL data in on timers. Skipped entirely in live mode.
   useEffect(() => {
+    if (isLive || !items) return;
     type Step = { i: number; apply?: (d: Dish) => Dish; learn?: string };
     type Ev = Step & { at: number };
     const evs: Ev[] = [];
@@ -128,6 +158,38 @@ export default function TasteGrowth({ items, onExit }: { items: GrowItem[]; onEx
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // LIVE path: sync the render model from the real pipeline stream, and fire the blob +
+  // bar on REAL events only (a dish resolves, then enriches) — never on raw count. The
+  // bar reads real progress: half-credit when a dish is created, half when it enriches.
+  const liveSeen = useRef<Record<number, { ready?: boolean; enriched?: boolean }>>({});
+  useEffect(() => {
+    if (!live) return;
+    setDishes(prev => live.map((gd, i) => {
+      const cur = prev[i] ?? emptyDish();
+      return {
+        ...cur,
+        named: gd.status !== 'creating',
+        done: gd.status !== 'creating',
+        notDish: gd.status === 'ready' && !gd.isDish,
+        // don't clobber a re-derive that's mid-animation
+        ing: cur.reenriching ? cur.ing : (gd.ingredients ?? []),
+        diet: gd.diet ?? [],
+        heaviness: gd.heaviness ?? undefined,
+        hasLocation: false, places: [], // real EXIF/nearby lands in a later phase
+      };
+    }));
+    live.forEach((gd, i) => {
+      const s = (liveSeen.current[i] ??= {});
+      if (!s.ready && gd.status === 'ready' && gd.isDish) { s.ready = true; absorb(gd.name || '✓', 0); }
+      if (!s.enriched && gd.enriched && gd.isDish) { s.enriched = true; absorb('✓', 0); }
+    });
+    const real = live.filter(g => g.isDish);
+    const denom = Math.max(1, real.length * 2);
+    const prog = real.reduce((a, g) => a + (g.status !== 'creating' ? 1 : 0) + (g.enriched ? 1 : 0), 0);
+    setFill(BASE + (CAP - BASE) * (prog / denom));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [live]);
+
   // Progress toward "Taste AI 1.0", expressed as dishes-to-go rather than a raw % —
   // the honest bar still drives it, so refining (which raises fill) lowers the count.
   // DEMO mapping; the real screen reads engine confidence.
@@ -146,7 +208,7 @@ export default function TasteGrowth({ items, onExit }: { items: GrowItem[]; onEx
   // bar catch the new learning). A real re-enrich (reanalyzeAnchored) replaces the
   // simulated one when this is wired to the backend.
   const reReenrich = (i: number) => {
-    const p = POOL[i % POOL.length];
+    const p = srcOf(i);
     if (p.ing.length === 0) return; // nothing to re-derive (e.g. a just-named non-dish)
     setDishes(prev => prev.map((d, j) => (j === i ? { ...d, ing: [], reenriching: true } : d)));
     window.setTimeout(() => {
@@ -164,7 +226,7 @@ export default function TasteGrowth({ items, onExit }: { items: GrowItem[]; onEx
   const revertToNotDish = (i: number) =>
     setDishes(prev => prev.map((d, j) => (j === i ? { ...d, notDish: true, named: false } : d)));
   const startEdit = (i: number) => {
-    const p = POOL[i % POOL.length], cur = names[i];
+    const p = srcOf(i), cur = names[i];
     setEditIdx(i); setDZh(cur?.zh ?? p.zh); setDEn(cur?.en ?? p.en); setEdZh(false); setEdEn(false);
   };
   const cancelEdit = () => {
@@ -173,7 +235,7 @@ export default function TasteGrowth({ items, onExit }: { items: GrowItem[]; onEx
   };
   const commitEdit = () => {
     if (editIdx === null) return;
-    const i = editIdx, p = POOL[i % POOL.length];
+    const i = editIdx, p = srcOf(i);
     if (edZh || edEn) {
       const zh = dZh.trim(), en = dEn.trim();
       // Real app re-translates the cleared field on save; the demo falls back to the
@@ -217,9 +279,9 @@ export default function TasteGrowth({ items, onExit }: { items: GrowItem[]; onEx
       <p className="grow-refine-ask">{t('grow.confirm.ask')}</p>
 
       <ul className="learn-list">
-        {items.map((it, i) => {
-          const d = dishes[i];
-          const p = POOL[i % POOL.length];
+        {rows.map((it, i) => {
+          const d = dishes[i] ?? emptyDish();
+          const p = srcOf(i);
           const thumb = (
             <div className={`learn-thumb${d.notDish ? ' learn-thumb-dim' : ''}`}>
               {it.photoUrl
