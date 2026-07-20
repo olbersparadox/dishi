@@ -213,8 +213,15 @@ export default function TasteGrowth({ items, live, engine, onExit, onCancel, onP
     }));
     live.forEach((gd, i) => {
       const s = (liveSeen.current[i] ??= {});
-      if (!s.ready && gd.status === 'ready' && gd.isDish) { s.ready = true; absorb(gd.name || '✓', 0); }
-      if (!s.enriched && gd.enriched && gd.isDish) { s.enriched = true; absorb('✓', 0); }
+      if (!s.ready && gd.status === 'ready' && gd.isDish) { s.ready = true; if (gd.name) absorb(gd.name, 0); }
+      if (!s.enriched && gd.enriched && gd.isDish) {
+        s.enriched = true;
+        // Fly the REAL learned data into the blob — a staggered STREAM of tokens (diet
+        // labels + ingredients), like the sim's taste words, so the absorption reads.
+        const diet = (gd.diet ?? []).map(f => t(`scan.diet.${f}` as Parameters<typeof t>[0])).filter(Boolean);
+        const words = [...diet, ...(gd.ingredients ?? [])].slice(0, 6);
+        (words.length ? words : ['✓']).forEach((w, k) => window.setTimeout(() => absorb(w, 0), k * 150));
+      }
     });
     const real = live.filter(g => g.isDish);
     const denom = Math.max(1, real.length * 2);
@@ -231,7 +238,7 @@ export default function TasteGrowth({ items, live, engine, onExit, onCancel, onP
   const barLine = engine
     ? (engine.ready ? t('grow.ready') : t(engine.hintKey, engine.hintParams))
     : (dishesLeft <= 0 ? t('grow.ready') : t('grow.toready', { n: dishesLeft }));
-  const blobScale = 0.72 + Math.min(absorbed, 16) * 0.04;
+  const blobScale = 0.72 + Math.min(absorbed, 16) * 0.05; // grows a bigger notch per absorbed token
 
   // refinement = reward: picking a place or fixing a name teaches more.
   const choose = (i: number, place: string) => {
