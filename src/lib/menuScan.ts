@@ -53,6 +53,31 @@ export const DIET_PROMPT_GUIDANCE =
 /** The one extra line appended on a tripwire re-ask (see dietSuspicion). */
 export const DIET_RECHECK_LINE =
   `Double-check the diet flags against the dish's classic recipe; correct any flag that does not belong.`;
+
+/** HK-menu carb metonym integrity — same family as DIET_PROMPT_GUIDANCE, and just as
+ * trust-critical. Hong Kong menus name the carbohydrate with a single-character
+ * shorthand, and vision keeps misreading it as rice (炆米 → "braised rice") or
+ * character-literally (干炒牛河 → "beef river") — a wrong carb then poisons the English
+ * name, the ingredient chips, AND the 18-dim attribute vector the engine eats. Like
+ * the diet guidance, strings never AUTHOR here: this makes the model EXPAND the
+ * shorthand to the real dish before deriving anything. Kept in ONE constant so every
+ * prompt site (both scan prompts, enrichment, and the two vision prompts) says it
+ * identically and can't drift — the same discipline the z-rule and diet rule use. */
+export const HK_MENU_SHORTHAND_GUIDANCE =
+  `Hong Kong menus name the CARB by a single-character shorthand — expand it to the real dish BEFORE deriving the English name, ingredients, or flavour:\n` +
+  `  米 = 米粉 (rice VERMICELLI), 河 = 河粉 (flat rice noodle / "chow fun"), 意 = 意粉 (spaghetti), ` +
+  `通 = 通粉 (macaroni), 丁 = 出前一丁 (instant noodle), 瀨 = 瀨粉 (lai fun), 治 = 三文治 (sandwich), 多 / 西多 = 西多士 (French toast).\n` +
+  `So 炆米 is braised rice VERMICELLI (never rice), 干炒牛河 is beef CHOW FUN (never "beef river"), 肉醬意 is bolognese SPAGHETTI, 火腿通 is ham MACARONI. ` +
+  `The English name must be the KNOWN dish, never a character-literal reading.\n` +
+  `齋 as a prefix means a vegetarian/mock version (齋叉燒 has no pork). 底 names the swappable carb base: 飯底 = on rice, 麵底 = on noodles, 意底 = on spaghetti.\n` +
+  `But these SAME characters are NOT carb shorthand inside another word — reason from the real dish: ` +
+  `米 in 粟米 (corn), 蝦米 (dried shrimp), 糯米 (glutinous rice), 米芝蓮 (Michelin) is not vermicelli; ` +
+  `河 in 河蝦 (river shrimp) is not 河粉; 丁 in 雞丁 (diced chicken) is not instant noodle; 通 in 通菜 (water spinach) is not macaroni.`;
+
+/** The one extra line appended on a carb-shorthand tripwire re-ask (see carbSuspicion),
+ * mirroring DIET_RECHECK_LINE. Names the concrete correction so the re-ask can self-fix. */
+export const CARB_RECHECK_LINE =
+  `The dish name may use Hong Kong carb shorthand: 米=米粉 (rice vermicelli), 河=河粉 (flat rice noodle), 意=意粉 (spaghetti), 通=通粉 (macaroni), 丁=出前一丁 (instant noodle) — NOT rice. Re-derive the ingredients from the correct carb.`;
 export const COOKING_METHODS = ['fried', 'steamed', 'grilled', 'braised', 'baked', 'raw', 'stir-fried', 'boiled', 'other'] as const;
 export type CookingMethod = typeof COOKING_METHODS[number];
 export const HEAVINESS = ['light', 'medium', 'heavy'] as const;
@@ -148,7 +173,8 @@ Respond with ONLY compact JSON, no markdown fences, minimal whitespace:
    "a": [18 numbers 0..1, ONE decimal place, in this exact order: ${DIMS.join(', ')}]
  }]}
 Keep output small: one decimal place everywhere, no extra fields. Extract at most 28 items; prefer mains and signatures over drinks and sides.
-${ZH_FROM_MENU_GUIDANCE}`;
+${ZH_FROM_MENU_GUIDANCE}
+${HK_MENU_SHORTHAND_GUIDANCE}`;
 
 export async function scanMenu(base64: string, mediaType: string): Promise<MenuScanResult> {
   // Mock ONLY when no key is configured. A failed/timed-out call with a real key
@@ -224,7 +250,8 @@ Respond with ONLY compact JSON, no markdown fences, minimal whitespace:
  }]}
 If "im" is false, "items" MUST be an empty array — do not guess dishes out of a non-menu photo.
 Extract at most 20 items; prefer mains and signatures over drinks and sides. Names, prices, and cuisine ONLY — no hooks, no flavor scoring, no diet flags, no cooking method, nothing else. Keep this fast.
-${ZH_FROM_MENU_GUIDANCE}`;
+${ZH_FROM_MENU_GUIDANCE}
+${HK_MENU_SHORTHAND_GUIDANCE}`;
 
 /** The two scan prompt sites (one-shot + skeleton/stream) — exported so a test can
  * assert both embed the shared z-rule hardening and can't silently drop it again. */
@@ -353,7 +380,7 @@ export async function* scanMenuSkeletonStream(base64: string, mediaType: string)
 // the model must commit to the real recipe first, then read the flags off it, which
 // is exactly the grounding DIET_PROMPT_GUIDANCE describes. Emitting flags first would
 // invite the surface-name shortcut the whole spec exists to kill.
-const ENRICH_SYSTEM = `You describe ONE dish from a restaurant menu, using culinary knowledge only (no photo).
+export const ENRICH_SYSTEM = `You describe ONE dish from a restaurant menu, using culinary knowledge only (no photo).
 Respond with ONLY compact JSON, no fences:
 {"h": string (<=6 words, most distinctive sensory hook, in ENGLISH, each word capitalized like a title),
  "hz": string (the SAME hook, in Traditional Chinese, Hong Kong Cantonese flavor — not a literal word-for-word translation, write it as a native speaker would),
@@ -362,6 +389,7 @@ Respond with ONLY compact JSON, no fences:
  "m": string|null (primary cooking method, from EXACTLY: fried, steamed, grilled, braised, baked, raw, stir-fried, boiled, other — null if unclear),
  "w": string|null (heaviness: light, medium, or heavy — your best culinary judgment; null if unclear)}
 ${DIET_PROMPT_GUIDANCE}
+${HK_MENU_SHORTHAND_GUIDANCE}
 Diet flags are your best estimate, not a guarantee — never claim certainty about allergens.`;
 
 export type Enrichment = { hook: string; hook_zh: string; diet: DietFlag[]; cooking_method: CookingMethod | null; heaviness: Heaviness | null; ingredients: string[] };
@@ -390,20 +418,31 @@ function parseEnrichment(text: string | null): Enrichment | null {
 }
 
 export async function enrichOneDish(item: { name: string; name_zh?: string | null; cuisine: string; section?: string | null }): Promise<Enrichment> {
-  const userText = `${item.name}${item.section ? ` (menu section: ${item.section})` : ''} \u2014 cuisine: ${item.cuisine}`;
+  // Feed BOTH names when they differ: HK carb shorthand (and loosely-translated
+  // protein names) live in the \u4e2d\u6587 name, so the model reasons from more truth \u2014
+  // \u7086\u7c73 alongside a bland English name lets the shorthand glossary do its job.
+  const zh = item.name_zh && item.name_zh !== item.name ? ` / ${item.name_zh}` : '';
+  const userText = `${item.name}${zh}${item.section ? ` (menu section: ${item.section})` : ''} \u2014 cuisine: ${item.cuisine}`;
   const first = parseEnrichment(await callClaude(ENRICH_SYSTEM, userText, { maxTokens: 260 }));
   if (!first) return EMPTY_ENRICHMENT;
 
-  // Tripwire, not authority (see dietSuspicion). A name/flag/ingredient mismatch
-  // never edits a flag itself \u2014 that would be exactly the string-authoring bug the
-  // spec forbids. It only earns ONE re-ask of the same knowledge call with an added
-  // "recheck against the classic recipe" nudge, and whatever that re-ask returns is
-  // final even if the tripwire would still fire (\u83e0\u863f\u5305 legitimately keeps its
-  // no-pineapple answer). Skip the retry with no key: the call would just return
-  // null again, and mock mode has nothing to re-check.
-  if (process.env.OPENROUTER_API_KEY && dietSuspicion(item.name, item.name_zh ?? null, first.diet, first.ingredients)) {
-    const retry = parseEnrichment(await callClaude(ENRICH_SYSTEM, `${userText}\n${DIET_RECHECK_LINE}`, { maxTokens: 260 }));
-    if (retry) return retry;
+  // Tripwires, not authority (see dietSuspicion / carbSuspicion). A name/flag/
+  // ingredient mismatch never edits a field itself \u2014 that would be exactly the
+  // string-authoring bug the spec forbids. It only earns ONE re-ask of the same
+  // knowledge call with a targeted "recheck" nudge, and whatever that re-ask returns
+  // is final even if a tripwire would still fire (\u83e0\u863f\u5305 legitimately keeps its
+  // no-pineapple answer). Both tripwires share the SAME single retry \u2014 if the diet
+  // flags AND the carb both look off we append both lines and re-ask once, never
+  // twice. Skip the retry with no key: the call would just return null again, and
+  // mock mode has nothing to re-check.
+  if (process.env.OPENROUTER_API_KEY) {
+    const dietBad = dietSuspicion(item.name, item.name_zh ?? null, first.diet, first.ingredients);
+    const carbBad = carbSuspicion(item.name, item.name_zh ?? null, first.ingredients);
+    if (dietBad || carbBad) {
+      const rechecks = [dietBad ? DIET_RECHECK_LINE : null, carbBad ? CARB_RECHECK_LINE : null].filter(Boolean).join('\n');
+      const retry = parseEnrichment(await callClaude(ENRICH_SYSTEM, `${userText}\n${rechecks}`, { maxTokens: 260 }));
+      if (retry) return retry;
+    }
   }
   return first;
 }
@@ -466,6 +505,104 @@ export function dietSuspicion(
     // Rule 2: the flag claims this protein, but nothing backs it up.
     if (hasFlag && !inName && !hasIngredient) return true;
   }
+  return false;
+}
+
+// ── Carb metonym tripwire ──────────────────────────────────────────────────
+// Same shape and philosophy as the diet tripwire above: a small, closed, pure
+// checker that NEVER authors the carb — it only asks "are you sure?" and earns one
+// recipe re-check when a HK carb-shorthand name and its derived ingredients disagree.
+//
+// Noodle carbs named by a single shorthand character. In a dish name each means a
+// NOODLE, but vision keeps resolving them to rice (炆米 → "braised rice" + 飯 chip) or
+// char-literally (干炒牛河 → "beef river"). 麵/面 are included so a plainly noodle-named
+// dish that came back as rice is caught too.
+const NOODLE_MORPHEMES = ['河', '米', '意', '通', '丁', '瀨', '麵', '面'];
+// A plainly rice/-named dish — for the reverse trip (rice name, noodle ingredients).
+const RICE_MORPHEMES = ['飯'];
+
+// Compounds where a morpheme above is NOT the carb: a rice grain (糯米/粟米), a
+// vegetable (通菜), a place (河內), "diced" (雞丁), a proper noun (米芝蓮). Neutralised
+// BEFORE morpheme scanning, exactly like DIET_NAME_TRAPS, so an innocent character in
+// a genuinely-rice or non-carb dish can't fire. Err toward neutralising: a missed fire
+// is only status quo, and the ingredient-says-rice gate below blocks most false fires
+// on its own. Closed list, cheap and safe to grow.
+const CARB_NAME_TRAPS = [
+  // 米 = rice grain / component / proper noun, not 米粉
+  '糯米', '白米', '米飯', '蝦米', '粟米', '玉米', '薏米', '小米', '糙米', '黑米', '紅米',
+  '米芝蓮', '米酒', '米醋', '爆米花', '香米',
+  // 河 = river / place, not 河粉
+  '河內', '河蝦', '河鮮', '山河',
+  // 意 = intent, not 意粉
+  '如意', '生意', '心意', '滿意', '綠意',
+  // 通 = through / a vegetable, not 通粉
+  '通菜', '交通', '卡通', '普通', '通通',
+  // 丁 = diced / clove / pudding, not 出前一丁
+  '雞丁', '肉丁', '魚丁', '蝦丁', '牛丁', '菜丁', '瓜丁', '丁香', '布丁', '白丁', '園丁',
+  // 飯 = a place/word, not the dish's rice (guards the reverse trip)
+  '飯店', '飯堂', '開飯',
+];
+
+// Ingredient tokens that reveal which carb the model actually derived. Kept apart so
+// the tripwire can tell "read the shorthand as rice" (the bug) from "read it as the
+// noodle it is" (correct). Rice-noodle products ("rice vermicelli", "flat rice
+// noodle") say NOODLE — the noodle tokens are checked first and win. Bare 粉/麵 are
+// deliberately NOT noodle tokens here: as ingredients they collide with powders/starch
+// (生粉, 粟粉), so only unambiguous words + explicit noodle compounds count.
+const CARB_RICE_TOKENS = ['rice', 'congee', '飯', '粥'];
+const CARB_NOODLE_TOKENS = [
+  'noodle', 'vermicelli', 'macaroni', 'spaghetti', 'pasta', 'udon', 'ramen', 'mee',
+  'chow fun', 'ho fun', 'hor fun', 'rice stick', '米粉', '河粉', '通粉', '瀨粉', '米線',
+];
+
+/**
+ * TRIPWIRE for HK carb-shorthand integrity — pure, exported, unit-tested; a sibling to
+ * dietSuspicion. Returns true when a dish's NAME carries a noodle shorthand yet its
+ * derived INGREDIENTS say rice (or a plainly-rice name whose ingredients came back
+ * noodle). Advisory only: it never edits the carb, and "true" is a question
+ * ("did you read the shorthand?"), never a verdict. Figurative/component names
+ * (粟米, 蝦米, 河蝦, 雞丁…) are stripped first so an innocent character can't fire —
+ * reasoning from the recipe, not the surface, exactly as the carb itself must be.
+ *
+ * SCOPE: the mechanical net keys off the ingredient list (the concrete, corrigible
+ * pollution — a wrong ingredient chip AND the vector substrate). It does NOT try to
+ * mechanically detect a char-literal English name ("beef river"); that leg is the
+ * PROMPT glossary's job (HK_MENU_SHORTHAND_GUIDANCE), which fixes the name at the
+ * source. 治/多 (sandwich / French toast) are bread shorthand the glossary handles
+ * and this rice-vs-noodle check deliberately leaves alone.
+ */
+export function carbSuspicion(
+  name: string | null | undefined,
+  name_zh: string | null | undefined,
+  ingredients: readonly string[],
+): boolean {
+  // The MORPHEME source is both names, trap-neutralised.
+  let morphemeHay = `${name ?? ''} ${name_zh ?? ''}`.toLowerCase();
+  for (const trap of CARB_NAME_TRAPS) morphemeHay = morphemeHay.split(trap.toLowerCase()).join(' ');
+  const nameHasNoodle = NOODLE_MORPHEMES.some(m => morphemeHay.includes(m.toLowerCase()));
+  const nameHasRice = RICE_MORPHEMES.some(m => morphemeHay.includes(m));
+
+  // The DERIVED carb: ingredients are authoritative (the concrete pollution — the
+  // ingredient chip + the vector substrate). When ingredients carry no carb signal at
+  // all (e.g. a stored dish with no persisted ingredients — the backfill case), fall
+  // back to a bare rice/noodle WORD in the English name ("Braised Rice", "…Vermicelli").
+  const ingHay = ingredients.map(i => i.toLowerCase()).join(' ');
+  const ingRice = CARB_RICE_TOKENS.some(t => ingHay.includes(t));
+  const ingNoodle = CARB_NOODLE_TOKENS.some(t => ingHay.includes(t));
+  const enHay = (name ?? '').toLowerCase();
+  const enRice = CARB_RICE_TOKENS.some(t => enHay.includes(t)) && !CARB_NOODLE_TOKENS.some(t => enHay.includes(t));
+  const enNoodle = CARB_NOODLE_TOKENS.some(t => enHay.includes(t)) && !CARB_RICE_TOKENS.some(t => enHay.includes(t));
+  const noIngSignal = !ingRice && !ingNoodle;
+  // Rice-noodle products ("rice vermicelli") name BOTH tokens — the noodle reading
+  // wins, so a correctly-derived noodle dish is never mistaken for a rice one.
+  const dataRice = (ingRice && !ingNoodle) || (noIngSignal && enRice);
+  const dataNoodle = (ingNoodle && !ingRice) || (noIngSignal && enNoodle);
+
+  // Rule 1: a noodle shorthand in the name, but the derived carb is rice — the
+  // 炆米→飯 / 牛河→飯 production bug.
+  if (nameHasNoodle && dataRice) return true;
+  // Rule 2 (reverse): a plainly-rice name whose carb came back a noodle.
+  if (nameHasRice && dataNoodle) return true;
   return false;
 }
 
