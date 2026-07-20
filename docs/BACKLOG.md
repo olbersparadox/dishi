@@ -255,3 +255,130 @@ mirroring `DIET_RECHECK_LINE`.
 the tripwire should also gate the *attribute vector* re-score, or only
 name/ingredients — re-scoring costs a second LLM call per fire. Recommend
 yes (the vector is what the engine eats) but surface the cost when building.
+
+
+---
+
+# Backlog additions — 2026-07-21 (rating-stack upload failure + rename re-derivation)
+
+Context: real field session, 2026-07-21 ~02:34 HKT, onboarding growth screen
+(建立個人化口味 AI / RatingStack + TasteGrowth). Five photos rated. Vercel logs:
+first photo's `POST /api/dishes` rejected **413** at the platform edge at
+18:34:24 UTC (body over the ~4.5MB serverless cap — never reached the route);
+the other four succeeded seconds later. Rename PATCH on dish 2 succeeded
+(18:36:10, 200) and `/api/dishes/enrich` fired after it (18:36:22, 200), yet
+the ingredient chips never changed.
+
+---
+
+## 1. Photo upload size cap + failed-card honesty — *(Sonnet)*
+
+**Two root causes, one card:**
+- The 413 happens at Vercel's edge (~4.5MB serverless body limit — not
+  raisable), so oversized photos fail before any code runs.
+- `RatingStack.runPipeline` marks the card `status:'failed'`, but TasteGrowth
+  renders a failed card nearly identically to a healthy one: photo + score
+  word + empty name pill + place chips. No error, no retry. Then
+  `onEditName`/`onPickPlace` hit `if (!gd?.dishId) return;` — the user's
+  typed name silently goes nowhere. (Same silent-failure shape as the picker
+  加入 bug and the historical `dishes.source` constraint — this class keeps
+  recurring; fix the instance AND keep the pattern in mind.)
+
+**Changes:**
+- **Client-side downscale before upload.** Shared util (check what the /log
+  flow does today and unify — do not fork a second resize path): longest edge
+  ~2000px, JPEG re-encode, target well under the cap (~3MB ceiling). Applies
+  to RatingStack and any other photo POST that lacks it.
+- **Failed card states its failure.** Reuse the existing honesty copy pattern
+  (`log.visionfail.*` distinguishes "nobody ever looked" from "looked and said
+  not food" — this is the former). Show a retry affordance; the File object is
+  still in memory in `prepared`, so retry = re-run `runPipeline` for that
+  index with the (now downscaled) file.
+- **No silent no-ops on a dishId-less card.** Rename/place actions on a
+  failed card either (a) are visibly disabled with the failure notice, or
+  (b) queue locally and auto-apply after a successful retry. Prefer (b) for
+  the rename — the person already typed the name; don't make them re-type.
+- The 413 response never reaches route code, so the fix is client-side
+  detection: `!res.ok` already catches it — the gap is presentation, plus
+  prevention via downscale.
+
+**Tests:** unit test the downscale util (dimension + size ceiling); component
+test that a failed card shows the failure state and that rename-on-failed
+queues and applies after retry.
+
+---
+
+## 2. Rename → REAL re-derivation (kill the simulated re-enrich) — *(Fable 5)*
+
+**Root cause chain (all three layers confirmed in code):**
+1. `/api/dishes/enrich` early-returns when `dish.attributes` is non-empty —
+   built as first-time-only enrichment. A post-rename call is a guaranteed
+   no-op. Worse, the early-return path returns NO `ingredients` (the
+   pass-through only exists on the full-run path).
+2. `RatingStack.onEditName` patches `name`/`name_zh`/`diet` from the PATCH
+   response but ingredients never flow into `live` state.
+3. `TasteGrowth.reReenrich` is an acknowledged simulation (see its own
+   comment): blanks the chips, waits 720ms, restores the OLD `ing`. The UI
+   performs a re-analysis that never happened — an honesty violation by the
+   product's own standards.
+
+**Decided behavior — typed name is the derivation seed.** After a human
+rename, re-derivation reasons from the NEW name (text enrichment path), not
+from the photo. This follows the existing name-authority ladder
+(`AUTHORITY_HUMAN > AUTHORITY_VISION`): the person just told us what the dish
+IS; a photo-anchored re-analysis (`reanalyzeAnchored`) can keep contradicting
+them (the 鴨-beats-油雞 failure observed live). The photo remains support
+evidence, never override. If implementation finds `reanalyzeAnchored` inside
+the PATCH cascade writing photo-derived fields AFTER this change, resolve in
+favor of the typed name and note what moved.
+
+**Changes:**
+- `/api/dishes/enrich`: accept `{ force: true }` (or a sibling
+  `re-derive` action — implementer's call, one endpoint preferred). Force
+  mode: re-run `inferCuisineFromName` + `scoreOneDish` + `enrichOneDish`
+  seeded from the CURRENT (post-rename) name, overwrite
+  attributes/diet/cooking_method/heaviness, and ALWAYS return `ingredients`
+  — including on any remaining early-return path.
+- **Profile heal:** the existing rating learned from the old attributes. The
+  route already contains the correct pattern (replayProfile + taste_profiles
+  upsert when a rating exists) — ensure force mode runs it too. This is the
+  re-rating-corruption lesson applied to attribute changes: replay, never
+  layer.
+- `RatingStack`: `onEditName`/`onReclassify` call enrich with force after the
+  rename PATCH resolves; patch `ingredients`, `diet`, `heaviness`,
+  `enriched` from the response into `live` state.
+- `TasteGrowth`: delete the 720ms `setTimeout` simulation. `reenriching`
+  becomes data-driven: set true when the rename commits, cleared when the
+  live row's post-rename enrichment lands (compare against a
+  rename-generation counter, not field equality — the new ingredients could
+  coincidentally match the old). Chips animate out on commit, in on real
+  arrival. Remove the `p.ing.length === 0` guard's early return for the
+  live path — a just-named dish with no prior chips is exactly the case that
+  NEEDS a first derivation.
+- Sim mode (snapdemo, no auth) keeps the timeout animation — it's honest
+  there because the whole screen is declared a demo.
+
+**Cost note:** force mode = one extra `scoreOneDish` + `enrichOneDish` per
+rename. Renames are rare and human-initiated; acceptable. No debounce needed
+beyond ignoring stale in-flight responses (generation counter).
+
+**Tests:** route test — force mode overwrites and returns ingredients;
+replay runs when a rating exists. Component test — rename sets
+`reenriching`, old chips never reappear, new chips land from the live patch.
+
+---
+
+## 3. Glossary addition: 油雞 false-friend — *(rider on the shipped shorthand glossary; Sonnet)*
+
+Observed live: 油雞髀 rendered as "Fried Chicken Thigh" — 油雞 is soy-poached
+chicken (豉油雞), not fried; 油 here is the poaching liquor, not deep-frying.
+Add to the existing HK shorthand/false-friend guidance (one line, both the
+scan glossary and translate guidance if they're separate constants), plus one
+fixture row in the shorthand eval set: 油雞髀 → poached/soy chicken, cooking
+method NOT fried.
+
+While in there: quick pass for siblings of the same shape — 白切雞 (poached,
+not "white cut" literalism is fine but method = poached), 手撕雞 (shredded,
+not "hand-torn" as method), 風沙雞 (fried garlic crumb, not "wind-sand").
+Add only ones that fit in a line or two; the glossary must stay compact to
+stay obeyed.
