@@ -431,15 +431,16 @@ button { font: inherit; cursor: pointer; }
 @media (prefers-reduced-motion: reduce) { .blob-flyer { animation: flyIn 300ms linear forwards; } }
 .grow2-title { font-size: 27px; margin: 6px 0 4px; }
 /* bar length matches the Taste AI page's buddy bar (which sits inside a padded card),
-   not the full column — so it doesn't read as an over-long rail */
-.grow2-top .xp-bar { max-width: 280px; margin: 16px auto 0; }
+   not the full column — so it doesn't read as an over-long rail. -5px top nudges the
+   bar + progress line up without resizing the cards below. */
+.grow2-top .xp-bar { max-width: 280px; margin: 11px auto 0; }
 /* dishes-to-go toward Taste AI 1.0 — the progress line, in a light weight */
 .grow2-toready { font-size: 15px; font-weight: 400; color: var(--ink); margin: 10px 0 0; }
 /* The one ask above the rows — confirming/refining is what makes the engine accurate.
    Given room to breathe (top + bottom). */
 .grow-refine-ask {
   font-size: 16px; color: var(--ink-soft); text-align: center; line-height: 1.5;
-  max-width: 360px; margin: 26px auto 18px;
+  letter-spacing: 0.04em; max-width: 360px; margin: 26px auto 18px;
 }
 /* Name and location are "refine" surfaces: BLACK with white text, NO outline, gently
    BREATHING — a soft white halo grows + fades and the fill lifts — so they read as
