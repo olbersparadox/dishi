@@ -411,14 +411,28 @@ button { font: inherit; cursor: pointer; }
 .grow2-title { font-size: 22px; margin: 6px 0 4px; }
 .grow2-top .xp-bar { margin: 14px 0 0; }
 .grow2-unlock { font-size: 12px; color: var(--ink-soft); margin: 8px 0 0; }
-/* name reads plainly like the journal (a receipt, not a form); the small ✎ invites
-   a rename — the field editor only opens on tap, keeping the resting screen low-load */
-.learn-namebtn {
-  display: inline-flex; align-items: center; gap: 6px; min-width: 0; max-width: 100%;
-  background: none; border: none; padding: 0; cursor: pointer; text-align: left;
+/* The one ask above the rows — confirming/refining is what makes the engine accurate. */
+.grow-refine-ask {
+  font-size: 13px; color: var(--ink-soft); text-align: center; line-height: 1.45;
+  max-width: 340px; margin: 18px auto 2px;
 }
-.learn-editicon { font-size: 11px; color: var(--ink-soft); opacity: 0.55; flex: 0 0 auto; }
-.learn-namebtn:hover .learn-editicon { opacity: 1; }
+/* Name and location are "refine pills": filled, NO outline, gently breathing (a soft
+   glow + colour dim) so they read as tap-to-change. On-palette — a warm ink-soft halo,
+   never the reserved vermillion. */
+.refine-pill {
+  display: inline-flex; align-items: center; gap: 6px; min-width: 0; max-width: 100%;
+  border: none; border-radius: 999px; padding: 5px 12px; cursor: pointer; text-align: left;
+  background: var(--paper-inset); color: var(--ink);
+  animation: refineBreath 2.8s ease-in-out infinite;
+}
+.refine-place { animation-delay: 1.2s; font-size: 13px; }
+@keyframes refineBreath {
+  0%, 100% { background: var(--paper-inset); box-shadow: 0 0 0 1px rgba(122, 116, 104, 0.10); }
+  50%      { background: #efe9dc;            box-shadow: 0 0 12px 2px rgba(122, 116, 104, 0.20); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .refine-pill { animation: none; box-shadow: 0 0 0 1px rgba(122, 116, 104, 0.14); }
+}
 /* two-field name editor — same mechanic as the Eat Journal (edit one clears + retranslates the other) */
 .learn-nameedit { display: flex; flex-direction: column; width: 100%; max-width: 320px; }
 .learn-editlabel { font-size: 11px; margin: 6px 0 2px; }
@@ -460,17 +474,23 @@ button { font: inherit; cursor: pointer; }
 .learn-learned { font-size: 12px; color: var(--seal); font-weight: 600; }
 @keyframes chipIn { from { opacity: 0; transform: scale(0.82); } to { opacity: 1; transform: none; } }
 .learn-place { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 5px; }
-/* resolved place = ONE confirmed chip (the top EXIF guess) + a quiet "唔啱?" that
-   opens the full nearby list only when the guess is wrong (progressive disclosure) */
-.learn-confirm { align-items: center; }
-.learn-confirm-chip { cursor: default; }
-.learn-wrong {
-  background: none; border: none; padding: 2px 4px; cursor: pointer;
-  font-size: 12px; color: var(--ink-soft); text-decoration: underline; text-underline-offset: 2px;
-}
-.learn-wrong:hover { color: var(--ink); }
+/* The two actions under the nearby list — a DIFFERENT fill (warm ink-faint) from the
+   outline restaurant chips, so "home cooked" / "add another" read as choices of a
+   different kind, not just another restaurant. Kept on-palette (no new hue). */
+.chip.chip-action { background: var(--ink-faint); border-color: transparent; color: var(--ink); font-weight: 600; }
+.chip.chip-action.on { background: var(--ink); border-color: transparent; color: var(--glaze); }
 /* low-confidence guess with nothing picked yet → a soft nudge to look, clears on action */
 .learn-row.needs-look { border-color: var(--seal); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--seal) 22%, transparent); }
+/* Not food: a quiet, dashed, dimmed row — visibly OUTSIDE the learning set, with one
+   correction affordance. */
+.learn-row.not-dish { background: var(--glaze); border-style: dashed; }
+.learn-thumb-dim { opacity: 0.5; filter: grayscale(0.5); }
+.not-dish-title { font-family: var(--font-display); font-size: 15px; font-weight: 600; color: var(--ink-soft); }
+.not-dish-sub { font-size: 12px; color: var(--ink-faint); }
+.not-dish-fix {
+  align-self: flex-start; margin-top: 6px; background: none; border: none; padding: 2px 0; cursor: pointer;
+  font-size: 12px; color: var(--ink); text-decoration: underline; text-underline-offset: 2px;
+}
 .learn-chip {
   font-size: 12px; padding: 5px 11px; border-radius: 99px; cursor: pointer;
   border: 1px solid var(--line); background: var(--paper-inset); color: var(--ink-soft);

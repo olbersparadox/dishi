@@ -21,16 +21,20 @@ type Dish = {
   ing: string[]; diet: string[]; heaviness?: string;
   places: string[]; placeLoading: boolean; hasLocation: boolean;
   choice?: string; done: boolean;
+  notDish?: boolean; // vision said this photo isn't food — never learned from
 };
 
 const POOL: {
   zh: string; en: string; ing: string[]; diet: string[]; heaviness: string;
-  learned: string[]; places: string[] | null; uncertain?: boolean;
+  learned: string[]; places: string[] | null; uncertain?: boolean; notDish?: boolean;
 }[] = [
   { zh: '叉燒飯', en: 'Char siu rice', ing: ['egg', 'scallion', 'garlic'], diet: ['pork'], heaviness: 'medium', learned: ['鮮味', '油香', '鹹'],
     places: ['大家樂（銅鑼灣）', '翠華餐廳', '太興', '東海堂', '再興燒臘', '一樂燒鵝', '華姐清湯腩', '甘牌燒鵝', '鏞記酒家', '敏華冰廳'] },
   { zh: '豚骨拉麵', en: 'Tonkotsu ramen', ing: ['egg', 'mushroom', 'scallion'], diet: ['pork'], heaviness: 'heavy', learned: ['濃郁', '鹹鮮', '油'],
     places: ['一蘭', '豚王', '麵屋一燈', '山頭火', '一風堂', '花丸烏冬', '拉麵Jo', '鵬天', '梅光軒'] },
+  // A photo vision couldn't read as food (a receipt, a menu, a face…): it enriches to
+  // NOTHING and teaches the engine NOTHING — shown as a quiet, correctable "not food" row.
+  { zh: '', en: '', ing: [], diet: [], heaviness: '', learned: [], places: null, notDish: true },
   { zh: '紐約芝士蛋糕', en: 'NY cheesecake', ing: ['lemon', 'egg'], diet: ['dairy', 'egg'], heaviness: 'heavy', learned: ['香甜', '奶香', '微酸'], places: null },
   { zh: '水晶蝦餃', en: 'Har gow', ing: ['ginger'], diet: ['shellfish', 'seafood'], heaviness: 'light', learned: ['鮮甜', '煙韌'], uncertain: true,
     places: ['添好運', '點心到（中環）', '倫敦大酒樓', '稻香', '一點心', '明閣', '龍景軒', '陸羽茶室', '鴻星海鮮', '嘉麟樓'] },
@@ -79,6 +83,14 @@ export default function TasteGrowth({ items, onExit }: { items: GrowItem[]; onEx
     items.forEach((_, i) => {
       const p = POOL[i % POOL.length];
       const seq: Step[] = [];
+      // Not food: vision looks, decides it isn't a dish, and stops. No name, no
+      // ingredients, no place, nothing absorbed into the blob — a non-dish must never
+      // move the taste engine. The row just resolves to a quiet, correctable state.
+      if (p.notDish) {
+        seq.push({ i, apply: d => ({ ...d, done: true, notDish: true }) });
+        seq.forEach((ev, k) => evs.push({ ...ev, at: 450 + i * 400 + k * 400 + Math.random() * 150 }));
+        return;
+      }
       seq.push({ i, apply: d => ({ ...d, named: true }) });
       p.ing.forEach(g => seq.push({ i, apply: d => ({ ...d, ing: [...d.ing, g] }) }));
       seq.push({ i, apply: d => ({ ...d, diet: p.diet, heaviness: p.heaviness }) });
@@ -120,6 +132,12 @@ export default function TasteGrowth({ items, onExit }: { items: GrowItem[]; onEx
     absorb('✓', 2.5);
   };
   const expand = (i: number) => setExpanded(prev => new Set(prev).add(i));
+  // "It IS food" — flip a mis-flagged non-dish back to a dish and open the name editor
+  // so the person can tell us what it is (then it can start teaching the engine).
+  const markAsDish = (i: number) => {
+    setDishes(prev => prev.map((d, j) => (j === i ? { ...d, notDish: false, named: true } : d)));
+    setEditIdx(i); setDZh(''); setDEn(''); setEdZh(false); setEdEn(false);
+  };
   const startEdit = (i: number) => {
     const p = POOL[i % POOL.length], cur = names[i];
     setEditIdx(i); setDZh(cur?.zh ?? p.zh); setDEn(cur?.en ?? p.en); setEdZh(false); setEdEn(false);
@@ -158,10 +176,38 @@ export default function TasteGrowth({ items, onExit }: { items: GrowItem[]; onEx
         <p className="grow2-unlock">{fill >= 100 ? t('rate.grow.unlocked') : t('rate.grow.remain', { p: remain })}</p>
       </div>
 
+      {/* One ask above the rows: confirming/refining is what makes the engine accurate,
+          and it's optional (now or later). */}
+      <p className="grow-refine-ask">{t('grow.confirm.ask')}</p>
+
       <ul className="learn-list">
         {items.map((it, i) => {
           const d = dishes[i];
           const p = POOL[i % POOL.length];
+          const thumb = (
+            <div className={`learn-thumb${d.notDish ? ' learn-thumb-dim' : ''}`}>
+              {it.photoUrl
+                // eslint-disable-next-line @next/next/no-img-element
+                ? <img src={it.photoUrl} alt="" />
+                : <span>🍽️</span>}
+            </div>
+          );
+
+          // Not food: a quiet, dimmed row that taught the engine nothing — with a single
+          // "it IS food" correction that flips it back to a nameable dish.
+          if (d.notDish) {
+            return (
+              <li key={i} className="learn-row not-dish is-done">
+                {thumb}
+                <div className="learn-main">
+                  <span className="not-dish-title">{t('grow.notfood')}</span>
+                  <span className="not-dish-sub">{t('grow.notfood.sub')}</span>
+                  <button className="not-dish-fix" onClick={() => markAsDish(i)}>{t('grow.notfood.fix')}</button>
+                </div>
+              </li>
+            );
+          }
+
           const showPlace = d.placeLoading || d.places.length > 0 || (d.done && !d.hasLocation);
           const isHome = d.choice === home;
           const showList = expanded.has(i) || (showPlace && !d.choice && !d.placeLoading);
@@ -169,12 +215,7 @@ export default function TasteGrowth({ items, onExit }: { items: GrowItem[]; onEx
           const needsLook = !!p.uncertain && d.done && !d.choice;
           return (
             <li key={i} className={`learn-row ${d.done ? 'is-done' : 'is-working'}${needsLook ? ' needs-look' : ''}`}>
-              <div className="learn-thumb">
-                {it.photoUrl
-                  // eslint-disable-next-line @next/next/no-img-element
-                  ? <img src={it.photoUrl} alt="" />
-                  : <span>🍽️</span>}
-              </div>
+              {thumb}
               <div className="learn-main">
                 <div className="learn-head">
                   {!d.named
@@ -197,9 +238,10 @@ export default function TasteGrowth({ items, onExit }: { items: GrowItem[]; onEx
                             <button className="btn primary small" onClick={commitEdit}>{t('home.save')}</button>
                           </div>
                         </div>
-                      : <button className="learn-namebtn" onClick={() => startEdit(i)} aria-label={t('grow.rename')}>
+                      // The name is a glowing "refine" pill — tap to change it (one language
+                      // is enough; the other re-translates on save).
+                      : <button className="refine-pill refine-name" onClick={() => startEdit(i)} aria-label={t('grow.rename')}>
                           <DishName name={names[i]?.en ?? p.en} name_zh={names[i]?.zh ?? p.zh} size="md" />
-                          <span className="learn-editicon" aria-hidden>✎</span>
                         </button>}
                   {editIdx !== i && <span className="learn-word">{t(wordKeyFor(it.score))}</span>}
                 </div>
@@ -212,19 +254,19 @@ export default function TasteGrowth({ items, onExit }: { items: GrowItem[]; onEx
                   d.placeLoading && d.places.length === 0
                     ? <div className="learn-place"><span className="learn-finding">{t('grow.finding')}</span></div>
                     : !showList && d.choice
-                      // Resolved: one confirmed chip (the top EXIF guess) + a quiet "唔啱?" to open the list.
-                      ? <div className="learn-place learn-confirm">
-                          <span className="chip on learn-confirm-chip">{isHome ? '🏠' : '📍'} {d.choice}</span>
-                          <button className="learn-wrong" onClick={() => expand(i)}>{t('grow.notright')}</button>
+                      // Resolved: the location as a glowing "refine" pill — tap to open the list.
+                      ? <div className="learn-place">
+                          <button className="refine-pill refine-place" onClick={() => expand(i)}>
+                            <span aria-hidden>{isHome ? '🏠' : '📍'}</span> {d.choice}
+                          </button>
                         </div>
-                      // Expanded (or low-confidence with no guess): the full nearby list to pick from.
+                      // Expanded: the nearest spots (the fixed 10) + the two coloured actions.
                       : <div className="chips learn-place">
                           {d.places.map(pl => (
                             <button key={pl} className={`chip ${d.choice === pl ? 'on' : ''}`} onClick={() => choose(i, pl)}>{pl}</button>
                           ))}
-                          {(d.places.length > 0 || (d.done && !d.hasLocation)) && (
-                            <button className={`chip chip-util ${isHome ? 'on' : ''}`} onClick={() => choose(i, home)}>{home}</button>
-                          )}
+                          <button className={`chip chip-action ${isHome ? 'on' : ''}`} onClick={() => choose(i, home)}>🏠 {home}</button>
+                          <button className="chip chip-action" onClick={() => choose(i, t('grow.addplace'))}>＋ {t('grow.addplace')}</button>
                         </div>
                 )}
               </div>
