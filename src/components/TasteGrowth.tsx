@@ -379,7 +379,7 @@ export default function TasteGrowth({ live, engine, onExit, onCancel, onPickPlac
       {/* Done = a single black check (everything is optimistic-committed already;
           you can still refine later). */}
       <div className="grow-okwrap">
-        <button className="grow-ok" onClick={onExit} aria-label={t('grow.build.title')}><CheckIcon size={26} /></button>
+        <button className="ok-circle" onClick={onExit} aria-label={t('grow.build.title')}><CheckIcon size={26} /></button>
       </div>
     </div>
   );

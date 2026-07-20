@@ -506,14 +506,19 @@ button { font: inherit; cursor: pointer; }
   border: 1px solid var(--line); background: var(--paper-inset); color: var(--ink-soft);
 }
 .learn-chip.on { background: var(--ink); border-color: var(--ink); color: #fff; }
-/* Done = one round black check (everything's optimistically committed; refine later) */
-.grow-okwrap { display: flex; justify-content: center; margin: 26px 0 4px; }
-.grow-ok {
+/* The shared "done / acknowledge" affordance: one round black check. Used wherever a
+   flow's FINAL confirm is a pure "I'm done here" gesture with no text/count to keep —
+   the growth screen's finish and the duel reveal's OK both use it, so the same action
+   always looks the same. (Buttons that carry meaning — Save, Confirm N, Send, a yes/no
+   pair — deliberately stay as labelled pills; a bare check would drop the information.) */
+.ok-circle {
   display: grid; place-items: center; width: 60px; height: 60px; border-radius: 50%;
   background: var(--ink); color: var(--glaze); border: 0; cursor: pointer;
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
 }
-.grow-ok:hover { transform: translateY(-1px); }
+.ok-circle:hover { transform: translateY(-1px); }
+.ok-circle-wrap { display: flex; justify-content: center; margin: 20px 0 4px; }
+.grow-okwrap { display: flex; justify-content: center; margin: 26px 0 4px; }
 @media (prefers-reduced-motion: reduce) {
   .learn-row, .learn-row.is-working .learn-thumb { animation: none; }
 }
@@ -1271,11 +1276,11 @@ button { font: inherit; cursor: pointer; }
    normal flow (the ✕ no longer competes for space). */
 .duel-head { display: flex; align-items: center; justify-content: center; gap: 4px; margin-bottom: 14px; position: relative; }
 .duel-head-center { display: flex; align-items: center; gap: 4px; }
-.duel-title { font-family: var(--font-display); font-size: 28px; }
-/* The 印 stamp up here scales with the title — a bigger square, not just bigger
-   text, so it still reads as the same stamped-icon shape. Now a <button> (tap ->
-   explain card), so the UA button reset needs undoing to keep the exact same look. */
-.duel-head .seal-stamp { width: 28px; height: 28px; border-radius: 6px; font-size: 22.5px; }
+.duel-title { font-family: var(--font-display); font-size: 24px; }
+/* The 印 stamp up here scales with the title — a square, not just bigger text, so it
+   still reads as the same stamped-icon shape. Now a <button> (tap -> explain card),
+   so the UA button reset needs undoing to keep the exact same look. */
+.duel-head .seal-stamp { width: 24px; height: 24px; border-radius: 6px; font-size: 19px; }
 .duel-seal-btn { border: none; padding: 0; }
 .duel-x {
   position: absolute; right: 0; top: 50%; transform: translateY(-50%);
@@ -1305,13 +1310,16 @@ button { font: inherit; cursor: pointer; }
 .duel-pair.resolving { display: flex; justify-content: center; }
 .duel-option {
   flex: 1 1 0; min-width: 0; max-width: 100%;
-  display: flex; flex-direction: column; gap: 6px; text-align: left;
+  display: flex; flex-direction: column; gap: 6px; text-align: center;
   padding: 8px; border: 1px solid var(--line); border-radius: 14px;
   background: transparent; cursor: pointer; color: var(--ink); /* a <button>'s UA
     default color breaks the inherited --ink otherwise — the dish name (and
     restaurant line) needs it stated explicitly here. */
   transition: opacity 340ms ease, max-width 380ms ease, transform 300ms ease, border-color 140ms ease;
 }
+/* Centre the whole name block (the DishName is a flex column, left-aligned by
+   default) so the primary + secondary sit under the centred photo. */
+.duel-option .dishname { align-items: center; }
 .duel-option:not(:disabled):active { border-color: var(--ink); }
 /* The chosen dish is NOT enlarged — it just stays put while the loser collapses
    away so the choice reads. (On a tie, neither is chosen, so both collapse.) */
@@ -1319,19 +1327,18 @@ button { font: inherit; cursor: pointer; }
 .duel-option.faded { opacity: 0; max-width: 0; flex-basis: 0; padding: 0; margin: 0; border-width: 0; overflow: hidden; }
 .duel-photo { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 10px; display: block; }
 .duel-photo-blank { background: var(--line); }
-/* Dish names use the SAME .card-title treatment as the journal/scan (serif primary
-   + small secondary) — no bespoke sizes here, just a tighter gap between the two
-   lines (base .dishname-secondary margin-top is 1px; 2px less pulls it in close
-   under the primary line). */
-.duel-option .dishname-secondary { margin-top: -1px; }
-.duel-option-rest { font-size: 13px; color: var(--ink-soft); margin-top: 1px; }
+/* Dish names: the journal/scan .card-title treatment, but bigger + centred here (the
+   dish IS the choice on this screen), and a tighter gap between the two name lines. */
+.duel-option .card-title .dishname-primary { font-size: 23px; }
+.duel-option .card-title .dishname-secondary { font-size: 15px; margin-top: -1px; }
+.duel-option-rest { font-size: 15px; color: var(--ink-soft); margin-top: 2px; }
 /* The prompt: bigger, bolder, black — per the design call. */
 .duel-q { text-align: center; margin-top: 16px; font-family: var(--font-display); font-weight: 800; font-size: 20px; color: var(--ink); }
 .duel-tie { display: block; margin: 8px auto 0; background: none; border: none; color: var(--ink-soft); font-size: 13px; text-decoration: underline; cursor: pointer; }
-/* Reveal STAYS on screen (no auto-close) so the 印 result is readable; OK closes. */
-.duel-reveal { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-top: 16px; text-align: center; }
-/* Plain text now, no icon box (was the boxed .seal-stamp "印") — the 開 + result
-   words carry it themselves at this size, so the stamp chrome would be redundant. */
-.duel-verdict { display: flex; align-items: center; gap: 10px; font-family: var(--font-display); font-weight: 700; font-size: 38px; color: var(--ink); }
-.duel-learned { font-size: 13px; color: var(--ink); }
-.duel-ok { margin-top: 6px; min-width: 120px; }
+/* Reveal STAYS on screen (no auto-close) so the result is readable; the ✓ closes. */
+.duel-reveal { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-top: 16px; text-align: center; }
+.duel-verdict { display: flex; align-items: center; gap: 10px; font-family: var(--font-display); font-weight: 700; font-size: 34px; color: var(--ink); }
+/* 開 sits in a vermillion stamp box that mirrors the header 印 — the reveal answering
+   the seal. Sized to the verdict line, not the small header stamp. */
+.duel-open-stamp { width: 44px; height: 44px; border-radius: 8px; font-size: 30px; margin-left: 0; vertical-align: 0; }
+.duel-learned { font-size: 15px; line-height: 1.5; color: var(--ink); }

@@ -7,7 +7,7 @@
 import { useState } from 'react';
 import { useLang, type LangPair } from '@/lib/i18n';
 import DishName from './DishName';
-import { CloseIcon } from './icons';
+import { CloseIcon, CheckIcon } from './icons';
 import { pickDistrict, type DistrictMap } from '@/lib/district';
 
 export type DuelDish = {
@@ -121,11 +121,11 @@ export default function DuelOverlay({ duel, onClose }: { duel: Duel; onClose: (r
             </>
           ) : (
             <div className="duel-reveal" role="status">
-              {/* The sealed result — stays put so it's actually readable. 開 ("opened")
-                  reads as the seal being broken; plain text, no icon chrome, at this
-                  size it doesn't need it. */}
+              {/* The sealed result — stays put so it's actually readable. 開 ("opened" —
+                  the seal broken) sits in a stamp box that mirrors the header 印, so the
+                  reveal visually answers the seal. */}
               <div className="duel-verdict">
-                <span>開</span>
+                <span className="seal-stamp duel-open-stamp" aria-hidden>開</span>
                 <span>{reveal.tie ? t('duel.tieresult') : reveal.predicted_correct ? `${t('duel.hit')} 🎯` : t('duel.miss')}</span>
               </div>
               {reveal.learned.length > 0 && (
@@ -133,7 +133,11 @@ export default function DuelOverlay({ duel, onClose }: { duel: Duel; onClose: (r
                   {t('duel.learned', { dims: reveal.learned.map(x => `${t(`dim.${x.dim}`)} ${x.dir > 0 ? '↑' : '↓'}`).join(' · ') })}
                 </span>
               )}
-              <button className="btn primary duel-ok" onClick={() => close(true)}>{t('duel.ok')}</button>
+              {/* Circle-with-check — the shared "done / acknowledge" affordance (same as
+                  the growth screen's ✓). */}
+              <div className="ok-circle-wrap">
+                <button className="ok-circle" onClick={() => close(true)} aria-label={t('duel.ok')}><CheckIcon size={26} /></button>
+              </div>
             </div>
           )}
         </div>
