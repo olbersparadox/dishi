@@ -409,6 +409,10 @@ export default function MyDishes({ t, lang }: { t: (k: string, p?: Record<string
     }
   }
 
+  // Stagger each row's entrance below (see .rated-dish-row's CSS animation) — the
+  // data already arrived in one batched fetch; this only spreads the REVEAL so it
+  // reads as progressive, without reintroducing per-dish network round trips.
+  let rowIdx = 0;
   return (
     <>
       {identityAsk && (
@@ -437,8 +441,11 @@ export default function MyDishes({ t, lang }: { t: (k: string, p?: Record<string
         const rows = group.map(d => {
         const bucket = cookingBucket(d.cooking_method as CookingMethod | null | undefined);
         const bucketText = bucket ? t(`scan.bucket.${bucket}`) : null;
+        // Capped at 8 rows' worth: rows further down need a scroll to even see,
+        // so delaying them further buys nothing.
+        const rowDelay = Math.min(rowIdx++, 8) * 35;
         return (
-        <article className="rated-dish-row" key={d.id}>
+        <article className="rated-dish-row" key={d.id} style={{ animationDelay: `${rowDelay}ms` }}>
           <div className="card-body journal-row">
             {/* Left column: the dish photo (or a soft placeholder when a dish
                 was rated without one), with the verdict word directly beneath

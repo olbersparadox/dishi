@@ -780,11 +780,17 @@ button { font: inherit; cursor: pointer; }
 .rated-dish-row {
   border-bottom: 1px solid var(--line);
   padding: 14px 2px;
+  /* The list arrives in ONE fetch (batched — see api/my/dishes), but reads as
+     PROGRESSIVE: each row fades/rises in with a small stagger (delay set inline
+     per row, MyDishes.tsx) rather than all popping in at once. `both` holds
+     opacity:0 through the delay so nothing flashes before its turn. */
+  animation: learnIn 320ms ease-out both;
 }
 .rated-dish-row:last-of-type { border-bottom: none; }
 /* Tighter gap above the very first dish, under the 食記 heading. */
 .rated-dish-row:first-of-type { padding-top: 0; }
 .rated-dish-row .card-title { font-family: var(--font-display); font-size: 18px; font-weight: 700; }
+@media (prefers-reduced-motion: reduce) { .rated-dish-row { animation: none; } }
 
 /* Journal row: [photo + verdict] | [date/name/meta/chips] | [kebab] */
 .journal-row { display: flex; gap: 14px; align-items: flex-start; padding: 4px 2px; }
