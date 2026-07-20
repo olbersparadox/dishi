@@ -78,7 +78,7 @@ h3 { font-size: 16px; }
 .auth-wordmark { font-size: 70px; text-align: center; margin-bottom: 24px; }
 .tagline { font-size: 12px; color: var(--ink-soft); }
 .auth-tagline { font-size: 19px; font-weight: 300; color: var(--ink); text-align: left; line-height: 26.5px; margin: -8px 0 24px; white-space: pre-line; }
-.auth-longcopy { text-align: left; line-height: 1.42; margin: -17px 0 24px; }
+.auth-longcopy { text-align: left; line-height: 1.62; margin: -17px 0 24px; }
 .card-meta.auth-longcopy { margin-top: -17px; font-size: 15px; }
 .auth-title { font-weight: 600; }
 
