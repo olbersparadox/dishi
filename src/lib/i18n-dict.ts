@@ -184,7 +184,7 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'duel.q': { zh: '揀一樣唔好諗', en: 'Pick one — don’t overthink' },
   'duel.tie': { zh: '揀唔落', en: 'Can’t separate them' },
   'duel.hit': { zh: 'dishi 估中咗', en: 'dishi called it' },
-  'duel.miss': { zh: '估錯咗', en: 'Got that wrong' },
+  'duel.miss': { zh: 'dishi 估錯咗', en: 'dishi got that wrong' },
   'duel.tieresult': { zh: '兩樣都差唔多，記低咗', en: 'About even — noted' },
   'duel.learned': { zh: '學到：{dims}', en: 'Learned: {dims}' },
   'duel.ok': { zh: '好', en: 'OK' },
