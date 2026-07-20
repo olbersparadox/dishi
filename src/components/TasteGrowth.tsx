@@ -67,6 +67,10 @@ export default function TasteGrowth({ items, onExit }: { items: GrowItem[]; onEx
   const [editIdx, setEditIdx] = useState<number | null>(null);
   const [dZh, setDZh] = useState(''); const [dEn, setDEn] = useState('');
   const [edZh, setEdZh] = useState(false); const [edEn, setEdEn] = useState(false);
+  // True while the open editor was reached via "it IS food" on a non-dish row — so
+  // cancelling (or saving with no name) reverts to the not-a-dish state instead of
+  // leaving a nameless, dataless dish behind.
+  const [editReclassify, setEditReclassify] = useState(false);
   const flyId = useRef(0);
 
   // A quality (or a refinement) flies into the blob → blob absorbs + grows, bar bumps.
@@ -153,27 +157,36 @@ export default function TasteGrowth({ items, onExit }: { items: GrowItem[]; onEx
   // so the person can tell us what it is (then it can start teaching the engine).
   const markAsDish = (i: number) => {
     setDishes(prev => prev.map((d, j) => (j === i ? { ...d, notDish: false, named: true } : d)));
-    setEditIdx(i); setDZh(''); setDEn(''); setEdZh(false); setEdEn(false);
+    setEditIdx(i); setDZh(''); setDEn(''); setEdZh(false); setEdEn(false); setEditReclassify(true);
   };
+  // Undo a reclassify that produced no name (cancel, or save-with-nothing): back to not-a-dish.
+  const revertToNotDish = (i: number) =>
+    setDishes(prev => prev.map((d, j) => (j === i ? { ...d, notDish: true, named: false } : d)));
   const startEdit = (i: number) => {
     const p = POOL[i % POOL.length], cur = names[i];
     setEditIdx(i); setDZh(cur?.zh ?? p.zh); setDEn(cur?.en ?? p.en); setEdZh(false); setEdEn(false);
   };
-  const cancelEdit = () => setEditIdx(null);
+  const cancelEdit = () => {
+    if (editReclassify && editIdx !== null) revertToNotDish(editIdx);
+    setEditReclassify(false); setEditIdx(null);
+  };
   const commitEdit = () => {
     if (editIdx === null) return;
     const i = editIdx, p = POOL[i % POOL.length];
     if (edZh || edEn) {
       const zh = dZh.trim(), en = dEn.trim();
       // Real app re-translates the cleared field on save; the demo falls back to the
-      // pool value as a stand-in so both slots always display.
+      // pool value as a stand-in so both slots always display. A reclassified non-dish
+      // has empty pool values, so it keeps exactly what was typed.
       setNames(prev => prev.map((n, j) => (j === i ? { zh: zh || p.zh, en: en || p.en } : n)));
       absorb(zh || en || '✓', 2.5);
-      setEditIdx(null);
+      setEditReclassify(false); setEditIdx(null);
       reReenrich(i); // the name changed → re-derive the ingredient chips with animation
       return;
     }
-    setEditIdx(null);
+    // Saved without typing a name: on a reclassify that means "still not a dish".
+    if (editReclassify) revertToNotDish(i);
+    setEditReclassify(false); setEditIdx(null);
   };
 
   return (
@@ -221,10 +234,10 @@ export default function TasteGrowth({ items, onExit }: { items: GrowItem[]; onEx
             return (
               <li key={i} className="learn-row not-dish is-done">
                 {thumb}
-                <div className="learn-main">
-                  <span className="not-dish-title">{t('grow.notfood')}</span>
-                  <span className="not-dish-sub">{t('grow.notfood.sub')}</span>
-                  <button className="not-dish-fix" onClick={() => markAsDish(i)}>{t('grow.notfood.fix')}</button>
+                <div className="learn-main not-dish-main">
+                  <span className="learn-name">{t('grow.notfood')}</span>
+                  <span className="card-meta">{t('grow.notfood.sub')}</span>
+                  <button className="chip chip-util not-dish-fix" onClick={() => markAsDish(i)}>{t('grow.notfood.fix')}</button>
                 </div>
               </li>
             );
@@ -292,13 +305,14 @@ export default function TasteGrowth({ items, onExit }: { items: GrowItem[]; onEx
                             <span aria-hidden>{isHome ? '🏠' : '📍'}</span> {d.choice}
                           </button>
                         </div>
-                      // Expanded: the nearest spots (the fixed 10) + the two coloured actions.
+                      // Expanded: the nearest spots (the fixed 10) + add / home — the SAME
+                      // .chip-util treatment and order as the restaurant picker in the log flow.
                       : <div className="chips learn-place">
                           {d.places.map(pl => (
                             <button key={pl} className={`chip ${d.choice === pl ? 'on' : ''}`} onClick={() => choose(i, pl)}>{pl}</button>
                           ))}
-                          <button className={`chip chip-action ${isHome ? 'on' : ''}`} onClick={() => choose(i, home)}>🏠 {home}</button>
-                          <button className="chip chip-action" onClick={() => choose(i, t('grow.addplace'))}>＋ {t('grow.addplace')}</button>
+                          <button className="chip chip-util" onClick={() => choose(i, t('grow.addplace'))}>{t('picker.add')}</button>
+                          <button className={`chip chip-util ${isHome ? 'on' : ''}`} onClick={() => choose(i, home)}>{home}</button>
                         </div>
                 )}
               </div>

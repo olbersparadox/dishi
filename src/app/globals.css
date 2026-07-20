@@ -435,25 +435,25 @@ button { font: inherit; cursor: pointer; }
   font-size: 15px; color: var(--ink-soft); text-align: center; line-height: 1.5;
   max-width: 360px; margin: 18px auto 4px;
 }
-/* Name and location are "refine" surfaces: filled, NO outline, gently BREATHING — a soft
-   warm ring grows + fades and the fill dims, so they read as tap-to-change. On-palette:
-   a warm ink-soft halo, never the reserved vermillion. */
+/* Name and location are "refine" surfaces: BLACK with white text, NO outline, gently
+   BREATHING — a soft white halo grows + fades and the fill lifts — so they read as
+   tap-to-change and stand out from the paper cards. */
 .refine-pill {
   display: inline-flex; align-items: center; gap: 6px; min-width: 0; max-width: 100%;
   border: none; border-radius: 999px; padding: 6px 13px; cursor: pointer; text-align: left;
-  background: var(--paper-inset); color: var(--ink);
+  background: var(--ink); color: var(--glaze);
   animation: refineBreath 2.4s ease-in-out infinite;
 }
-/* the dish NAME is a rounded rectangle (matches the thumbnail), not a chip-pill —
-   reads as an editable tile */
+/* the dish NAME is a rounded rectangle (matches the thumbnail), not a chip-pill */
 .refine-name { border-radius: 10px; padding: 6px 12px; }
+.refine-name .dishname-secondary { color: rgba(250, 247, 241, 0.72); } /* English legible on black */
 .refine-place { animation-delay: 1.2s; font-size: 13px; }
 @keyframes refineBreath {
-  0%, 100% { background: var(--paper-inset); box-shadow: 0 0 0 0 rgba(122, 116, 104, 0); }
-  50%      { background: #e9e2d2;            box-shadow: 0 0 0 3px rgba(122, 116, 104, 0.22); }
+  0%, 100% { background: var(--ink); box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); }
+  50%      { background: #423d37;   box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.16); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .refine-pill { animation: none; box-shadow: 0 0 0 1.5px rgba(122, 116, 104, 0.18); }
+  .refine-pill { animation: none; box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.18); }
 }
 /* two-field name editor — same mechanic as the Eat Journal (edit one clears + retranslates the other) */
 .learn-nameedit { display: flex; flex-direction: column; width: 100%; max-width: 320px; }
@@ -503,23 +503,17 @@ button { font: inherit; cursor: pointer; }
 .learn-learned { font-size: 12px; color: var(--seal); font-weight: 600; }
 @keyframes chipIn { from { opacity: 0; transform: scale(0.82); } to { opacity: 1; transform: none; } }
 .learn-place { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 5px; }
-/* The two actions under the nearby list — a DIFFERENT fill (warm ink-faint) from the
-   outline restaurant chips, so "home cooked" / "add another" read as choices of a
-   different kind, not just another restaurant. Kept on-palette (no new hue). */
-.chip.chip-action { background: var(--ink-faint); border-color: transparent; color: var(--ink); font-weight: 600; }
-.chip.chip-action.on { background: var(--ink); border-color: transparent; color: var(--glaze); }
+/* "add a place" + "home cooked" reuse .chip-util, the SAME treatment/order as the
+   restaurant picker in the log flow (RestaurantPicker) — nothing bespoke here. */
 /* low-confidence guess with nothing picked yet → a soft nudge to look, clears on action */
 .learn-row.needs-look { border-color: var(--seal); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--seal) 22%, transparent); }
-/* Not food: a quiet, dashed, dimmed row — visibly OUTSIDE the learning set, with one
-   correction affordance. */
+/* Not food: a quiet, dashed, dimmed row — visibly OUTSIDE the learning set. Type reuses
+   the app's own .learn-name + .card-meta; the fix is a normal .chip-util. */
 .learn-row.not-dish { background: var(--glaze); border-style: dashed; }
+.learn-row.not-dish .learn-name { color: var(--ink-soft); font-weight: 600; font-size: 15px; }
+.not-dish-main { gap: 4px; }
 .learn-thumb-dim { opacity: 0.5; filter: grayscale(0.5); }
-.not-dish-title { font-family: var(--font-display); font-size: 15px; font-weight: 600; color: var(--ink-soft); }
-.not-dish-sub { font-size: 12px; color: var(--ink-faint); }
-.not-dish-fix {
-  align-self: flex-start; margin-top: 6px; background: none; border: none; padding: 2px 0; cursor: pointer;
-  font-size: 12px; color: var(--ink); text-decoration: underline; text-underline-offset: 2px;
-}
+.not-dish-fix { align-self: flex-start; margin-top: 6px; }
 .learn-chip {
   font-size: 12px; padding: 5px 11px; border-radius: 99px; cursor: pointer;
   border: 1px solid var(--line); background: var(--paper-inset); color: var(--ink-soft);

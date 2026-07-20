@@ -413,7 +413,7 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'grow.addplace': { zh: '自己加', en: 'Add another' },
   'grow.notfood': { zh: '呢張唔似食物', en: "This doesn't look like food" },
   'grow.notfood.sub': { zh: '唔會攞嚟學你嘅口味', en: "Won't be used to learn your taste" },
-  'grow.notfood.fix': { zh: '係嘢食嚟？改返', en: 'It is food? Fix it' },
+  'grow.notfood.fix': { zh: '係嘢食嚟', en: "It's food" },
   'place.home': { zh: '住家菜', en: 'Home cooked' },
   'export.button': { zh: '將我嘅口味引擎接入 AI', en: 'Connect my taste engine to AI' },
   'export.locked': { zh: '再評多 {n} 味就生成到', en: '{n} more ratings to unlock' },
