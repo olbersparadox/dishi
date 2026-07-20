@@ -6,7 +6,7 @@ import {
   confidenceInputsFrom, evidenceConfidence, exportUnlocked, ratingsToUnlock,
 } from '@/lib/tasteExport';
 import { PERSONAS, PERSONA_META, type Persona } from '@/lib/persona';
-import { CopyIcon, CheckIcon } from './icons';
+import { CopyIcon, CheckIcon, LockIcon } from './icons';
 
 /**
  * "Teach your AI what you actually like."
@@ -122,8 +122,10 @@ export default function TasteExport({
               ))}
             </div>
           )}
-          <button className="btn export" style={{ width: '100%' }} onClick={generate} disabled={!ready || generating}>
-            {ready ? t('export.button') : t('export.locked', { n: ratingsToUnlock(ci) })}
+          <button className={`btn export ${!ready ? 'is-locked' : ''}`} style={{ width: '100%' }} onClick={generate} disabled={!ready || generating}>
+            {ready
+              ? t('export.button')
+              : <><LockIcon size={16} /> {t('export.locked', { n: ratingsToUnlock(ci) })}</>}
           </button>
         </>
       ) : (

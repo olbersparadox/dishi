@@ -60,6 +60,15 @@ export function CloseIcon({ size = 16 }: IconProps) {
   );
 }
 
+export function LockIcon({ size = 16 }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" aria-hidden="true">
+      <rect x="5" y="11" width="14" height="9" rx="2" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M8 11V8a4 4 0 0 1 8 0v3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 /**
  * Rate — a single clean bidirectional arrow (up = loved, down = not for me),
  * matching the vertical flick gesture itself. The earlier plate+circle version

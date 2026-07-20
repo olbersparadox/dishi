@@ -123,6 +123,11 @@ button { font: inherit; cursor: pointer; }
   background: var(--seal); border-color: var(--seal); color: var(--seal-ink);
   font-family: var(--font-display);
 }
+/* Locked export: keep the full vermillion (don't dim like a normal :disabled) — it
+   reads as "coming, keep rating" not "unavailable". Still non-interactive (disabled),
+   and the lock icon carries the locked meaning. The icon + count sit centred inline. */
+.btn.export.is-locked { display: inline-flex; align-items: center; justify-content: center; gap: 7px; }
+.btn.export.is-locked:disabled { opacity: 1; }
 /* Small icon-only actions (edit/delete on a rated dish) — a quiet round tap
    target rather than a bordered .btn, since a row of these next to a dish's
    metadata is scanned visually, not read as buttons with labels. */

@@ -395,7 +395,7 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'grow.notfood.fix': { zh: '係嘢食嚟', en: "It's food" },
   'place.home': { zh: '住家菜', en: 'Home cooked' },
   'export.button': { zh: '將我嘅口味引擎接入 AI', en: 'Connect my taste engine to AI' },
-  'export.locked': { zh: '再評多 {n} 味就生成到', en: '{n} more ratings to unlock' },
+  'export.locked': { zh: '要評多 {n} 味菜', en: 'Rate {n} more dishes' },
   'export.version': { zh: 'v{v} \u2014 同上次比較冇乜變。', en: 'v{v} \u2014 little has changed since last time.' },
   'export.delta': { zh: 'v{v} \u2014 同上次比較：{dims}', en: 'v{v} \u2014 since last time: {dims}' },
   'export.copy': { zh: '複製', en: 'Copy' },
