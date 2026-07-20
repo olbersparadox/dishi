@@ -516,9 +516,8 @@ button { font: inherit; cursor: pointer; }
 /* Not food: a quiet, dashed, dimmed row — visibly OUTSIDE the learning set. Type reuses
    the app's own .learn-name + .card-meta; the fix is a normal .chip-util. */
 .learn-row.not-dish { background: var(--glaze); border-style: dashed; }
-.learn-row.not-dish .learn-name { color: var(--ink-soft); font-weight: 700; font-size: 18px; }
+.learn-row.not-dish .learn-name { color: var(--ink-soft); font-weight: 800; font-size: 20px; }
 .not-dish-main { gap: 3px; }
-.not-dish-main .card-meta { line-height: 1.25; }
 .learn-thumb-dim { opacity: 0.5; filter: grayscale(0.5); }
 .not-dish-fix { align-self: flex-start; margin-top: 6px; }
 .learn-chip {

@@ -61,6 +61,7 @@ export default function TasteGrowth({ items, onExit }: { items: GrowItem[]; onEx
   // full nearby list (kept collapsed to cut load) when they tap "唔啱?".
   const [expanded, setExpanded] = useState<Set<number>>(() => new Set());
   const home = t('place.home');
+  const skip = t('grow.skip');
   // Name editing mirrors the Eat Journal exactly: two fields (zh primary / en
   // secondary); editing one CLEARS the other (which shows a "will translate"
   // placeholder and is re-translated on save).
@@ -236,7 +237,6 @@ export default function TasteGrowth({ items, onExit }: { items: GrowItem[]; onEx
                 {thumb}
                 <div className="learn-main not-dish-main">
                   <span className="learn-name">{t('grow.notfood')}</span>
-                  <span className="card-meta">{t('grow.notfood.sub')}</span>
                   <button className="chip chip-util not-dish-fix" onClick={() => markAsDish(i)}>{t('grow.notfood.fix')}</button>
                 </div>
               </li>
@@ -245,6 +245,7 @@ export default function TasteGrowth({ items, onExit }: { items: GrowItem[]; onEx
 
           const showPlace = d.placeLoading || d.places.length > 0 || (d.done && !d.hasLocation);
           const isHome = d.choice === home;
+          const isSkip = d.choice === skip;
           const showList = expanded.has(i) || (showPlace && !d.choice && !d.placeLoading);
           // low-confidence guess with no pick yet → pull the row forward for a look.
           const needsLook = !!p.uncertain && d.done && !d.choice;
@@ -302,16 +303,17 @@ export default function TasteGrowth({ items, onExit }: { items: GrowItem[]; onEx
                       // Resolved: the location as a breathing "refine" pill — tap to open the list.
                       ? <div className="learn-place">
                           <button className="refine-pill refine-place" onClick={() => expand(i)}>
-                            <span aria-hidden>{isHome ? '🏠' : '📍'}</span> {d.choice}
+                            {!isSkip && <span aria-hidden>{isHome ? '🏠' : '📍'} </span>}{d.choice}
                           </button>
                         </div>
-                      // Expanded: the nearest spots (the fixed 10) + add / home — the SAME
-                      // .chip-util treatment and order as the restaurant picker in the log flow.
+                      // Expanded: the nearest spots (the fixed 10) + add / skip / home — the
+                      // SAME .chip-util treatment and order as the restaurant picker log flow.
                       : <div className="chips learn-place">
                           {d.places.map(pl => (
                             <button key={pl} className={`chip ${d.choice === pl ? 'on' : ''}`} onClick={() => choose(i, pl)}>{pl}</button>
                           ))}
                           <button className="chip chip-util" onClick={() => choose(i, t('grow.addplace'))}>{t('picker.add')}</button>
+                          <button className={`chip chip-util ${isSkip ? 'on' : ''}`} onClick={() => choose(i, skip)}>{skip}</button>
                           <button className={`chip chip-util ${isHome ? 'on' : ''}`} onClick={() => choose(i, home)}>{home}</button>
                         </div>
                 )}
