@@ -490,7 +490,7 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'home.locked': { zh: '已經有其他人評過呢道菜 \u2014 為咗保護佢哋嘅記錄，鎖住咗唔可以改。', en: 'Someone else has rated this \u2014 locked to protect their history.' },
   'home.addphoto': { zh: '加相', en: 'Add a photo' },
   'home.saving': { zh: '儲存緊…', en: 'Saving\u2026' },
-  'home.translateOnSave': { zh: '填一種語言就得 — 儲存嗰陣會自動翻譯', en: 'Fill one language — auto-translated on save' },
+  'home.translateOnSave': { zh: '（填一種語言就得 — 儲存會自動翻譯）', en: '(Fill one language — auto-translated on save)' },
   'home.loadingmore': { zh: '載入緊更多…', en: 'Loading more\u2026' },
   'scan.training': { zh: '再評 {n} 道菜 Dishi 先可以開始推介 — 而家先列出菜式。', en: 'Rate {n} more dishes and Dishi can start recommending — for now, here\u2019s the menu.' },
   'scan.scoring': { zh: '啱緊你嘅口味…（菜式已經讀晒，你可以慢慢睇）', en: 'Matching your taste\u2026 (the menu\u2019s already read \u2014 browse while it finishes)' },
