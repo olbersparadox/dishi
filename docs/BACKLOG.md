@@ -271,7 +271,7 @@ the ingredient chips never changed.
 
 ---
 
-## 1. Photo upload size cap + failed-card honesty — *(Sonnet)*
+## 1. Photo upload size cap + failed-card honesty — *(Sonnet)* — ✅ DONE `b6d3c58` (unified on normalizePhoto; failed card = notice + retry, no queued-rename needed since edit UI is absent on failed cards)
 
 **Two root causes, one card:**
 - The 413 happens at Vercel's edge (~4.5MB serverless body limit — not
@@ -308,7 +308,7 @@ queues and applies after retry.
 
 ---
 
-## 2. Rename → REAL re-derivation (kill the simulated re-enrich) — *(Fable 5)*
+## 2. Rename → REAL re-derivation (kill the simulated re-enrich) — *(Fable 5)* — ✅ DONE `b6d3c58` (force mode + enrichGen; PATCH reanalyzeAnchored left in place — name-seeded result lands after it, so the typed name wins; route/component tests skipped — repo has no route/component test infra, glossary+eval pinned instead)
 
 **Root cause chain (all three layers confirmed in code):**
 1. `/api/dishes/enrich` early-returns when `dish.attributes` is non-empty —
@@ -368,7 +368,7 @@ replay runs when a rating exists. Component test — rename sets
 
 ---
 
-## 3. Glossary addition: 油雞 false-friend — *(rider on the shipped shorthand glossary; Sonnet)*
+## 3. Glossary addition: 油雞 false-friend — *(rider on the shipped shorthand glossary; Sonnet)* — ✅ DONE `b6d3c58`
 
 Observed live: 油雞髀 rendered as "Fried Chicken Thigh" — 油雞 is soy-poached
 chicken (豉油雞), not fried; 油 here is the poaching liquor, not deep-frying.
