@@ -167,7 +167,7 @@ picker test for the multi-candidate nudge path and the reject→manual path.
 
 ---
 
-## 3. Nearby list: distance ranking, no Google cap — *(Sonnet)*
+## 3. Nearby list: distance ranking, no Google cap — *(Sonnet)* — ✅ DONE `d661536`
 
 Two changes in `src/app/api/restaurants/nearby/route.ts` + `src/lib/places.ts`:
 
@@ -190,7 +190,13 @@ sent.
 
 ---
 
-## 4. HK menu shorthand: 炆米 ≠ 炆飯 — carb metonym integrity — *(Fable 5)*
+## 4. HK menu shorthand: 炆米 ≠ 炆飯 — carb metonym integrity — *(Fable 5)* — ✅ DONE `ca6ed92`
+
+Glossary (4a) + carbSuspicion tripwire (4b) + tests/eval/backfill (4c) shipped.
+FOLLOW-UP still open: the tripwire corrects ingredients/diet, not the attribute
+VECTOR or an already-polluted NAME — honest vector re-score needs the name
+re-authored first (translate/vision + authority ladder). Recommended next; costs
+one more LLM call per fire.
 
 **Priority: high, trust-critical** — same family as diet-flag integrity. The
 scan misreads HK menu metonyms where the carb is named by single-character
