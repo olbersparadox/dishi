@@ -627,14 +627,19 @@ button { font: inherit; cursor: pointer; }
   margin-bottom: 26px;
 }
 .log-src-seg {
+  position: relative;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
   padding: 20px 6px; cursor: pointer;
   font-family: var(--font-display);
   font-weight: 600; font-size: 14px; text-align: center; white-space: nowrap;
 }
 /* Thin dividers BETWEEN the three (not on the outer edges) — a translucent glaze
-   hairline so it reads as one pill segmented, echoing the drawn sketch. */
-.log-src-seg + .log-src-seg { box-shadow: inset 1px 0 0 rgba(245, 240, 232, 0.18); }
+   hairline, inset top/bottom so it hugs the icon+text rather than running the full
+   segment height (a pseudo-element, not box-shadow, so it can be shortened). */
+.log-src-seg + .log-src-seg::before {
+  content: ''; position: absolute; left: 0; top: 26px; bottom: 26px; width: 1px;
+  background: rgba(245, 240, 232, 0.18);
+}
 .log-src-seg:active { opacity: 0.85; }
 
 /* --- qr ordering --- */
