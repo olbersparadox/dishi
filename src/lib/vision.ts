@@ -2,7 +2,7 @@ import { DIMS, DishVector, LEARN_CUTOFF } from './taste';
 import { callClaude, imagePart, textPart, parseJsonResponse } from './openrouter';
 import {
   sanitizeDietFlags, sanitizeCookingMethod, sanitizeHeaviness,
-  DIET_FLAG_LIST, DIET_PROMPT_GUIDANCE,
+  DIET_FLAG_LIST, DIET_PROMPT_GUIDANCE, HK_MENU_SHORTHAND_GUIDANCE,
   type DietFlag, type CookingMethod, type Heaviness,
 } from './menuScan';
 
@@ -48,6 +48,7 @@ Respond with ONLY a JSON object, no markdown fences, in this exact shape:
  "heaviness": string|null (light, medium, or heavy — your best culinary judgment; null if unclear),
  "attributes": { ${DIMS.map((d) => `"${d}": number 0..1`).join(', ')} }}
 ${DIET_PROMPT_GUIDANCE}
+${HK_MENU_SHORTHAND_GUIDANCE}
 Attributes are presence/intensity, not quality. A tonkotsu ramen might be
 umami 0.9, rich 0.85, salty 0.7, chewy 0.6, spicy 0.1. If is_dish is false, still
 fill name/cuisine/attributes with a best-effort placeholder — the caller decides
@@ -132,6 +133,7 @@ Respond with ONLY a JSON object, no markdown fences:
  "heaviness": string|null (light, medium, or heavy; null if unclear),
  "attributes": { ${DIMS.map((d) => `"${d}": number 0..1`).join(', ')} }}
 ${DIET_PROMPT_GUIDANCE}
+${HK_MENU_SHORTHAND_GUIDANCE}
 Attributes are presence/intensity, not quality. Only report attributes you are
 genuinely confident about; leave uncertain ones near 0.`;
 
@@ -159,5 +161,10 @@ export async function reanalyzeAnchored(
   const s = sanitize({ ...parsed, name });
   return { attributes: s.attributes, cuisine: s.cuisine, diet: s.diet, cooking_method: s.cooking_method, heaviness: s.heaviness };
 }
+
+/** The two vision prompt sites (fresh identify + name-anchored re-analysis) — exported
+ * so a test can assert both embed the shared shorthand/diet grounding and can't
+ * silently drop it, mirroring SCAN_PROMPTS in menuScan.ts. */
+export const VISION_PROMPTS = [SYSTEM, ANCHORED_SYSTEM];
 
 const clamp01 = (x: number) => (Number.isFinite(x) ? Math.min(1, Math.max(0, x)) : 0);
