@@ -18,6 +18,18 @@ import { CheckIcon, CloseIcon } from '@/components/icons';
 // snapdemo harness (no auth): photo + score only; the dishes are SIMULATED from POOL.
 export type GrowItem = { photoUrl: string | null; score: number };
 
+// A real nearby restaurant option (from EXIF → /api/restaurants/nearby), carrying what
+// it takes to PERSIST the pick: a Dishi row (restaurant_id) or a Google place (place_id
+// + coords → created on pick, same path as the log flow).
+export type GrowPlace = {
+  label: string;
+  restaurant_id?: string;
+  place_id?: string;
+  lat: number;
+  lng: number;
+  source: 'dishi' | 'google';
+};
+
 // The real flow (RatingStack): each rated card's live pipeline state, streamed in as
 // /api/dishes → seal → rate → enrich resolve. When `live` is passed the screen renders
 // REAL dishes (no POOL); when only `items` is passed it runs the POOL simulation.
@@ -34,6 +46,13 @@ export type GrowDish = {
   diet: string[];
   heaviness: string | null;
   enriched: boolean;
+  // location (phase 3): real EXIF → nearby list; choice is owned here (RatingStack
+  // persists it) and read back for display.
+  coords?: { lat: number; lng: number } | null;
+  nearby?: GrowPlace[];
+  placeLoading?: boolean;
+  hasLocation?: boolean;
+  choice?: string | null;
 };
 
 type Dish = {
@@ -69,7 +88,10 @@ const emptyDish = (): Dish => ({ named: false, ing: [], diet: [], places: [], pl
 
 type Flyer = { id: number; word: string; x: number; y: number };
 
-export default function TasteGrowth({ items, live, onExit }: { items?: GrowItem[]; live?: GrowDish[]; onExit: () => void }) {
+export default function TasteGrowth({ items, live, onExit, onPickPlace }: {
+  items?: GrowItem[]; live?: GrowDish[]; onExit: () => void;
+  onPickPlace?: (i: number, label: string) => void; // live mode: RatingStack persists the pick
+}) {
   const { t } = useLang();
   const isLive = !!live;
   // Unified per-row source: photo + score come from whichever mode; length drives all state.
@@ -175,7 +197,12 @@ export default function TasteGrowth({ items, live, onExit }: { items?: GrowItem[
         ing: cur.reenriching ? cur.ing : (gd.ingredients ?? []),
         diet: gd.diet ?? [],
         heaviness: gd.heaviness ?? undefined,
-        hasLocation: false, places: [], // real EXIF/nearby lands in a later phase
+        // location (phase 3): real EXIF nearby list + the confirmed choice, both owned
+        // by RatingStack (single source of truth for what gets persisted).
+        places: (gd.nearby ?? []).map(p => p.label),
+        placeLoading: gd.placeLoading ?? false,
+        hasLocation: gd.hasLocation ?? false,
+        choice: gd.choice ?? undefined,
       };
     }));
     live.forEach((gd, i) => {
@@ -198,7 +225,10 @@ export default function TasteGrowth({ items, live, onExit }: { items?: GrowItem[
 
   // refinement = reward: picking a place or fixing a name teaches more.
   const choose = (i: number, place: string) => {
-    setDishes(prev => prev.map((d, j) => (j === i ? { ...d, choice: place } : d)));
+    // Live: RatingStack owns the choice (it persists it) — round-trips back via `live`.
+    // Sim: set the local choice directly.
+    if (isLive) onPickPlace?.(i, place);
+    else setDishes(prev => prev.map((d, j) => (j === i ? { ...d, choice: place } : d)));
     setExpanded(prev => { const n = new Set(prev); n.delete(i); return n; }); // collapse back to the single confirmed chip
     absorb('✓', 2.5);
   };
