@@ -108,7 +108,10 @@ export default function RatingStack({ photos, onExit }: { photos: File[]; onExit
   const enrich = (i: number, dishId: string) =>
     fetch('/api/dishes/enrich', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: dishId }) })
       .then(r => (r.ok ? r.json() : null))
-      .then(j => { if (j?.dish) patch(i, { ingredients: j.dish.ingredients ?? [], diet: j.dish.diet ?? [], heaviness: j.dish.heaviness ?? null, name_zh: j.dish.name_zh ?? undefined, enriched: true }); refreshBuddy(); })
+      // Only overwrite ingredients when enrich actually produced some (the typed-name /
+      // reclassify slow path) — never clobber vision's create-time list back to [] on the
+      // photo fast-path (which returns the stored dish, no ingredients).
+      .then(j => { if (j?.dish) patch(i, { ...(Array.isArray(j.dish.ingredients) && j.dish.ingredients.length ? { ingredients: j.dish.ingredients } : {}), diet: j.dish.diet ?? [], heaviness: j.dish.heaviness ?? null, name_zh: j.dish.name_zh ?? undefined, enriched: true }); refreshBuddy(); })
       .catch(() => {});
   // EXIF coords → real nearby list → auto-confirm + persist the nearest (correctable).
   const loadNearby = async (i: number, dishId: string, coords: { lat: number; lng: number }) => {
@@ -154,7 +157,10 @@ export default function RatingStack({ photos, onExit }: { photos: File[]; onExit
       patch(i, {
         status: 'ready', dishId: d.id, isDish,
         name: d.name, name_zh: d.name_zh, cuisine: d.cuisine ?? null,
-        diet: d.diet ?? [], heaviness: d.heaviness ?? null, coords: meta.coords ?? null,
+        // Vision already read off the ingredients + diet at create — show them NOW
+        // (the enrich fast-path returns none for photo dishes, which already carry
+        // attributes). This is what makes the chips appear and the taste blob absorb.
+        ingredients: d.ingredients ?? [], diet: d.diet ?? [], heaviness: d.heaviness ?? null, coords: meta.coords ?? null,
       });
 
       // NOT FOOD: never sealed, rated, or enriched — a non-dish must never move the taste

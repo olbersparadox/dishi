@@ -24,6 +24,10 @@ export type VisionResult = {
   diet: DietFlag[];
   cooking_method: CookingMethod | null;
   heaviness: Heaviness | null;
+  // Key ingredients (up to 4) the model reads off the dish. NOT a stored column —
+  // passed through on the /api/dishes response so the rating/growth screen can show
+  // them as chips + stream them into the taste blob without a second enrich round-trip.
+  ingredients: string[];
   // True ONLY when the vision call genuinely failed (timeout / unparseable after
   // retries) and everything above is placeholder. is_dish stays true in that case
   // — benefit of the doubt — but the CLIENT must know the difference between "a
@@ -78,7 +82,7 @@ export async function inferDish(base64: string, mediaType: string): Promise<Visi
   // an honest low-confidence Unknown — the user gets the "fix the name" chip — rather
   // than fake demo data or a hard failure after they already took the photo.
   if (!parsed) {
-    return { name: 'Unknown dish', name_zh: null, cuisine: 'unknown', attributes: {}, confidence: 0.1, is_dish: true, diet: [], cooking_method: null, heaviness: null, vision_failed: true };
+    return { name: 'Unknown dish', name_zh: null, cuisine: 'unknown', attributes: {}, confidence: 0.1, is_dish: true, diet: [], cooking_method: null, heaviness: null, ingredients: [], vision_failed: true };
   }
   return sanitize(parsed);
 }
@@ -108,6 +112,9 @@ function sanitize(raw: any): VisionResult {
     diet: sanitizeDietFlags(raw?.diet),
     cooking_method: sanitizeCookingMethod(raw?.cooking_method),
     heaviness: sanitizeHeaviness(raw?.heaviness),
+    ingredients: Array.isArray(raw?.ingredients)
+      ? raw.ingredients.map((g: unknown) => String(g).trim().toLowerCase()).filter(Boolean).slice(0, 4)
+      : [],
   };
 
 }
@@ -117,7 +124,7 @@ function mockResult(): VisionResult {
   for (const d of DIMS) attributes[d] = 0.3;
   attributes.umami = 0.7;
   attributes.rich = 0.6;
-  return { name: 'Logged dish (vision key not set)', name_zh: null, cuisine: 'unknown', attributes, confidence: 0.2, is_dish: true, diet: [], cooking_method: null, heaviness: null };
+  return { name: 'Logged dish (vision key not set)', name_zh: null, cuisine: 'unknown', attributes, confidence: 0.2, is_dish: true, diet: [], cooking_method: null, heaviness: null, ingredients: ['egg', 'scallion'] };
 }
 
 const ANCHORED_SYSTEM = `You re-analyze a dish photo. The eater has told you what the dish

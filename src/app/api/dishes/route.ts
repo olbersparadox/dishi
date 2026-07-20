@@ -120,7 +120,10 @@ export async function POST(req: NextRequest) {
     .single();
   if (dishErr) return NextResponse.json({ error: dishErr.message }, { status: 500 });
 
-  return NextResponse.json({ dish: { ...dish, is_dish: vision.is_dish, vision_failed: vision.vision_failed ?? false } });
+  // ingredients isn't a stored column — pass vision's read-off list through on the
+  // response so the rating/growth screen shows chips + streams them into the taste
+  // blob immediately, no separate enrich round-trip needed.
+  return NextResponse.json({ dish: { ...dish, is_dish: vision.is_dish, vision_failed: vision.vision_failed ?? false, ingredients: vision.ingredients } });
 }
 
 /**

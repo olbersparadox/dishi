@@ -114,7 +114,7 @@ export default function TasteGrowth({ live, engine, onExit, onCancel, onPickPlac
 
   // Sync the render model from the real pipeline stream, and fire the blob + bar on REAL
   // events only (a dish resolves, then enriches) — never on raw count.
-  const liveSeen = useRef<Record<number, { ready?: boolean; enriched?: boolean }>>({});
+  const liveSeen = useRef<Record<number, { ready?: boolean; streamed?: boolean }>>({});
   useEffect(() => {
     setDishes(prev => live.map((gd, i) => {
       const cur = prev[i] ?? emptyDish();
@@ -135,13 +135,15 @@ export default function TasteGrowth({ live, engine, onExit, onCancel, onPickPlac
     live.forEach((gd, i) => {
       const s = (liveSeen.current[i] ??= {});
       if (!s.ready && gd.status === 'ready' && gd.isDish) { s.ready = true; if (gd.name) absorb(gd.name, 0); }
-      if (!s.enriched && gd.enriched && gd.isDish) {
-        s.enriched = true;
-        // Fly the REAL learned data into the blob — a staggered STREAM of tokens
-        // (diet labels + ingredients) so the absorption reads.
+      // Fly the REAL learned data into the blob — a staggered STREAM of tokens (diet
+      // labels + ingredients). Fire ONCE, the moment they first arrive: for a photo
+      // dish that's at create (vision reads them off); for a typed-name dish it's when
+      // enrich lands. Keyed off token PRESENCE, not the enriched flag, so photo dishes
+      // (fully known at create) still animate.
+      if (!s.streamed && gd.isDish && gd.status === 'ready') {
         const diet = (gd.diet ?? []).map(f => t(`scan.diet.${f}` as Parameters<typeof t>[0])).filter(Boolean);
         const words = [...diet, ...(gd.ingredients ?? [])].slice(0, 6);
-        (words.length ? words : ['✓']).forEach((w, k) => window.setTimeout(() => absorb(w, 0), k * 150));
+        if (words.length) { s.streamed = true; words.forEach((w, k) => window.setTimeout(() => absorb(w, 0), k * 150)); }
       }
     });
     // Session progress drives the bar UNTIL the real engine reading arrives (see barFill).

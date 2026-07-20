@@ -10,6 +10,7 @@ import type { ExportDish } from '@/lib/tasteExport';
 import { isPersona, type Persona } from '@/lib/persona';
 import { RateIcon, TrashIcon, UtensilsIcon, HomeIcon, PhotoIcon } from '@/components/icons';
 import RatingStack from '@/components/RatingStack';
+import { clearJournalCache } from '@/lib/journalCache';
 import { wordKeyFor } from '@/lib/flickWords';
 import { useLang, cuisineLabel } from '@/lib/i18n';
 
@@ -47,7 +48,10 @@ function TasteProfile() {
   // the buddy card so it re-fetches /api/buddy. router.refresh() (on close) covers the
   // other tabs (the 食記 journal) by invalidating the App Router cache.
   const [refreshKey, setRefreshKey] = useState(0);
-  const closeRating = () => { setRatePhotos(null); setRefreshKey(k => k + 1); router.refresh(); };
+  // The album rating flow just created + rated dishes, but it lives on THIS tab (not
+  // /log), so the 食記 journal's in-memory cache never saw them — clear it so the next
+  // visit refetches and shows the new dishes (was: stale until a full reload).
+  const closeRating = () => { clearJournalCache(); setRatePhotos(null); setRefreshKey(k => k + 1); router.refresh(); };
   const [vector, setVector] = useState<Record<string, number>>({});
   const [affinity, setAffinity] = useState<Record<string, number>>({});
   const [count, setCount] = useState(0);
