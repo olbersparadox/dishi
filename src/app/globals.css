@@ -77,8 +77,8 @@ h3 { font-size: 16px; }
 .shell:has(.auth-screen) > .topbar .wordmark { visibility: hidden; }
 .auth-wordmark { font-size: 70px; text-align: center; margin-bottom: 24px; }
 .tagline { font-size: 12px; color: var(--ink-soft); }
-.auth-tagline { font-size: 19px; font-weight: 300; text-align: left; line-height: 26.5px; margin: -8px 0 24px; white-space: pre-line; }
-.auth-longcopy { text-align: left; line-height: 1.42; margin: -17px 0 24px; }
+.auth-tagline { font-size: 19px; font-weight: 300; color: var(--ink); text-align: left; line-height: 26.5px; margin: -8px 0 24px; white-space: pre-line; }
+.auth-longcopy { text-align: left; line-height: 1.62; margin: -17px 0 24px; }
 .card-meta.auth-longcopy { margin-top: -17px; font-size: 15px; }
 .auth-title { font-weight: 600; }
 
@@ -232,6 +232,310 @@ button { font: inherit; cursor: pointer; }
 }
 @media (prefers-reduced-motion: reduce) {
   .flick-photo { transition: none; }
+}
+
+/* Magnetic-snap rating (album stack) — FIRST-PASS visuals, owner to refine.
+   A FULL-SCREEN overlay: the photo is a card you hold. Drag it in 2D; it's pulled
+   into the nearest of 6 vertical slots (a magnetic detent with hysteresis — see
+   SnapRating.tsx) and rated on release. A rail of dots shows the slot; the word
+   names it. */
+.snap-overlay {
+  position: fixed; inset: 0; z-index: 50;
+  display: flex; align-items: center; justify-content: center;
+  /* Glass over the page beneath (the Taste AI section): the live page shows
+     through, blurred + darkened, so the card + rating float on top of it rather
+     than on a separate black screen. */
+  background: rgba(18, 14, 10, 0.02);
+  backdrop-filter: blur(14px) brightness(1.12) saturate(1.05);
+  -webkit-backdrop-filter: blur(14px) brightness(1.12) saturate(1.05);
+  touch-action: none; user-select: none; -webkit-user-select: none;
+  overscroll-behavior: contain;
+}
+.snap-card {
+  position: relative; border-radius: var(--radius); overflow: hidden;
+  /* a normal PORTRAIT photo card — the whole overlay is its playground, so dragging
+     it around the screen never clips it (the old small stage cropped the travel).
+     Kept compact so the ±250px slot travel stays on-screen. */
+  width: min(60vw, 270px); aspect-ratio: 3 / 4; max-height: 50vh;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+  will-change: transform;
+  /* NO css transition on transform — a JS spring (SnapRating.tsx) drives the
+     motion and lands on an exact pixel, so the snap is smooth and the rest crisp.
+     A css transition here would restart its ease every frame = the shake/blur. */
+  animation: snapCardIn 260ms cubic-bezier(0.2, 0.7, 0.3, 1); /* each new card eases in */
+}
+/* Skip = fling off the way it was thrown (transform + fade set inline), then the
+   parent swaps in the next card (which plays snapCardIn) — no hard cut. */
+.snap-card.exiting {
+  transition: transform 320ms cubic-bezier(0.32, 0.4, 0.3, 1), opacity 320ms ease-out;
+  animation: none;
+}
+@keyframes snapCardIn { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .snap-card { animation: none; }
+  .snap-card.exiting { transition: none; }
+}
+.snap-photo {
+  display: block; width: 100%; height: 100%; object-fit: cover;
+  transition: filter 220ms ease; /* saturation/brightness eases on each slot click */
+}
+.snap-rail {
+  position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
+  display: flex; flex-direction: column; gap: 22px; z-index: 3;
+}
+.snap-tick { /* vermillion rating dots (owner override of the seal-only reservation) */
+  width: 8px; height: 8px; border-radius: 50%; background: rgba(199, 62, 29, 0.45);
+  box-shadow: 0 1px 3px #0000002e; transition: background 110ms ease, transform 110ms ease;
+}
+.snap-tick.on { background: var(--seal); transform: scale(1.9); }
+
+/* rating verdict — small English over a big native word, bottom-left ~70% wide */
+.snap-verdict { position: absolute; left: 24px; bottom: 40px; max-width: 82%; z-index: 4; pointer-events: none; }
+.snap-word-en {
+  font-family: var(--font-display); font-weight: 700; font-size: 22px;
+  color: #141210; letter-spacing: 0.04em; margin-bottom: 4px; text-transform: uppercase;
+}
+.snap-word-en.is-skip { color: #6d757a; }
+.snap-word {
+  text-align: left; white-space: normal;
+  font-family: var(--font-display); font-weight: 800;
+  font-size: 130px; line-height: 0.96; letter-spacing: -0.02em;
+  color: #141210;
+}
+.snap-word.is-skip { color: #6d757a; font-weight: 700; } /* dismiss reads neutral, not a verdict */
+
+/* first-card drag-to-rate hint — a white touch dot between up/down arrows, bobbing */
+.snap-hint {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  z-index: 5; pointer-events: none;
+}
+.snap-hint-inner {
+  display: flex; flex-direction: column; align-items: center; gap: 9px;
+  animation: snapHintBob 1.5s ease-in-out infinite;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.45)); /* legible on any photo */
+}
+.snap-hint-inner svg { display: block; }
+@keyframes snapHintBob { 0%, 100% { transform: translateY(-8px); } 50% { transform: translateY(8px); } }
+@media (prefers-reduced-motion: reduce) { .snap-hint-inner { animation: none; } }
+.snap-close {
+  position: absolute; top: 12px; right: 12px; z-index: 6;
+  display: grid; place-items: center; width: 40px; height: 40px;
+  color: #141210; background: transparent; border: 0; cursor: pointer; opacity: 0.7;
+}
+@media (prefers-reduced-motion: reduce) {
+  .snap-photo { transition: none; } /* card motion is a JS spring; only the filter eases */
+}
+
+/* Review + reward ride in a full-screen sheet over the Taste AI page (the flick
+   phase uses the glass .snap-overlay instead). */
+/* Same glass as the flick screen (same rating flow): the Taste AI page shows through,
+   blurred + brightened, so the reward/refine screen floats on it rather than on a
+   separate opaque page. */
+.rate-sheet {
+  position: fixed; inset: 0; z-index: 50; overflow-y: auto;
+  background: rgba(18, 14, 10, 0.02);
+  backdrop-filter: blur(14px) brightness(1.12) saturate(1.05);
+  -webkit-backdrop-filter: blur(14px) brightness(1.12) saturate(1.05);
+  overscroll-behavior: contain;
+}
+/* width + side margins match .shell (max-width 420, 12px gutters) so the sheet reads as
+   the same column as every other section */
+.rate-sheet-inner { max-width: 420px; margin: 0 auto; padding: 28px 12px 96px; min-height: 100%; }
+.rate-loading { display: grid; place-items: center; color: var(--ink-soft); font-size: 14px; }
+
+/* ---- End-of-stack consent / review (RatingReview) — FIRST-PASS, owner to refine ---- */
+.review-title { font-size: 21px; margin: 6px 0 4px; }
+.review-blurb { margin-bottom: 18px; }
+.review-list { list-style: none; display: flex; flex-direction: column; gap: 8px; margin: 0 0 20px; padding: 0; }
+.review-row {
+  display: flex; align-items: center; gap: 12px; padding: 8px;
+  background: var(--paper-raised); border: 1px solid var(--line); border-radius: var(--radius);
+}
+.review-row.is-dropped { opacity: 0.5; }
+.review-row.is-dropped .review-word { text-decoration: line-through; }
+.review-thumb {
+  flex: 0 0 auto; width: 52px; height: 52px; border-radius: 10px; overflow: hidden;
+  background: var(--paper-inset); display: grid; place-items: center; font-size: 22px;
+}
+.review-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.review-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.review-name { font-size: 12px; color: var(--ink-soft); }
+.review-word { font-family: var(--font-display); font-weight: 700; font-size: 16px; color: var(--ink); }
+.review-step { flex: 0 0 auto; display: flex; align-items: center; gap: 6px; }
+.review-nudge {
+  width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--line);
+  background: var(--paper-raised); color: var(--ink); font-size: 17px; line-height: 1; cursor: pointer;
+}
+.review-nudge:disabled { opacity: 0.4; cursor: default; }
+.review-drop { border: 0; background: none; color: var(--ink-soft); font-size: 12px; cursor: pointer; padding: 4px; }
+.review-actions { display: flex; gap: 10px; }
+.review-actions .btn { flex: 1; }
+
+/* ---- The growth / level-up reward (TasteGrowth) — FIRST-PASS, owner to refine ---- */
+.grow { text-align: center; padding-top: 12px; }
+.grow-spark { font-size: 34px; color: var(--ink); opacity: 0.9; }
+.grow-title { font-size: 23px; margin: 8px 0 6px; }
+.grow-taught { font-size: 14px; color: var(--ink-soft); margin-bottom: 26px; }
+.grow-barwrap { max-width: 300px; margin: 0 auto; }
+.grow-level { font-size: 12px; font-weight: 700; color: var(--ink-soft); text-align: left; margin-bottom: 6px; }
+.grow-bar { height: 12px; border-radius: 99px; background: var(--paper-inset); overflow: hidden; }
+.grow-fill {
+  display: block; height: 100%; border-radius: 99px; background: var(--ink);
+  transition: width 500ms cubic-bezier(0.22, 0.9, 0.3, 1);
+}
+.grow-unlock { margin-top: 8px; text-align: left; }
+.grow-done { margin-top: 28px; min-width: 160px; }
+@media (prefers-reduced-motion: reduce) { .grow-fill { transition: none; } }
+
+/* ---- Progressive "watch your Taste AI learn" screen (TasteGrowth) — FIRST-PASS ---- */
+.grow2 { position: relative; padding-top: 4px; }
+/* close (abandon) — quiet X pinned to the top-right of the sticky header, so it stays
+   put as the dish stream scrolls under it (the header is position:sticky top:0) */
+.grow-close {
+  position: absolute; top: 6px; right: 2px; z-index: 5;
+  display: grid; place-items: center; width: 38px; height: 38px;
+  color: var(--ink); background: transparent; border: 0; cursor: pointer; opacity: 0.55;
+}
+.grow-close:hover { opacity: 1; }
+/* the reward header stays pinned while the dish stream scrolls under it — frosted so
+   the glass carries through (same rating flow as the flick screen); pulled up 40px */
+.grow2-top {
+  position: sticky; top: 0; z-index: 2;
+  background: rgba(250, 247, 241, 0.72);
+  backdrop-filter: blur(10px) saturate(1.05); -webkit-backdrop-filter: blur(10px) saturate(1.05);
+  text-align: center; padding: 12px 0 16px; margin-top: -40px; margin-bottom: 6px;
+  border-bottom: 1px solid var(--line);
+}
+.grow2-top .grow-barwrap { margin-top: 14px; }
+/* the ink blob sits centred; learned-taste words float around it as an aura */
+.grow-blobwrap { position: relative; height: 176px; display: flex; align-items: center; justify-content: center; }
+.grow-blob {
+  transform-origin: center;
+  transition: transform 550ms cubic-bezier(0.34, 1.42, 0.5, 1);
+}
+.grow-blob svg { display: block; }
+/* a learned quality appears near the blob, then flies IN and is absorbed — bigger and
+   bolder so the "learning going into the blob" reads clearly */
+.blob-flyer {
+  position: absolute; left: 50%; top: 50%; white-space: nowrap;
+  font-family: var(--font-display); font-size: 19px; font-weight: 700;
+  color: var(--ink); letter-spacing: 0.02em;
+  animation: flyIn 1100ms cubic-bezier(0.5, 0, 0.3, 1) forwards;
+}
+@keyframes flyIn {
+  0%   { opacity: 0; transform: translate(-50%, -50%) translate(var(--x), var(--y)) scale(1.15); }
+  18%  { opacity: 1; }
+  70%  { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -50%) translate(0, 0) scale(0.25); }
+}
+@media (prefers-reduced-motion: reduce) { .blob-flyer { animation: flyIn 300ms linear forwards; } }
+.grow2-title { font-size: 27px; margin: 6px 0 4px; }
+/* bar length matches the Taste AI page's buddy bar (which sits inside a padded card),
+   not the full column — so it doesn't read as an over-long rail. -5px top nudges the
+   bar + progress line up without resizing the cards below. */
+.grow2-top .xp-bar { max-width: 280px; margin: 11px auto 0; }
+/* dishes-to-go toward Taste AI 1.0 — the progress line, in a light weight */
+.grow2-toready { font-size: 15px; font-weight: 400; color: var(--ink); margin: 10px 0 0; }
+/* The one ask above the rows — confirming/refining is what makes the engine accurate.
+   Given room to breathe (top + bottom). */
+.grow-refine-ask {
+  font-size: 16px; color: var(--ink-soft); text-align: center; line-height: 1.5;
+  letter-spacing: 0.04em; max-width: 360px; margin: 26px auto 18px;
+}
+/* Name and location are "refine" surfaces: BLACK with white text, NO outline, gently
+   BREATHING — a soft white halo grows + fades and the fill lifts — so they read as
+   tap-to-change and stand out from the paper cards. */
+.refine-pill {
+  display: inline-flex; align-items: center; gap: 6px; min-width: 0; max-width: 100%;
+  border: none; border-radius: 999px; padding: 6px 13px; cursor: pointer; text-align: left;
+  background: var(--ink); color: var(--glaze);
+  animation: refineBreath 2.4s ease-in-out infinite;
+}
+/* the dish NAME is a rounded rectangle (matches the thumbnail), not a chip-pill */
+.refine-name { border-radius: 10px; padding: 6px 12px; }
+.refine-name .dishname-secondary { color: rgba(250, 247, 241, 0.72); } /* English legible on black */
+.refine-place { animation-delay: 1.2s; font-size: 13px; }
+@keyframes refineBreath {
+  0%, 100% { background: var(--ink); box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); }
+  50%      { background: #423d37;   box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.16); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .refine-pill { animation: none; box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.18); }
+}
+/* two-field name editor — same mechanic as the Eat Journal (edit one clears + retranslates the other) */
+.learn-nameedit { display: flex; flex-direction: column; width: 100%; max-width: 320px; }
+.learn-editlabel { font-size: 11px; margin: 6px 0 2px; }
+.learn-editactions { display: flex; gap: 8px; margin-top: 10px; }
+/* name-edit label row: the "auto-translate" note sits BESIDE the 中文 label (shared
+   with the Eat Journal so both edit surfaces read identically) */
+.name-edit-labelrow { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 3px; }
+.name-edit-note { flex: 0 1 auto; text-align: right; line-height: 1.3; }
+
+.learn-list { list-style: none; display: flex; flex-direction: column; gap: 10px; margin: 14px 0 0; padding: 0; }
+.learn-row {
+  display: flex; gap: 12px; padding: 10px; border-radius: var(--radius);
+  background: var(--paper-raised); border: 1px solid var(--line);
+  animation: learnIn 320ms ease-out;
+}
+.learn-row.is-working { opacity: 0.75; }
+@keyframes learnIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+/* photo + verdict beneath it, like the Eat Journal's journal-photo-col */
+.learn-thumbcol { flex: 0 0 auto; width: 54px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.learn-thumb {
+  flex: 0 0 auto; width: 54px; height: 54px; border-radius: 10px; overflow: hidden;
+  background: var(--paper-inset); display: grid; place-items: center; font-size: 22px;
+}
+.learn-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.learn-row.is-working .learn-thumb { animation: learnPulse 1.1s ease-in-out infinite; }
+@keyframes learnPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+.learn-verdict { font-size: 13px; font-weight: 500; color: var(--ink); text-align: center; line-height: 1.15; }
+.learn-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.learn-head { display: flex; align-items: baseline; gap: 8px; }
+.learn-titleline { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+.learn-name { font-family: var(--font-display); font-weight: 700; font-size: 16px; color: var(--ink); }
+.learn-skel { color: var(--ink-soft); font-weight: 600; }
+/* re-deriving after a name change → the chip block fades out, this shows, then the new
+   chips fade back in (keyed remount on .learn-info-reveal) */
+.learn-reenrich { font-size: 12px; color: var(--ink-soft); font-style: italic; margin-top: 4px; }
+.learn-info-reveal { animation: infoReveal 340ms ease-out; }
+@keyframes infoReveal { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .learn-info-reveal { animation: none; } }
+/* ingredient tags stream in one by one */
+.learn-chips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 2px; }
+.learn-tag {
+  font-size: 11px; padding: 3px 9px; border-radius: 99px;
+  background: var(--paper-inset); color: var(--ink-soft); animation: chipIn 240ms ease-out;
+}
+.learn-finding { font-size: 12px; color: var(--ink-soft); font-style: italic; }
+.learn-learned { font-size: 12px; color: var(--seal); font-weight: 600; }
+@keyframes chipIn { from { opacity: 0; transform: scale(0.82); } to { opacity: 1; transform: none; } }
+.learn-place { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 5px; }
+/* "add a place" + "home cooked" reuse .chip-util, the SAME treatment/order as the
+   restaurant picker in the log flow (RestaurantPicker) — nothing bespoke here. */
+/* low-confidence guess with nothing picked yet → a soft nudge to look, clears on action */
+.learn-row.needs-look { border-color: var(--seal); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--seal) 22%, transparent); }
+/* Not food: a quiet, dashed, dimmed row — visibly OUTSIDE the learning set. Type reuses
+   the app's own .learn-name + .card-meta; the fix is a normal .chip-util. */
+.learn-row.not-dish { background: var(--glaze); border-style: dashed; }
+.learn-row.not-dish .learn-name { color: var(--ink-soft); font-weight: 800; font-size: 20px; }
+.not-dish-main { gap: 3px; }
+.learn-thumb-dim { opacity: 0.5; filter: grayscale(0.5); }
+.not-dish-fix { align-self: flex-start; margin-top: 6px; }
+.learn-chip {
+  font-size: 12px; padding: 5px 11px; border-radius: 99px; cursor: pointer;
+  border: 1px solid var(--line); background: var(--paper-inset); color: var(--ink-soft);
+}
+.learn-chip.on { background: var(--ink); border-color: var(--ink); color: #fff; }
+/* Done = one round black check (everything's optimistically committed; refine later) */
+.grow-okwrap { display: flex; justify-content: center; margin: 26px 0 4px; }
+.grow-ok {
+  display: grid; place-items: center; width: 60px; height: 60px; border-radius: 50%;
+  background: var(--ink); color: var(--glaze); border: 0; cursor: pointer;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+}
+.grow-ok:hover { transform: translateY(-1px); }
+@media (prefers-reduced-motion: reduce) {
+  .learn-row, .learn-row.is-working .learn-thumb { animation: none; }
 }
 
 .bars { display: grid; gap: 8px; }

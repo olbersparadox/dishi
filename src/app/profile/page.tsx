@@ -10,7 +10,7 @@ import DishName from '@/components/DishName';
 import type { ExportDish } from '@/lib/tasteExport';
 import { isPersona, type Persona } from '@/lib/persona';
 import { RateIcon, TrashIcon, UtensilsIcon, HomeIcon, PhotoIcon } from '@/components/icons';
-import { setPendingPhoto } from '@/lib/pendingPhoto';
+import RatingStack from '@/components/RatingStack';
 import { wordKeyFor } from '@/lib/flickWords';
 import { useLang, cuisineLabel } from '@/lib/i18n';
 
@@ -39,6 +39,10 @@ type RatedRow = {
 function TasteProfile() {
   const { t, lang } = useLang();
   const router = useRouter();
+  // Album picks open the rating flow as an in-page OVERLAY (this page stays mounted
+  // behind the glass) rather than navigating away — so the drag-and-rate screen sits
+  // on top of the live Taste AI section.
+  const [ratePhotos, setRatePhotos] = useState<File[] | null>(null);
   const [vector, setVector] = useState<Record<string, number>>({});
   const [affinity, setAffinity] = useState<Record<string, number>>({});
   const [count, setCount] = useState(0);
@@ -196,13 +200,19 @@ function TasteProfile() {
             <label> so the tap natively opens the picker with a real user gesture. */}
         <label className="log-src">
           <PhotoIcon size={42} /><span>+{t('logsrc.album')}</span>
-          <input type="file" accept="image/*" hidden onChange={e => {
-            const f = e.target.files?.[0];
-            e.target.value = ''; // allow re-picking the same file next time
-            if (f) { setPendingPhoto(f); router.push('/log?source=album'); }
+          {/* MULTI-select now: pick a whole roll and rate it as a flick stack (the
+              revamp). One photo still works — it's just a stack of one. */}
+          <input type="file" accept="image/*" multiple hidden onChange={e => {
+            const fs = Array.from(e.target.files ?? []);
+            e.target.value = ''; // allow re-picking the same files next time
+            if (fs.length) setRatePhotos(fs); // open the rating overlay in place
           }} />
         </label>
       </div>
+
+      {/* Rating flow as a full-screen overlay ON TOP of this Taste AI page (kept
+          mounted behind, so the drag-and-rate glass blurs the live section). */}
+      {ratePhotos && <RatingStack photos={ratePhotos} onExit={() => setRatePhotos(null)} />}
 
       {/* Dishes waiting to be rated — picked off a menu scan or during a shared
           table, not yet rated. Living here (not buried on /log) is deliberate:

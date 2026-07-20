@@ -98,5 +98,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ dish: updated ?? dish });
+  // ingredients aren't a stored column, but the client (the growth/refine screen)
+  // shows them as chips — pass them through on the response only.
+  return NextResponse.json({ dish: { ...(updated ?? dish), ingredients: enrichment?.ingredients ?? [] } });
 }

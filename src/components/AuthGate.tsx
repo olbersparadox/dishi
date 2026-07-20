@@ -74,11 +74,11 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   if (signedIn) return <>{children}</>;
 
   return (
-    <div className="auth-screen" style={{ marginTop: 'calc(62.5vh - 418px)' }}>
+    <div className="auth-screen" style={{ marginTop: 'calc(62.5vh - 468px)' }}>
       <div className="wordmark auth-wordmark">dish<em>i</em></div>
       <p className="tagline auth-tagline">{t('auth.tagline')}</p>
       <p className="card-meta auth-longcopy">{t('auth.longcopy')}</p>
-      <h2 className="auth-title" style={{ marginTop: 44, marginBottom: 12 }}>{t('auth.title')}</h2>
+      <h2 className="auth-title" style={{ marginTop: 94, marginBottom: 12 }}>{t('auth.title')}</h2>
 
       {!sent ? (
         <div style={{ display: 'flex', gap: 8 }}>

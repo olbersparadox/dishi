@@ -5,6 +5,7 @@ import AuthGate from '@/components/AuthGate';
 import RestaurantPicker, { RestaurantChoice } from '@/components/RestaurantPicker';
 import FlickRating from '@/components/FlickRating';
 import { normalizePhoto } from '@/lib/image';
+import { toDisplayable } from '@/lib/heic';
 import { readPhotoMeta } from '@/lib/photoMeta';
 import DishName from '@/components/DishName';
 import PhotoPicker from '@/components/PhotoPicker';
@@ -90,21 +91,24 @@ function LogFlow() {
   const [sameDish, setSameDish] = useState<{ dish_id: string; name: string; name_zh: string | null } | null>(null);
   const [sameDishBusy, setSameDishBusy] = useState(false);
 
-  function onPickPhoto(f: File | null) {
+  async function onPickPhoto(raw: File | null) {
+    setDish(null);
+    // Read EXIF off the ORIGINAL file (before conversion/normalize re-encodes and
+    // strips it): the photo's GPS is WHERE it was taken, which beats live GPS for a
+    // retrospective log. Seeds the restaurant picker at the photo's location. exifr
+    // reads HEIC bytes directly, so this works on iPhone originals. Fire-and-forget,
+    // fails soft. (takenAt is read too, for Phase 2.)
+    setPhotoCoords(null);
+    setPhotoTakenAt(null);
+    if (raw) readPhotoMeta(raw).then(m => { setPhotoCoords(m.coords); setPhotoTakenAt(m.takenAt); }).catch(() => {});
+    // HEIC (iPhone default) can't be shown in an <img> in Chrome/Firefox — convert
+    // to JPEG so the preview renders. Non-HEIC passes straight through.
+    const f = raw ? await toDisplayable(raw) : null;
     setPhoto(f);
     setPreview(prev => {
       if (prev) URL.revokeObjectURL(prev); // release the old blob before making a new one
       return f ? URL.createObjectURL(f) : null;
     });
-    setDish(null);
-    // Read EXIF off the ORIGINAL file (before normalizePhoto re-encodes and strips
-    // it): the photo's GPS is WHERE it was taken, which beats live GPS for a
-    // retrospective log. Seeds the restaurant picker at the photo's location.
-    // Fire-and-forget, fails soft — a stripped/GPS-less photo just leaves this null
-    // and the picker falls back to live GPS. (takenAt is read too, for Phase 2.)
-    setPhotoCoords(null);
-    setPhotoTakenAt(null);
-    if (f) readPhotoMeta(f).then(m => { setPhotoCoords(m.coords); setPhotoTakenAt(m.takenAt); }).catch(() => {});
   }
 
   // Album entry (Taste tab "+相簿舊菜") opens the OS photo picker itself and hands

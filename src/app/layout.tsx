@@ -24,7 +24,7 @@ const wordmark = Bricolage_Grotesque({ subsets: ['latin'], variable: '--font-wor
 const body = Schibsted_Grotesk({ subsets: ['latin'], variable: '--font-body' });
 
 export const metadata: Metadata = {
-  title: 'Dishi — 食得近d',
+  title: 'dishi.me',
   description: '影相、一滑評分 — Dishi 學識你嘅口味，幫你搵到下一道心頭好。Photograph. Flick. Dishi learns your taste.',
 };
 

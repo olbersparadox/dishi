@@ -478,14 +478,16 @@ export default function MyDishes({ t, lang }: { t: (k: string, p?: Record<string
                     <p className="card-meta" style={{ marginBottom: 4 }}>{t('home.name.locked')}</p>
                   ) : (
                     <>
-                      <label className="label" style={{ fontSize: 11.5 }}>{t('home.name.zh')}</label>
+                      <div className="name-edit-labelrow">
+                        <label className="label" style={{ fontSize: 11.5, margin: 0 }}>{t('home.name.zh')}</label>
+                        <span className="card-meta name-edit-note">{t('home.translateOnSave')}</span>
+                      </div>
                       <input className="field" style={{ marginBottom: 6 }} value={draftNameZh} autoFocus
                         placeholder={editedEn && !editedZh ? t('log.willTranslate') : undefined}
                         onChange={e => { setDraftNameZh(e.target.value); setEditedZh(true); if (!editedEn) setDraftName(''); }} />
                       <label className="label" style={{ fontSize: 11.5 }}>{t('home.name.en')}</label>
                       <input className="field" value={draftName} placeholder={editedZh && !editedEn ? t('log.willTranslate') : undefined}
                         onChange={e => { setDraftName(e.target.value); setEditedEn(true); if (!editedZh) setDraftNameZh(''); }} />
-                      <p className="card-meta" style={{ marginTop: 4 }}>{t('home.translateOnSave')}</p>
                     </>
                   )}
 
