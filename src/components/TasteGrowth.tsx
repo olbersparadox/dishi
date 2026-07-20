@@ -89,8 +89,9 @@ const emptyDish = (): Dish => ({ named: false, ing: [], diet: [], places: [], pl
 type Flyer = { id: number; word: string; x: number; y: number };
 
 export type NameEdit = { zh: string; en: string; edZh: boolean; edEn: boolean };
-export default function TasteGrowth({ items, live, onExit, onPickPlace, onEditName, onReclassify }: {
+export default function TasteGrowth({ items, live, onExit, onCancel, onPickPlace, onEditName, onReclassify }: {
   items?: GrowItem[]; live?: GrowDish[]; onExit: () => void;
+  onCancel?: () => void;                                 // the ✕ = discard the session (live)
   onPickPlace?: (i: number, label: string) => void;    // live: RatingStack persists the pick
   onEditName?: (i: number, edit: NameEdit) => void;     // live: persist a rename (full cascade)
   onReclassify?: (i: number, edit: NameEdit) => void;   // live: "it IS food" → name + rate it
@@ -295,7 +296,7 @@ export default function TasteGrowth({ items, live, onExit, onPickPlace, onEditNa
     <div className="grow2">
       <div className="grow2-top">
         {/* inside the sticky header so it stays pinned at the top as the stream scrolls */}
-        <button className="grow-close" onClick={onExit} aria-label={t('grow.close')}><CloseIcon size={18} /></button>
+        <button className="grow-close" onClick={onCancel ?? onExit} aria-label={t('grow.close')}><CloseIcon size={18} /></button>
         <div className="grow-blobwrap">
           {flyers.map(f => (
             <span key={f.id} className="blob-flyer"

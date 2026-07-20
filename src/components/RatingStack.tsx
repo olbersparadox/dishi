@@ -54,9 +54,21 @@ export default function RatingStack({ photos, onExit }: { photos: File[]; onExit
   const [dishes, setDishes] = useState<GrowDish[]>([]); // one per RATED card (skips omitted)
   const [phase, setPhase] = useState<Phase>('flick');
   const countRef = useRef(0); // stable index into `dishes` for out-of-order pipeline patches
+  const sessionDishIds = useRef<string[]>([]); // every dish this session created (for cancel)
 
   const patch = (i: number, upd: Partial<GrowDish>) =>
     setDishes(prev => prev.map((d, j) => (j === i ? { ...d, ...upd } : d)));
+
+  // Cancel (the ✕): the whole session was optimistically committed as it was flicked,
+  // so bailing out must DELETE what it created. The DELETE route cascades each rating
+  // away AND replays the taste profile, so the engine honestly rewinds (nothing learned
+  // from a discarded session). "Done" (the ✓) keeps everything — that's onExit.
+  const cancelSession = () => {
+    sessionDishIds.current.forEach(id =>
+      fetch('/api/my/dishes', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dish_id: id }) }).catch(() => {}));
+    sessionDishIds.current = [];
+    onExit();
+  };
 
   // Persist (or clear) a dish's restaurant — same resolution the log flow uses.
   const persistPlace = (dishId: string, place: GrowPlace | null) => {
@@ -119,6 +131,7 @@ export default function RatingStack({ photos, onExit }: { photos: File[]; onExit
       const json = await res.json().catch(() => null);
       if (!res.ok || !json?.dish) { patch(i, { status: 'failed' }); return; }
       const d = json.dish;
+      sessionDishIds.current.push(d.id); // track for cancel-discard
       const isDish = d.is_dish !== false;
       patch(i, {
         status: 'ready', dishId: d.id, isDish,
@@ -202,7 +215,7 @@ export default function RatingStack({ photos, onExit }: { photos: File[]; onExit
         key={idx}
         photoUrl={pv[idx].url}
         showHint={idx === 0}
-        onClose={onExit}
+        onClose={cancelSession}
         onRate={onRate}
         onSkip={onSkip}
       />
@@ -212,7 +225,7 @@ export default function RatingStack({ photos, onExit }: { photos: File[]; onExit
   return (
     <div className="rate-sheet">
       <div className="rate-sheet-inner">
-        <TasteGrowth live={dishes} onExit={onExit} onPickPlace={onPickPlace} onEditName={onEditName} onReclassify={onReclassify} />
+        <TasteGrowth live={dishes} onExit={onExit} onCancel={cancelSession} onPickPlace={onPickPlace} onEditName={onEditName} onReclassify={onReclassify} />
       </div>
     </div>
   );

@@ -6,6 +6,11 @@ import { scoreOneDish } from '@/lib/menuScan';
 import { replayProfile } from '@/lib/replay';
 import { resolveOrCreateRestaurant } from '@/lib/restaurant';
 
+// The PATCH rename cascade runs reanalyzeAnchored (a vision call, ~15-20s) BEFORE it
+// writes the row, so the default ~10s window killed the function before the update
+// landed — the rename silently didn't persist. Match the other vision routes.
+export const maxDuration = 60;
+
 /**
  * The caller's own logged dishes, for the feed's "my dishes" section.
  * GET    -> own dishes + heart counts + own rating score + a `locked` flag
