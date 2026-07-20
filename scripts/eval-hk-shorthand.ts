@@ -16,8 +16,10 @@
 import { enrichOneDish } from '../src/lib/menuScan';
 
 // name_original (as printed) + the English seed the scan might have produced, plus the
-// carb we EXPECT expanded and the wrong reading we must NOT see.
-type Case = { o: string; en: string; want: string[]; notWant: string[] };
+// carb we EXPECT expanded and the wrong reading we must NOT see. `methodNot` (optional)
+// asserts on cooking_method instead — for the chicken false-friends, where the failure
+// mode is the METHOD (油雞 read as fried), not the ingredient list.
+type Case = { o: string; en: string; want: string[]; notWant: string[]; methodNot?: string };
 const CASES: Case[] = [
   { o: '炆米', en: 'Braised rice vermicelli', want: ['vermicelli', 'noodle'], notWant: ['rice grain'] },
   { o: '干炒牛河', en: 'Beef chow fun', want: ['noodle', 'ho fun', 'flat rice noodle'], notWant: [] },
@@ -30,6 +32,10 @@ const CASES: Case[] = [
   // Look-alikes that must keep their real (non-noodle) reading:
   { o: '糯米雞', en: 'Glutinous rice chicken', want: ['glutinous rice', 'rice'], notWant: ['vermicelli'] },
   { o: '粟米斑塊飯', en: 'Corn fish fillet rice', want: ['corn', 'rice'], notWant: ['vermicelli', 'noodle'] },
+  // Chicken false-friends (glossary rider): the 油 in 油雞 is the poaching liquor —
+  // observed live as "Fried Chicken Thigh". Failure mode is the METHOD, not the carb.
+  { o: '油雞髀', en: 'Soy-poached chicken thigh', want: ['chicken'], notWant: [], methodNot: 'fried' },
+  { o: '白切雞', en: 'Poached chicken', want: ['chicken'], notWant: [], methodNot: 'fried' },
 ];
 
 async function main() {
@@ -41,11 +47,12 @@ async function main() {
     const hay = ings.join(', ');
     const hit = c.want.length === 0 || c.want.some(w => hay.includes(w));
     const bad = c.notWant.some(w => hay.includes(w));
-    const ok = hit && !bad;
+    const badMethod = !!c.methodNot && (e.cooking_method ?? '').includes(c.methodNot);
+    const ok = hit && !bad && !badMethod;
     if (ok) pass++;
     console.log(`${ok ? '✓' : '✗'} ${c.o} (${c.en})`);
-    console.log(`    ingredients: [${hay}]  diet: [${e.diet.join(', ')}]`);
-    if (!ok) console.log(`    EXPECTED one of [${c.want.join(', ')}]${c.notWant.length ? `, NOT [${c.notWant.join(', ')}]` : ''}`);
+    console.log(`    ingredients: [${hay}]  diet: [${e.diet.join(', ')}]  method: ${e.cooking_method ?? '—'}`);
+    if (!ok) console.log(`    EXPECTED one of [${c.want.join(', ')}]${c.notWant.length ? `, NOT [${c.notWant.join(', ')}]` : ''}${c.methodNot ? `, method NOT ${c.methodNot}` : ''}`);
   }
   console.log(`\n${pass}/${CASES.length} cases read the carb as expected.`);
 }

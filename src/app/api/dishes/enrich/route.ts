@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Sign in first.' }, { status: 401 });
 
-  const { id } = await req.json().catch(() => ({}));
+  const { id, force } = await req.json().catch(() => ({}));
   if (typeof id !== 'string') return NextResponse.json({ error: 'id is required.' }, { status: 400 });
 
   const { data: dish } = await supabase
@@ -39,8 +39,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Dish not found.' }, { status: 404 });
   }
   // Already enriched (attributes populated — this ran already, or it's a photo/menu
-  // dish that arrived with attributes). Nothing to do.
-  if (dish.attributes && Object.keys(dish.attributes as Record<string, unknown>).length > 0) {
+  // dish that arrived with attributes). Nothing to do — UNLESS force: a post-rename
+  // re-derivation must re-reason from the CURRENT (human-typed) name and overwrite.
+  // The typed name is the derivation seed per the authority ladder (HUMAN > VISION);
+  // without force this early-return made every post-rename call a silent no-op.
+  if (!force && dish.attributes && Object.keys(dish.attributes as Record<string, unknown>).length > 0) {
     return NextResponse.json({ dish });
   }
 
@@ -60,12 +63,18 @@ export async function POST(req: NextRequest) {
     (needEn || needZh) ? translateDishName(seed).catch(() => null) : Promise.resolve(null),
   ]);
 
+  // In force mode a FAILED derivation must not wipe good data with empties — keep the
+  // existing values and let the client fall back honestly. (First-time enrichment has
+  // nothing to protect, so empties there are just "still unknown".)
+  const gotAttributes = Object.keys(attributes as Record<string, unknown>).length > 0;
   const update: Record<string, unknown> = {
     cuisine: cuisineInferred ?? 'unknown',
-    attributes,
-    cooking_method: enrichment?.cooking_method ?? null,
-    heaviness: enrichment?.heaviness ?? null,
-    diet: enrichment?.diet ?? [],
+    ...(force && !gotAttributes ? {} : { attributes }),
+    ...(force && !enrichment ? {} : {
+      cooking_method: enrichment?.cooking_method ?? null,
+      heaviness: enrichment?.heaviness ?? null,
+      diet: enrichment?.diet ?? [],
+    }),
   };
   // translateDishName auto-detects direction, so a Chinese seed yields English and
   // vice-versa — exactly the missing slot. Not a human edit, so name_edited_at is

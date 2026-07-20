@@ -19,7 +19,7 @@
 // prediction; /api/seals returns only { sealed } and /api/ratings reveals on rating.
 import { useEffect, useRef, useState } from 'react';
 import { useLang } from '@/lib/i18n';
-import { toDisplayableAll } from '@/lib/heic';
+import { normalizePhoto } from '@/lib/image';
 import { readPhotoMeta, type PhotoMeta } from '@/lib/photoMeta';
 import SnapRating from '@/components/SnapRating';
 import TasteGrowth, { type GrowDish, type GrowPlace, type NameEdit } from '@/components/TasteGrowth';
@@ -35,14 +35,17 @@ const freshDish = (url: string, score: number): GrowDish => ({
 
 export default function RatingStack({ photos, onExit }: { photos: File[]; onExit: () => void }) {
   const { t, lang } = useLang();
-  // Convert any HEIC (iPhone default) to JPEG up front — Chrome can't render HEIC in an
-  // <img>, and vision needs a readable type too. We keep BOTH the converted File (to
-  // upload) and its object URL (to preview). EXIF (GPS + taken-at) is read from the
-  // ORIGINAL file BEFORE conversion — the canvas re-encode strips it. null = still decoding.
+  // Normalize every photo up front with the SAME util the /log flow uses (image.ts):
+  // HEIC → JPEG (Chrome can't render HEIC, vision can't read it) AND downscale to
+  // ≤1600px. The downscale is what prevents the 413: a modern phone photo is 8-10MB
+  // and Vercel's edge rejects bodies over ~4.5MB before our route ever runs — observed
+  // live (first photo of a field session bounced, silently). EXIF (GPS + taken-at) is
+  // read from the ORIGINAL file BEFORE conversion — the canvas re-encode strips it.
+  // null = still decoding.
   const [prepared, setPrepared] = useState<Prepared[] | null>(null);
   useEffect(() => {
     let alive = true; let made: string[] = [];
-    Promise.all([toDisplayableAll(photos), Promise.all(photos.map(readPhotoMeta))]).then(([fs, metas]) => {
+    Promise.all([Promise.all(photos.map(f => normalizePhoto(f))), Promise.all(photos.map(readPhotoMeta))]).then(([fs, metas]) => {
       if (!alive) return;
       made = fs.map(f => URL.createObjectURL(f));
       setPrepared(fs.map((file, i) => ({ file, url: made[i], meta: metas[i] })));
@@ -73,6 +76,13 @@ export default function RatingStack({ photos, onExit }: { photos: File[]; onExit
   };
   const countRef = useRef(0); // stable index into `dishes` for out-of-order pipeline patches
   const sessionDishIds = useRef<string[]>([]); // every dish this session created (for cancel)
+  // The source (file + EXIF) behind each RATED card, kept so a failed upload can be
+  // retried in place — the File is still in memory, no re-pick needed.
+  const ratedSrc = useRef<Record<number, Prepared>>({});
+  // Per-dish rename generation: guards force-enrich responses against staleness (two
+  // quick renames — only the latest response may land) and lets TasteGrowth know when
+  // a REAL post-rename derivation arrived (GrowDish.enrichGen).
+  const renameGen = useRef<Record<number, number>>({});
 
   const patch = (i: number, upd: Partial<GrowDish>) =>
     setDishes(prev => prev.map((d, j) => (j === i ? { ...d, ...upd } : d)));
@@ -113,6 +123,27 @@ export default function RatingStack({ photos, onExit }: { photos: File[]; onExit
       // photo fast-path (which returns the stored dish, no ingredients).
       .then(j => { if (j?.dish) patch(i, { ...(Array.isArray(j.dish.ingredients) && j.dish.ingredients.length ? { ingredients: j.dish.ingredients } : {}), diet: j.dish.diet ?? [], heaviness: j.dish.heaviness ?? null, name_zh: j.dish.name_zh ?? undefined, enriched: true }); refreshBuddy(); })
       .catch(() => {});
+  // Post-rename RE-derivation — the REAL one (the 720ms chip animation used to be a
+  // simulation restoring the OLD chips; see TasteGrowth). force:true makes the enrich
+  // route re-reason from the CURRENT (just-renamed) name and overwrite attributes/
+  // diet/method/heaviness — the typed name is the derivation seed, per the authority
+  // ladder (HUMAN > VISION); the photo never overrides it. enrichGen tells TasteGrowth
+  // "the real result landed" so the chips re-animate on DATA, not a timer. Always
+  // bumped — even on failure — so the re-analysing state can never stick forever
+  // (a failed re-derive honestly falls back to the current server state).
+  const reDerive = (i: number, dishId: string) => {
+    const gen = (renameGen.current[i] ?? 0) + 1;
+    renameGen.current[i] = gen;
+    return fetch('/api/dishes/enrich', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: dishId, force: true }) })
+      .then(r => (r.ok ? r.json() : null))
+      .then(j => {
+        if (renameGen.current[i] !== gen) return; // a newer rename superseded this response
+        if (j?.dish) patch(i, { ingredients: j.dish.ingredients ?? [], diet: j.dish.diet ?? [], heaviness: j.dish.heaviness ?? null, name_zh: j.dish.name_zh ?? undefined, enriched: true, enrichGen: gen });
+        else patch(i, { enrichGen: gen });
+        refreshBuddy(); // force mode replays the profile server-side — reflect it
+      })
+      .catch(() => { if (renameGen.current[i] === gen) patch(i, { enrichGen: gen }); });
+  };
   // EXIF coords → real nearby list → auto-confirm + persist the nearest (correctable).
   const loadNearby = async (i: number, dishId: string, coords: { lat: number; lng: number }) => {
     patch(i, { coords, hasLocation: true, placeLoading: true });
@@ -187,7 +218,10 @@ export default function RatingStack({ photos, onExit }: { photos: File[]; onExit
     if (place) persistPlace(gd.dishId, place);
   };
 
-  // Rename on the growth screen → persist the full cascade, then re-derive the chips.
+  // Rename on the growth screen → persist the full cascade, then RE-derive for real:
+  // the PATCH's own reanalyzeAnchored (photo-anchored) resolves first, and reDerive
+  // (name-seeded) runs after and overwrites — so when the two disagree (the observed
+  // 鴨-beats-油雞 case), the typed name wins. Sequenced, so there is no race.
   const onEditName = (i: number, e: NameEdit) => {
     const gd = dishes[i];
     if (!gd?.dishId) return;
@@ -195,7 +229,7 @@ export default function RatingStack({ photos, onExit }: { photos: File[]; onExit
     patch(i, { name: e.en || gd.name, name_zh: e.zh || gd.name_zh }); // optimistic
     renamePatch(dishId, e).then(j => {
       if (j?.dish) patch(i, { name: j.dish.name, name_zh: j.dish.name_zh ?? gd.name_zh, diet: j.dish.diet ?? gd.diet });
-      enrich(i, dishId); // the identity changed → re-derive ingredients for the new name
+      reDerive(i, dishId); // the identity changed → re-derive from the NEW name
     });
   };
 
@@ -211,7 +245,9 @@ export default function RatingStack({ photos, onExit }: { photos: File[]; onExit
       await seal(dishId);
       await rate(dishId, gd.score);
       refreshBuddy();
-      enrich(i, dishId);
+      // Name-seeded, forced: a reclassified non-dish may already carry photo-derived
+      // attributes (from the PATCH cascade), which would no-op a plain enrich.
+      reDerive(i, dishId);
       if (gd.coords) loadNearby(i, dishId, gd.coords);
     })();
   };
@@ -229,9 +265,19 @@ export default function RatingStack({ photos, onExit }: { photos: File[]; onExit
   };
   const onRate = (score: number) => {
     const i = countRef.current++;
+    ratedSrc.current[i] = pv[idx]; // keep the source so a failed upload can retry in place
     setDishes(prev => [...prev, freshDish(pv[idx].url, score)]);
     runPipeline(pv[idx].file, score, i, pv[idx].meta); // detached — don't block advancing
     gotoNextOrGrow(true);
+  };
+  // Retry a failed card (upload bounced — 413/network/5xx). The File is still in
+  // memory; re-run the whole pipeline for that index with the same held score.
+  const onRetry = (i: number) => {
+    const src = ratedSrc.current[i];
+    const gd = dishes[i];
+    if (!src || !gd) return;
+    patch(i, { status: 'creating' });
+    runPipeline(src.file, gd.score, i, src.meta);
   };
   const onSkip = () => gotoNextOrGrow(countRef.current > 0);
 
@@ -251,7 +297,7 @@ export default function RatingStack({ photos, onExit }: { photos: File[]; onExit
   return (
     <div className="rate-sheet">
       <div className="rate-sheet-inner">
-        <TasteGrowth live={dishes} engine={engine} onExit={onExit} onCancel={cancelSession} onPickPlace={onPickPlace} onEditName={onEditName} onReclassify={onReclassify} />
+        <TasteGrowth live={dishes} engine={engine} onExit={onExit} onCancel={cancelSession} onPickPlace={onPickPlace} onEditName={onEditName} onReclassify={onReclassify} onRetry={onRetry} />
       </div>
     </div>
   );

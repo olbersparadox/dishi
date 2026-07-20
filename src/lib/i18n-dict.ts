@@ -390,6 +390,7 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'grow.confirm.ask': { zh: '確認或修正 AI 睇到嘅嘢 — 令你嘅口味引擎更準。而家改或者遲啲都得。', en: 'Confirm or refine what the AI read — it sharpens your taste engine. Now or later.' },
   'grow.addplace': { zh: '自己加', en: 'Add another' },
   'grow.skip': { zh: '略過', en: 'Skip' },
+  'grow.fail': { zh: '呢張上載唔到，未有嘢學到', en: 'This one didn’t upload — nothing learned yet' },
   'grow.notfood': { zh: '呢張唔似食物喎', en: "This doesn't look like food" },
   'grow.notfood.fix': { zh: '係嘢食嚟', en: "It's food" },
   'place.home': { zh: '住家菜', en: 'Home cooked' },

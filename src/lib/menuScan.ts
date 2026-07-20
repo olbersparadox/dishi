@@ -72,7 +72,12 @@ export const HK_MENU_SHORTHAND_GUIDANCE =
   `齋 as a prefix means a vegetarian/mock version (齋叉燒 has no pork). 底 names the swappable carb base: 飯底 = on rice, 麵底 = on noodles, 意底 = on spaghetti.\n` +
   `But these SAME characters are NOT carb shorthand inside another word — reason from the real dish: ` +
   `米 in 粟米 (corn), 蝦米 (dried shrimp), 糯米 (glutinous rice), 米芝蓮 (Michelin) is not vermicelli; ` +
-  `河 in 河蝦 (river shrimp) is not 河粉; 丁 in 雞丁 (diced chicken) is not instant noodle; 通 in 通菜 (water spinach) is not macaroni.`;
+  `河 in 河蝦 (river shrimp) is not 河粉; 丁 in 雞丁 (diced chicken) is not instant noodle; 通 in 通菜 (water spinach) is not macaroni.\n` +
+  // Chicken false-friends (observed live: 油雞髀 shipped as "Fried Chicken Thigh"). The
+  // character names the CLASSIC PREPARATION, not a literal cooking verb.
+  `Chicken false-friends: 油雞 = soy-poached chicken (豉油雞 — the 油 is the poaching liquor, NEVER deep-fried), ` +
+  `白切雞 = plain poached chicken (method: poached, not "white cut" cooking), 手撕雞 = shredded poached chicken, ` +
+  `風沙雞 = fried-garlic-crumb chicken (the "sand" is the golden garlic crumb).`;
 
 /** The one extra line appended on a carb-shorthand tripwire re-ask (see carbSuspicion),
  * mirroring DIET_RECHECK_LINE. Names the concrete correction so the re-ask can self-fix. */

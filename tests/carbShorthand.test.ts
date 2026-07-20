@@ -117,4 +117,15 @@ describe('carb-shorthand prompt hardening (cannot silently drop)', () => {
     expect(CARB_RECHECK_LINE).toContain('米粉');
     expect(CARB_RECHECK_LINE).toContain('河粉');
   });
+
+  // Chicken false-friends rider (observed live: 油雞髀 → "Fried Chicken Thigh").
+  // The glossary must teach that 油雞's 油 is the poaching liquor, not deep-frying —
+  // and the embed test above guarantees this reaches every perception prompt.
+  it('the glossary teaches the chicken false-friends (油雞 = poached, never fried)', () => {
+    for (const s of ['油雞', '白切雞', '手撕雞', '風沙雞']) {
+      expect(HK_MENU_SHORTHAND_GUIDANCE).toContain(s);
+    }
+    expect(HK_MENU_SHORTHAND_GUIDANCE.toLowerCase()).toContain('poach');
+    expect(HK_MENU_SHORTHAND_GUIDANCE).toContain('NEVER deep-fried');
+  });
 });

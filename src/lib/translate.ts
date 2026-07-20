@@ -5,7 +5,9 @@ const SYSTEM = `You translate a single restaurant dish name between English and 
 Chinese, for a food app's bilingual dish listing. Respond with ONLY the translated
 name — no quotes, no explanation, no punctuation beyond what belongs in the name
 itself. Prefer how the dish is actually known/marketed (e.g. common menu phrasing)
-over a literal word-for-word translation.`;
+over a literal word-for-word translation.
+Beware HK false-friends: 油雞 is soy-poached chicken (never "fried chicken" — the 油
+is the poaching liquor), 白切雞 is poached chicken, 風沙雞 is crispy garlic chicken.`;
 
 /**
  * Translates a dish name to the OTHER language, auto-detecting direction from the

@@ -49,6 +49,10 @@ export type GrowDish = {
   placeLoading?: boolean;
   hasLocation?: boolean;
   choice?: string | null;
+  // Bumped by RatingStack when a REAL post-rename re-derivation lands (or fails —
+  // always bumped, so the re-analysing state can't stick). Drives the chip
+  // out→in animation on DATA, replacing the old 720ms timer simulation.
+  enrichGen?: number;
 };
 
 type Dish = {
@@ -57,8 +61,9 @@ type Dish = {
   places: string[]; placeLoading: boolean; hasLocation: boolean;
   choice?: string; done: boolean;
   notDish?: boolean;     // vision said this photo isn't food — never learned from
-  reenriching?: boolean; // a name change is re-deriving the ingredients (chips animate out→in)
-  reVer?: number;        // bumps on each re-derive so the chip block remounts + re-animates
+  failed?: boolean;      // the upload itself bounced (413/network) — NOTHING was saved
+  reenriching?: boolean; // a rename committed; the REAL re-derivation hasn't landed yet
+  reVer?: number;        // bumps when a re-derive LANDS so the chip block remounts + re-animates
 };
 
 const BASE = 38;
@@ -70,7 +75,7 @@ type Flyer = { id: number; word: string; x: number; y: number };
 export type NameEdit = { zh: string; en: string; edZh: boolean; edEn: boolean };
 export type GrowEngine = { fill: number; ready: boolean; hintKey: string; hintParams?: Record<string, number> };
 
-export default function TasteGrowth({ live, engine, onExit, onCancel, onPickPlace, onEditName, onReclassify }: {
+export default function TasteGrowth({ live, engine, onExit, onCancel, onPickPlace, onEditName, onReclassify, onRetry }: {
   live: GrowDish[];
   engine?: GrowEngine | null;                            // REAL taste-engine confidence for the bar
   onExit: () => void;                                    // the ✓ = done / keep
@@ -78,6 +83,7 @@ export default function TasteGrowth({ live, engine, onExit, onCancel, onPickPlac
   onPickPlace?: (i: number, label: string) => void;      // persist a restaurant pick
   onEditName?: (i: number, edit: NameEdit) => void;      // persist a rename (full cascade)
   onReclassify?: (i: number, edit: NameEdit) => void;    // "it IS food" → name + rate it
+  onRetry?: (i: number) => void;                         // re-run the pipeline on a failed upload
 }) {
   const { t } = useLang();
   const rowCount = live.length;
@@ -114,16 +120,22 @@ export default function TasteGrowth({ live, engine, onExit, onCancel, onPickPlac
 
   // Sync the render model from the real pipeline stream, and fire the blob + bar on REAL
   // events only (a dish resolves, then enriches) — never on raw count.
-  const liveSeen = useRef<Record<number, { ready?: boolean; streamed?: boolean }>>({});
+  const liveSeen = useRef<Record<number, { ready?: boolean; streamed?: boolean; gen?: number }>>({});
   useEffect(() => {
     setDishes(prev => live.map((gd, i) => {
       const cur = prev[i] ?? emptyDish();
+      // A post-rename re-derivation LANDED (enrichGen moved): stop holding the blank
+      // "re-analysing" state and let the fresh chips animate in (reVer remount).
+      const landed = (gd.enrichGen ?? 0) > (liveSeen.current[i]?.gen ?? 0);
       return {
         ...cur,
         named: gd.status !== 'creating',
         done: gd.status !== 'creating',
         notDish: gd.status === 'ready' && !gd.isDish,
-        ing: cur.reenriching ? cur.ing : (gd.ingredients ?? []), // don't clobber a mid-animation re-derive
+        failed: gd.status === 'failed',
+        ing: cur.reenriching && !landed ? cur.ing : (gd.ingredients ?? []),
+        reenriching: cur.reenriching && !landed,
+        reVer: landed ? (cur.reVer ?? 0) + 1 : cur.reVer,
         diet: gd.diet ?? [],
         heaviness: gd.heaviness ?? undefined,
         places: (gd.nearby ?? []).map(p => p.label),
@@ -145,6 +157,8 @@ export default function TasteGrowth({ live, engine, onExit, onCancel, onPickPlac
         const words = [...diet, ...(gd.ingredients ?? [])].slice(0, 6);
         if (words.length) { s.streamed = true; words.forEach((w, k) => window.setTimeout(() => absorb(w, 0), k * 150)); }
       }
+      // The real re-derivation landed → the blob + bar respond to the ACTUAL new learning.
+      if ((gd.enrichGen ?? 0) > (s.gen ?? 0)) { s.gen = gd.enrichGen; absorb('✓', 1.5); }
     });
     // Session progress drives the bar UNTIL the real engine reading arrives (see barFill).
     const real = live.filter(g => g.isDish);
@@ -172,18 +186,14 @@ export default function TasteGrowth({ live, engine, onExit, onCancel, onPickPlac
     absorb('✓', 2.5);
   };
   const expand = (i: number) => setExpanded(prev => new Set(prev).add(i));
-  // Fixing a name changes what the dish IS — the derived ingredients re-derive: the chips
-  // fall away, a brief "re-analysing", then they land again (RatingStack does the real
-  // reanalyzeAnchored; this is the animation).
-  const reReenrich = (i: number) => {
-    const p = srcOf(i);
-    if (p.ing.length === 0) return; // nothing to re-derive (e.g. a just-named non-dish)
+  // Fixing a name changes what the dish IS — the chips fall away into a real
+  // "re-analysing" state, and land again ONLY when the actual name-seeded
+  // re-derivation arrives (GrowDish.enrichGen bump in the live-sync above). The old
+  // version here was a 720ms timer that restored the OLD chips — a simulated
+  // re-analysis, killed for honesty. No prior-chips guard either: a just-named dish
+  // with no chips yet is exactly the case that NEEDS its first derivation.
+  const reReenrich = (i: number) =>
     setDishes(prev => prev.map((d, j) => (j === i ? { ...d, ing: [], reenriching: true } : d)));
-    window.setTimeout(() => {
-      setDishes(prev => prev.map((d, j) => (j === i ? { ...d, ing: p.ing, reenriching: false, reVer: (d.reVer ?? 0) + 1 } : d)));
-      absorb('✓', 1.5);
-    }, 720);
-  };
   // "It IS food" — flip a mis-flagged non-dish back to a dish and open the name editor.
   const markAsDish = (i: number) => {
     setDishes(prev => prev.map((d, j) => (j === i ? { ...d, notDish: false, named: true } : d)));
@@ -249,13 +259,30 @@ export default function TasteGrowth({ live, engine, onExit, onCancel, onPickPlac
           const d = dishes[i] ?? emptyDish();
           const p = srcOf(i);
           const thumb = (
-            <div className={`learn-thumb${d.notDish ? ' learn-thumb-dim' : ''}`}>
+            <div className={`learn-thumb${d.notDish || d.failed ? ' learn-thumb-dim' : ''}`}>
               {it.photoUrl
                 // eslint-disable-next-line @next/next/no-img-element
                 ? <img src={it.photoUrl} alt="" />
                 : <span>🍽️</span>}
             </div>
           );
+
+          // Upload failed (413/network/5xx — NOTHING was saved, nobody ever looked at
+          // the photo): say so instead of masquerading as a healthy row, and offer a
+          // retry — the file is still in memory, and the flick score is held for it.
+          // No name/place UI here: an edit on a dishId-less card would silently go
+          // nowhere, which is exactly the failure class this kills.
+          if (d.failed) {
+            return (
+              <li key={i} className="learn-row not-dish is-done">
+                {thumb}
+                <div className="learn-main not-dish-main">
+                  <span className="learn-name">{t('grow.fail')}</span>
+                  <button className="chip chip-util not-dish-fix" onClick={() => onRetry?.(i)}>{t('log.visionfail.retry')}</button>
+                </div>
+              </li>
+            );
+          }
 
           // Not food: a quiet, dimmed row that taught the engine nothing — with a single
           // "it IS food" correction that flips it back to a nameable dish.
