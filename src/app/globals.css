@@ -1266,9 +1266,40 @@ button { font: inherit; cursor: pointer; }
 .duel-floating { position: relative; z-index: 1; width: 100%; max-width: 420px; margin: 0; animation: duel-pop 260ms cubic-bezier(0.2, 0.9, 0.3, 1.2); }
 @keyframes duel-pop { from { transform: translateY(10px) scale(0.96); } to { transform: none; } }
 
-.duel-head { display: flex; align-items: center; gap: 4px; margin-bottom: 14px; }
-.duel-title { font-family: var(--font-display); font-size: 18px; }
-.duel-x { margin-left: auto; display: inline-flex; padding: 2px; background: none; border: none; color: var(--ink-soft); cursor: pointer; }
+/* position:relative anchors the ✕ (pulled out of flow) and the seal-explain
+   popover; centering the title+stamp is just justify-content on the remaining
+   normal flow (the ✕ no longer competes for space). */
+.duel-head { display: flex; align-items: center; justify-content: center; gap: 4px; margin-bottom: 14px; position: relative; }
+.duel-head-center { display: flex; align-items: center; gap: 4px; }
+.duel-title { font-family: var(--font-display); font-size: 28px; }
+/* The 印 stamp up here scales with the title — a bigger square, not just bigger
+   text, so it still reads as the same stamped-icon shape. Now a <button> (tap ->
+   explain card), so the UA button reset needs undoing to keep the exact same look. */
+.duel-head .seal-stamp { width: 28px; height: 28px; border-radius: 6px; font-size: 22.5px; }
+.duel-seal-btn { border: none; padding: 0; }
+.duel-x {
+  position: absolute; right: 0; top: 50%; transform: translateY(-50%);
+  display: inline-flex; padding: 2px; background: none; border: none; color: var(--ink-soft); cursor: pointer;
+}
+/* Tap-to-reveal card: what the 印 seal means. Anchored under the centered header,
+   a quiet paper card (same treatment as .seal-reveal) rather than a second
+   full-screen modal — reading it is a small aside, not a new flow. */
+.duel-seal-explain {
+  position: absolute; top: 100%; left: 50%;
+  z-index: 2; width: min(300px, 86vw); margin-top: 8px;
+  background: #faf7f1; border: 1px solid #e2ddd2; border-radius: 14px;
+  padding: 14px 16px; text-align: center;
+  /* NOT .seal-reveal's sealCardIn — its translateY(0) end-state would clobber the
+     translateX(-50%) horizontal centering below (both live in `transform`). */
+  animation: duelSealPopIn 220ms ease both;
+}
+@keyframes duelSealPopIn {
+  from { opacity: 0; transform: translate(-50%, 6px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
+}
+@media (prefers-reduced-motion: reduce) { .duel-seal-explain { animation: none; transform: translateX(-50%); } }
+.duel-seal-explain-title { font-family: var(--font-display); font-weight: 700; font-size: 15px; color: var(--ink); margin-bottom: 4px; }
+.duel-seal-explain-body { font-size: 13px; color: var(--ink-soft); line-height: 1.5; margin-bottom: 10px; }
 
 .duel-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: stretch; }
 .duel-pair.resolving { display: flex; justify-content: center; }
@@ -1276,7 +1307,9 @@ button { font: inherit; cursor: pointer; }
   flex: 1 1 0; min-width: 0; max-width: 100%;
   display: flex; flex-direction: column; gap: 6px; text-align: left;
   padding: 8px; border: 1px solid var(--line); border-radius: 14px;
-  background: transparent; cursor: pointer;
+  background: transparent; cursor: pointer; color: var(--ink); /* a <button>'s UA
+    default color breaks the inherited --ink otherwise — the dish name (and
+    restaurant line) needs it stated explicitly here. */
   transition: opacity 340ms ease, max-width 380ms ease, transform 300ms ease, border-color 140ms ease;
 }
 .duel-option:not(:disabled):active { border-color: var(--ink); }
@@ -1287,13 +1320,18 @@ button { font: inherit; cursor: pointer; }
 .duel-photo { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 10px; display: block; }
 .duel-photo-blank { background: var(--line); }
 /* Dish names use the SAME .card-title treatment as the journal/scan (serif primary
-   + small secondary, standard spacing) — no bespoke sizes here. */
+   + small secondary) — no bespoke sizes here, just a tighter gap between the two
+   lines (base .dishname-secondary margin-top is 1px; 2px less pulls it in close
+   under the primary line). */
+.duel-option .dishname-secondary { margin-top: -1px; }
 .duel-option-rest { font-size: 13px; color: var(--ink-soft); margin-top: 1px; }
 /* The prompt: bigger, bolder, black — per the design call. */
 .duel-q { text-align: center; margin-top: 16px; font-family: var(--font-display); font-weight: 800; font-size: 20px; color: var(--ink); }
 .duel-tie { display: block; margin: 8px auto 0; background: none; border: none; color: var(--ink-soft); font-size: 13px; text-decoration: underline; cursor: pointer; }
 /* Reveal STAYS on screen (no auto-close) so the 印 result is readable; OK closes. */
 .duel-reveal { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-top: 16px; text-align: center; }
-.duel-verdict { display: flex; align-items: center; gap: 8px; font-family: var(--font-display); font-weight: 700; font-size: 18px; color: var(--ink); }
+/* Plain text now, no icon box (was the boxed .seal-stamp "印") — the 開 + result
+   words carry it themselves at this size, so the stamp chrome would be redundant. */
+.duel-verdict { display: flex; align-items: center; gap: 10px; font-family: var(--font-display); font-weight: 700; font-size: 38px; color: var(--ink); }
 .duel-learned { font-size: 13px; color: var(--ink); }
 .duel-ok { margin-top: 6px; min-width: 120px; }

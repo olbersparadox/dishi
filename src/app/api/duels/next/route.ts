@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { supabaseServer, supabaseAdmin } from '@/lib/supabase/server';
 import { contentScore, sigmoid, emptyTaste, DUEL_K } from '@/lib/taste';
 import { selectDuelPair, type DuelCandidate, type ExistingDuelRow } from '@/lib/duels';
+import type { DistrictMap } from '@/lib/district';
 
 /**
  * GET /api/duels/next -> { duel } | { duel: null }
@@ -62,7 +63,7 @@ export async function GET() {
     supabase.from('taste_profiles').select('vector, evidence').eq('user_id', user.id).maybeSingle(),
     supabase
       .from('ratings')
-      .select('dishes(id, cuisine, attributes, dish_identity_id, name, name_zh, photo_url, restaurants(name))')
+      .select('dishes(id, cuisine, attributes, dish_identity_id, name, name_zh, photo_url, district, restaurants(name, district))')
       .eq('user_id', user.id),
   ]);
 
@@ -72,7 +73,11 @@ export async function GET() {
     const d = r.dishes;
     if (!d || !d.attributes || Object.keys(d.attributes).length === 0) continue;
     candidates.push({ id: d.id, cuisine: d.cuisine, attributes: d.attributes, identityId: d.dish_identity_id ?? null });
-    cardById[d.id] = { id: d.id, name: d.name, name_zh: d.name_zh, photo_url: d.photo_url, restaurant: d.restaurants?.name ?? null };
+    cardById[d.id] = {
+      id: d.id, name: d.name, name_zh: d.name_zh, photo_url: d.photo_url,
+      restaurant: d.restaurants?.name ?? null, restaurant_district: d.restaurants?.district ?? null,
+      district: d.district ?? null,
+    };
   }
 
   const evidence = profile?.evidence ?? {};
@@ -99,18 +104,25 @@ export async function GET() {
   return NextResponse.json({ duel: { id: inserted.id, a: cardById[pair.a.id], b: cardById[pair.b.id] } });
 }
 
-type DishCard = { id: string; name: string; name_zh: string | null; photo_url: string | null; restaurant: string | null };
+type DishCard = {
+  id: string; name: string; name_zh: string | null; photo_url: string | null;
+  restaurant: string | null; restaurant_district?: DistrictMap | null; district?: DistrictMap | null;
+};
 
 /** Display fields for a set of dish ids, keyed by id. Uses the user client — a
  * person can always read their own dishes; only dish_duels itself is admin-only. */
 async function fetchDishCards(supabase: ReturnType<typeof supabaseServer>, ids: string[]): Promise<Record<string, DishCard>> {
   const { data } = await supabase
     .from('dishes')
-    .select('id, name, name_zh, photo_url, restaurants(name)')
+    .select('id, name, name_zh, photo_url, district, restaurants(name, district)')
     .in('id', ids);
   const out: Record<string, DishCard> = {};
   for (const d of (data ?? []) as any[]) {
-    out[d.id] = { id: d.id, name: d.name, name_zh: d.name_zh, photo_url: d.photo_url, restaurant: d.restaurants?.name ?? null };
+    out[d.id] = {
+      id: d.id, name: d.name, name_zh: d.name_zh, photo_url: d.photo_url,
+      restaurant: d.restaurants?.name ?? null, restaurant_district: d.restaurants?.district ?? null,
+      district: d.district ?? null,
+    };
   }
   return out;
 }

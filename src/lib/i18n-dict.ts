@@ -407,6 +407,12 @@ export const dict: Record<string, { zh: string; en: string }> = {
   },
   'form.migration.cta': { zh: '睇下佢', en: 'See it' },
   'seal.stamp.title': { zh: 'Dishi 封咗個預測', en: 'Dishi sealed a prediction' },
+  'seal.explain.title': { zh: '咩係「印」？', en: 'What’s the 印 stamp?' },
+  'seal.explain.body': {
+    zh: 'Dishi 喺你揀之前就秘密寫低估你會揀邊樣——封咗嘅嘢冇人睇到，連你自己都唔得。揀完先開盅睇啱唔啱。',
+    en: 'Dishi writes down its guess before you pick — sealed, so nobody, not even you, can peek. It only opens after you choose.',
+  },
+  'seal.explain.close': { zh: '知道喇', en: 'Got it' },
   'seal.reveal.hit': { zh: '拆開個印 \u2014 估中咗', en: 'Broke the seal \u2014 nailed it' },
   'seal.reveal.near': { zh: '拆開個印 \u2014 幾接近', en: 'Broke the seal \u2014 close' },
   'seal.reveal.miss': { zh: '拆開個印 \u2014 估錯咗', en: 'Broke the seal \u2014 missed it' },

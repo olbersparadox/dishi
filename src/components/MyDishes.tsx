@@ -10,6 +10,7 @@ import { cookingBucket, type CookingMethod } from '@/lib/menuScan';
 import DishInfoDisplay from './DishInfoDisplay';
 import { normalizePhoto } from '@/lib/image';
 import { getJournalCache, setJournalCache } from '@/lib/journalCache';
+import { pickDistrict, type DistrictMap } from '@/lib/district';
 
 export type MyDish = {
   id: string; name: string; name_zh: string | null; cuisine: string | null;
@@ -45,13 +46,6 @@ function formatEatenDate(iso: string, lang: 'zh' | 'en'): string {
     : d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
-/** A district in the viewer's language, English-falling-back (works for any country:
- * a place with no zh name stored zh=en, so zh viewers see English). */
-type DistrictMap = { zh?: string | null; en?: string | null };
-function pickDistrict(m: DistrictMap | null | undefined, lang: 'zh' | 'en'): string | null {
-  if (!m) return null;
-  return m[lang] || m.en || m.zh || null;
-}
 
 /** The location line: always shows WHERE the food is. Restaurant -> "name • district"
  * (the restaurant's own area, bilingual). No restaurant -> the log district; home
