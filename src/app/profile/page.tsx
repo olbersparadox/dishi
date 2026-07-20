@@ -43,6 +43,12 @@ function TasteProfile() {
   // behind the glass) rather than navigating away — so the drag-and-rate screen sits
   // on top of the live Taste AI section.
   const [ratePhotos, setRatePhotos] = useState<File[] | null>(null);
+  // Bumped when the rating overlay closes so THIS page's client-fetched data (taste
+  // vector, rated list, to-rate) reloads without a hard refresh. Also drives a key on
+  // the buddy card so it re-fetches /api/buddy. router.refresh() (on close) covers the
+  // other tabs (the 食記 journal) by invalidating the App Router cache.
+  const [refreshKey, setRefreshKey] = useState(0);
+  const closeRating = () => { setRatePhotos(null); setRefreshKey(k => k + 1); router.refresh(); };
   const [vector, setVector] = useState<Record<string, number>>({});
   const [affinity, setAffinity] = useState<Record<string, number>>({});
   const [count, setCount] = useState(0);
@@ -126,7 +132,7 @@ function TasteProfile() {
           identity_name: d.identity_name ?? null, identity_name_zh: d.identity_name_zh ?? null,
         }))))
       .catch(() => setRatedRows([]));
-  }, []);
+  }, [refreshKey]);
 
   const exportDishes: ExportDish[] = ratedRows.map(d => ({
     name: d.name, name_zh: d.name_zh, score: d.my_score as number, restaurant: d.restaurant,
@@ -212,7 +218,7 @@ function TasteProfile() {
 
       {/* Rating flow as a full-screen overlay ON TOP of this Taste AI page (kept
           mounted behind, so the drag-and-rate glass blurs the live section). */}
-      {ratePhotos && <RatingStack photos={ratePhotos} onExit={() => setRatePhotos(null)} />}
+      {ratePhotos && <RatingStack photos={ratePhotos} onExit={closeRating} />}
 
       {/* Dishes waiting to be rated — picked off a menu scan or during a shared
           table, not yet rated. Living here (not buried on /log) is deliberate:
@@ -249,7 +255,7 @@ function TasteProfile() {
         </div>
       )}
 
-      {userId && <TasteFormCard vector={vector} affinity={affinity} count={count} dishes={exportDishes} userId={userId}
+      {userId && <TasteFormCard key={refreshKey} vector={vector} affinity={affinity} count={count} dishes={exportDishes} userId={userId}
         persona={persona} onPersona={setPersona} name={handle} />}
 
       {/* 已評嘅菜 — flat, no-photo reference list below the AI export card per the

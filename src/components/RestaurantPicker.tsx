@@ -128,10 +128,12 @@ export default function RestaurantPicker({ onChange, skipFirst = false, seedCoor
       address: address.trim() || undefined,
     });
   }
-  function skip() {
-    // Toggle: tapping 唔喺餐廳 again un-picks it (back to no selection).
-    if (selectedKey === 'skip') { setSelectedKey(null); onChange(null); return; }
-    setSelectedKey('skip');
+  // "No restaurant" — split into 住家菜 (home) and 略過 (skip) to match the album rating
+  // flow's wording. Both mean the same to the caller (no restaurant → onChange(null));
+  // the two labels just let the person say WHY. Toggle: tapping the picked one un-picks it.
+  function noRestaurant(key: 'home' | 'skip') {
+    if (selectedKey === key) { setSelectedKey(null); onChange(null); return; }
+    setSelectedKey(key);
     setAdding(false);
     onChange(null);
   }
@@ -171,11 +173,10 @@ export default function RestaurantPicker({ onChange, skipFirst = false, seedCoor
       {seedCoords && status === 'ready' && <p className="card-meta">{t('picker.fromphoto')}</p>}
 
       <div className="chips" style={{ marginTop: 8 }}>
-        {skipFirst && (
-          <button className={`chip chip-util ${selectedKey === 'skip' ? 'on' : ''}`} onClick={skip}>
-            {t('picker.skip')}
-          </button>
-        )}
+        {skipFirst && (<>
+          <button className={`chip chip-util ${selectedKey === 'skip' ? 'on' : ''}`} onClick={() => noRestaurant('skip')}>{t('grow.skip')}</button>
+          <button className={`chip chip-util ${selectedKey === 'home' ? 'on' : ''}`} onClick={() => noRestaurant('home')}>{t('place.home')}</button>
+        </>)}
         {nearby.map(r => {
           const key = r.source === 'dishi' ? r.id! : r.place_id!;
           // Single name, in whichever language the app currently displays. Google
@@ -194,11 +195,10 @@ export default function RestaurantPicker({ onChange, skipFirst = false, seedCoor
         <button className={`chip chip-util ${adding ? 'on' : ''}`} onClick={toggleAdd}>
           {t('picker.add')}
         </button>
-        {!skipFirst && (
-          <button className={`chip chip-util ${selectedKey === 'skip' ? 'on' : ''}`} onClick={skip}>
-            {t('picker.skip')}
-          </button>
-        )}
+        {!skipFirst && (<>
+          <button className={`chip chip-util ${selectedKey === 'skip' ? 'on' : ''}`} onClick={() => noRestaurant('skip')}>{t('grow.skip')}</button>
+          <button className={`chip chip-util ${selectedKey === 'home' ? 'on' : ''}`} onClick={() => noRestaurant('home')}>{t('place.home')}</button>
+        </>)}
       </div>
 
       {adding && (
