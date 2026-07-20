@@ -48,7 +48,8 @@ export default function SnapDemo() {
     </label>
   );
 
-  // FLICK phase renders the full-screen overlay itself; the growth phase sits in the column.
+  // Both phases render as the same full-screen glass overlay (matching the real flow,
+  // RatingStack) so the demo feels identical: flick card, then the reward/refine sheet.
   if (previews.length && phase === 'flick' && idx < previews.length) {
     return (
       <SnapRating
@@ -62,17 +63,21 @@ export default function SnapDemo() {
     );
   }
 
+  if (previews.length && phase === 'grow') {
+    return (
+      <div className="rate-sheet">
+        <div className="rate-sheet-inner">
+          <TasteGrowth items={rated} onExit={() => reset()} />
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div style={{ maxWidth: 460, margin: '0 auto', padding: '28px 16px 96px' }}>
-      {phase === 'grow' ? (
-        <TasteGrowth items={rated} onExit={() => reset()} />
-      ) : (
-        <>
-          <h1 style={{ marginBottom: 6 }}>{t('snapdemo.title')}</h1>
-          <p className="card-meta" style={{ marginBottom: 18 }}>{t('snapdemo.blurb')}</p>
-          {pickButton}
-        </>
-      )}
+    <div style={{ maxWidth: 420, margin: '0 auto', padding: '28px 12px 96px' }}>
+      <h1 style={{ marginBottom: 6 }}>{t('snapdemo.title')}</h1>
+      <p className="card-meta" style={{ marginBottom: 18 }}>{t('snapdemo.blurb')}</p>
+      {pickButton}
     </div>
   );
 }

@@ -13,6 +13,7 @@ import { useLang } from '@/lib/i18n';
 import { wordKeyFor } from '@/lib/flickWords';
 import DishName from '@/components/DishName';
 import DishInfoDisplay from '@/components/DishInfoDisplay';
+import { CheckIcon, CloseIcon } from '@/components/icons';
 
 export type GrowItem = { photoUrl: string | null; score: number };
 
@@ -21,7 +22,9 @@ type Dish = {
   ing: string[]; diet: string[]; heaviness?: string;
   places: string[]; placeLoading: boolean; hasLocation: boolean;
   choice?: string; done: boolean;
-  notDish?: boolean; // vision said this photo isn't food — never learned from
+  notDish?: boolean;     // vision said this photo isn't food — never learned from
+  reenriching?: boolean; // a name change is re-deriving the ingredients (chips animate out→in)
+  reVer?: number;        // bumps on each re-derive so the chip block remounts + re-animates
 };
 
 const POOL: {
@@ -120,9 +123,10 @@ export default function TasteGrowth({ items, onExit }: { items: GrowItem[]; onEx
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const doneCount = dishes.filter(d => d.done).length;
-  const allDone = doneCount === items.length;
-  const remain = Math.max(0, Math.round(100 - fill));
+  // Progress toward "Taste AI 1.0", expressed as dishes-to-go rather than a raw % —
+  // the honest bar still drives it, so refining (which raises fill) lowers the count.
+  // DEMO mapping; the real screen reads engine confidence.
+  const dishesLeft = Math.max(0, Math.ceil((100 - fill) / 10));
   const blobScale = 0.72 + Math.min(absorbed, 16) * 0.04;
 
   // refinement = reward: picking a place or fixing a name teaches more.
@@ -132,6 +136,19 @@ export default function TasteGrowth({ items, onExit }: { items: GrowItem[]; onEx
     absorb('✓', 2.5);
   };
   const expand = (i: number) => setExpanded(prev => new Set(prev).add(i));
+  // Fixing a name changes what the dish IS — so the derived ingredients re-derive:
+  // the chips fall away, a brief "re-analysing", then they land again (and the blob +
+  // bar catch the new learning). A real re-enrich (reanalyzeAnchored) replaces the
+  // simulated one when this is wired to the backend.
+  const reReenrich = (i: number) => {
+    const p = POOL[i % POOL.length];
+    if (p.ing.length === 0) return; // nothing to re-derive (e.g. a just-named non-dish)
+    setDishes(prev => prev.map((d, j) => (j === i ? { ...d, ing: [], reenriching: true } : d)));
+    window.setTimeout(() => {
+      setDishes(prev => prev.map((d, j) => (j === i ? { ...d, ing: p.ing, reenriching: false, reVer: (d.reVer ?? 0) + 1 } : d)));
+      absorb('✓', 1.5); // the re-derived ingredients land → blob + bar respond again
+    }, 720);
+  };
   // "It IS food" — flip a mis-flagged non-dish back to a dish and open the name editor
   // so the person can tell us what it is (then it can start teaching the engine).
   const markAsDish = (i: number) => {
@@ -152,12 +169,17 @@ export default function TasteGrowth({ items, onExit }: { items: GrowItem[]; onEx
       // pool value as a stand-in so both slots always display.
       setNames(prev => prev.map((n, j) => (j === i ? { zh: zh || p.zh, en: en || p.en } : n)));
       absorb(zh || en || '✓', 2.5);
+      setEditIdx(null);
+      reReenrich(i); // the name changed → re-derive the ingredient chips with animation
+      return;
     }
     setEditIdx(null);
   };
 
   return (
     <div className="grow2">
+      <button className="grow-close" onClick={onExit} aria-label={t('grow.close')}><CloseIcon size={18} /></button>
+
       <div className="grow2-top">
         <div className="grow-blobwrap">
           {flyers.map(f => (
@@ -170,10 +192,10 @@ export default function TasteGrowth({ items, onExit }: { items: GrowItem[]; onEx
             </svg>
           </div>
         </div>
-        <h2 className="grow2-title">{allDone ? t('grow.done.title') : t('grow.work.title')}</h2>
+        <h2 className="grow2-title">{t('grow.build.title')}</h2>
 
         <div className="xp-bar" role="progressbar" aria-valuenow={Math.round(fill)}><div className="xp-fill" style={{ width: `${fill}%` }} /></div>
-        <p className="grow2-unlock">{fill >= 100 ? t('rate.grow.unlocked') : t('rate.grow.remain', { p: remain })}</p>
+        <p className="grow2-toready">{dishesLeft <= 0 ? t('grow.ready') : t('grow.toready', { n: dishesLeft })}</p>
       </div>
 
       {/* One ask above the rows: confirming/refining is what makes the engine accurate,
@@ -215,7 +237,12 @@ export default function TasteGrowth({ items, onExit }: { items: GrowItem[]; onEx
           const needsLook = !!p.uncertain && d.done && !d.choice;
           return (
             <li key={i} className={`learn-row ${d.done ? 'is-done' : 'is-working'}${needsLook ? ' needs-look' : ''}`}>
-              {thumb}
+              {/* Photo + verdict beneath it — the rating belongs under the shot, like the
+                  Eat Journal (journal-photo-col), not inline with the name. */}
+              <div className="learn-thumbcol">
+                {thumb}
+                {d.done && <div className="learn-verdict">{t(wordKeyFor(it.score))}</div>}
+              </div>
               <div className="learn-main">
                 <div className="learn-head">
                   {!d.named
@@ -238,23 +265,28 @@ export default function TasteGrowth({ items, onExit }: { items: GrowItem[]; onEx
                             <button className="btn primary small" onClick={commitEdit}>{t('home.save')}</button>
                           </div>
                         </div>
-                      // The name is a glowing "refine" pill — tap to change it (one language
-                      // is enough; the other re-translates on save).
+                      // The name is a "refine" tile — a rounded rectangle (like the thumb),
+                      // gently breathing so it reads as tap-to-change. One language is enough.
                       : <button className="refine-pill refine-name" onClick={() => startEdit(i)} aria-label={t('grow.rename')}>
                           <DishName name={names[i]?.en ?? p.en} name_zh={names[i]?.zh ?? p.zh} size="md" />
                         </button>}
-                  {editIdx !== i && <span className="learn-word">{t(wordKeyFor(it.score))}</span>}
                 </div>
 
-                {(d.ing.length > 0 || d.diet.length > 0) && (
-                  <DishInfoDisplay info={{ ingredients: d.ing, diet: d.diet, heaviness: d.heaviness }} hideHook compact />
-                )}
+                {/* A name change re-derives the ingredients: chips fall away → "re-analysing"
+                    → they land again (keyed by reVer so only a re-derive re-animates). */}
+                {d.reenriching
+                  ? <div className="learn-reenrich">{t('grow.reanalysing')}</div>
+                  : (d.ing.length > 0 || d.diet.length > 0) && (
+                      <div className="learn-info-reveal" key={d.reVer ?? 0}>
+                        <DishInfoDisplay info={{ ingredients: d.ing, diet: d.diet, heaviness: d.heaviness }} hideHook compact />
+                      </div>
+                    )}
 
                 {showPlace && (
                   d.placeLoading && d.places.length === 0
                     ? <div className="learn-place"><span className="learn-finding">{t('grow.finding')}</span></div>
                     : !showList && d.choice
-                      // Resolved: the location as a glowing "refine" pill — tap to open the list.
+                      // Resolved: the location as a breathing "refine" pill — tap to open the list.
                       ? <div className="learn-place">
                           <button className="refine-pill refine-place" onClick={() => expand(i)}>
                             <span aria-hidden>{isHome ? '🏠' : '📍'}</span> {d.choice}
@@ -275,9 +307,11 @@ export default function TasteGrowth({ items, onExit }: { items: GrowItem[]; onEx
         })}
       </ul>
 
-      <button className="btn ghost grow2-leave" onClick={onExit}>
-        {allDone ? t('grow.leave.done') : t('grow.leave.bg')}
-      </button>
+      {/* Done = a single black check (everything is optimistic-committed already;
+          you can still refine later). */}
+      <div className="grow-okwrap">
+        <button className="grow-ok" onClick={onExit} aria-label={t('grow.build.title')}><CheckIcon size={26} /></button>
+      </div>
     </div>
   );
 }
