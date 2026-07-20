@@ -75,10 +75,10 @@ export default function TasteGrowth({ items, onExit }: { items: GrowItem[]; onEx
 
   // A quality (or a refinement) flies into the blob → blob absorbs + grows, bar bumps.
   const absorb = (word: string, bump: number) => {
-    const ang = Math.random() * Math.PI * 2, rad = 72 + Math.random() * 40;
+    const ang = Math.random() * Math.PI * 2, rad = 96 + Math.random() * 54; // bigger travel → more obvious
     const id = ++flyId.current;
-    setFlyers(prev => [...prev, { id, word, x: Math.cos(ang) * rad, y: Math.sin(ang) * rad * 0.68 }]);
-    window.setTimeout(() => setFlyers(prev => prev.filter(f => f.id !== id)), 900);
+    setFlyers(prev => [...prev, { id, word, x: Math.cos(ang) * rad, y: Math.sin(ang) * rad * 0.7 }]);
+    window.setTimeout(() => setFlyers(prev => prev.filter(f => f.id !== id)), 1100);
     setAbsorbed(a => a + 1);
     setFill(f => Math.min(100, f + bump));
   };
@@ -191,9 +191,9 @@ export default function TasteGrowth({ items, onExit }: { items: GrowItem[]; onEx
 
   return (
     <div className="grow2">
-      <button className="grow-close" onClick={onExit} aria-label={t('grow.close')}><CloseIcon size={18} /></button>
-
       <div className="grow2-top">
+        {/* inside the sticky header so it stays pinned at the top as the stream scrolls */}
+        <button className="grow-close" onClick={onExit} aria-label={t('grow.close')}><CloseIcon size={18} /></button>
         <div className="grow-blobwrap">
           {flyers.map(f => (
             <span key={f.id} className="blob-flyer"
