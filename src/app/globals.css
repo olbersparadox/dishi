@@ -697,11 +697,11 @@ button { font: inherit; cursor: pointer; }
    own tap opens the explainer rather than the photo picker underneath. */
 .log-src-info {
   position: absolute; top: 8px; right: 8px; z-index: 2;
-  width: 24px; height: 24px; border-radius: 50%;
+  width: 20px; height: 20px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
   border: 1.5px solid rgba(245, 240, 232, 0.8); background: transparent;
   color: var(--glaze); cursor: pointer; padding: 0;
-  font-family: var(--font-display); font-size: 14.5px; font-weight: 700; font-style: italic; line-height: 1;
+  font-family: var(--font-display); font-size: 12.5px; font-weight: 700; font-style: italic; line-height: 1;
 }
 .log-src-info:active { background: rgba(245, 240, 232, 0.16); }
 .log-src-seg {
