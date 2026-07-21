@@ -265,6 +265,7 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'picker.fromphoto': { zh: '📍 這張相片拍攝地點附近', en: '📍 Around where this photo was taken' },
   'picker.denied': { zh: '定位已關 — 可以自己輸入店名，或者跳過。', en: 'Location is off — add the place by name, or skip.' },
   'picker.add': { zh: '+ 加間舖', en: '+ Add a place' },
+  'picker.addname': { zh: '餐廳名', en: 'Restaurant name' },
   'picker.name': { zh: '餐廳名', en: 'Restaurant name' },
   'picker.confirm': { zh: '加入', en: 'Add' },
   'picker.needloc': { zh: '新舖需要開定位，Dishi 先可以幫其他人釘住個位。', en: 'New places need location on, so Dishi can pin them for others.' },
@@ -391,7 +392,6 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'rate.skip': { zh: '跳', en: 'Skip' },
   // Progressive "watch your Taste AI learn" screen (merged reward + review)
   'grow.build.title': { zh: '建立個人化口味 AI', en: 'Building your personal taste AI' },
-  'grow.toready': { zh: '仲差 {n} 碟就解鎖 dishi v1', en: '{n} more dishes to dishi v1' },
   // The version ladder (replaced Levels + the "Taste AI 1.0" naming): steady-state
   // unlocked line on the growth screen and anywhere else the ladder speaks.
   'version.unlocked': { zh: 'dishi v{n} 已經解鎖', en: 'dishi v{n} unlocked' },
@@ -403,12 +403,15 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'grow.rename': { zh: '改名', en: 'Rename' },
   'grow.confirm.ask': { zh: '確認或修正 AI 所辨識的內容 — 讓你的口味引擎更準確。現在或稍後修改都可以。', en: 'Confirm or refine what the AI read — it sharpens your taste engine. Now or later.' },
   'grow.addplace': { zh: '自己加', en: 'Add another' },
+  'grow.addplace.failed': { zh: '未能儲存位置，請再試', en: 'Couldn’t save that place — try again' },
   'grow.skip': { zh: '略過', en: 'Skip' },
   'grow.fail': { zh: '這張上載失敗，尚未學到內容', en: 'This one didn’t upload — nothing learned yet' },
   'grow.notfood': { zh: '這張不太像食物', en: "This doesn't look like food" },
   'grow.notfood.fix': { zh: '這是食物', en: "It's food" },
   'place.home': { zh: '住家菜', en: 'Home cooked' },
-  'export.button': { zh: 'dishi v{v} 植入', en: 'Implant dishi v{v}' },
+  // NBSPs, not plain spaces: HTML collapses runs of ordinary whitespace, so the
+  // wider gap the design asks for before 植入 would silently render as one space.
+  'export.button': { zh: 'dishi v{v}  植入', en: 'Implant dishi v{v}' },
   'export.locked': { zh: '要評多 {n} 味菜', en: 'Rate {n} more dishes' },
   'export.version': { zh: 'v{v} — 與上次相比變化不大。', en: 'v{v} \u2014 little has changed since last time.' },
   'export.delta': { zh: 'v{v} \u2014 同上次比較：{dims}', en: 'v{v} \u2014 since last time: {dims}' },

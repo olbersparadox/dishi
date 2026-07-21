@@ -87,6 +87,13 @@ export default function RatingStack({ photos, userId, onExit }: { photos: File[]
       });
     } catch { /* keep the last good reading */ }
   };
+  // Read the engine ONCE ON MOUNT, before anything is rated. Without this the growth
+  // screen opened with no reading at all and fell back to a synthetic bar that started
+  // at a fixed BASE and then snapped to the truth — so the bar appeared to begin at an
+  // earlier level than the person is actually at, and the locked line guessed "v1" even
+  // for someone long past it. Seeding the real pre-session value means the bar starts
+  // where they genuinely are and only ever moves on real learning.
+  useEffect(() => { refreshBuddy(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
   const countRef = useRef(0); // stable index into `dishes` for out-of-order pipeline patches
   const sessionDishIds = useRef<string[]>([]); // every dish this session created (for cancel)
   // The source (file + EXIF) behind each RATED card, kept so a failed upload can be
@@ -104,10 +111,15 @@ export default function RatingStack({ photos, userId, onExit }: { photos: File[]
   // so bailing out must DELETE what it created. The DELETE route cascades each rating
   // away AND replays the taste profile, so the engine honestly rewinds (nothing learned
   // from a discarded session). "Done" (the ✓) keeps everything — that's onExit.
-  const cancelSession = () => {
-    sessionDishIds.current.forEach(id =>
-      fetch('/api/my/dishes', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dish_id: id }) }).catch(() => {}));
+  // AWAITED, deliberately: these used to be fired off and abandoned while onExit() ran
+  // immediately, so the Taste-AI page refetched its lists BEFORE the deletes landed and
+  // the discarded dishes were still sitting in 已評菜式 until a manual page refresh.
+  // allSettled (not all) so one failed delete can't strand the user in the sheet.
+  const cancelSession = async () => {
+    const ids = sessionDishIds.current;
     sessionDishIds.current = [];
+    await Promise.allSettled(ids.map(id =>
+      fetch('/api/my/dishes', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dish_id: id }) })));
     onExit();
   };
 
@@ -120,7 +132,7 @@ export default function RatingStack({ photos, userId, onExit }: { photos: File[]
         : { dish_id: dishId, new_restaurant: { name: place.label, lat: place.lat, lng: place.lng, place_id: place.place_id } };
     return fetch('/api/dishes/restaurant', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
-    }).catch(() => {});
+    }).then(r => (r.ok ? r.json() : null)).catch(() => null);
   };
 
   // ── Shared pipeline steps (reused by the first run AND a not-a-dish reclassify) ──
@@ -157,6 +169,33 @@ export default function RatingStack({ photos, userId, onExit }: { photos: File[]
       })
       .catch(() => { if (renameGen.current[i] === gen) patch(i, { enrichGen: gen }); });
   };
+  // Live GPS, resolved at most once per session and shared by every card that needs it.
+  // Photos taken with the phone camera through a file input usually carry NO EXIF GPS
+  // (iOS strips it), so those dishes previously got no location offer at all. For a shot
+  // taken moments ago the device's CURRENT position is the honest answer.
+  const liveCoords = useRef<Promise<{ lat: number; lng: number } | null> | null>(null);
+  const getLiveCoords = () => {
+    if (!liveCoords.current) {
+      liveCoords.current = new Promise(resolve => {
+        if (!navigator.geolocation) return resolve(null);
+        navigator.geolocation.getCurrentPosition(
+          p => resolve({ lat: p.coords.latitude, lng: p.coords.longitude }),
+          () => resolve(null),                       // denied / unavailable: stay silent
+          { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 },
+        );
+      });
+    }
+    return liveCoords.current;
+  };
+  // Only for photos plausibly taken JUST NOW — otherwise "where the phone is" is a lie
+  // about where an old album shot was eaten. EXIF time when present, else the file's own
+  // mtime (a fresh capture is written now; an album pick keeps its original date).
+  const RECENT_MS = 60 * 60 * 1000;
+  const looksJustTaken = (p: Prepared) => {
+    const stamp = p.meta.takenAt?.getTime() ?? p.file.lastModified;
+    return typeof stamp === 'number' && Date.now() - stamp < RECENT_MS;
+  };
+
   // EXIF coords → real nearby list → auto-confirm + persist the nearest (correctable).
   const loadNearby = async (i: number, dishId: string, coords: { lat: number; lng: number }) => {
     patch(i, { coords, hasLocation: true, placeLoading: true });
@@ -215,20 +254,41 @@ export default function RatingStack({ photos, userId, onExit }: { photos: File[]
       await rate(d.id, score); // the held flick score becomes the rating (reveals any seal)
       refreshBuddy();     // real engine confidence just moved → update the bar
       enrich(i, d.id);    // background: ingredients / diet / cooking / heaviness
+      // EXIF coords win (they say where it was actually eaten). Failing that, a photo
+      // taken moments ago gets the device's live position — the camera path had no
+      // location offer at all before this.
       if (meta.coords) loadNearby(i, d.id, meta.coords);
+      else if (looksJustTaken({ file, url: '', meta })) {
+        const live = await getLiveCoords();
+        if (live) loadNearby(i, d.id, live);
+      }
     } catch { patch(i, { status: 'failed' }); }
   }
 
-  // A pick on the growth screen (live mode): persist it. Home / skip clear the
-  // restaurant; a manual "add" is a later-phase stub (kept as a local label for now).
+  // A pick on the growth screen (live mode): persist it. Home / skip clear the restaurant.
   const onPickPlace = (i: number, label: string) => {
     patch(i, { choice: label }); // optimistic display
     const gd = dishes[i];
     if (!gd?.dishId) return;
     if (label === t('place.home') || label === t('grow.skip')) { persistPlace(gd.dishId, null); return; }
-    if (label === t('grow.addplace')) return;
     const place = (gd.nearby ?? []).find(p => p.label === label);
     if (place) persistPlace(gd.dishId, place);
+  };
+
+  // A TYPED restaurant name ("+ 加間舖"). resolveOrCreateRestaurant REQUIRES finite
+  // coords ("a new restaurant needs a name and location"), so a manual add with no
+  // location would 400 and vanish — which is exactly how this read as "nothing
+  // happens". Use the dish's own coords, else ask for live GPS, and if there is
+  // genuinely no position, roll the optimistic label back instead of pretending.
+  const onAddPlace = async (i: number, name: string) => {
+    const gd = dishes[i];
+    if (!gd?.dishId) return;
+    const prev = gd.choice ?? null;
+    patch(i, { choice: name, placeError: false }); // optimistic; clears any prior failure
+    const coords = gd.coords ?? (await getLiveCoords());
+    if (!coords) { patch(i, { choice: prev, placeError: true }); return; }
+    const res = await persistPlace(gd.dishId, { label: name, source: 'manual', lat: coords.lat, lng: coords.lng });
+    if (!res || !('ok' in res)) patch(i, { choice: prev, placeError: true });
   };
 
   // Rename on the growth screen → persist the full cascade, then RE-derive for real:
@@ -310,7 +370,7 @@ export default function RatingStack({ photos, userId, onExit }: { photos: File[]
   return (
     <div className="rate-sheet">
       <div className="rate-sheet-inner">
-        <TasteGrowth live={dishes} engine={engine} blobInputs={blobInputs} onExit={onExit} onCancel={cancelSession} onPickPlace={onPickPlace} onEditName={onEditName} onReclassify={onReclassify} onRetry={onRetry} />
+        <TasteGrowth live={dishes} engine={engine} blobInputs={blobInputs} onExit={onExit} onCancel={cancelSession} onPickPlace={onPickPlace} onAddPlace={onAddPlace} onEditName={onEditName} onReclassify={onReclassify} onRetry={onRetry} />
       </div>
     </div>
   );

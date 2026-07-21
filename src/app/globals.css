@@ -135,7 +135,10 @@ button { font: inherit; cursor: pointer; }
   /* Sans + heavy in BOTH states (the unlocked 「dishi v{n} 植入」 matches the locked
      line's size/weight exactly, per the version-ladder design call). Latin uses
      Schibsted; Chinese falls to the system sans. */
-  font-family: var(--font-body), system-ui, sans-serif; font-weight: 850;
+  font-family: var(--font-body), system-ui, sans-serif;
+  /* Nudged down 1px, a touch larger and lighter than the old 850 — the label sits
+     more comfortably in the pill without shouting. */
+  font-weight: 750; font-size: 17px; position: relative; top: 1px;
 }
 /* Locked export: keep the full vermillion (don't dim like a normal :disabled) — it
    reads as "coming, keep rating" not "unavailable". Still non-interactive (disabled),
@@ -353,16 +356,14 @@ button { font: inherit; cursor: pointer; }
 
 /* Review + reward ride in a full-screen sheet over the Taste AI page (the flick
    phase uses the glass .snap-overlay instead). */
-/* Same glass as the flick screen (same rating flow): the Taste AI page shows through,
-   blurred + brightened, so the reward/refine screen floats on it rather than on a
-   separate opaque page. Same real-alpha paper wash as .snap-overlay — see its comment
-   for why a near-transparent tint lets true-black content behind the glass bleed
-   through nearly unchanged. */
+/* OPAQUE, not glass. This sheet used to be the same blurred glass as the flick screen,
+   which let the Taste-AI page behind it show through — including its big taste blob.
+   The result read as TWO blobs: a large ghost one in the background and the small real
+   one above 建立個人化口味 AI. There is only ever one blob, and it belongs on the title.
+   (The flick phase keeps its glass .snap-overlay — nothing blob-like sits behind it.) */
 .rate-sheet {
   position: fixed; inset: 0; z-index: 50; overflow-y: auto;
-  background: rgba(250, 247, 241, 0.45);
-  backdrop-filter: blur(14px) brightness(1.12) saturate(1.05);
-  -webkit-backdrop-filter: blur(14px) brightness(1.12) saturate(1.05);
+  background: var(--paper);
   overscroll-behavior: contain;
 }
 /* width + side margins match .shell (max-width 420, 12px gutters) so the sheet reads as
@@ -468,6 +469,9 @@ button { font: inherit; cursor: pointer; }
 .learn-nameedit { display: flex; flex-direction: column; width: 100%; max-width: 320px; }
 .learn-editlabel { font-size: 11px; margin: 6px 0 2px; }
 .learn-editactions { display: flex; gap: 8px; margin-top: 10px; }
+/* Typed "+ 加間舖" field — same column rhythm as the inline name editor above it. */
+.learn-addplace { display: block; }
+.learn-addplace .field { width: 100%; }
 /* name-edit label row: the "auto-translate" note sits BESIDE the 中文 label (shared
    with the Eat Journal so both edit surfaces read identically) */
 .name-edit-labelrow { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 3px; }

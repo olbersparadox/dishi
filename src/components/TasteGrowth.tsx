@@ -26,7 +26,8 @@ export type GrowPlace = {
   place_id?: string;
   lat: number;
   lng: number;
-  source: 'dishi' | 'google';
+  /** 'manual' = typed by the person via "+ 加間舖" (no place_id, coords may be 0). */
+  source: 'dishi' | 'google' | 'manual';
 };
 
 // Each rated card's live pipeline state, streamed in by RatingStack as
@@ -51,6 +52,9 @@ export type GrowDish = {
   placeLoading?: boolean;
   hasLocation?: boolean;
   choice?: string | null;
+  /** A typed "+ 加間舖" couldn't be saved (no position available, or the write failed) —
+   *  shown rather than silently dropping what the person typed. */
+  placeError?: boolean;
   // Bumped by RatingStack when a REAL post-rename re-derivation lands (or fails —
   // always bumped, so the re-analysing state can't stick). Drives the chip
   // out→in animation on DATA, replacing the old 720ms timer simulation.
@@ -62,6 +66,7 @@ type Dish = {
   ing: string[]; diet: string[]; heaviness?: string;
   places: string[]; placeLoading: boolean; hasLocation: boolean;
   choice?: string; done: boolean;
+  placeError?: boolean;  // a typed "+ 加間舖" couldn't be saved — offer it again, don't drop it
   notDish?: boolean;     // vision said this photo isn't food — never learned from
   failed?: boolean;      // the upload itself bounced (413/network) — NOTHING was saved
   reenriching?: boolean; // a rename committed; the REAL re-derivation hasn't landed yet
@@ -77,7 +82,7 @@ type Flyer = { id: number; word: string; x: number; y: number };
 export type NameEdit = { zh: string; en: string; edZh: boolean; edEn: boolean };
 export type GrowEngine = { fill: number; ready: boolean; v: number; hintKey: string; hintParams?: Record<string, number> };
 
-export default function TasteGrowth({ live, engine, blobInputs, onExit, onCancel, onPickPlace, onEditName, onReclassify, onRetry }: {
+export default function TasteGrowth({ live, engine, blobInputs, onExit, onCancel, onPickPlace, onAddPlace, onEditName, onReclassify, onRetry }: {
   live: GrowDish[];
   engine?: GrowEngine | null;                            // REAL taste-engine confidence for the bar
   // The REAL profile (same vector/evidence/ratingCount/seed blobForm.ts consumes
@@ -88,6 +93,7 @@ export default function TasteGrowth({ live, engine, blobInputs, onExit, onCancel
   onExit: () => void;                                    // the ✓ = done / keep
   onCancel?: () => void;                                 // the ✕ = discard the session
   onPickPlace?: (i: number, label: string) => void;      // persist a restaurant pick
+  onAddPlace?: (i: number, name: string) => void;        // persist a TYPED restaurant name
   onEditName?: (i: number, edit: NameEdit) => void;      // persist a rename (full cascade)
   onReclassify?: (i: number, edit: NameEdit) => void;    // "it IS food" → name + rate it
   onRetry?: (i: number) => void;                         // re-run the pipeline on a failed upload
@@ -120,6 +126,8 @@ export default function TasteGrowth({ live, engine, blobInputs, onExit, onCancel
   const skip = t('grow.skip');
   // Name editing mirrors the Eat Journal exactly: two fields (zh primary / en secondary);
   // editing one CLEARS the other (which shows a "will translate" placeholder), retranslated on save.
+  const [addingIdx, setAddingIdx] = useState<number | null>(null); // "+ 加間舖" open on this row
+  const [addName, setAddName] = useState('');
   const [editIdx, setEditIdx] = useState<number | null>(null);
   const [dZh, setDZh] = useState(''); const [dEn, setDEn] = useState('');
   const [edZh, setEdZh] = useState(false); const [edEn, setEdEn] = useState(false);
@@ -162,6 +170,7 @@ export default function TasteGrowth({ live, engine, blobInputs, onExit, onCancel
         placeLoading: gd.placeLoading ?? false,
         hasLocation: gd.hasLocation ?? false,
         choice: gd.choice ?? undefined,
+        placeError: gd.placeError ?? false,
       };
     }));
     live.forEach((gd, i) => {
@@ -198,11 +207,13 @@ export default function TasteGrowth({ live, engine, blobInputs, onExit, onCancel
   // the next version, with 「dishi v{n} 已經解鎖」 once v1+ is reached, or the honest
   // growth hint while still locked. Before the first reading lands it falls back to
   // session progress (and a neutral analysing line — never a fake unlock claim).
-  const dishesLeft = Math.max(0, Math.ceil((100 - fill) / 10));
   const barFill = engine ? engine.fill : fill;
+  // Never NAME a version we haven't read. The old fallback hardcoded "解鎖 dishi v1",
+  // which lied to anyone already past v1; until the real reading lands the line is a
+  // neutral "analysing" instead.
   const barLine = engine
     ? (engine.ready ? t('version.unlocked', { n: engine.v }) : t(engine.hintKey, engine.hintParams))
-    : (dishesLeft <= 0 ? t('grow.analysing') : t('grow.toready', { n: dishesLeft }));
+    : t('grow.analysing');
   const blobScale = 0.72 + Math.min(absorbed, 16) * 0.05;
 
   // refinement = reward: RatingStack owns the choice (it persists it) — it round-trips
@@ -210,6 +221,16 @@ export default function TasteGrowth({ live, engine, blobInputs, onExit, onCancel
   const choose = (i: number, place: string) => {
     onPickPlace?.(i, place);
     setExpanded(prev => { const n = new Set(prev); n.delete(i); return n; }); // collapse back to the single confirmed chip
+    absorb('✓', 2.5);
+  };
+  // Typed restaurant name → persisted as a new restaurant for this dish, then collapse
+  // to the confirmed pill exactly like picking a nearby one.
+  const commitAddPlace = (i: number) => {
+    const name = addName.trim();
+    if (!name) return;
+    onAddPlace?.(i, name);
+    setAddingIdx(null); setAddName('');
+    setExpanded(prev => { const n = new Set(prev); n.delete(i); return n; });
     absorb('✓', 2.5);
   };
   const expand = (i: number) => setExpanded(prev => new Set(prev).add(i));
@@ -389,14 +410,34 @@ export default function TasteGrowth({ live, engine, blobInputs, onExit, onCancel
                         </div>
                       // Expanded: the nearest spots (the fixed 10) + add / skip / home — the
                       // SAME .chip-util treatment and order as the restaurant picker log flow.
-                      : <div className="chips learn-place">
-                          {d.places.map(pl => (
-                            <button key={pl} className={`chip ${d.choice === pl ? 'on' : ''}`} onClick={() => choose(i, pl)}>{pl}</button>
-                          ))}
-                          <button className="chip chip-util" onClick={() => choose(i, t('grow.addplace'))}>{t('picker.add')}</button>
-                          <button className={`chip chip-util ${isSkip ? 'on' : ''}`} onClick={() => choose(i, skip)}>{skip}</button>
-                          <button className={`chip chip-util ${isHome ? 'on' : ''}`} onClick={() => choose(i, home)}>{home}</button>
-                        </div>
+                      : addingIdx === i
+                        // "+ 加間舖" used to just stamp the literal label 「自己加」 and
+                        // persist nothing. Now it opens a real field: type the shop's
+                        // name and it's saved as a new restaurant for this dish.
+                        ? <div className="learn-place learn-addplace">
+                            <input className="field" value={addName} autoFocus
+                              placeholder={t('picker.addname')}
+                              onChange={e => setAddName(e.target.value)}
+                              onKeyDown={e => { if (e.key === 'Enter') commitAddPlace(i); }} />
+                            <div className="learn-editactions">
+                              <button className="btn ghost small" onClick={() => { setAddingIdx(null); setAddName(''); }}>{t('home.cancel')}</button>
+                              <button className={`btn primary small ${addName.trim() ? 'dirty' : ''}`}
+                                disabled={!addName.trim()} onClick={() => commitAddPlace(i)}>{t('home.save')}</button>
+                            </div>
+                          </div>
+                        : d.placeError
+                        ? <div className="learn-place">
+                            <span className="learn-finding">{t('grow.addplace.failed')}</span>
+                            <button className="chip chip-util" onClick={() => { setAddingIdx(i); setAddName(''); }}>{t('picker.add')}</button>
+                          </div>
+                        : <div className="chips learn-place">
+                            {d.places.map(pl => (
+                              <button key={pl} className={`chip ${d.choice === pl ? 'on' : ''}`} onClick={() => choose(i, pl)}>{pl}</button>
+                            ))}
+                            <button className="chip chip-util" onClick={() => { setAddingIdx(i); setAddName(''); }}>{t('picker.add')}</button>
+                            <button className={`chip chip-util ${isSkip ? 'on' : ''}`} onClick={() => choose(i, skip)}>{skip}</button>
+                            <button className={`chip chip-util ${isHome ? 'on' : ''}`} onClick={() => choose(i, home)}>{home}</button>
+                          </div>
                 )}
               </div>
             </li>
