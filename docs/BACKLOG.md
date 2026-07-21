@@ -554,7 +554,7 @@ demand data no POS or QR vendor can see. Social is where the moat compounds.
 
 ---
 
-## 1. One shared table surface — *(Sonnet)*
+## 1. One shared table surface — *(Sonnet)* — ✅ DONE `2f5b39b`
 
 Delete the joiner's legacy view. Every member of a table session renders the
 SAME new 你的最佳選擇 list (讀到 N 道菜 header, numbered rows, price, chips,
@@ -570,9 +570,21 @@ header.
 **Tests:** joiner and host snapshot the same component tree for the same
 session state.
 
+Shipped as scan's own settled-list grammar (scan-item/scan-rank rows, no
+rings) ported onto the table's group_match data — math untouched, only the
+render changed. `unanimous` turned out to be trivially true for a small/
+single-member table (every profiled member's raw score clears a low floor),
+so the 🔥 mark is capped to the top 3 by group_match — the same discipline
+scan already applies to its own fire winners (there: top 2 by raw_score) —
+found and fixed during live testing, not spec'd. Component-tree snapshot
+tests were dropped for the same reason every later item's spec'd test
+plan changed: **this repo has no component/DOM test harness** (confirmed
+against the b6d3c58 precedent) — verified live in the browser instead
+(a real table session, screenshotted, then cleaned up).
+
 ---
 
-## 2. Chop identity (名印) — *(Sonnet)*
+## 2. Chop identity (名印) — *(Sonnet)* — ✅ DONE `5ca23a0`
 
 Avatar = a small ink 印章 bearing the first character of the display name
 (first letter if Latin), deterministically styled from user id (seeded
@@ -596,9 +608,20 @@ place the temptation will be strongest.
 
 **Tests:** deterministic chop render for fixed id; fallback name path.
 
+`src/lib/chop.ts` (chopGlyph + deriveChopStyle, seededRandom-based — reuses
+blobForm.ts's existing hash rather than a new one) + `src/components/Chop.tsx`.
+`profiles.display_name` added (`supabase/applied/profiles_display_name.sql`).
+"Never nag" implemented as a device-local `dishi_chop_prompt_dismissed`
+localStorage flag (no server-side "dismissed" state — the handle fallback is
+a fully valid permanent choice). Vermillion constraint honored: the ONLY red
+in this feature is the pre-existing dish-edit dirty-save convention on the
+SAVE button, never the chop glyph itself. 9 tests. Verified live: saved a
+real display_name, confirmed via direct DB query, then reverted it and the
+test table session — nothing left in the live account.
+
 ---
 
-## 3. Realtime pick stamps — *(Sonnet)*
+## 3. Realtime pick stamps — *(Sonnet)* — ✅ DONE `4c0deed` (signed-in members only — see below)
 
 Tapping 揀呢個 stamps your chop onto the dish row with a small physical
 "thunk" (scale+settle, ~200ms, respects prefers-reduced-motion) and
@@ -618,6 +641,55 @@ member sees it land live. Un-picking lifts the stamp.
 
 **Tests:** realtime channel mock — stamp broadcast/receive, un-pick, late
 join reconciliation, guest re-key on sign-up.
+
+**Scoped down before starting, with the owner's sign-off:** this app has NO
+anonymous-access path anywhere — every route requires a real Supabase
+session (AuthGate + `auth.getUser()` 401 everywhere). Guest participation
+means designing a new session-identity + RLS model from scratch, which is
+an [F]-tier architecture decision, not a Sonnet side-effect of a stamps
+feature. Split out as its own item below — build the rest now.
+
+Shipped: `src/lib/tableStamps.ts` (stampsFromPicks/mergeStamps/
+applyStampEvent, pure + 16 tests — the realtime "channel mock" from the
+spec's own test plan, since this repo has no component/DOM harness). The
+5s poll is the source of truth; broadcasts are a pure latency overlay
+cleared on every fresh poll, which IS the late-join/offline reconciliation
+the spec asked for — a client that missed a broadcast just self-heals on
+its next poll, no separate reconciliation code needed. Un-pick added (the
+picked button is now tappable, not a terminal disabled state) via the
+existing `DELETE /api/my/dishes` — no new deletion path. 全檯啱 now fires
+on either the item-1 predicted blend OR 2+ real stamps. Verified live with
+two browser tabs on one session: pick/un-pick in one tab landed in the
+other with zero reload.
+
+---
+
+## 3b. Guest (no-account) table participation — *(Fable 5)* — split out of item 3, 2026-07-21
+
+Item 3's spec included "guests (no account) may stamp; their chop uses their
+session handle... on sign-up mid-session, their stamps re-key to the new
+account." Not built — deliberately, with the owner's sign-off before item 3
+started.
+
+**Why this is its own item, not a Sonnet afterthought:** this app has NO
+anonymous-access path anywhere today. Every page is wrapped in `AuthGate`;
+every API route does `supabase.auth.getUser()` and 401s without a real
+session. "Guests may stamp" means designing, from scratch:
+- how a guest's identity/handle is minted and where it lives for the
+  duration of a table session (a cookie? an anonymous Supabase auth user?
+  something table-session-scoped only?);
+- what a guest is and isn't allowed to write under RLS — right now RLS
+  assumes every writer is `auth.uid()`-backed;
+- the re-key transaction on sign-up: a guest's existing stamps/picks need
+  to move to their new real account without duplicating, orphaning, or
+  losing anything, and without letting a malicious client claim someone
+  else's guest stamps as their own.
+
+That's a new auth surface with real security implications — the kind of
+contract-touching, systemic decision that goes to the strongest model per
+the standing model-tier convention (see CLAUDE.md's Model selection
+section), not a UI side-effect of a stamps feature. Needs its own design
+session before any code.
 
 ---
 
@@ -688,3 +760,7 @@ Build order: 1 → 2 → 3 (Sonnet, sequential — each depends on the prior),
 then 4 → 5 (Fable 5). Item 5 must not start before 4's session/consent
 model is merged. Photo avatars, companion compatibility scores, and any
 table-level gamification are explicitly OUT of this batch.
+
+**1 → 2 → 3 done** (`2f5b39b`, `5ca23a0`, `4c0deed`, 2026-07-21) — signed-in
+members only; item 3's guest sub-scope split out to 3b (Fable 5, needs its
+own design session — see above). 4 → 5 (Fable 5) and 3b remain.
