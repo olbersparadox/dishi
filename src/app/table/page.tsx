@@ -4,7 +4,8 @@ import AuthGate from '@/components/AuthGate';
 import { normalizePhoto } from '@/lib/image';
 import DishName from '@/components/DishName';
 import PhotoPicker from '@/components/PhotoPicker';
-import { useLang } from '@/lib/i18n';
+import { useLang, cuisineLabel } from '@/lib/i18n';
+import { sumPrices } from '@/lib/price';
 
 type Member = { handle: string; has_profile: boolean; rating_count: number };
 type RankedItem = {
@@ -119,11 +120,23 @@ function Landing({ onEnter }: { onEnter: (code: string) => void }) {
 }
 
 // ---------------------------------------------------------------- session ----
+// ONE surface for host and joiner alike (item 1 of the Table Mode social batch,
+// 2026-07-21): both used to render different component trees — the host saw the
+// redesigned 你的最佳選擇 list (via /scan's tableSession bar), a joiner landed here
+// and got the PRE-redesign layout (conic-gradient score rings, per-member percentage
+// bars). That's now gone. This renders the SAME numbered-row visual grammar as scan's
+// settled list (scan-item/scan-rank/dish-row, DishName, price, DishInfoDisplay-style
+// chips) for every member, with only two per-person differences: the group_match
+// ranking BLEND (unchanged math — see rankForGroup/group.ts, presentation only
+// unifies here) and "your own picks" highlighted via pickedKeys. The percentage-bar
+// breakdown (查看全桌的意見) is retired along with the rings — it displayed exact
+// numbers scan's OWN settled-list philosophy deliberately avoids (see the "no
+// displayed numbers, only an earned mark" comment in scan/page.tsx); 全檯啱 is that
+// earned mark's table-mode equivalent, rendered with the same 🔥 tag scan uses.
 function Session({ code, onLeave }: { code: string; onLeave: () => void }) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const [state, setState] = useState<SessionState | null>(null);
   const [error, setError] = useState('');
-  const [expanded, setExpanded] = useState<string | null>(null);
   const [picking, setPicking] = useState<string | null>(null); // item.key currently saving
   const [pickedKeys, setPickedKeys] = useState<Set<string>>(new Set());
 
@@ -195,6 +208,20 @@ function Session({ code, onLeave }: { code: string; onLeave: () => void }) {
 
   const profiled = state.members.filter(m => m.has_profile).length;
 
+  // Cap which 全檯啱 dishes actually get the 🔥 mark. `unanimous` is "every profiled
+  // member's raw score clears a floor" (group.ts) — with a small or single-member
+  // table that floor is easy to clear broadly, so an UNCAPPED fire mark could land on
+  // most of the menu and stop meaning anything. Same discipline scan/page.tsx already
+  // applies to its own fire winners (there: top 2 by raw_score) — here: top 3 by
+  // group_match, since 全檯啱 covers more people agreeing, not one person's own match.
+  const topUnanimous = new Set(
+    state.items
+      .filter(it => it.unanimous)
+      .sort((a, b) => b.group_match - a.group_match)
+      .slice(0, 3)
+      .map(it => it.key),
+  );
+
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
@@ -211,6 +238,14 @@ function Session({ code, onLeave }: { code: string; onLeave: () => void }) {
         <button className="chip" onClick={share}>{t('table.invite')}</button>
       </div>
 
+      {/* 讀到 N 道菜 — the same header language scan's settled list uses, so a
+          table session reads as the same product moment whether it started from a
+          scan or a join code. The palate-count line (few/ranked) follows: it's
+          genuinely table-specific context (how many taste profiles are blending
+          into this ranking) that scan has no equivalent of, so it stays. */}
+      <p className="card-meta" style={{ marginBottom: 4 }}>
+        {t('table.itemsread', { n: state.items.length })}
+      </p>
       <p className="card-meta" style={{ marginBottom: 14 }}>
         {profiled < 2 ? t('table.few') : t('table.ranked', { n: profiled })}
         {!state.has_menu && ` ${t('table.nomenu')}`}
@@ -229,65 +264,86 @@ function Session({ code, onLeave }: { code: string; onLeave: () => void }) {
         </div></div>
       )}
 
-      {state.items.map((item, i) => (
-        <article className="card" key={item.key}>
-          <div className="card-body scan-row">
-            <div className="scan-rank">{i + 1}</div>
-            {/* Same 70/45 thresholds as before (calibrated, untouched — see the
-                standing note on Table Mode's fixed-gain exposure); only the
-                color scale changed, jade/egg-tart/grey -> ink/ink-faint/
-                ink-soft, to stay inside the paper+ink palette. */}
-            <div className="group-ring" style={{
-              background: `conic-gradient(${item.group_match >= 70 ? 'var(--ink)' : item.group_match >= 45 ? 'var(--ink-faint)' : 'var(--ink-soft)'} ${item.group_match * 3.6}deg, var(--line) 0deg)`,
-            }}>
-              <span>{item.group_match}</span>
-            </div>
-            <div style={{ minWidth: 0, flex: 1 }}>
-              <div className="dish-row">
-                <div className="card-title">
-                  <DishName name={item.name} name_zh={item.name_zh} name_original={item.name_original} />
-                  {item.unanimous && <span className="badge-unanimous">{t('table.unanimous')}</span>}
-                  {item.protected_by_fairness && <span className="badge-fair">{t('table.fairness')}</span>}
-                </div>
-                {item.price && <span className="dish-price">{item.price}</span>}
-              </div>
-              <div className="card-meta">{item.hook ?? item.cuisine ?? ''}</div>
-              <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
-                <button className="btn ghost small"
-                  onClick={() => setExpanded(expanded === item.key ? null : item.key)}>
-                  {expanded === item.key ? t('table.hide') : t('table.see')}
-                </button>
-                <button
-                  className={`btn small ${pickedKeys.has(item.key) ? '' : 'primary'}`}
-                  disabled={pickedKeys.has(item.key) || picking === item.key}
-                  onClick={() => pickDish(item, state)}
-                >
-                  {pickedKeys.has(item.key)
-                    ? t('table.pickeddone')
-                    : picking === item.key
-                      ? t('log.saving')
-                      : state.orderable ? t('table.orderbtn') : t('table.pickbtn')}
-                </button>
-              </div>
-              {expanded === item.key && (
-                <div className="bars" style={{ marginTop: 8 }}>
-                  {item.member_matches.map(mm => (
-                    <div className="bar-row" key={mm.handle}>
-                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{mm.handle}</span>
-                      <div className="bar-track">
-                        <div className="bar-fill" style={{
-                          left: 0, width: `${mm.match}%`,
-                          background: mm.match >= 55 ? 'var(--ink)' : 'var(--ink-soft)',
-                        }} />
+      {/* Numbered rows, no rings, no per-member percentages — the same visual
+          grammar as scan's settled list. 全檯啱 (unanimous) gets the identical 🔥
+          earned-mark treatment scan gives its own fire dishes: a highlighted card
+          border, not a number. 公平之選 stays as a small chip explaining a pick
+          that protected someone's interest rather than chasing the raw blend. */}
+      <div className="scan-settle">
+        {state.items.map((item, i) => {
+          const picked = pickedKeys.has(item.key);
+          const fire = topUnanimous.has(item.key);
+          return (
+            <article
+              // scan-pickable gives the flat numbered-row treatment (hanging rank
+              // gutter, no per-row border-box) scan's settled list uses; cursor
+              // reset to default because — unlike scan, where tapping anywhere on
+              // the row toggles a LOCAL pick that still needs a batch confirm step
+              // — a table pick here is POSTed immediately and only the button
+              // actually does anything, so a pointer cursor over the whole row
+              // would be a false affordance.
+              className={`card scan-pickable scan-settle-row ${fire ? 'scan-hero' : ''} ${picked ? 'picked' : ''}`}
+              style={{ cursor: 'default' }}
+              key={item.key}
+            >
+              <div className="card-body">
+                <div className="scan-item">
+                  <span className="scan-rank">{i + 1}.</span>
+                  <div className="scan-item-main">
+                    <div className="dish-row">
+                      <div className="card-title" style={{ display: 'flex', alignItems: 'baseline', gap: 7, minWidth: 0 }}>
+                        <DishName name={item.name} name_zh={item.name_zh} name_original={item.name_original}
+                          suffix={fire ? <span className="scan-fire" aria-label={t('table.unanimous')}>{'🔥'}</span> : undefined} />
                       </div>
+                      {item.price && <span className="dish-price">{item.price}</span>}
                     </div>
-                  ))}
+                    {item.hook && <div className="card-meta">{item.hook}</div>}
+                    {(item.cuisine || item.protected_by_fairness) && (
+                      <div className="chips" style={{ marginTop: 4 }}>
+                        {item.cuisine && <span className="chip">{cuisineLabel(item.cuisine, lang) || item.cuisine}</span>}
+                        {item.protected_by_fairness && <span className="chip">{t('table.fairness')}</span>}
+                      </div>
+                    )}
+                    <button
+                      className={`btn small ${picked ? '' : 'primary'}`}
+                      style={{ marginTop: 8 }}
+                      disabled={picked || picking === item.key}
+                      onClick={() => pickDish(item, state)}
+                    >
+                      {picked
+                        ? t('table.pickeddone')
+                        : picking === item.key
+                          ? t('log.saving')
+                          : state.orderable ? t('table.orderbtn') : t('table.pickbtn')}
+                    </button>
+                  </div>
                 </div>
-              )}
+              </div>
+            </article>
+          );
+        })}
+      </div>
+
+      {/* Footer bar: your own picks THIS session, count + running price — the
+          same cart-bar chrome scan uses for its own pick summary, read-only here
+          (no batch confirm step; each pick already persisted the moment it was
+          tapped above). Appears once there's something to show. */}
+      {(() => {
+        const pickedItems = state.items.filter(i => pickedKeys.has(i.key));
+        if (!pickedItems.length) return null;
+        const priceSummary = sumPrices(pickedItems.map(i => i.price ?? null));
+        const priceLabel = priceSummary.parsedCount > 0
+          ? `${priceSummary.currency}${priceSummary.total}${priceSummary.complete ? '' : '+'}`
+          : null;
+        return (
+          <div className="cart-bar">
+            <div className="btn primary cart-btn" style={{ pointerEvents: 'none' }}>
+              <span>{t('scan.pickcount', { n: pickedItems.length })}</span>
+              {priceLabel && <span className="cart-total">{priceLabel}</span>}
             </div>
           </div>
-        </article>
-      ))}
+        );
+      })()}
     </div>
   );
 }

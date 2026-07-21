@@ -335,13 +335,15 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'table.back': { zh: '返回', en: 'Back' },
   'table.invite': { zh: '+ 邀請', en: '+ Invite' },
   'table.noprofile': { zh: '未有檔案', en: 'no profile yet' },
+  // Mirrors scan.read's exact phrasing ("讀到 {n} 道菜") — the same header
+  // language, so a table session reads as the same product moment whether it
+  // started from a menu scan or a join code (item 1, Table Mode social batch).
+  'table.itemsread': { zh: '讀到 {n} 道菜', en: '{n} dishes read' },
   'table.few': { zh: '有兩個或以上口味檔案入檯，排名先至好玩。', en: 'Rankings get interesting once two or more taste profiles are at the table.' },
   'table.ranked': { zh: '為 {n} 種口味排名 — 要人人都啱先算贏。', en: 'Ranked for {n} palates — a dish only wins if it works for everyone.' },
   'table.nomenu': { zh: '（尚無餐牌 — 正以 Dishi 上的菜式排列。）', en: '(No menu attached — ranking dishes from around Dishi.)' },
   'table.unanimous': { zh: '全檯啱', en: 'whole table' },
   'table.fairness': { zh: '公平之選', en: 'fairness call' },
-  'table.see': { zh: '查看全桌的意見', en: 'See the table\u2019s take' },
-  'table.hide': { zh: '收埋', en: 'Hide the table\u2019s take' },
   'table.pulling': { zh: '正在取得餐桌資料…', en: 'Pulling up the table…' },
   'table.copied': { zh: '連結已複製 — 發俾成檯人。', en: 'Link copied — send it to the table.' },
   'table.sharetitle': { zh: '來我這桌 — Dishi', en: 'Join my table on Dishi' },
