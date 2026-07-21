@@ -221,7 +221,7 @@ function TasteProfile() {
 
       {/* Rating flow as a full-screen overlay ON TOP of this Taste AI page (kept
           mounted behind, so the drag-and-rate glass blurs the live section). */}
-      {ratePhotos && <RatingStack photos={ratePhotos} onExit={closeRating} />}
+      {ratePhotos && userId && <RatingStack photos={ratePhotos} userId={userId} onExit={closeRating} />}
 
       {/* Dishes waiting to be rated — picked off a menu scan or during a shared
           table, not yet rated. Living here (not buried on /log) is deliberate:

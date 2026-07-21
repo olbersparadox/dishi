@@ -8,12 +8,14 @@
 //
 // RatingStack owns the pipeline + persistence and streams each card's state in via `live`;
 // this component renders it and reports refinements back through callbacks.
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLang } from '@/lib/i18n';
+import { ingredientZh } from '@/lib/ingredientLabel';
 import { wordKeyFor } from '@/lib/flickWords';
 import DishName from '@/components/DishName';
 import DishInfoDisplay from '@/components/DishInfoDisplay';
 import { CheckIcon, CloseIcon } from '@/components/icons';
+import { sampleForm, formToSvgPath, type FormInputs } from '@/lib/blobForm';
 
 // A real nearby restaurant option (from EXIF → /api/restaurants/nearby), carrying what
 // it takes to PERSIST the pick: a Dishi row (restaurant_id) or a Google place (place_id
@@ -75,9 +77,14 @@ type Flyer = { id: number; word: string; x: number; y: number };
 export type NameEdit = { zh: string; en: string; edZh: boolean; edEn: boolean };
 export type GrowEngine = { fill: number; ready: boolean; v: number; hintKey: string; hintParams?: Record<string, number> };
 
-export default function TasteGrowth({ live, engine, onExit, onCancel, onPickPlace, onEditName, onReclassify, onRetry }: {
+export default function TasteGrowth({ live, engine, blobInputs, onExit, onCancel, onPickPlace, onEditName, onReclassify, onRetry }: {
   live: GrowDish[];
   engine?: GrowEngine | null;                            // REAL taste-engine confidence for the bar
+  // The REAL profile (same vector/evidence/ratingCount/seed blobForm.ts consumes
+  // everywhere else) — the header blob is sampled from this, not a fixed mock
+  // shape, so it's the actual identity the person is building, growing as ratings
+  // commit during the session. null while the first /api/buddy read is in flight.
+  blobInputs?: FormInputs | null;
   onExit: () => void;                                    // the ✓ = done / keep
   onCancel?: () => void;                                 // the ✕ = discard the session
   onPickPlace?: (i: number, label: string) => void;      // persist a restaurant pick
@@ -85,10 +92,23 @@ export default function TasteGrowth({ live, engine, onExit, onCancel, onPickPlac
   onReclassify?: (i: number, edit: NameEdit) => void;    // "it IS food" → name + rate it
   onRetry?: (i: number) => void;                         // re-run the pipeline on a failed upload
 }) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const rowCount = live.length;
   // Per-row NAME/ingredient source (the real dish; optimistic edits flow back via `live`).
   const srcOf = (i: number) => ({ zh: live[i]?.name_zh ?? '', en: live[i]?.name ?? '', ing: live[i]?.ingredients ?? [] });
+
+  // The header blob's REAL shape (was a fixed dev-mock path). Before the first
+  // /api/buddy read lands, fall back to blobForm's own "nobody's rated anything yet"
+  // input — the same small, plain circle a brand-new profile draws everywhere else,
+  // not a placeholder shape invented here. Recomputes whenever the live profile
+  // changes (RatingStack refreshes it after every seal/rate/enrich), so the blob's
+  // actual silhouette grows mid-session as ratings commit.
+  const effectiveBlobInputs: FormInputs = blobInputs ?? { vector: {}, evidence: {}, ratingCount: 0, seed: 'grow:loading' };
+  const blobPath = useMemo(
+    () => formToSvgPath(sampleForm(effectiveBlobInputs, 96), 100),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [effectiveBlobInputs.seed, effectiveBlobInputs.ratingCount, JSON.stringify(effectiveBlobInputs.vector), JSON.stringify(effectiveBlobInputs.evidence)],
+  );
   const [dishes, setDishes] = useState<Dish[]>(() => Array.from({ length: rowCount }, emptyDish));
   const [fill, setFill] = useState(BASE);
   const [absorbed, setAbsorbed] = useState(0);
@@ -154,7 +174,13 @@ export default function TasteGrowth({ live, engine, onExit, onCancel, onPickPlac
       // (fully known at create) still animate.
       if (!s.streamed && gd.isDish && gd.status === 'ready') {
         const diet = (gd.diet ?? []).map(f => t(`scan.diet.${f}` as Parameters<typeof t>[0])).filter(Boolean);
-        const words = [...diet, ...(gd.ingredients ?? [])].slice(0, 6);
+        // Ingredients stream in the chrome language too — the SAME glossary the
+        // dish-info chips use (ingredientLabel.ts), so a word never disagrees with
+        // itself between the flying absorb effect and the chip below it. zh label
+        // when the glossary has one, English only when it doesn't — never a
+        // fabricated translation.
+        const ingredients = (gd.ingredients ?? []).map(i => (lang === 'zh' ? (ingredientZh(i) ?? i) : i));
+        const words = [...diet, ...ingredients].slice(0, 6);
         if (words.length) { s.streamed = true; words.forEach((w, k) => window.setTimeout(() => absorb(w, 0), k * 150)); }
       }
       // The real re-derivation landed → the blob + bar respond to the ACTUAL new learning.
@@ -241,7 +267,7 @@ export default function TasteGrowth({ live, engine, onExit, onCancel, onPickPlac
           ))}
           <div className="grow-blob" style={{ transform: `scale(${blobScale.toFixed(3)})` }} aria-hidden>
             <svg viewBox="0 0 100 100" width="66" height="66">
-              <path d="M50 6 C71 6 92 20 93 44 C94 68 79 92 53 94 C29 96 9 81 7 55 C5 30 27 6 50 6 Z" fill="var(--ink)" />
+              <path d={blobPath} fill="var(--ink)" />
             </svg>
           </div>
         </div>

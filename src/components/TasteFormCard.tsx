@@ -43,6 +43,10 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
   const [state, setState] = useState<BuddyState | null>(null);
   const [hadSpecies, setHadSpecies] = useState<string | null | 'loading'>('loading');
   const [showMigration, setShowMigration] = useState(false);
+  // Which stat box's explainer is open — same tap-a-glyph-to-learn-more pattern as
+  // the globe/notification icons (a scrim + an anchored paper sheet), applied to the
+  // 4 stat boxes so each number can explain what it actually measures.
+  const [openStat, setOpenStat] = useState<null | 'strength' | 'flicks' | 'cuisines' | 'senses'>(null);
 
   const load = useCallback(async () => {
     const res = await fetch('/api/buddy');
@@ -123,11 +127,32 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
         <span className="version-next">V{state.version.v + 1}</span>
       </div>
 
-      <div className="stat-row" style={{ marginTop: 20, marginBottom: 0 }}>
-        <div className="stat taste-stat"><div className="stat-num">{state.strength}%</div><div className="stat-label">{t('buddy.strength')}</div></div>
-        <div className="stat taste-stat"><div className="stat-num">{state.stats.ratings}</div><div className="stat-label">{t('buddy.flicks')}</div></div>
-        <div className="stat taste-stat"><div className="stat-num">{state.stats.cuisines}</div><div className="stat-label">{t('buddy.cuisines')}</div></div>
-        <div className="stat taste-stat"><div className="stat-num">{state.stats.dims_explored}/{state.stats.dims_total}</div><div className="stat-label">{t('buddy.senses')}</div></div>
+      {/* Each stat is tappable — same tap-to-explain pattern as the header's globe/
+          notification icons (a scrim + an anchored paper sheet), so the numbers can
+          say what they actually measure instead of sitting there unexplained. */}
+      <div className="stat-row stat-row-tappable" style={{ marginTop: 20, marginBottom: 0 }}>
+        {([
+          { key: 'strength' as const, num: `${state.strength}%`, label: t('buddy.strength') },
+          { key: 'flicks' as const, num: `${state.stats.ratings}`, label: t('buddy.flicks') },
+          { key: 'cuisines' as const, num: `${state.stats.cuisines}`, label: t('buddy.cuisines') },
+          { key: 'senses' as const, num: `${state.stats.dims_explored}/${state.stats.dims_total}`, label: t('buddy.senses') },
+        ]).map(s => (
+          <button key={s.key} type="button" className="stat taste-stat stat-tap"
+            onClick={() => setOpenStat(v => (v === s.key ? null : s.key))}
+            aria-expanded={openStat === s.key} aria-label={`${s.label}: ${t(`buddy.explain.${s.key}`, { total: state.stats.dims_total })}`}>
+            <div className="stat-num">{s.num}</div>
+            <div className="stat-label">{s.label}</div>
+          </button>
+        ))}
+        {openStat && (
+          <>
+            <div className="lang-scrim" onClick={() => setOpenStat(null)} />
+            <div className="stat-explain-sheet" role="dialog">
+              <p className="stat-explain-title">{t(`buddy.${openStat}`)}</p>
+              <p className="stat-explain-body">{t(`buddy.explain.${openStat}`, { total: state.stats.dims_total })}</p>
+            </div>
+          </>
+        )}
       </div>
     </div>
 

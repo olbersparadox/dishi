@@ -23,6 +23,7 @@ import { normalizePhoto } from '@/lib/image';
 import { readPhotoMeta, type PhotoMeta } from '@/lib/photoMeta';
 import SnapRating from '@/components/SnapRating';
 import TasteGrowth, { type GrowDish, type GrowPlace, type NameEdit } from '@/components/TasteGrowth';
+import type { FormInputs } from '@/lib/blobForm';
 
 type Phase = 'flick' | 'grow';
 type Prepared = { file: File; url: string; meta: PhotoMeta };
@@ -33,7 +34,7 @@ const freshDish = (url: string, score: number): GrowDish => ({
   coords: null, nearby: [], placeLoading: false, hasLocation: false, choice: null,
 });
 
-export default function RatingStack({ photos, onExit }: { photos: File[]; onExit: () => void }) {
+export default function RatingStack({ photos, userId, onExit }: { photos: File[]; userId: string; onExit: () => void }) {
   const { t, lang } = useLang();
   // Normalize every photo up front with the SAME util the /log flow uses (image.ts):
   // HEIC → JPEG (Chrome can't render HEIC, vision can't read it) AND downscale to
@@ -61,6 +62,12 @@ export default function RatingStack({ photos, onExit }: { photos: File[]; onExit
   // the ratcheted version number for the unlocked line. Refreshed as ratings +
   // enrichment land (both move the profile).
   const [engine, setEngine] = useState<{ fill: number; ready: boolean; v: number; hintKey: string; hintParams?: Record<string, number> } | null>(null);
+  // The REAL profile inputs behind the growth screen's header blob — the same
+  // vector/evidence/ratingCount/seed blobForm.ts consumes everywhere else, so the
+  // shape growing in front of the user IS their actual identity, not a mock. Same
+  // response as `engine` above; refreshed together so the bar and the blob can never
+  // show two different moments of the profile.
+  const [blobInputs, setBlobInputs] = useState<FormInputs | null>(null);
   const refreshBuddy = async () => {
     try {
       const j = await fetch('/api/buddy').then(r => (r.ok ? r.json() : null));
@@ -73,6 +80,10 @@ export default function RatingStack({ photos, onExit }: { photos: File[]; onExit
         v: vz.v,
         hintKey: s.hint?.key ?? 'buddy.hint.tune',
         hintParams: s.hint?.params,
+      });
+      setBlobInputs({
+        vector: s.vector ?? {}, evidence: s.evidence ?? {},
+        ratingCount: s.stats?.ratings ?? 0, seed: `${userId}:v${s.profile_version ?? 1}`,
       });
     } catch { /* keep the last good reading */ }
   };
@@ -299,7 +310,7 @@ export default function RatingStack({ photos, onExit }: { photos: File[]; onExit
   return (
     <div className="rate-sheet">
       <div className="rate-sheet-inner">
-        <TasteGrowth live={dishes} engine={engine} onExit={onExit} onCancel={cancelSession} onPickPlace={onPickPlace} onEditName={onEditName} onReclassify={onReclassify} onRetry={onRetry} />
+        <TasteGrowth live={dishes} engine={engine} blobInputs={blobInputs} onExit={onExit} onCancel={cancelSession} onPickPlace={onPickPlace} onEditName={onEditName} onReclassify={onReclassify} onRetry={onRetry} />
       </div>
     </div>
   );

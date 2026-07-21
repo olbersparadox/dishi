@@ -442,6 +442,25 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'buddy.flicks': { zh: '滑動', en: 'flicks' },
   'buddy.cuisines': { zh: '菜系', en: 'cuisines' },
   'buddy.senses': { zh: '味覺調校', en: 'senses tuned' },
+  // Tappable stat-box explainers (書面語 register — these explain, not chat).
+  // Grounded in the real /api/buddy computation (buddy.ts / tasteExport.ts); no
+  // number is hardcoded here that isn't also interpolated from the live response.
+  'buddy.explain.strength': {
+    zh: '呢個數反映你嘅口味引擎建立喺幾多真實訊號之上：評分數量、探索過嘅口味維度、試過嘅菜系種類，三者合計。多樣化嘅選擇，遠比重複評同一類菜式更能訓練引擎——呢個數字唔會假意話引擎識得比實際更多。',
+    en: 'How much real signal your taste engine is built on: rating volume, explored flavour dimensions, and cuisine variety, combined. Trying something new teaches it far more than rating the same dish again — this number never overstates what the engine actually knows.',
+  },
+  'buddy.explain.flicks': {
+    zh: '你總共評過嘅菜式數量。',
+    en: 'The total number of dishes you’ve rated.',
+  },
+  'buddy.explain.cuisines': {
+    zh: '你實際評過菜式嘅唔同菜系數目。',
+    en: 'The number of distinct cuisines you’ve actually rated dishes from.',
+  },
+  'buddy.explain.senses': {
+    zh: '喺 {total} 種追蹤緊嘅口味維度入面，有幾多已經沉澱成實在嘅偏好，而唔係噪音。呢個門檻比上面「識咗」更嚴——「識咗」淨係要求有足夠證據去信得過個讀數，呢個就要求真係讀到一個清晰嘅偏好。',
+    en: 'Of {total} tracked flavour dimensions, how many have crystallized into an actual preference, clear of noise. Stricter than “knows” above, which only needs enough evidence to trust a reading — this one needs a genuinely clear signal.',
+  },
   'buddy.hint.first': { zh: '評你第一道菜我就會孵化。', en: 'Rate your first dish and I hatch.' },
   'buddy.hint.early': { zh: '再評 {n} 道菜 — 頭幾下教我最多。', en: 'Rate {n} more — early flicks teach me most.' },
   'buddy.hint.cuisine': { zh: '試評一個新菜系，教我嘅嘢多三倍。', en: 'Try a new cuisine — teaches me 3\u00d7 more.' },
