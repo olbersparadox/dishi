@@ -375,7 +375,7 @@ function Session({ code, onLeave }: { code: string; onLeave: () => void }) {
             the viewer's own row triggers the setup prompt below. */}
         {state.members.map(m => (
           <span key={m.user_id} className={`chip chop-row ${m.has_profile ? 'on' : ''}`}>
-            <Chop userId={m.user_id} name={m.display_name ?? m.handle} size={20} />
+            <Chop name={m.display_name ?? m.handle} size={20} />
             {m.display_name ?? m.handle}{!m.has_profile && <span style={{ opacity: 0.55 }}> · {t('table.noprofile')}</span>}
           </span>
         ))}
@@ -488,7 +488,7 @@ function Session({ code, onLeave }: { code: string; onLeave: () => void }) {
                       <div className="chop-stamp-row" style={{ marginTop: 6 }} aria-label={t('table.stampedby', { n: stamps.length })}>
                         {stamps.slice(0, STAMP_CAP).map(s => (
                           <span className="chop-stamp-pop" key={`${item.key}:${s.user_id}`}>
-                            <Chop userId={s.user_id} name={s.name} size={22} />
+                            <Chop name={s.name} size={22} />
                           </span>
                         ))}
                         {stamps.length > STAMP_CAP && (
