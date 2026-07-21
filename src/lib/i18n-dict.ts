@@ -439,26 +439,27 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'profile.owner.blurb': { zh: '睇下食客嘅口味點回應你間餐廳嘅菜式。', en: 'See how diners\u2019 palates respond to your menu.' },
   'buddy.xpto': { zh: '仲差 {n} XP 就到{name}', en: '{n} XP to {name}' },
   'buddy.strength': { zh: '引擎強度', en: 'engine strength' },
-  'buddy.flicks': { zh: '滑動', en: 'flicks' },
+  'buddy.flicks': { zh: '食評', en: 'reviews' },
   'buddy.cuisines': { zh: '菜系', en: 'cuisines' },
   'buddy.senses': { zh: '味覺調校', en: 'senses tuned' },
-  // Tappable stat-box explainers (書面語 register — these explain, not chat).
-  // Grounded in the real /api/buddy computation (buddy.ts / tasteExport.ts); no
-  // number is hardcoded here that isn't also interpolated from the live response.
+  // Tappable stat-box explainers. zh is Standard Written Chinese (書面語) — these are
+  // reference/explanatory copy, deliberately more formal than the app's Cantonese
+  // interactive voice. Grounded in the real /api/buddy computation (buddy.ts /
+  // tasteExport.ts); no number is hardcoded that isn't also interpolated live.
   'buddy.explain.strength': {
-    zh: '呢個數反映你嘅口味引擎建立喺幾多真實訊號之上：評分數量、探索過嘅口味維度、試過嘅菜系種類，三者合計。多樣化嘅選擇，遠比重複評同一類菜式更能訓練引擎——呢個數字唔會假意話引擎識得比實際更多。',
+    zh: '這個數字反映你的口味引擎建立在多少真實訊號之上：評分數量、已探索的口味維度、嘗試過的菜系種類，三者合計。多元的選擇遠比重複評同一類菜式更能訓練引擎——此數字不會誇大引擎實際掌握的程度。',
     en: 'How much real signal your taste engine is built on: rating volume, explored flavour dimensions, and cuisine variety, combined. Trying something new teaches it far more than rating the same dish again — this number never overstates what the engine actually knows.',
   },
   'buddy.explain.flicks': {
-    zh: '你總共評過嘅菜式數量。',
-    en: 'The total number of dishes you’ve rated.',
+    zh: '你至今作出的食評總數，也是口味引擎唯一的學習來源。每一次評分都是一個真實的數據點——評得越多、越多元，引擎對你口味的理解越深、預測越準。起步階段的頭幾十次教得最多，其後每一次都在微調；持續評分，正是讓推薦保持準確的關鍵。',
+    en: 'The total number of dishes you’ve reviewed — and the engine’s only source of signal. Every rating is a real data point: the more you rate, and the more varied, the deeper and sharper its read on your taste. The first few dozen teach it most, and every one after keeps it tuned — rating more is what keeps its recommendations accurate.',
   },
   'buddy.explain.cuisines': {
-    zh: '你實際評過菜式嘅唔同菜系數目。',
-    en: 'The number of distinct cuisines you’ve actually rated dishes from.',
+    zh: '你曾實際評分的不同菜系數目。菜系越多元，引擎學得越快——一個全新菜系帶來的訊號，往往抵得上多次重複評分。',
+    en: 'The number of distinct cuisines you’ve actually rated dishes from. The more varied, the faster the engine learns — a genuinely new cuisine is often worth several repeat ratings.',
   },
   'buddy.explain.senses': {
-    zh: '喺 {total} 種追蹤緊嘅口味維度入面，有幾多已經沉澱成實在嘅偏好，而唔係噪音。呢個門檻比上面「識咗」更嚴——「識咗」淨係要求有足夠證據去信得過個讀數，呢個就要求真係讀到一個清晰嘅偏好。',
+    zh: '在 {total} 種追蹤中的口味維度裡，有多少已經沉澱成明確的偏好，而非雜訊。這個門檻比上方的「識咗」更嚴格——「識咗」只需足夠證據去信任該讀數，而這裡要求讀到一個清晰、確立的偏好。',
     en: 'Of {total} tracked flavour dimensions, how many have crystallized into an actual preference, clear of noise. Stricter than “knows” above, which only needs enough evidence to trust a reading — this one needs a genuinely clear signal.',
   },
   'buddy.hint.first': { zh: '評你第一道菜我就會孵化。', en: 'Rate your first dish and I hatch.' },
