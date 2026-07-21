@@ -636,30 +636,35 @@ button { font: inherit; cursor: pointer; }
    reset (background/font/cursor) so it's pixel-identical to the old plain div. */
 .stat-tap { background: #fff; font-family: inherit; cursor: pointer; width: 100%; }
 .stat-row-tappable { position: relative; }
-/* A proper centered modal (not an anchored popover) — dead-center of the SCREEN
-   (position:fixed against the viewport, not the stat row), bigger box + bigger
-   text, title centered, body left-aligned, closed via the shared circle-check
-   .ok-circle at the bottom (same "done" affordance as the duel reveal / growth
-   screen). Own keyframe (not duel-pop): duel-pop's `to: transform none` would wipe
-   the translate(-50%,-50%) centering (both live in `transform`) — see the earlier
-   duel-card fix for the same class of bug. */
-.stat-explain-modal {
+/* The shared "tap-to-learn-more" modal (ExplainModal) — dead-centre of the SCREEN
+   (position:fixed against the viewport), bigger box + bigger text, title centred,
+   body left-aligned, closed via the shared circle-check .ok-circle at the bottom.
+   Used by the 味 AI stat boxes AND the 印 seal stamp everywhere it appears. Own
+   keyframe (not duel-pop): duel-pop's `to: transform none` would wipe the
+   translate(-50%,-50%) centering (both live in `transform`).
+   z-index 71 (scrim 70) sits ABOVE the duel overlay (z-60), so a 印 tapped inside
+   the duel card opens on top of it, not behind. */
+.explain-scrim { position: fixed; inset: 0; z-index: 70; }
+.explain-modal {
   position: fixed; top: 50%; left: 50%;
-  z-index: 56; width: min(360px, calc(100vw - 48px));
+  z-index: 71; width: min(360px, calc(100vw - 48px));
   max-height: 80vh; overflow-y: auto;
   background: var(--glaze); border: 1px solid var(--line); border-radius: 20px;
   box-shadow: 0 16px 40px rgba(20, 16, 12, 0.2); padding: 26px 24px 22px;
   text-align: left;
-  animation: statExplainPopIn 220ms ease both;
+  animation: explainModalIn 220ms ease both;
 }
-@keyframes statExplainPopIn {
+@keyframes explainModalIn {
   from { opacity: 0; transform: translate(-50%, -50%) scale(0.96); }
   to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 }
-@media (prefers-reduced-motion: reduce) { .stat-explain-modal { animation: none; transform: translate(-50%, -50%); } }
-.stat-explain-title { font-family: var(--font-display); font-size: 20px; font-weight: 700; color: var(--ink); text-align: center; margin-bottom: 12px; }
-.stat-explain-body { font-size: 16px; color: var(--ink-soft); line-height: 1.65; text-align: left; }
-.stat-explain-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+@media (prefers-reduced-motion: reduce) { .explain-modal { animation: none; transform: translate(-50%, -50%); } }
+.explain-modal-title { font-family: var(--font-display); font-size: 20px; font-weight: 700; color: var(--ink); text-align: center; margin-bottom: 12px; }
+.explain-modal-body { font-size: 16px; color: var(--ink-soft); line-height: 1.65; text-align: left; }
+.explain-modal-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+/* Undo the <button> UA reset so a SealStamp 印 looks identical to the old inline
+   <span>; size/color still come from .seal-stamp (and any context override). */
+.seal-stamp-btn { border: none; padding: 0; cursor: pointer; }
 
 .rated-banner {
   display: flex; align-items: center; gap: 12px;
@@ -1357,33 +1362,14 @@ button { font: inherit; cursor: pointer; }
 .duel-head-center { display: flex; align-items: center; gap: 4px; }
 .duel-title { font-family: var(--font-display); font-size: 24px; }
 /* The 印 stamp up here scales with the title — a square, not just bigger text, so it
-   still reads as the same stamped-icon shape. Now a <button> (tap -> explain card),
-   so the UA button reset needs undoing to keep the exact same look. */
+   still reads as the same stamped-icon shape. It's a SealStamp (<button>); the
+   .seal-stamp-btn reset lives with the shared modal CSS. Tapping it opens the shared
+   ExplainModal (same card as the 味 AI stat explainers). */
 .duel-head .seal-stamp { width: 24px; height: 24px; border-radius: 6px; font-size: 19px; }
-.duel-seal-btn { border: none; padding: 0; }
 .duel-x {
   position: absolute; right: 0; top: 50%; transform: translateY(-50%);
   display: inline-flex; padding: 2px; background: none; border: none; color: var(--ink-soft); cursor: pointer;
 }
-/* Tap-to-reveal card: what the 印 seal means. Anchored under the centered header,
-   a quiet paper card (same treatment as .seal-reveal) rather than a second
-   full-screen modal — reading it is a small aside, not a new flow. */
-.duel-seal-explain {
-  position: absolute; top: 100%; left: 50%;
-  z-index: 2; width: min(300px, 86vw); margin-top: 8px;
-  background: #faf7f1; border: 1px solid #e2ddd2; border-radius: 14px;
-  padding: 14px 16px; text-align: center;
-  /* NOT .seal-reveal's sealCardIn — its translateY(0) end-state would clobber the
-     translateX(-50%) horizontal centering below (both live in `transform`). */
-  animation: duelSealPopIn 220ms ease both;
-}
-@keyframes duelSealPopIn {
-  from { opacity: 0; transform: translate(-50%, 6px); }
-  to   { opacity: 1; transform: translate(-50%, 0); }
-}
-@media (prefers-reduced-motion: reduce) { .duel-seal-explain { animation: none; transform: translateX(-50%); } }
-.duel-seal-explain-title { font-family: var(--font-display); font-weight: 700; font-size: 15px; color: var(--ink); margin-bottom: 4px; }
-.duel-seal-explain-body { font-size: 13px; color: var(--ink-soft); line-height: 1.5; margin-bottom: 10px; }
 
 .duel-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: stretch; }
 .duel-pair.resolving { display: flex; justify-content: center; }

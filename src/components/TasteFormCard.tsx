@@ -9,7 +9,7 @@ import { TasteFormLive, TasteFormReveal } from './TasteForm';
 import { topGlyphDims } from '@/lib/blobForm';
 import { useLang, cuisineLabel } from '@/lib/i18n';
 import TasteExport from './TasteExport';
-import { CheckIcon } from './icons';
+import ExplainModal from './ExplainModal';
 import type { ExportDish } from '@/lib/tasteExport';
 import type { Persona } from '@/lib/persona';
 
@@ -151,28 +151,22 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
           </button>
         ))}
         {openStat && (
-          <>
-            <div className="lang-scrim" onClick={() => setOpenStat(null)} />
-            <div className="stat-explain-modal" role="dialog" aria-label={t(`buddy.${openStat}`)}>
-              <p className="stat-explain-title">{t(`buddy.${openStat}`)}</p>
-              <p className="stat-explain-body">{t(`buddy.explain.${openStat}`, { total: state.stats.dims_total })}</p>
-              {/* 菜系 additionally shows the real cuisine-affinity breakdown — the
-                  same pills the old standalone card at the bottom of the page used
-                  to show, now living where the number is actually explained. */}
-              {openStat === 'cuisines' && topCuisines.length > 0 && (
-                <div className="stat-explain-chips">
-                  {topCuisines.map(([c, v]) => (
-                    <span className={`chip ${v > 0 ? 'on' : ''}`} key={c}>
-                      {cuisineLabel(c, lang) || c} {v > 0 ? '↑' : '↓'}
-                    </span>
-                  ))}
-                </div>
-              )}
-              <div className="ok-circle-wrap">
-                <button className="ok-circle" onClick={() => setOpenStat(null)} aria-label={t('duel.ok')}><CheckIcon size={26} /></button>
+          <ExplainModal
+            title={t(`buddy.${openStat}`)}
+            body={t(`buddy.explain.${openStat}`, { total: state.stats.dims_total })}
+            onClose={() => setOpenStat(null)}
+            // 菜系 additionally shows the real cuisine-affinity breakdown — the same
+            // pills the old standalone card at the bottom of the page used to show.
+            extra={openStat === 'cuisines' && topCuisines.length > 0 ? (
+              <div className="explain-modal-chips">
+                {topCuisines.map(([c, v]) => (
+                  <span className={`chip ${v > 0 ? 'on' : ''}`} key={c}>
+                    {cuisineLabel(c, lang) || c} {v > 0 ? '↑' : '↓'}
+                  </span>
+                ))}
               </div>
-            </div>
-          </>
+            ) : undefined}
+          />
         )}
       </div>
     </div>

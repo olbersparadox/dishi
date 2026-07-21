@@ -414,7 +414,6 @@ export const dict: Record<string, { zh: string; en: string }> = {
     zh: 'Dishi 在你選擇之前就秘密寫下對你會選哪樣的預測——封存的內容無人能看見，連你自己也不例外。選擇之後才揭開，看預測是否準確。',
     en: 'Dishi writes down its guess before you pick — sealed, so nobody, not even you, can peek. It only opens after you choose.',
   },
-  'seal.explain.close': { zh: '明白了', en: 'Got it' },
   'seal.reveal.hit': { zh: '揭開封印 — 預測命中', en: 'Broke the seal \u2014 nailed it' },
   'seal.reveal.near': { zh: '拆開個印 \u2014 幾接近', en: 'Broke the seal \u2014 close' },
   'seal.reveal.miss': { zh: '揭開封印 — 預測落空', en: 'Broke the seal \u2014 missed it' },

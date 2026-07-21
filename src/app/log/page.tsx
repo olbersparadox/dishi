@@ -8,6 +8,7 @@ import { normalizePhoto } from '@/lib/image';
 import { toDisplayable } from '@/lib/heic';
 import { readPhotoMeta } from '@/lib/photoMeta';
 import DishName from '@/components/DishName';
+import SealStamp from '@/components/SealStamp';
 import PhotoPicker from '@/components/PhotoPicker';
 import { CloseIcon, CameraIcon, RateIcon, TrashIcon, EditIcon, CheckIcon } from '@/components/icons';
 import { useLang, cuisineLabel } from '@/lib/i18n';
@@ -586,7 +587,7 @@ function LogFlow() {
                 <div style={{ minWidth: 0 }}>
                   <div className="pick-card-name">
                   <DishName name={p.name} name_zh={p.name_zh}
-                    suffix={sealedIds.has(p.id) && <span className="seal-stamp" title={t('seal.stamp.title')} aria-label={t('seal.stamp.title')}>印</span>} />
+                    suffix={sealedIds.has(p.id) && <SealStamp />} />
                 </div>
                   <div className="pick-card-meta">{p.restaurant ?? t('home.homecooking')}</div>
                 </div>

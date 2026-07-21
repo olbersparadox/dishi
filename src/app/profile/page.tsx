@@ -6,6 +6,7 @@ import { supabaseBrowser } from '@/lib/supabase/client';
 import TasteFormCard from '@/components/TasteFormCard';
 import SealReveal, { type SealResult } from '@/components/SealReveal';
 import DishName from '@/components/DishName';
+import SealStamp from '@/components/SealStamp';
 import type { ExportDish } from '@/lib/tasteExport';
 import { isPersona, type Persona } from '@/lib/persona';
 import { RateIcon, TrashIcon, UtensilsIcon, HomeIcon, PhotoIcon } from '@/components/icons';
@@ -234,7 +235,7 @@ function TasteProfile() {
               <div style={{ minWidth: 0 }}>
                 <div className="pick-card-name">
                 <DishName id={p.id} name={p.name} name_zh={p.name_zh}
-                  suffix={sealedIds.has(p.id) && <span className="seal-stamp" title={t('seal.stamp.title')} aria-label={t('seal.stamp.title')}>印</span>} />
+                  suffix={sealedIds.has(p.id) && <SealStamp />} />
               </div>
                 <div className="pick-card-meta">{p.restaurant ?? t('home.homecooking')}</div>
               </div>

@@ -8,6 +8,7 @@ import { useState } from 'react';
 import { useLang, type LangPair } from '@/lib/i18n';
 import DishName from './DishName';
 import { CloseIcon, CheckIcon } from './icons';
+import SealStamp from './SealStamp';
 import { pickDistrict, type DistrictMap } from '@/lib/district';
 
 export type DuelDish = {
@@ -43,7 +44,6 @@ export default function DuelOverlay({ duel, onClose }: { duel: Duel; onClose: (r
   const [reveal, setReveal] = useState<Reveal | null>(null);
   const [busy, setBusy] = useState(false);
   const [closing, setClosing] = useState(false);
-  const [sealExplain, setSealExplain] = useState(false); // tap 印 -> what the seal means
 
   function close(resolved: boolean) {
     if (closing) return;
@@ -76,17 +76,9 @@ export default function DuelOverlay({ duel, onClose }: { duel: Duel; onClose: (r
                 see CSS) so it doesn't skew that centering. */}
             <div className="duel-head-center">
               <span className="duel-title">{t('duel.title')}</span>
-              <button type="button" className="seal-stamp duel-seal-btn" onClick={() => setSealExplain(v => !v)}
-                aria-label={t('seal.stamp.title')} aria-expanded={sealExplain} title={t('seal.stamp.title')}>印</button>
+              <SealStamp />
             </div>
             {!reveal && <button className="duel-x" onClick={() => close(false)} aria-label={t('home.cancel')}><CloseIcon /></button>}
-            {sealExplain && (
-              <div className="duel-seal-explain" role="dialog" aria-label={t('seal.explain.title')}>
-                <p className="duel-seal-explain-title">{t('seal.explain.title')}</p>
-                <p className="duel-seal-explain-body">{t('seal.explain.body')}</p>
-                <button className="btn ghost small" onClick={() => setSealExplain(false)}>{t('seal.explain.close')}</button>
-              </div>
-            )}
           </div>
 
           <div className={`duel-pair ${resolving ? 'resolving' : ''}`}>
