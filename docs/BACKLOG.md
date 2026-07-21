@@ -398,7 +398,7 @@ with Jerry — do not invent perks; build the mechanical scaffold only.
 
 ---
 
-## 1. Unbounded version ladder (replaces Levels) — *(Fable 5)*
+## 1. Unbounded version ladder (replaces Levels) — *(Fable 5)* — ✅ DONE `89c36f3` (v1≡export-unlock structural; substrate (rc/25)^0.75 + capped dims + uncapped cuisines; gaps 0.65×1.25^n; ratchet column version_unlocked applied live; 13 tests incl. pacing snapshot)
 
 **Core:** new pure module function `versionForProfile(inputs) →
 { version, progress, nextAt }` alongside the existing buddy math.
@@ -447,7 +447,7 @@ curve tweak is a conscious diff, not an accident).
 
 ---
 
-## 2. Auto-seal on version unlock — *(fold into item 1, Fable 5)*
+## 2. Auto-seal on version unlock — *(fold into item 1, Fable 5)* — ✅ DONE `89c36f3` (shared stakeSeal helper, strongest |contentScore| unrated dish, honest no-op when none; /api/seals refactored onto the same core)
 
 At the moment a new version unlocks, the engine stakes ONE sealed
 prediction (reuse `sealed_predictions` wholesale — no new tables/UI): its
