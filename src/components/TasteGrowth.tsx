@@ -15,7 +15,8 @@ import { wordKeyFor } from '@/lib/flickWords';
 import DishName from '@/components/DishName';
 import DishInfoDisplay from '@/components/DishInfoDisplay';
 import { CheckIcon, CloseIcon } from '@/components/icons';
-import { sampleForm, formToSvgPath, type FormInputs } from '@/lib/blobForm';
+import { topGlyphDims, type FormInputs } from '@/lib/blobForm';
+import { TasteFormLive } from '@/components/TasteForm';
 
 // A real nearby restaurant option (from EXIF → /api/restaurants/nearby), carrying what
 // it takes to PERSIST the pick: a Dishi row (restaurant_id) or a Google place (place_id
@@ -80,7 +81,12 @@ const emptyDish = (): Dish => ({ named: false, ing: [], diet: [], places: [], pl
 type Flyer = { id: number; word: string; x: number; y: number };
 
 export type NameEdit = { zh: string; en: string; edZh: boolean; edEn: boolean };
-export type GrowEngine = { fill: number; ready: boolean; v: number; hintKey: string; hintParams?: Record<string, number> };
+export type GrowEngine = {
+  fill: number; ready: boolean; v: number; hintKey: string; hintParams?: Record<string, number>;
+  /** True only when the version ratcheted UP during THIS session — the one moment
+   *  「已經解鎖」 is news. Otherwise the line reads as progress toward v{n+1}. */
+  justUnlocked?: boolean;
+};
 
 export default function TasteGrowth({ live, engine, blobInputs, onExit, onCancel, onPickPlace, onAddPlace, onEditName, onReclassify, onRetry }: {
   live: GrowDish[];
@@ -110,10 +116,13 @@ export default function TasteGrowth({ live, engine, blobInputs, onExit, onCancel
   // changes (RatingStack refreshes it after every seal/rate/enrich), so the blob's
   // actual silhouette grows mid-session as ratings commit.
   const effectiveBlobInputs: FormInputs = blobInputs ?? { vector: {}, evidence: {}, ratingCount: 0, seed: 'grow:loading' };
-  const blobPath = useMemo(
-    () => formToSvgPath(sampleForm(effectiveBlobInputs, 96), 100),
+  // The header blob IS the Taste-AI blob — the same TasteFormLive canvas (ink
+  // gradient, breathing highlight, glyph characters), not a static SVG imitation of
+  // it. Same inputs + same seed as the 味 AI card, so the two are pixel-siblings.
+  const glyph = useMemo(
+    () => topGlyphDims(effectiveBlobInputs.vector, effectiveBlobInputs.evidence).map(d => t(`dim.${d}`).charAt(0)).join(' '),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [effectiveBlobInputs.seed, effectiveBlobInputs.ratingCount, JSON.stringify(effectiveBlobInputs.vector), JSON.stringify(effectiveBlobInputs.evidence)],
+    [JSON.stringify(effectiveBlobInputs.vector), JSON.stringify(effectiveBlobInputs.evidence)],
   );
   const [dishes, setDishes] = useState<Dish[]>(() => Array.from({ length: rowCount }, emptyDish));
   const [fill, setFill] = useState(BASE);
@@ -212,9 +221,15 @@ export default function TasteGrowth({ live, engine, blobInputs, onExit, onCancel
   // which lied to anyone already past v1; until the real reading lands the line is a
   // neutral "analysing" instead.
   const barLine = engine
-    ? (engine.ready ? t('version.unlocked', { n: engine.v }) : t(engine.hintKey, engine.hintParams))
+    ? (engine.ready
+        // 「已經解鎖」 only when the unlock happened in THIS session; a long-unlocked
+        // profile instead reads its live progress toward the next version.
+        ? (engine.justUnlocked ? t('version.unlocked', { n: engine.v }) : t('grow.vnext', { v: engine.v, next: engine.v + 1 }))
+        : t(engine.hintKey, engine.hintParams))
     : t('grow.analysing');
-  const blobScale = 0.72 + Math.min(absorbed, 16) * 0.05;
+  // Gentler range than the old 66px SVG needed: the canvas is already near full
+  // header height, so growth reads as swelling, not ballooning past the wrap.
+  const blobScale = 0.85 + Math.min(absorbed, 16) * 0.012;
 
   // refinement = reward: RatingStack owns the choice (it persists it) — it round-trips
   // back via `live`.
@@ -287,9 +302,10 @@ export default function TasteGrowth({ live, engine, blobInputs, onExit, onCancel
               style={{ ['--x' as string]: `${f.x}px`, ['--y' as string]: `${f.y}px` } as React.CSSProperties}>{f.word}</span>
           ))}
           <div className="grow-blob" style={{ transform: `scale(${blobScale.toFixed(3)})` }} aria-hidden>
-            <svg viewBox="0 0 100 100" width="66" height="66">
-              <path d={blobPath} fill="var(--ink)" />
-            </svg>
+            {/* key on seed: TasteFormLive samples its shape once per mount (deps
+                [inputs.seed, size]), so remount when the real profile arrives —
+                otherwise the loading-fallback circle would stick for the session. */}
+            <TasteFormLive key={effectiveBlobInputs.seed} inputs={effectiveBlobInputs} size={150} glyph={glyph} />
           </div>
         </div>
         <h2 className="grow2-title">{t('grow.build.title')}</h2>

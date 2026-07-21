@@ -85,25 +85,38 @@ export default function RatingStack({ photos, picks, userId, onExit }: {
   // version ladder: progress toward the NEXT version (toward v1 while locked), and
   // the ratcheted version number for the unlocked line. Refreshed as ratings +
   // enrichment land (both move the profile).
-  const [engine, setEngine] = useState<{ fill: number; ready: boolean; v: number; hintKey: string; hintParams?: Record<string, number> } | null>(null);
+  const [engine, setEngine] = useState<{ fill: number; ready: boolean; v: number; hintKey: string; hintParams?: Record<string, number>; justUnlocked?: boolean } | null>(null);
   // The REAL profile inputs behind the growth screen's header blob — the same
   // vector/evidence/ratingCount/seed blobForm.ts consumes everywhere else, so the
   // shape growing in front of the user IS their actual identity, not a mock. Same
   // response as `engine` above; refreshed together so the bar and the blob can never
   // show two different moments of the profile.
   const [blobInputs, setBlobInputs] = useState<FormInputs | null>(null);
+  const baselineV = useRef<number | null>(null); // version at session start (see justUnlocked)
+  // While any rating session is open, hide the Taste-AI page's own blob behind the
+  // glass (body class → .taste-blob-anchor). The overlays here are deliberately
+  // translucent — the page glows through — but two blobs reading at once looked like
+  // a mistake; the only blob on screen should be the growth header's.
+  useEffect(() => {
+    document.body.classList.add('rating-open');
+    return () => document.body.classList.remove('rating-open');
+  }, []);
   const refreshBuddy = async () => {
     try {
       const j = await fetch('/api/buddy').then(r => (r.ok ? r.json() : null));
       const s = j?.state;
       const vz = s?.version;
       if (!vz || typeof vz.progress !== 'number') return;
+      // Remember the version the session STARTED at, so 「已經解鎖」 fires only when
+      // the ladder actually moves in front of the user — not on every visit forever.
+      if (baselineV.current === null) baselineV.current = vz.v;
       setEngine({
         fill: Math.min(100, vz.progress * 100),
         ready: vz.v >= 1,          // v1 ≡ the export unlock, by construction
         v: vz.v,
         hintKey: s.hint?.key ?? 'buddy.hint.tune',
         hintParams: s.hint?.params,
+        justUnlocked: vz.v > (baselineV.current ?? vz.v),
       });
       setBlobInputs({
         vector: s.vector ?? {}, evidence: s.evidence ?? {},

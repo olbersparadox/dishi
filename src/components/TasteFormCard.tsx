@@ -105,10 +105,14 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
           chips, and the "honest" footnote line — is removed (the underlying
           /api/buddy data is unchanged; only these three UI extras are gone).
           Centering of the blob is handled inside TasteFormReveal. */}
-      <TasteFormReveal
-        inputs={formInputs} size={190} glyph={glyph}
-        vector={state.vector} labelFor={(dim) => t(`dim.${dim}`)}
-      />
+      {/* .taste-blob-anchor: hidden (via body.rating-open) while a rating session's
+          glass overlay is up, so its blob never ghosts behind the growth screen's. */}
+      <div className="taste-blob-anchor">
+        <TasteFormReveal
+          inputs={formInputs} size={190} glyph={glyph}
+          vector={state.vector} labelFor={(dim) => t(`dim.${dim}`)}
+        />
+      </div>
 
       {/* The version line: V{n} (the ratcheted dishi version) leads the 識咗/摸緊
           legend, and the bar below runs the FULL stat-line width toward V{n+1} at its

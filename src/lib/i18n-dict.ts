@@ -395,6 +395,8 @@ export const dict: Record<string, { zh: string; en: string }> = {
   // The version ladder (replaced Levels + the "Taste AI 1.0" naming): steady-state
   // unlocked line on the growth screen and anywhere else the ladder speaks.
   'version.unlocked': { zh: 'dishi v{n} 已經解鎖', en: 'dishi v{n} unlocked' },
+  // The everyday (non-unlock-moment) bar line: current version + where it's heading.
+  'grow.vnext': { zh: 'dishi v{v} · 邁向 v{next}', en: 'dishi v{v} · growing toward v{next}' },
   'grow.reanalysing': { zh: '重新分析緊…', en: 're-analysing…' },
   'grow.close': { zh: '關閉', en: 'Close' },
   'grow.analysing': { zh: '分析緊…', en: 'analysing…' },

@@ -356,16 +356,20 @@ button { font: inherit; cursor: pointer; }
 
 /* Review + reward ride in a full-screen sheet over the Taste AI page (the flick
    phase uses the glass .snap-overlay instead). */
-/* OPAQUE, not glass. This sheet used to be the same blurred glass as the flick screen,
-   which let the Taste-AI page behind it show through — including its big taste blob.
-   The result read as TWO blobs: a large ghost one in the background and the small real
-   one above 建立個人化口味 AI. There is only ever one blob, and it belongs on the title.
-   (The flick phase keeps its glass .snap-overlay — nothing blob-like sits behind it.) */
+/* Glass, like the flick screen — the Taste-AI page glows through, blurred and
+   brightened, so the review floats on the live app rather than a separate page.
+   The page's own blob is HIDDEN while any rating session is open (see
+   body.rating-open below) so it can't ghost behind the growth header's blob —
+   the one blob on screen is the real TasteFormLive above 建立個人化口味 AI. */
 .rate-sheet {
   position: fixed; inset: 0; z-index: 50; overflow-y: auto;
-  background: var(--glaze);
+  background: rgba(250, 247, 241, 0.45);
+  backdrop-filter: blur(14px) brightness(1.12) saturate(1.05);
+  -webkit-backdrop-filter: blur(14px) brightness(1.12) saturate(1.05);
   overscroll-behavior: contain;
 }
+/* RatingStack stamps this class for its whole lifetime (flick AND review phases). */
+body.rating-open .taste-blob-anchor { visibility: hidden; }
 /* width + side margins match .shell (max-width 420, 12px gutters) so the sheet reads as
    the same column as every other section */
 .rate-sheet-inner { max-width: 420px; margin: 0 auto; padding: 28px 12px 96px; min-height: 100%; }
