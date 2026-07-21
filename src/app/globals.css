@@ -206,6 +206,20 @@ button { font: inherit; cursor: pointer; }
 .chip.chip-util.on { background: var(--ink); border-color: transparent; color: var(--glaze); }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
 
+/* 名印 — a table member's chop, standing in for a photo avatar (Table Mode social
+   batch, item 2). INK ONLY. This is the one place the temptation toward vermillion
+   will be strongest (a red ink chop is a genuinely good look) — do not do it; see
+   CLAUDE.md's vermillion reservation (seal stamp / export CTA / dish-edit dirty
+   state, nothing else). Per-user radius/rotation/border-weight are inline styles
+   from deriveChopStyle (src/lib/chop.ts), not here — this rule only sets what
+   never varies. */
+.chop {
+  display: inline-flex; align-items: center; justify-content: center;
+  flex-shrink: 0; border: 1.5px solid var(--ink); color: var(--ink);
+  background: var(--glaze); font-family: var(--font-display); line-height: 1;
+}
+.chop-row { display: inline-flex; align-items: center; gap: 6px; }
+
 .field { width: 100%; border: 1px solid var(--line); border-radius: 10px; padding: 11px 12px; font: inherit; background: var(--paper-raised); }
 .label { display: block; font-size: 14px; font-weight: 400; color: var(--ink-soft); margin: 18px 0 8px; }
 

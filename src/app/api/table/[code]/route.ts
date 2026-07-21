@@ -35,10 +35,14 @@ export async function GET(_req: NextRequest, { params }: { params: { code: strin
   }
 
   const [{ data: profiles }, { data: tastes }] = await Promise.all([
-    admin.from('profiles').select('id, handle').in('id', memberIds),
+    // display_name kept OUT of GroupMember below (rankForGroup has no use for it,
+    // and the type is the group-consensus engine's own contract) — carried
+    // separately and attached only to the response members[].
+    admin.from('profiles').select('id, handle, display_name').in('id', memberIds),
     admin.from('taste_profiles').select('user_id, vector, cuisine_affinity, rating_count').in('user_id', memberIds),
   ]);
   const tasteById = new Map((tastes ?? []).map(t => [t.user_id, t]));
+  const displayNameById = new Map((profiles ?? []).map(p => [p.id, p.display_name as string | null]));
   const members: GroupMember[] = (profiles ?? []).map(p => {
     const t = tasteById.get(p.id);
     return {
@@ -118,8 +122,14 @@ export async function GET(_req: NextRequest, { params }: { params: { code: strin
     has_menu: !!session.menu_items || !!session.table_id,
     orderable: !!session.table_id,
     table: tableInfo,
+    // Own user id — so the client can pick itself out of members[] (a chop's
+    // one-time setup prompt only ever targets the viewer's own row) without
+    // relying on handle/display_name matching, which isn't guaranteed unique.
+    you: user.id,
     members: members.map(m => ({
+      user_id: m.user_id,
       handle: m.handle,
+      display_name: displayNameById.get(m.user_id) ?? null,
       has_profile: !!m.vector && m.rating_count > 0,
       rating_count: m.rating_count,
     })),

@@ -4,10 +4,12 @@ import AuthGate from '@/components/AuthGate';
 import { normalizePhoto } from '@/lib/image';
 import DishName from '@/components/DishName';
 import PhotoPicker from '@/components/PhotoPicker';
+import Chop from '@/components/Chop';
 import { useLang, cuisineLabel } from '@/lib/i18n';
 import { sumPrices } from '@/lib/price';
+import { supabaseBrowser } from '@/lib/supabase/client';
 
-type Member = { handle: string; has_profile: boolean; rating_count: number };
+type Member = { user_id: string; handle: string; display_name: string | null; has_profile: boolean; rating_count: number };
 type RankedItem = {
   key: string; name: string; name_zh?: string | null; name_original?: string; price?: string | null;
   hook?: string; cuisine: string | null; photo_url?: string | null;
@@ -19,8 +21,14 @@ type TablePick = { name: string; name_zh: string | null; handle: string; identit
 type SessionState = {
   code: string; session_id: string; restaurant_id: string | null;
   status: string; is_host: boolean; has_menu: boolean; orderable: boolean;
-  members: Member[]; items: RankedItem[]; table_picks: TablePick[];
+  you: string; members: Member[]; items: RankedItem[]; table_picks: TablePick[];
 };
+
+// "Never nag" (backlog, item 2): a skipped chop-name prompt must not reappear every
+// visit. There's no server-side "dismissed" state — the fallback (handle) is a fully
+// valid permanent choice — so a device-local flag is the right amount of memory:
+// enough to honor a skip, with no server round-trip or schema for a UI-only choice.
+const CHOP_PROMPT_DISMISSED_KEY = 'dishi_chop_prompt_dismissed';
 
 export default function TablePage() {
   return (
@@ -139,6 +147,33 @@ function Session({ code, onLeave }: { code: string; onLeave: () => void }) {
   const [error, setError] = useState('');
   const [picking, setPicking] = useState<string | null>(null); // item.key currently saving
   const [pickedKeys, setPickedKeys] = useState<Set<string>>(new Set());
+  const [chopName, setChopName] = useState('');
+  const [chopSaving, setChopSaving] = useState(false);
+  const [chopDismissed, setChopDismissed] = useState(true); // true (hidden) until checked, so the prompt never flashes on
+  useEffect(() => {
+    setChopDismissed(typeof window !== 'undefined' && localStorage.getItem(CHOP_PROMPT_DISMISSED_KEY) === '1');
+  }, []);
+  const dismissChopPrompt = () => {
+    if (typeof window !== 'undefined') localStorage.setItem(CHOP_PROMPT_DISMISSED_KEY, '1');
+    setChopDismissed(true);
+  };
+  // 名印 one-time setup: type a display name, done — persisted straight to the
+  // person's own profile row (RLS: "own profile writable", auth.uid() = id, no
+  // admin client needed). Saving also counts as dismissing — there's nothing left
+  // to prompt for.
+  async function saveChopName() {
+    const name = chopName.trim();
+    if (!name) return;
+    setChopSaving(true);
+    try {
+      const { data: { user } } = await supabaseBrowser().auth.getUser();
+      if (!user) return;
+      const { error } = await supabaseBrowser().from('profiles').update({ display_name: name }).eq('id', user.id);
+      if (!error) { dismissChopPrompt(); await refresh(); }
+    } finally {
+      setChopSaving(false);
+    }
+  }
 
   /**
    * "Order" (real registered table, orderable=true) vs "Picked" (a plain community
@@ -230,13 +265,41 @@ function Session({ code, onLeave }: { code: string; onLeave: () => void }) {
       </div>
 
       <div className="chips" style={{ margin: '8px 0' }}>
+        {/* 名印 next to each name — the fallback handle (mosuko-i47v) is what a
+            member displays until THEY set a display_name; other people's own
+            fallback state is never something this client should nudge about, only
+            the viewer's own row triggers the setup prompt below. */}
         {state.members.map(m => (
-          <span key={m.handle} className={`chip ${m.has_profile ? 'on' : ''}`}>
-            {m.handle}{!m.has_profile && <span style={{ opacity: 0.55 }}> · {t('table.noprofile')}</span>}
+          <span key={m.user_id} className={`chip chop-row ${m.has_profile ? 'on' : ''}`}>
+            <Chop userId={m.user_id} name={m.display_name ?? m.handle} size={20} />
+            {m.display_name ?? m.handle}{!m.has_profile && <span style={{ opacity: 0.55 }}> · {t('table.noprofile')}</span>}
           </span>
         ))}
         <button className="chip" onClick={share}>{t('table.invite')}</button>
       </div>
+
+      {/* One-time 名印 setup: only for the viewer's own row, only once per device
+          (see CHOP_PROMPT_DISMISSED_KEY) — a genuinely optional identity touch,
+          never a blocking gate on using the table. */}
+      {!chopDismissed && state.members.find(m => m.user_id === state.you && !m.display_name) && (
+        <div className="card" style={{ marginBottom: 14 }}><div className="card-body">
+          <p style={{ fontWeight: 700, marginBottom: 6, fontSize: 14 }}>{t('table.chop.title')}</p>
+          <p className="card-meta" style={{ marginBottom: 10 }}>{t('table.chop.blurb')}</p>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input className="field" value={chopName} maxLength={24}
+              placeholder={t('table.chop.placeholder')}
+              onChange={e => setChopName(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') saveChopName(); }} />
+            <button className={`btn primary small ${chopName.trim() ? 'dirty' : ''}`}
+              disabled={!chopName.trim() || chopSaving} onClick={saveChopName}>
+              {chopSaving ? t('log.saving') : t('home.save')}
+            </button>
+          </div>
+          <button className="btn ghost small" style={{ marginTop: 8 }} onClick={dismissChopPrompt}>
+            {t('table.chop.skip')}
+          </button>
+        </div></div>
+      )}
 
       {/* 讀到 N 道菜 — the same header language scan's settled list uses, so a
           table session reads as the same product moment whether it started from a

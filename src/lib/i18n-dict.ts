@@ -344,6 +344,13 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'table.nomenu': { zh: '（尚無餐牌 — 正以 Dishi 上的菜式排列。）', en: '(No menu attached — ranking dishes from around Dishi.)' },
   'table.unanimous': { zh: '全檯啱', en: 'whole table' },
   'table.fairness': { zh: '公平之選', en: 'fairness call' },
+  // 名印 one-time setup (Table Mode social batch, item 2) — a display name for the
+  // chop avatar; skipping is a real, permanent choice (falls back to the auto handle
+  // forever), not a "later" that nags again.
+  'table.chop.title': { zh: '刻個名印', en: 'Cut your chop' },
+  'table.chop.blurb': { zh: '改個名俾自己，其他人喺呢張檯都會見到。', en: 'Pick a name for yourself — everyone at this table will see it.' },
+  'table.chop.placeholder': { zh: '你的名字', en: 'Your name' },
+  'table.chop.skip': { zh: '遲啲先', en: 'Not now' },
   'table.pulling': { zh: '正在取得餐桌資料…', en: 'Pulling up the table…' },
   'table.copied': { zh: '連結已複製 — 發俾成檯人。', en: 'Link copied — send it to the table.' },
   'table.sharetitle': { zh: '來我這桌 — Dishi', en: 'Join my table on Dishi' },
