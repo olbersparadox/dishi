@@ -290,7 +290,7 @@ export const dict: Record<string, { zh: string; en: string }> = {
   // translated name over the original menu text + ingredient chips; this rec chip
   // is the constant — dishi's personalised pick. 'your match' reads as a verdict.
   'scan.benefit.rec': { zh: '啱你口味', en: 'your match' },
-  'scan.help.title': { zh: '哪一道最適合你？', en: 'Which dish is for you?' },
+  'scan.help.title': { zh: '有時真係唔知食乜好', en: 'Never sure what to order?' },
   'scan.help.body': {
     zh: '拍下餐牌，dishi 會根據你的口味，告訴你整張餐牌上哪幾道最適合你，同時標出食材與致敏原。去到日本、韓國、泰國，外語菜名也一樣翻譯成你看得懂的文字，走到哪裡都點得稱心。',
     en: 'Snap the menu and dishi tells you which dishes on it suit your taste, flagging ingredients and allergens along the way. Travelling in Japan, Korea or Thailand? It translates foreign dish names into words you understand too, so you order well wherever you are.',
