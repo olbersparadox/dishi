@@ -286,7 +286,14 @@ export const dict: Record<string, { zh: string; en: string }> = {
 
   // ---- scan ----
   'scan.title': { zh: '掃餐牌', en: 'Scan a menu' },
-  'scan.tip': { zh: '平放影全頁效果最好。中文、英文、中英夾雜都得', en: 'Works best flat-on with the whole page in frame. Chinese, English, or both.' },
+  // The scan-dropzone benefit mock: a miniature of a scanned dish (translated name
+  // over the original menu text + chips), demonstrating what a scan returns. The
+  // Japanese original deliberately sells "any-language menus" without saying it.
+  'scan.benefit.primary': { zh: '豚骨拉麵', en: 'Tonkotsu ramen' },
+  'scan.benefit.secondary': { zh: 'とんこつラーメン', en: 'とんこつラーメン' },
+  'scan.benefit.chip1': { zh: '豬', en: 'pork' },
+  'scan.benefit.chip2': { zh: '蒜', en: 'garlic' },
+  'scan.benefit.rec': { zh: '啱你口味', en: 'your match' },
   'scan.tablestatus': { zh: '|    {n} 人 · 已選 {m} 道', en: '|    {n} here · {m} picked' },
   'scan.tablelabel': { zh: '枱號：', en: 'Table ' },
   'scan.share.alsopicked': { zh: '{handles} 也選了', en: '{handles} picked this too' },

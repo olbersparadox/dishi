@@ -592,8 +592,9 @@ function Scanner() {
         {/* SCANNING A MENU IS THE PRIMARY ACTION and now comes first, before the
             table-join box. Solo scanning is by far the more common path; joining a
             friend's table is the occasional one, so it sits below and deliberately
-            reads quieter. The dropzone is icon-only (thin camera, no label) to
-            match the design mock — the scan.tip line under it carries the words. */}
+            reads quieter. Icons left; the right side is a MINIATURE of what a scan
+            hands back — translated dish line + ingredient chips + dishi's rec —
+            showing the payoff instead of describing the mechanics. */}
         {scanning ? (
           <p className="scan-status" role="status">{t(SCAN_STAGE_KEYS[stage])}</p>
         ) : (
@@ -607,7 +608,15 @@ function Scanner() {
                     <CameraIcon size={42} strokeWidth={1.1} />
                     <MenuBookIcon size={59} />
                   </span>
-                  <span className="scan-dropzone-tip">{t('scan.tip')}</span>
+                  <span className="scan-benefit">
+                    <span className="scan-benefit-name">{t('scan.benefit.primary')}</span>
+                    <span className="scan-benefit-sub">{t('scan.benefit.secondary')}</span>
+                    <span className="scan-benefit-chips">
+                      <span className="scan-benefit-chip">{t('scan.benefit.chip1')}</span>
+                      <span className="scan-benefit-chip">{t('scan.benefit.chip2')}</span>
+                      <span className="scan-benefit-chip rec">✓ {t('scan.benefit.rec')}</span>
+                    </span>
+                  </span>
                 </span>
               }
               hideLabel
