@@ -692,10 +692,11 @@ button { font: inherit; cursor: pointer; }
   border-radius: 16px; overflow: hidden;
   margin-bottom: 26px;
 }
-/* Small circled ⓘ pinned to the card's top-right — a quiet affordance on the dark
-   ground, brightening on press. Sits above the segment <label>s (z-index) so its
-   own tap opens the explainer rather than the photo picker underneath. */
-.log-src-info {
+/* Small circled ⓘ pinned to a dark card's top-right — a quiet affordance that
+   brightens on press. Shared by the Taste-AI rate-photo card and the scan banner;
+   sits above the card's own tap target (z-index) so its tap opens the explainer,
+   not the picker/segment underneath. */
+.card-info-badge {
   position: absolute; top: 8px; right: 8px; z-index: 2;
   width: 20px; height: 20px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
@@ -706,7 +707,7 @@ button { font: inherit; cursor: pointer; }
      as a clean icon glyph instead. */
   font-family: system-ui, -apple-system, sans-serif; font-size: 12.5px; font-weight: 600; line-height: 1;
 }
-.log-src-info:active { background: rgba(245, 240, 232, 0.16); }
+.card-info-badge:active { background: rgba(245, 240, 232, 0.16); }
 .log-src-seg {
   position: relative;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
@@ -813,21 +814,30 @@ button { font: inherit; cursor: pointer; }
   display: flex; align-items: center; justify-content: center;
   flex: 1 1 auto; min-width: 0; width: auto; height: auto;
 }
+/* Wrap positions the ⓘ over the banner's top-right (see .card-info-badge). */
+.scan-dropzone-wrap { position: relative; }
 /* The scan banner (the menu-scan dropzone specifically) is INKED: a solid black card
-   with white icons + tip — a confident CTA, distinct from the quiet dashed pickers
-   used elsewhere (log/table/owner). Scoped via :has to this dropzone only; the hover
-   variant is pinned too so the base .photo-picker:hover (which flips color to ink)
-   can't turn the text/icons dark-on-black. */
+   with white icons + a live result mock — a confident CTA, distinct from the quiet
+   dashed pickers used elsewhere (log/table/owner). Scoped via :has to this dropzone
+   only; the hover variant is pinned too so the base .photo-picker:hover (which flips
+   color to ink) can't turn the text/icons dark-on-black. Height + radius match the
+   Taste-AI rate-photo card (.log-src-merged): 112px tall, so the two primary-action
+   cards sit identically on their pages. */
 .photo-picker:has(.scan-dropzone-content),
 .photo-picker:has(.scan-dropzone-content):hover {
   background: var(--ink); border: 1px solid var(--ink); color: var(--glaze);
+  height: 112px; padding: 0 16px;
 }
-/* Scan dropzone: icon pair on the left; on the right a miniature scan RESULT —
-   translated dish name over the original menu text, plus ingredient chips and
-   dishi's rec — the benefits shown as the thing itself, not described. */
+/* Scan dropzone: icon pair on the left; on the right a rotating miniature scan
+   RESULT (ScanBenefitDemo) — translated name over the original menu text, chips,
+   and dishi's rec — the benefits shown as the thing itself, not described. */
 .scan-dropzone-content { display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 16px; min-width: 0; }
 .scan-dropzone-icons { display: inline-flex; align-items: center; gap: 2px; flex-shrink: 0; margin-left: 15px; position: relative; top: -1px; }
-.scan-benefit { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; text-align: left; min-width: 0; margin-left: 12px; margin-right: 15px; }
+.scan-benefit { min-width: 0; margin-left: 12px; margin-right: 15px; }
+.scan-benefit-swap { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; text-align: left; }
+.scan-benefit-swap.on { animation: scanBenefitIn 520ms ease both; }
+@keyframes scanBenefitIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .scan-benefit-swap.on { animation: none; } }
 .scan-benefit-name { font-family: var(--font-display); font-size: 17px; font-weight: 600; letter-spacing: 0.05em; color: var(--glaze); line-height: 1.2; }
 .scan-benefit-sub { font-size: 11.5px; letter-spacing: 0.02em; color: rgba(245, 240, 232, 0.62); }
 .scan-benefit-chips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 2px; }

@@ -5,6 +5,8 @@ import AuthGate from '@/components/AuthGate';
 import { normalizePhoto } from '@/lib/image';
 import DishName from '@/components/DishName';
 import PhotoPicker from '@/components/PhotoPicker';
+import ScanBenefitDemo from '@/components/ScanBenefitDemo';
+import ExplainModal from '@/components/ExplainModal';
 import RestaurantPicker, { RestaurantChoice } from '@/components/RestaurantPicker';
 import { mapWithConcurrency } from '@/lib/concurrency';
 import DishInfoDisplay from '@/components/DishInfoDisplay';
@@ -81,6 +83,7 @@ function Scanner() {
   const restored = getScanSession<ScanResponse | null, RestaurantChoice>();
   const [preview, setPreview] = useState<string | null>(null);
   const [scanning, setScanning] = useState(false);
+  const [scanHelp, setScanHelp] = useState(false); // tap the ⓘ on the banner → what a scan returns
   // Appending a second page ("加掃一版"): the existing results stay on screen with a
   // small inline indicator, rather than the full capture screen taking over.
   const [appending, setAppending] = useState(false);
@@ -598,7 +601,9 @@ function Scanner() {
         {scanning ? (
           <p className="scan-status" role="status">{t(SCAN_STAGE_KEYS[stage])}</p>
         ) : (
-          <>
+          // Wrap so the ⓘ can sit over the banner's top-right as a SIBLING of the
+          // picker button (a nested <button> is invalid and would swallow the tap).
+          <div className="scan-dropzone-wrap">
             <PhotoPicker
               key={preview ?? 'fresh'}
               onPick={f => onPick(f)}
@@ -608,20 +613,17 @@ function Scanner() {
                     <CameraIcon size={42} strokeWidth={1.1} />
                     <MenuBookIcon size={59} />
                   </span>
-                  <span className="scan-benefit">
-                    <span className="scan-benefit-name">{t('scan.benefit.primary')}</span>
-                    <span className="scan-benefit-sub">{t('scan.benefit.secondary')}</span>
-                    <span className="scan-benefit-chips">
-                      <span className="scan-benefit-chip">{t('scan.benefit.chip1')}</span>
-                      <span className="scan-benefit-chip">{t('scan.benefit.chip2')}</span>
-                      <span className="scan-benefit-chip rec">✓ {t('scan.benefit.rec')}</span>
-                    </span>
-                  </span>
+                  <ScanBenefitDemo />
                 </span>
               }
               hideLabel
             />
-          </>
+            <button type="button" className="card-info-badge" aria-label={t('scan.help.title')}
+              onClick={e => { e.stopPropagation(); setScanHelp(true); }}>i</button>
+          </div>
+        )}
+        {scanHelp && (
+          <ExplainModal title={t('scan.help.title')} body={t('scan.help.body')} onClose={() => setScanHelp(false)} />
         )}
         {error && <p style={{ color: 'var(--lacquer)', marginTop: 12 }}>{error}</p>}
 

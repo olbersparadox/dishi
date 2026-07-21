@@ -286,14 +286,15 @@ export const dict: Record<string, { zh: string; en: string }> = {
 
   // ---- scan ----
   'scan.title': { zh: '掃餐牌', en: 'Scan a menu' },
-  // The scan-dropzone benefit mock: a miniature of a scanned dish (translated name
-  // over the original menu text + chips), demonstrating what a scan returns. The
-  // Japanese original deliberately sells "any-language menus" without saying it.
-  'scan.benefit.primary': { zh: '豚骨拉麵', en: 'Tonkotsu ramen' },
-  'scan.benefit.secondary': { zh: 'とんこつラーメン', en: 'とんこつラーメン' },
-  'scan.benefit.chip1': { zh: '豬', en: 'pork' },
-  'scan.benefit.chip2': { zh: '蒜', en: 'garlic' },
+  // The scan-dropzone benefit mock (ScanBenefitDemo): rotating dishes each show a
+  // translated name over the original menu text + ingredient chips; this rec chip
+  // is the constant — dishi's personalised pick. 'your match' reads as a verdict.
   'scan.benefit.rec': { zh: '啱你口味', en: 'your match' },
+  'scan.help.title': { zh: '掃餐牌之後', en: 'After you scan' },
+  'scan.help.body': {
+    zh: '拍下餐牌，dishi 立即為你讀通整張——把外語菜名翻譯成你看得懂的文字，標出食材與致敏原，再根據你的口味指出哪一道最適合你。日文、韓文、泰文、西班牙文……任何語言都難不倒。',
+    en: 'Snap the menu and dishi reads the whole thing for you — it translates foreign dish names into words you understand, flags ingredients and allergens, and points out which dishes match your taste. Japanese, Korean, Thai, Spanish — no menu language is a problem.',
+  },
   'scan.tablestatus': { zh: '|    {n} 人 · 已選 {m} 道', en: '|    {n} here · {m} picked' },
   'scan.tablelabel': { zh: '枱號：', en: 'Table ' },
   'scan.share.alsopicked': { zh: '{handles} 也選了', en: '{handles} picked this too' },

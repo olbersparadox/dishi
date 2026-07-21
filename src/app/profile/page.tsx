@@ -206,7 +206,7 @@ function TasteProfile() {
       <div className="log-src-merged">
         {/* ⓘ — how/why to rate. Sits above the three <label> segments (own onClick,
             stopPropagation) so tapping it opens the explainer, not the photo picker. */}
-        <button type="button" className="log-src-info" aria-label={t('logsrc.help.title')}
+        <button type="button" className="card-info-badge" aria-label={t('logsrc.help.title')}
           onClick={e => { e.stopPropagation(); setLogHelp(true); }}>i</button>
         {([
           { id: 'rest', icon: <UtensilsIcon size={42} />, key: 'logsrc.rest' },
