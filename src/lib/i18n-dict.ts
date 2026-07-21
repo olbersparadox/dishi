@@ -366,10 +366,10 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'logsrc.rest': { zh: '餐廳菜', en: 'Dining out' },
   'logsrc.home': { zh: '住家菜', en: 'Home-cooked' },
   'logsrc.album': { zh: '相簿舊菜', en: 'Old photos' },
-  'logsrc.help.title': { zh: '評分有什麼用？', en: 'Why rate dishes?' },
+  'logsrc.help.title': { zh: '食物相食評', en: 'Rating food photos' },
   'logsrc.help.body': {
-    zh: '龍蝦、剩菜、還是一碗杯麵——無論貴賤，你吃過的每一樣都同樣算數，因為每一口都透露你的口味。可以逐一評分，也可以一次揀一疊相片批量評。把相簿裡的舊食物照片翻出來好好利用：評得越多、越多元，dishi 就學得越準，推薦越貼近你的口味。',
-    en: 'A lobster, last night’s leftovers, a cup of instant noodles — high or low, everything you’ve eaten counts the same, because every bite tells dishi something about your taste. Rate them one by one, or pick a whole stack of photos and rate in a batch. Put those old food shots in your camera roll to good use: the more you rate — and the more varied — the sharper dishi gets, and the closer its picks land to you.',
+    zh: '可以逐張評分，也可以一次揀一疊相片批量評。把相簿裡的舊食物照片翻出來好好利用，重拾你的口味數據去訓練 dishi——評得越多、越多元，dishi 就學得越準，推薦越貼近你的口味。',
+    en: 'Rate them one by one, or pick a whole stack of photos and rate in a batch. Put the old food shots in your camera roll to good use — recover your taste data to train dishi: the more you rate, and the more varied, the sharper dishi gets and the closer its picks land to you.',
   },
   'log.title.home': { zh: '記錄住家菜', en: 'Log a home-cooked dish' },
   'log.title.album': { zh: '記錄相簿舊相', en: 'Log from your camera roll' },
