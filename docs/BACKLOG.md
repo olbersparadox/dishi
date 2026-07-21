@@ -463,7 +463,7 @@ in this pass.
 
 ---
 
-## 3. Tappable stat boxes with explainer layer — *(Sonnet)*
+## 3. Tappable stat boxes with explainer layer — *(Sonnet)* — ✅ DONE `713f645` (scrim+sheet pattern, 書面語 copy grounded in real buddy.ts/tasteExport.ts semantics)
 
 引擎強度 / 滑動 / 菜系 / 味覺調校 each tappable → popover/sheet, same
 presentation pattern as the globe & notification icons. Four short
@@ -482,7 +482,7 @@ stay true if thresholds move (reference constants, don't hardcode claims).
 
 ---
 
-## 4. Growth screen: REAL blob, not the dev mockup — *(Sonnet)*
+## 4. Growth screen: REAL blob, not the dev mockup — *(Sonnet)* — ✅ DONE `713f645` (blobForm.ts sampleForm/formToSvgPath, seeded from the live /api/buddy vector/evidence/ratingCount, userId threaded through)
 
 The growth screen's header circle is a static dev-mock blob. Replace with
 the real `blobForm` render seeded from the live profile
@@ -493,7 +493,7 @@ behavior, not a regression. Remove the mock asset so it can't return.
 
 ---
 
-## 5. Absorb-effect words in Chinese — *(Sonnet)*
+## 5. Absorb-effect words in Chinese — *(Sonnet)* — ✅ DONE `713f645` (extracted the existing DishInfoDisplay ingredient→zh glossary to src/lib/ingredientLabel.ts, shared by both; note: dishes never actually carried a zh ingredient field — that premise was inaccurate, this glossary is the real source)
 
 The learned-attribute absorb animation mostly emits English tokens
 ("seaweed", "rice"). When app language is zh: dimension words use the
@@ -503,7 +503,7 @@ already carried on the dish. English only when no zh label exists. (The
 
 ---
 
-## 6. Small UI batch — *(Sonnet, one pass)*
+## 6. Small UI batch — *(Sonnet, one pass)* — ✅ DONE `713f645` (chip contrast in growth-screen location row; root-caused + fixed the black-banner bleed-through: backdrop brightness() can't lift true black, swapped the glass tint for a real paper-alpha wash)
 
 - 加間舖 / 略過 / 住家菜 chips: darker text color (current --ink-soft on
   glaze reads too faint on the dark-banner overlay context).
