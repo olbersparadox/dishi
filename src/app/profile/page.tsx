@@ -12,7 +12,7 @@ import { RateIcon, TrashIcon, UtensilsIcon, HomeIcon, PhotoIcon } from '@/compon
 import RatingStack from '@/components/RatingStack';
 import { clearJournalCache } from '@/lib/journalCache';
 import { wordKeyFor } from '@/lib/flickWords';
-import { useLang, cuisineLabel } from '@/lib/i18n';
+import { useLang } from '@/lib/i18n';
 
 export default function ProfilePage() {
   return (
@@ -37,7 +37,7 @@ type RatedRow = {
 };
 
 function TasteProfile() {
-  const { t, lang } = useLang();
+  const { t } = useLang();
   const router = useRouter();
   // Album picks open the rating flow as an in-page OVERLAY (this page stays mounted
   // behind the glass) rather than navigating away — so the drag-and-rate screen sits
@@ -155,8 +155,6 @@ function TasteProfile() {
     }
     return Array.from(seen.values());
   })();
-
-  const topCuisines = Object.entries(affinity).sort((a, b) => b[1] - a[1]).slice(0, 5);
 
   /** Drop a pick you don't actually want to rate. Same DELETE the rated list uses;
    * an unrated pick is never locked (nobody else has rated it), so this can't be
@@ -282,18 +280,9 @@ function TasteProfile() {
         </div>
       )}
 
-      {topCuisines.length > 0 && (
-        <div className="card"><div className="card-body">
-          <h3 style={{ marginBottom: 10 }}>{t('profile.cuisines')}</h3>
-          <div className="chips">
-            {topCuisines.map(([c, v]) => (
-              <span className={`chip ${v > 0 ? 'on' : ''}`} key={c}>
-                {cuisineLabel(c, lang) || c} {v > 0 ? '↑' : '↓'}
-              </span>
-            ))}
-          </div>
-        </div></div>
-      )}
+      {/* The standalone 菜系 card that used to live here moved INTO the 味 AI card's
+          own 菜系 stat explainer (tap the number) — same pills, shown where the
+          number is actually explained instead of duplicated further down the page. */}
 
       {/* Restaurant-owner front door. The "claim your page" entry Dishi's
           owner-side monetisation hangs off — it needs to be genuinely findable by

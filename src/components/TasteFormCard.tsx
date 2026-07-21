@@ -7,8 +7,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { TasteFormLive, TasteFormReveal } from './TasteForm';
 import { topGlyphDims } from '@/lib/blobForm';
-import { useLang } from '@/lib/i18n';
+import { useLang, cuisineLabel } from '@/lib/i18n';
 import TasteExport from './TasteExport';
+import { CheckIcon } from './icons';
 import type { ExportDish } from '@/lib/tasteExport';
 import type { Persona } from '@/lib/persona';
 
@@ -39,7 +40,7 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
   onPersona: (p: Persona) => void;
   name: string | null;
 }) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const [state, setState] = useState<BuddyState | null>(null);
   const [hadSpecies, setHadSpecies] = useState<string | null | 'loading'>('loading');
   const [showMigration, setShowMigration] = useState(false);
@@ -70,6 +71,11 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
   }
 
   if (!state) return null;
+
+  // Top cuisine affinities — same derivation the old standalone 菜系 card on the
+  // profile page used (moved here: it's now shown inside the 菜系 stat's own
+  // explainer instead of living as a separate card further down the page).
+  const topCuisines = Object.entries(affinity).sort((a, b) => b[1] - a[1]).slice(0, 5);
 
   const formInputs = {
     vector: state.vector, evidence: state.evidence,
@@ -147,9 +153,24 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
         {openStat && (
           <>
             <div className="lang-scrim" onClick={() => setOpenStat(null)} />
-            <div className="stat-explain-sheet" role="dialog">
+            <div className="stat-explain-modal" role="dialog" aria-label={t(`buddy.${openStat}`)}>
               <p className="stat-explain-title">{t(`buddy.${openStat}`)}</p>
               <p className="stat-explain-body">{t(`buddy.explain.${openStat}`, { total: state.stats.dims_total })}</p>
+              {/* 菜系 additionally shows the real cuisine-affinity breakdown — the
+                  same pills the old standalone card at the bottom of the page used
+                  to show, now living where the number is actually explained. */}
+              {openStat === 'cuisines' && topCuisines.length > 0 && (
+                <div className="stat-explain-chips">
+                  {topCuisines.map(([c, v]) => (
+                    <span className={`chip ${v > 0 ? 'on' : ''}`} key={c}>
+                      {cuisineLabel(c, lang) || c} {v > 0 ? '↑' : '↓'}
+                    </span>
+                  ))}
+                </div>
+              )}
+              <div className="ok-circle-wrap">
+                <button className="ok-circle" onClick={() => setOpenStat(null)} aria-label={t('duel.ok')}><CheckIcon size={26} /></button>
+              </div>
             </div>
           </>
         )}

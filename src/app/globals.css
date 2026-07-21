@@ -47,6 +47,11 @@ body {
   font-family: var(--font-body), system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
+/* Belt-and-braces for the format-detection meta tag (layout.tsx head): iOS Safari
+   auto-wraps number-like text in its own tel: link before our CSS runs, and the
+   meta tag alone doesn't always suppress it in every iOS/PWA context. This forces
+   any such auto-link back to plain inherited text, in case one still slips through. */
+a[href^="tel:"] { color: inherit; text-decoration: inherit; }
 h1, h2, h3, .display { font-family: var(--font-display); font-weight: 500; letter-spacing: 0.06em; }
 /* The em-tracking above is tuned for Chinese, where a little space between dense
    glyphs reads well. On Latin headings/names the same tracking looks too airy, so
@@ -631,25 +636,30 @@ button { font: inherit; cursor: pointer; }
    reset (background/font/cursor) so it's pixel-identical to the old plain div. */
 .stat-tap { background: #fff; font-family: inherit; cursor: pointer; width: 100%; }
 .stat-row-tappable { position: relative; }
-/* Anchored, centered explainer sheet — same paper-card language as .lang-sheet/
-   .notif-list, but centered under the whole stat row (the row is a narrow 4-col
-   grid, so anchoring under just the tapped button risks clipping at the edges).
-   Own keyframe (not duel-pop): duel-pop's `to: transform none` would wipe the
-   translateX(-50%) centering (both live in `transform`) — see the duel-card fix. */
-.stat-explain-sheet {
-  position: absolute; top: calc(100% + 8px); left: 50%;
-  z-index: 56; width: min(300px, calc(100vw - 64px));
-  background: var(--glaze); border: 1px solid var(--line); border-radius: 14px;
-  box-shadow: 0 12px 32px rgba(20, 16, 12, 0.16); padding: 14px;
-  animation: statExplainPopIn 200ms ease both;
+/* A proper centered modal (not an anchored popover) — dead-center of the SCREEN
+   (position:fixed against the viewport, not the stat row), bigger box + bigger
+   text, title centered, body left-aligned, closed via the shared circle-check
+   .ok-circle at the bottom (same "done" affordance as the duel reveal / growth
+   screen). Own keyframe (not duel-pop): duel-pop's `to: transform none` would wipe
+   the translate(-50%,-50%) centering (both live in `transform`) — see the earlier
+   duel-card fix for the same class of bug. */
+.stat-explain-modal {
+  position: fixed; top: 50%; left: 50%;
+  z-index: 56; width: min(360px, calc(100vw - 48px));
+  max-height: 80vh; overflow-y: auto;
+  background: var(--glaze); border: 1px solid var(--line); border-radius: 20px;
+  box-shadow: 0 16px 40px rgba(20, 16, 12, 0.2); padding: 26px 24px 22px;
+  text-align: left;
+  animation: statExplainPopIn 220ms ease both;
 }
 @keyframes statExplainPopIn {
-  from { opacity: 0; transform: translate(-50%, 6px) scale(0.97); }
-  to   { opacity: 1; transform: translate(-50%, 0) scale(1); }
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.96); }
+  to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 }
-@media (prefers-reduced-motion: reduce) { .stat-explain-sheet { animation: none; transform: translateX(-50%); } }
-.stat-explain-title { font-family: var(--font-display); font-size: 15px; font-weight: 700; color: var(--ink); margin-bottom: 4px; }
-.stat-explain-body { font-size: 13px; color: var(--ink-soft); line-height: 1.5; }
+@media (prefers-reduced-motion: reduce) { .stat-explain-modal { animation: none; transform: translate(-50%, -50%); } }
+.stat-explain-title { font-family: var(--font-display); font-size: 20px; font-weight: 700; color: var(--ink); text-align: center; margin-bottom: 12px; }
+.stat-explain-body { font-size: 16px; color: var(--ink-soft); line-height: 1.65; text-align: left; }
+.stat-explain-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
 
 .rated-banner {
   display: flex; align-items: center; gap: 12px;
@@ -918,9 +928,16 @@ button { font: inherit; cursor: pointer; }
 .version-now, .version-next {
   font-family: var(--font-display); font-weight: 800; font-size: 16px; color: var(--ink);
   letter-spacing: 0.02em; flex-shrink: 0;
+  position: relative; top: -1px; /* nudge up 1px */
 }
-.version-next { font-size: 13px; color: var(--ink-soft); font-weight: 700; }
+/* Enlarged to match the version bar's own height (13px) below — was reading as a
+   small caption next to the now-taller bar. */
+.version-next { font-size: 18px; color: var(--ink-soft); font-weight: 700; }
 .version-bar-row { display: flex; align-items: center; gap: 10px; margin-top: 16px; }
+/* This bar specifically (the taste-tab version-progress bar, not .grow2-top's growth-
+   screen bar, which stays untouched): +5px height, and shortened 10px by giving the
+   flex:1 track a fixed margin instead of letting it fill the full row width. */
+.version-bar-row .xp-bar { height: 13px; margin-right: 10px; }
 
 /* Level progress bar under the taste form. These classes were referenced by
    TasteFormCard but had no styles, so the bar rendered at zero height (i.e.

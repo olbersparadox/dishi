@@ -32,6 +32,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="zh-Hant" className={`${wordmark.variable} ${body.variable}`}>
       <head>
+        {/* iOS Safari auto-detects number-like text (percentages, fractions like
+            "10/18") as phone numbers and renders them as blue tel: links — nothing
+            in this app is a phone number. Without this, stat figures (90%, 25, 8,
+            10/18) turn blue on iOS regardless of any CSS color rule, since the OS
+            wraps them in its own <a> before our styles ever apply. */}
+        <meta name="format-detection" content="telephone=no, date=no, address=no, email=no" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
