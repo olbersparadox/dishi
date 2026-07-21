@@ -29,7 +29,7 @@ Model tier per item: **[S]** = Sonnet (well-specified build) · **[F]** = Fable/
   primary login path. Mostly template + a few lines; verifyOtp path already
   exists. Full spec: `docs/specs/otp-login.md`.
 
-- [x] **[F] Queued picks (待評菜式) rate through the NEW flow.** ✅ DONE `_PENDING_`.
+- [x] **[F] Queued picks (待評菜式) rate through the NEW flow.** ✅ DONE `ca65a8a`.
   The rate icon opened `/log?rate=<id>` (the old single-dish page); it now opens
   RatingStack in `picksMode` — flick card → growth screen, same as the album path.
   **Owner chose (a):** ✕ on a pick is a plain close, the flicked rating stands, and
