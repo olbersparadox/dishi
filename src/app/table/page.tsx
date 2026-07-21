@@ -1,5 +1,5 @@
 'use client';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import AuthGate from '@/components/AuthGate';
 import { normalizePhoto } from '@/lib/image';
 import DishName from '@/components/DishName';
@@ -8,6 +8,8 @@ import Chop from '@/components/Chop';
 import { useLang, cuisineLabel } from '@/lib/i18n';
 import { sumPrices } from '@/lib/price';
 import { supabaseBrowser } from '@/lib/supabase/client';
+import type { RealtimeChannel } from '@supabase/supabase-js';
+import { stampsFromPicks, mergeStamps, applyStampEvent, type Stamp, type StampEvent } from '@/lib/tableStamps';
 
 type Member = { user_id: string; handle: string; display_name: string | null; has_profile: boolean; rating_count: number };
 type RankedItem = {
@@ -17,7 +19,11 @@ type RankedItem = {
   unanimous: boolean; protected_by_fairness: boolean;
   attributes?: Record<string, number>;
 };
-type TablePick = { name: string; name_zh: string | null; handle: string; identity_name?: string | null; identity_name_zh?: string | null };
+type TablePick = {
+  user_id: string; name: string; name_zh: string | null;
+  handle: string; display_name: string | null;
+  identity_name?: string | null; identity_name_zh?: string | null;
+};
 type SessionState = {
   code: string; session_id: string; restaurant_id: string | null;
   status: string; is_host: boolean; has_menu: boolean; orderable: boolean;
@@ -147,6 +153,15 @@ function Session({ code, onLeave }: { code: string; onLeave: () => void }) {
   const [error, setError] = useState('');
   const [picking, setPicking] = useState<string | null>(null); // item.key currently saving
   const [pickedKeys, setPickedKeys] = useState<Set<string>>(new Set());
+  // The dish row id /api/dishes/pick created for each of MY OWN picks — captured from
+  // its response so un-picking (below) knows exactly what to DELETE. Keyed by
+  // item.key, the same candidate identity pickedKeys already uses.
+  const [pickedDishIds, setPickedDishIds] = useState<Record<string, string>>({});
+  // Realtime pick stamps (item 3): a LATENCY overlay on top of the poll's own
+  // table_picks (see tableStamps.ts for the full architecture note). Cleared after
+  // every successful poll, since the poll is authoritative once it lands.
+  const [realtimeStamps, setRealtimeStamps] = useState<Record<string, Stamp[]>>({});
+  const channelRef = useRef<RealtimeChannel | null>(null);
   const [chopName, setChopName] = useState('');
   const [chopSaving, setChopSaving] = useState(false);
   const [chopDismissed, setChopDismissed] = useState(true); // true (hidden) until checked, so the prompt never flashes on
@@ -187,6 +202,24 @@ function Session({ code, onLeave }: { code: string; onLeave: () => void }) {
    * flow that /order/[token] has. Unifying those two paths is a real follow-up,
    * not something this pass silently pretends to already do.
    */
+  // Own name for the chop a broadcast stamp carries — the SAME fallback chain
+  // rendered everywhere else (display_name, then the auto-handle).
+  const myName = (s: SessionState) => {
+    const me = s.members.find(m => m.user_id === s.you);
+    return me?.display_name ?? me?.handle ?? 'someone';
+  };
+
+  // One shared helper for applying a stamp event, whether it came from the network
+  // or from MY OWN action — so a local pick/unpick and a received broadcast go
+  // through the exact same reducer (tableStamps.ts), never two slightly-different
+  // code paths that could drift.
+  function applyLocalStampEvent(itemKey: string, event: StampEvent) {
+    setRealtimeStamps(prev => ({ ...prev, [itemKey]: applyStampEvent(prev[itemKey] ?? [], event) }));
+  }
+  function broadcastStamp(itemKey: string, event: StampEvent) {
+    channelRef.current?.send({ type: 'broadcast', event: event.type, payload: { item_key: itemKey, user_id: event.user_id, name: event.name } });
+  }
+
   async function pickDish(item: RankedItem, state: SessionState) {
     setPicking(item.key);
     try {
@@ -199,7 +232,40 @@ function Session({ code, onLeave }: { code: string; onLeave: () => void }) {
           items: [{ name: item.name, name_zh: item.name_zh, cuisine: item.cuisine, attributes: item.attributes ?? {} }],
         }),
       });
-      if (res.ok) setPickedKeys(prev => new Set(prev).add(item.key));
+      const json = await res.json().catch(() => null);
+      const dishId = json?.picked?.[0]?.id as string | undefined;
+      if (res.ok && dishId) {
+        setPickedKeys(prev => new Set(prev).add(item.key));
+        setPickedDishIds(prev => ({ ...prev, [item.key]: dishId }));
+        const event: StampEvent = { type: 'pick', user_id: state.you, name: myName(state) };
+        applyLocalStampEvent(item.key, event); // instant local thunk — matches scan's own chop
+        broadcastStamp(item.key, event);       // instant for everyone else at the table
+      }
+    } finally {
+      setPicking(null);
+    }
+  }
+
+  // Un-pick (item 3): DELETEs the dish row /api/dishes/pick created — the same
+  // owning-user-scoped endpoint the queue's own 刪除 trash icon already uses, so
+  // there's no new deletion path to reason about, just a new caller of it. Only
+  // ever targets MY OWN pick (pickedDishIds is keyed to what THIS client created).
+  async function unpickDish(item: RankedItem, state: SessionState) {
+    const dishId = pickedDishIds[item.key];
+    if (!dishId) return;
+    setPicking(item.key);
+    try {
+      const res = await fetch('/api/my/dishes', {
+        method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dish_id: dishId }),
+      });
+      if (res.ok) {
+        setPickedKeys(prev => { const n = new Set(prev); n.delete(item.key); return n; });
+        setPickedDishIds(prev => { const { [item.key]: _, ...rest } = prev; return rest; });
+        const event: StampEvent = { type: 'unpick', user_id: state.you, name: myName(state) };
+        applyLocalStampEvent(item.key, event);
+        broadcastStamp(item.key, event);
+      }
     } finally {
       setPicking(null);
     }
@@ -212,10 +278,36 @@ function Session({ code, onLeave }: { code: string; onLeave: () => void }) {
       if (!res.ok) throw new Error(json.error);
       setState(json);
       setError('');
+      // The poll is authoritative the moment it lands — clear the realtime overlay
+      // so a stale entry (e.g. an unpick broadcast this client missed) can never
+      // outlive the DB truth for more than one poll cycle. See tableStamps.ts.
+      setRealtimeStamps({});
     } catch (e: any) {
       setError(e.message || 'Lost the table.');
     }
   }, [code]);
+
+  // Realtime channel: one per session, subscribed once we know session_id (arrives
+  // async via the first refresh()). `self: false` because a local pick/unpick is
+  // already applied instantly via applyLocalStampEvent — receiving our own broadcast
+  // back would just be a redundant (harmless, since applyStampEvent is idempotent,
+  // but pointless) round-trip.
+  useEffect(() => {
+    if (!state?.session_id) return;
+    const supabase = supabaseBrowser();
+    const channel = supabase.channel(`table:${state.session_id}`, { config: { broadcast: { self: false } } });
+    channel
+      .on('broadcast', { event: 'pick' }, ({ payload }) => {
+        applyLocalStampEvent(payload.item_key, { type: 'pick', user_id: payload.user_id, name: payload.name });
+      })
+      .on('broadcast', { event: 'unpick' }, ({ payload }) => {
+        applyLocalStampEvent(payload.item_key, { type: 'unpick', user_id: payload.user_id, name: payload.name });
+      })
+      .subscribe();
+    channelRef.current = channel;
+    return () => { supabase.removeChannel(channel); channelRef.current = null; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state?.session_id]);
 
   // Poll every 5s while open, so rankings shift live as friends join.
   useEffect(() => {
@@ -256,6 +348,18 @@ function Session({ code, onLeave }: { code: string; onLeave: () => void }) {
       .slice(0, 3)
       .map(it => it.key),
   );
+
+  // Per-item stamps (item 3): poll-derived base (stampsFromPicks, name-matched
+  // against table_picks — self-heals every 5s regardless of realtime) merged with
+  // the realtime latency overlay. Recomputed each render; state.items/table_picks
+  // are small (≤15/≤30), so this is cheap enough not to need memoizing.
+  const stampsByKey = new Map(
+    state.items.map(it => [
+      it.key,
+      mergeStamps(stampsFromPicks(it, state.table_picks), realtimeStamps[it.key] ?? []),
+    ]),
+  );
+  const STAMP_CAP = 5;
 
   return (
     <div>
@@ -320,7 +424,7 @@ function Session({ code, onLeave }: { code: string; onLeave: () => void }) {
           <div className="chips">
             {state.table_picks.map((p, i) => (
               <span className="chip" key={i}>
-                <DishName name={p.name} name_zh={p.name_zh} /> · {p.handle}
+                <DishName name={p.name} name_zh={p.name_zh} /> · {p.display_name ?? p.handle}
               </span>
             ))}
           </div>
@@ -335,7 +439,12 @@ function Session({ code, onLeave }: { code: string; onLeave: () => void }) {
       <div className="scan-settle">
         {state.items.map((item, i) => {
           const picked = pickedKeys.has(item.key);
-          const fire = topUnanimous.has(item.key);
+          const stamps = stampsByKey.get(item.key) ?? [];
+          // 全檯啱 fires on EITHER signal: the predicted taste-blend (topUnanimous,
+          // capped) OR real observed convergence — 2+ people actually tapping 揀呢個.
+          // The latter is at least as strong a signal as the former (it's OBSERVED,
+          // not predicted) and deserves the identical earned-mark treatment.
+          const fire = topUnanimous.has(item.key) || stamps.length >= 2;
           return (
             <article
               // scan-pickable gives the flat numbered-row treatment (hanging rank
@@ -367,16 +476,38 @@ function Session({ code, onLeave }: { code: string; onLeave: () => void }) {
                         {item.protected_by_fairness && <span className="chip">{t('table.fairness')}</span>}
                       </div>
                     )}
+                    {/* Chop stamps: who's picked THIS dish, live. Overlap-fan (each
+                        chop pulled left over the previous one) capped at STAMP_CAP,
+                        with a "+N" overflow badge past that — a table of 12 people
+                        piling onto one dish shouldn't blow out the row's height.
+                        Each chop's key is stable (item.key + user_id), so its mount
+                        pop-in animation (.chop-stamp-pop) plays exactly once, the
+                        moment IT specifically joins, never replaying on unrelated
+                        re-renders of the row. */}
+                    {stamps.length > 0 && (
+                      <div className="chop-stamp-row" style={{ marginTop: 6 }} aria-label={t('table.stampedby', { n: stamps.length })}>
+                        {stamps.slice(0, STAMP_CAP).map(s => (
+                          <span className="chop-stamp-pop" key={`${item.key}:${s.user_id}`}>
+                            <Chop userId={s.user_id} name={s.name} size={22} />
+                          </span>
+                        ))}
+                        {stamps.length > STAMP_CAP && (
+                          <span className="chop-stamp-overflow">+{stamps.length - STAMP_CAP}</span>
+                        )}
+                      </div>
+                    )}
                     <button
-                      className={`btn small ${picked ? '' : 'primary'}`}
+                      // Picked-by-me is now TAPPABLE — un-picking lifts the stamp
+                      // (item 3), not a terminal disabled state anymore.
+                      className={`btn small ${picked ? 'ghost' : 'primary'}`}
                       style={{ marginTop: 8 }}
-                      disabled={picked || picking === item.key}
-                      onClick={() => pickDish(item, state)}
+                      disabled={picking === item.key}
+                      onClick={() => (picked ? unpickDish(item, state) : pickDish(item, state))}
                     >
-                      {picked
-                        ? t('table.pickeddone')
-                        : picking === item.key
-                          ? t('log.saving')
+                      {picking === item.key
+                        ? t('log.saving')
+                        : picked
+                          ? t('table.pickeddone')
                           : state.orderable ? t('table.orderbtn') : t('table.pickbtn')}
                     </button>
                   </div>

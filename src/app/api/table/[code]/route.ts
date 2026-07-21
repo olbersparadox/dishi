@@ -109,7 +109,9 @@ export async function GET(_req: NextRequest, { params }: { params: { code: strin
     // dish_identities join: a pick that's been renamed or linked to a canonical
     // identity still matches the menu's printed name via these alias names —
     // name-only matching fragments the moment 蝦餃 gets linked to 水晶鮮蝦餃.
-    .select('name, name_zh, profiles(handle), dish_identities(name, name_zh)')
+    // user_id + display_name: item 3 (realtime pick stamps) needs a stable id to
+    // seed each picker's chop from, and their own chosen name over the auto-handle.
+    .select('user_id, name, name_zh, profiles(handle, display_name), dish_identities(name, name_zh)')
     .eq('table_session_id', session.id)
     .order('created_at', { ascending: false });
 
@@ -137,7 +139,9 @@ export async function GET(_req: NextRequest, { params }: { params: { code: strin
     // shared awareness, not a shared cart. Each pick is still an individual dish
     // row the picker rates on their own.
     table_picks: (tablePicks ?? []).map((p: any) => ({
+      user_id: p.user_id,
       name: p.name, name_zh: p.name_zh, handle: p.profiles?.handle ?? 'someone',
+      display_name: p.profiles?.display_name ?? null,
       identity_name: p.dish_identities?.name ?? null,
       identity_name_zh: p.dish_identities?.name_zh ?? null,
     })),

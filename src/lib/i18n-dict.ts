@@ -209,6 +209,7 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'table.pickbtn': { zh: '揀呢個', en: 'Pick' },
   'table.orderbtn': { zh: '叫呢個', en: 'Order' },
   'table.pickeddone': { zh: '✓ 已選', en: '\u2713 Picked' },
+  'table.stampedby': { zh: '{n} 人揀咗呢道', en: '{n} people picked this' },
   'log.looks': { zh: '睇落係{cuisine}菜 · ', en: 'Looks {cuisine} · ' },
   'log.lowconf': { zh: '唔太肯定 — ', en: 'Low-confidence guess — ' },
   'log.confirmName': { zh: '確認', en: 'Confirm' },

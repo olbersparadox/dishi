@@ -220,6 +220,28 @@ button { font: inherit; cursor: pointer; }
 }
 .chop-row { display: inline-flex; align-items: center; gap: 6px; }
 
+/* Realtime pick stamps (Table Mode social batch, item 3) — an overlap-fan of chops
+   under a dish row, each pulled left over the one before it so a full table doesn't
+   blow out the row's height. z-index climbs left-to-right so later (more recent)
+   stamps sit visually on top, matching reading order. */
+.chop-stamp-row { display: flex; align-items: center; }
+.chop-stamp-pop { display: inline-flex; margin-left: -8px; position: relative; }
+.chop-stamp-pop:first-child { margin-left: 0; }
+.chop-stamp-pop:nth-child(1) { z-index: 5; } .chop-stamp-pop:nth-child(2) { z-index: 4; }
+.chop-stamp-pop:nth-child(3) { z-index: 3; } .chop-stamp-pop:nth-child(4) { z-index: 2; }
+.chop-stamp-pop:nth-child(5) { z-index: 1; }
+/* The "thunk": a stamp landing on the table, physically. Plays exactly once, on
+   MOUNT — React keeps the same DOM node across re-renders as long as the chop's key
+   (item.key + user_id) is stable, so this never replays for an already-settled
+   stamp, only for one that's genuinely new this moment. */
+.chop-stamp-pop { animation: chopThunk 200ms cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+@keyframes chopThunk { 0% { transform: scale(0.4); opacity: 0; } 65% { transform: scale(1.15); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .chop-stamp-pop { animation: none; } }
+.chop-stamp-overflow {
+  margin-left: 4px; font-size: 12px; color: var(--ink-soft); font-weight: 600;
+  display: inline-flex; align-items: center;
+}
+
 .field { width: 100%; border: 1px solid var(--line); border-radius: 10px; padding: 11px 12px; font: inherit; background: var(--paper-raised); }
 .label { display: block; font-size: 14px; font-weight: 400; color: var(--ink-soft); margin: 18px 0 8px; }
 
