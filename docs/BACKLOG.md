@@ -537,3 +537,154 @@ already carried on the dish. English only when no zh label exists. (The
 Deferred by decision: version semantics deep-design, per-version perks
 (fun factor, smarter AI instructions per taste), seal education — all
 Jerry+Claude design sessions, not implementation tickets.
+
+
+# Backlog additions — 2026-07-21 (Table Mode social: one surface, chops, echo)
+
+Context: field session 18:41 HKT, two-person table R4E87. The joiner still
+renders the PRE-redesign table layout (score rings, old cards) while the host
+sees the new 你的最佳選擇 list — two products stapled together. Confirmed
+design (Jerry): one shared surface; chop-first identity (photos later);
+realtime pick stamps; companion data layer; 檯友回音 echo rider; guests
+without accounts CAN stamp picks (friction kills tables) but generate no
+companion edge / echo until sign-up — a deliberate conversion hook.
+
+Strategic frame: two people picking at one table generates PAIRED dish-level
+demand data no POS or QR vendor can see. Social is where the moat compounds.
+
+---
+
+## 1. One shared table surface — *(Sonnet)*
+
+Delete the joiner's legacy view. Every member of a table session renders the
+SAME new 你的最佳選擇 list (讀到 N 道菜 header, numbered rows, price, chips,
+footer bar). Per-person differences are limited to:
+- ranking blend when 2+ taste profiles are present (existing 有兩個或以上口味
+  檔案入檯 behavior keeps its engine semantics — presentation unifies, math
+  doesn't change in this item);
+- your own picks highlighted as yours.
+The old table components are removed, not feature-flagged — they must not be
+reachable. 離開 / invite / table code chrome carries over onto the unified
+header.
+
+**Tests:** joiner and host snapshot the same component tree for the same
+session state.
+
+---
+
+## 2. Chop identity (名印) — *(Sonnet)*
+
+Avatar = a small ink 印章 bearing the first character of the display name
+(first letter if Latin), deterministically styled from user id (seeded
+variation in border/rotation/weight — same user always renders the same
+chop). One-time setup on first table join or first social surface: type a
+display name, done. No photo upload infra in v1; photo override is a later
+item.
+
+**Hard constraint:** chops render in INK (--ink on --glaze), never
+vermillion. Vermillion remains reserved for the seal glyph and the AI-export
+CTA. Do not ship a red chop no matter how good it looks — this is the one
+place the temptation will be strongest.
+
+- Display-name uniqueness NOT required; disambiguate by chop styling + full
+  name on long-press/tap.
+- Existing auto-handles (mosuko-i47v) become the fallback display name until
+  the user sets one; prompt once, never nag.
+- New table: `profiles.display_name` (or equivalent — implementer verifies
+  current profile table shape via Supabase MCP before migrating). Migration
+  saved to `supabase/applied/` per standing pattern.
+
+**Tests:** deterministic chop render for fixed id; fallback name path.
+
+---
+
+## 3. Realtime pick stamps — *(Sonnet)*
+
+Tapping 揀呢個 stamps your chop onto the dish row with a small physical
+"thunk" (scale+settle, ~200ms, respects prefers-reduced-motion) and
+broadcasts via Supabase Realtime on the table session channel so every
+member sees it land live. Un-picking lifts the stamp.
+
+- A dish stamped by 2+ members gets the 全檯啱 treatment made PROMINENT —
+  convergence is the emotional payoff; the UI celebrates overlap, not
+  individual totals. Footer keeps running count + price.
+- Multiple chops on one row: overlap-fan layout, capped visual stack with
+  +N overflow.
+- Guests (no account): may stamp; their chop uses their session handle.
+  Their picks are session-scoped only (see item 4 for what they do NOT
+  generate). On sign-up mid-session, their stamps re-key to the new account.
+- Offline/late-join reconciliation: on channel join, fetch current pick
+  state, then apply deltas — no ghost stamps.
+
+**Tests:** realtime channel mock — stamp broadcast/receive, un-pick, late
+join reconciliation, guest re-key on sign-up.
+
+---
+
+## 4. Companion edges (同檯 data layer) — *(Fable 5)*
+
+Every CONFIRMED pick in a multi-member table session writes companion
+edges: (user_a, user_b, dish_id, table_session_id, picked_at) for each
+consenting member pair present. This is the "who you ate with" layer.
+
+**Privacy lines (hard, decided):**
+- Edges link accounts ONLY when both were consenting members of the same
+  table session (joining a table = consent to be visible to that table).
+- Guests generate NO edges until they have an account (and only for
+  sessions after sign-up — no retroactive edge creation from pre-account
+  stamps unless the re-key in item 3 happened within the live session).
+- Export and UI speak display names only — never handles/emails/ids.
+- RLS: a user can read only edges they are a party to. Verify policy with
+  the standing dry-run pattern (pg_policy query + rolled-back insert).
+
+**Payoffs to wire in this item (in order):**
+1. 食記 entries show companion chops on shared-meal dishes.
+2. AI export gains a companions layer — e.g. highest-rated dishes skew
+   toward shared meals; frequent companions and the cuisines you explore
+   together. Keep it to честная aggregate statements derived from real
+   edges; no invented sociability. Feeds the export-versioning delta stream
+   (a new companion appearing since last version is a legitimate delta
+   line).
+3. (Later, not this item) recurring-companion taste compatibility.
+
+Schema design, RLS, and the export-prose judgment are why this is Fable 5.
+
+---
+
+## 5. 檯友回音 (Table Echo) — sealed mutual reveal — *(Fable 5, after item 4)*
+
+The duel-class mechanic (standing directive: surface these when they fit —
+this one hits all three criteria: fun, genuinely refines the engine,
+near-zero new UI).
+
+After the meal, every member who shared a picked dish gets the normal
+rate-this-dish prompt — but for shared dishes, each verdict is SEALED until
+all sharing members have rated (or a 48h timeout lapses), then reveals side
+by side: 佢話超好味，你話麻麻地.
+
+- Reuses `sealed_predictions` reveal UI wholesale; new seal type
+  (`kind: 'echo'` or sibling table — implementer proposes, flags tradeoff).
+- Engine value: two independent ratings of the SAME physical dish instance
+  — the highest-density signal Dishi can collect; also begins separating
+  dish-quality variance from taste variance (log it as such for the engine,
+  even if not yet consumed).
+- Sealing must be real: the other member's rating is not readable via any
+  API before reveal conditions are met (RLS-enforced, not client-hidden —
+  this is exactly the class of bug the sealed_predictions RLS incident
+  taught us to test with dry-run queries).
+- Timeout path: if only one member ever rates, their rating unseals to
+  themselves normally at 48h; no nagging pushes.
+- Quiet strategic note: echo teaches the seal mechanic through social use —
+  capture reveal-open rates alongside the item-2 (version auto-seal)
+  metrics for the deferred seal-education review.
+
+**Tests:** RLS proof that an unrevealed echo rating is unreadable by the
+counterpart; reveal on completion; timeout unseal; no echo for guest or
+solo picks.
+
+---
+
+Build order: 1 → 2 → 3 (Sonnet, sequential — each depends on the prior),
+then 4 → 5 (Fable 5). Item 5 must not start before 4's session/consent
+model is merged. Photo avatars, companion compatibility scores, and any
+table-level gamification are explicitly OUT of this batch.
