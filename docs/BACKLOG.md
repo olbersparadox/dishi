@@ -29,6 +29,22 @@ Model tier per item: **[S]** = Sonnet (well-specified build) · **[F]** = Fable/
   primary login path. Mostly template + a few lines; verifyOtp path already
   exists. Full spec: `docs/specs/otp-login.md`.
 
+- [ ] **[F] Queued picks (待評菜式) should rate through the NEW flow.** Today the
+  rate icon on a pick routes to `/log?rate=<id>` — the old single-dish page.
+  It should open RatingStack (flick card → growth screen) like the album path.
+  **Blocked on one owner decision, not on code:** RatingStack commits the rating
+  the moment you flick, and its ✕ means "discard the session", implemented as
+  DELETE the dishes it created. A queued pick is NOT ours to delete — it came
+  from a menu scan and already carries a seal. There is no un-rate endpoint
+  (only `DELETE /api/my/dishes`, which cascades the rating away with the whole
+  dish and replays the profile). So ✕ on a pick must either (a) mean plain
+  "close", leaving the flicked rating committed — cheap, but ✕ then means two
+  different things on the same screen; or (b) get a real un-rate path: delete
+  the rating, replay the profile, and decide what happens to the already-revealed
+  seal (the honesty contract says a revealed prediction stays revealed). Pick (a)
+  or (b) before building. Everything else about the port is mechanical: an
+  `existing` mode that skips create/upload and seals+rates a known dish_id.
+
 ## Next
 
 - [ ] **[F] Persona rethink (老實派 / 食家腔 / 貪玩) — dedicated design session.**
