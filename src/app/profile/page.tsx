@@ -267,7 +267,7 @@ function TasteProfile() {
       )}
 
       {userId && <TasteFormCard key={refreshKey} vector={vector} affinity={affinity} count={count} dishes={exportDishes} userId={userId}
-        persona={persona} onPersona={setPersona} name={handle} />}
+        persona={persona} name={handle} />}
 
       {/* 已評嘅菜 — flat, no-photo reference list below the AI export card per the
           design. Identity-grouped: a dish rated twice under linked names shows

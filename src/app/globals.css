@@ -634,7 +634,10 @@ button { font: inherit; cursor: pointer; }
 .taste-stat .stat-label { font-size: 13.5px; margin-top: 3px; }
 /* Tappable stats: same box, now a <button> (tap → explainer). Undo the UA button
    reset (background/font/cursor) so it's pixel-identical to the old plain div. */
-.stat-tap { background: #fff; font-family: inherit; cursor: pointer; width: 100%; }
+/* color: inherit — iOS Safari's UA stylesheet paints <button> text blue when no
+   color is set (the format-detection meta doesn't cover this); inherit keeps the
+   numbers ink on every platform. */
+.stat-tap { background: #fff; font-family: inherit; color: inherit; cursor: pointer; width: 100%; }
 .stat-row-tappable { position: relative; }
 /* The shared "tap-to-learn-more" modal (ExplainModal) — dead-centre of the SCREEN
    (position:fixed against the viewport), bigger box + bigger text, title centred,
@@ -694,11 +697,11 @@ button { font: inherit; cursor: pointer; }
    own tap opens the explainer rather than the photo picker underneath. */
 .log-src-info {
   position: absolute; top: 8px; right: 8px; z-index: 2;
-  width: 20px; height: 20px; border-radius: 50%;
+  width: 24px; height: 24px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  border: 1px solid rgba(245, 240, 232, 0.4); background: transparent;
+  border: 1.5px solid rgba(245, 240, 232, 0.8); background: transparent;
   color: var(--glaze); cursor: pointer; padding: 0;
-  font-family: var(--font-display); font-size: 12.5px; font-style: italic; line-height: 1;
+  font-family: var(--font-display); font-size: 14.5px; font-weight: 700; font-style: italic; line-height: 1;
 }
 .log-src-info:active { background: rgba(245, 240, 232, 0.16); }
 .log-src-seg {

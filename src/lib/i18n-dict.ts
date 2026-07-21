@@ -379,7 +379,6 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'profile.cuisines': { zh: '菜系', en: 'Cuisines' },
   'profile.rated': { zh: '已評菜式', en: 'Dishes you\u2019ve rated' },
   'profile.owner': { zh: '開餐廳？', en: 'Own a restaurant?' },
-  'persona.pick': { zh: '選擇 dishi 的說話語氣', en: "Pick your palate's voice" },
   'rate.preparing': { zh: '正在處理相片…', en: 'Preparing photos…' },
   'rate.skip': { zh: '跳', en: 'Skip' },
   // Progressive "watch your Taste AI learn" screen (merged reward + review)

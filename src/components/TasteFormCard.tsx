@@ -30,14 +30,13 @@ type BuddyState = {
 
 const MIGRATION_SEEN_KEY = 'dishi_form_migration_seen';
 
-export default function TasteFormCard({ vector, affinity, count, dishes, userId, persona, onPersona, name }: {
+export default function TasteFormCard({ vector, affinity, count, dishes, userId, persona, name }: {
   vector: Record<string, number>;
   affinity: Record<string, number>;
   count: number;
   dishes: ExportDish[];
   userId: string;
   persona: Persona;
-  onPersona: (p: Persona) => void;
   name: string | null;
 }) {
   const { t, lang } = useLang();
@@ -172,7 +171,7 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
     </div>
 
     <TasteExport vector={vector} affinity={affinity} count={count} dishes={dishes}
-      persona={persona} onPersona={onPersona} name={name} version={state.version.v} />
+      persona={persona} name={name} version={state.version.v} />
     </>
   );
 }

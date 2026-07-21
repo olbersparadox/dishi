@@ -5,7 +5,7 @@ import {
   extractTasteSections, buildTastePrompt, type ExportDish,
   confidenceInputsFrom, evidenceConfidence, exportUnlocked, ratingsToUnlock,
 } from '@/lib/tasteExport';
-import { PERSONAS, PERSONA_META, type Persona } from '@/lib/persona';
+import { type Persona } from '@/lib/persona';
 import { CopyIcon, CheckIcon, LockIcon } from './icons';
 
 /**
@@ -28,14 +28,16 @@ import { CopyIcon, CheckIcon, LockIcon } from './icons';
  * anticipation copy + album-path link — is the separate §5 UI slice.)
  */
 export default function TasteExport({
-  vector, affinity, count, dishes, persona, onPersona, name, version: dishiVersion = 1,
+  vector, affinity, count, dishes, persona, name, version: dishiVersion = 1,
 }: {
   vector: Record<string, number>;
   affinity: Record<string, number>;
   count: number;
   dishes: ExportDish[];
+  /** Voice the export renders in. The in-card picker is REMOVED for now (backlog:
+   * personas need a real interaction design — likely only "alive" inside the
+   * user's AI post-export); stored choices still apply, new users get 'honest'. */
   persona: Persona;
-  onPersona: (p: Persona) => void;
   name: string | null;
   /** The ratcheted dishi version (from /api/buddy via TasteFormCard) — the number the
    * CTA names and the export stamps. Same ladder as the bar above; see version.ts. */
@@ -109,22 +111,6 @@ export default function TasteExport({
 
       {!prompt ? (
         <>
-          {/* Persona picker (spec §3) — the user chooses the voice their palate speaks
-              in. FUNCTIONAL layout only, reusing the existing .chip look; the final
-              visual treatment is the owner's §5 Claude Design pass. Only meaningful
-              once unlocked, so it's hidden while locked. */}
-          {ready && (
-            <div role="radiogroup" aria-label={t('persona.pick')}
-              style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center', marginBottom: 10 }}>
-              {PERSONAS.map(p => (
-                <button key={p} type="button" role="radio" aria-checked={persona === p}
-                  className={`chip${persona === p ? ' on' : ''}`} onClick={() => onPersona(p)}
-                  title={lang === 'zh' ? PERSONA_META[p].blurbZh : PERSONA_META[p].blurbEn}>
-                  {lang === 'zh' ? PERSONA_META[p].zh : PERSONA_META[p].en}
-                </button>
-              ))}
-            </div>
-          )}
           <button className={`btn export ${!ready ? 'is-locked' : ''}`} style={{ width: '100%' }} onClick={generate} disabled={!ready || generating}>
             {ready
               ? t('export.button', { v: Math.max(1, dishiVersion) })

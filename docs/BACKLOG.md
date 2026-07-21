@@ -31,6 +31,15 @@ Model tier per item: **[S]** = Sonnet (well-specified build) · **[F]** = Fable/
 
 ## Next
 
+- [ ] **[F] Persona rethink (老實派 / 食家腔 / 貪玩) — dedicated design session.**
+  The in-card picker was REMOVED from the export card (2026-07-21): as a row of
+  chips it wasn't doing anything a user could feel. Open design question: where
+  and how does a persona actually interact with the user? If the character is
+  only "alive" after export inside the user's own AI, the whole feature needs a
+  dedicated session to design and build (voice in the exported prompt is already
+  implemented — `persona.ts` voices + persistence are kept, default 'honest').
+  Also open: the 貪玩 blurb "鬼馬、生動、港式抵死" is defined by its Cantonese
+  cheek — 書面化 would be a rename/reframe, decide in the same session.
 - [ ] **[S] Bilingual ingredient display.** The ingredients line under the diet
   chips (DishInfoDisplay) shows lowercase English as stored today. Give ingredients
   a zh/en pair so the line reads native in Chinese-first mode. Deferred out of the
