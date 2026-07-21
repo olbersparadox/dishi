@@ -118,7 +118,7 @@ export default function DuelOverlay({ duel, onClose }: { duel: Duel; onClose: (r
                   reveal visually answers the seal. */}
               <div className="duel-verdict">
                 <span className="seal-stamp duel-open-stamp" aria-hidden>開</span>
-                <span>{reveal.tie ? t('duel.tieresult') : reveal.predicted_correct ? `${t('duel.hit')} 🎯` : t('duel.miss')}</span>
+                <span>{reveal.tie ? t('duel.tieresult') : reveal.predicted_correct ? t('duel.hit') : t('duel.miss')}</span>
               </div>
               {reveal.learned.length > 0 && (
                 <span className="duel-learned">
