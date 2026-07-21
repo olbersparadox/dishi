@@ -102,5 +102,29 @@ consumer-side dish-level demand data.
 - AI taste export loop: keep versioning deltas visible and recurring.
 - Consumer scan density: one dense neighborhood first; no friend graph yet.
 
+## UI verification (mandatory)
+
+- **Screenshot before "done".** Any task that changes what a user sees ends
+  with a rendered screenshot of the affected screen(s), posted in the reply,
+  BEFORE claiming completion. "The code matches the spec" is not evidence;
+  pixels are. For flows with roles (host/joiner, owner/diner), screenshot
+  each role.
+
+- **Reuse, don't imitate.** When a task says two surfaces must be "the
+  same," mount the same component — never build or restyle a lookalike.
+  If you find yourself copying styles to make B resemble A, stop: that is
+  the wrong implementation, not a shortcut to it.
+
+- **Kill legacy on replacement.** When a view is superseded, delete the old
+  component in the same PR. It must not remain importable. Feature-flagged
+  corpses are how regressions ship.
+
+- **Verify on real data.** Seed fixtures (test dishes, tiny menus) are for
+  unit tests only. Visual verification uses a realistic session (e.g. a
+  full scanned menu), because fixtures hide layout and density failures.
+
+- **Sameness tests assert identity.** A test for "X renders the same as Y"
+  must compare component trees / snapshots such that a lookalike FAILS it.
+
 Private/local context (IDs, test accounts) lives in `CLAUDE.local.md` — not
 committed. Deeper product history: `SPEC.md` and `docs/`.
