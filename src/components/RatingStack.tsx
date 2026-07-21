@@ -28,13 +28,31 @@ import type { FormInputs } from '@/lib/blobForm';
 type Phase = 'flick' | 'grow';
 type Prepared = { file: File; url: string; meta: PhotoMeta };
 
-const freshDish = (url: string, score: number): GrowDish => ({
+/** A dish that ALREADY EXISTS and is waiting to be rated (待評菜式 — a menu-scan or
+ *  shared-table pick). Rated through the same flick → growth flow as an album batch,
+ *  but nothing is created and nothing may ever be deleted: see `picksMode` below. */
+export type ExistingPick = {
+  dishId: string;
+  photoUrl: string | null;
+  name: string;
+  name_zh: string | null;
+  coords: { lat: number; lng: number } | null;
+};
+
+const freshDish = (url: string | null, score: number): GrowDish => ({
   photoUrl: url, score, status: 'creating', dishId: null, isDish: true,
   name: '', name_zh: null, cuisine: null, ingredients: [], diet: [], heaviness: null, enriched: false,
   coords: null, nearby: [], placeLoading: false, hasLocation: false, choice: null,
 });
 
-export default function RatingStack({ photos, userId, onExit }: { photos: File[]; userId: string; onExit: () => void }) {
+export default function RatingStack({ photos, picks, userId, onExit }: {
+  /** Album/camera batch: brand-new dishes get CREATED from these files. */
+  photos?: File[];
+  /** Queued picks: dishes that already exist and only need sealing + rating. */
+  picks?: ExistingPick[];
+  userId: string;
+  onExit: () => void;
+}) {
   const { t, lang } = useLang();
   // Normalize every photo up front with the SAME util the /log flow uses (image.ts):
   // HEIC → JPEG (Chrome can't render HEIC, vision can't read it) AND downscale to
@@ -44,15 +62,21 @@ export default function RatingStack({ photos, userId, onExit }: { photos: File[]
   // read from the ORIGINAL file BEFORE conversion — the canvas re-encode strips it.
   // null = still decoding.
   const [prepared, setPrepared] = useState<Prepared[] | null>(null);
+  // picksMode: rating dishes that ALREADY EXIST. Nothing is uploaded or created, and
+  // — the load-bearing part — nothing this session may ever be deleted, because these
+  // dishes were not ours to make. See cancelSession + the ✕ handling at the bottom.
+  const picksMode = !!picks?.length;
   useEffect(() => {
+    if (picksMode) return;                 // no files to decode
+    const files = photos ?? [];
     let alive = true; let made: string[] = [];
-    Promise.all([Promise.all(photos.map(f => normalizePhoto(f))), Promise.all(photos.map(readPhotoMeta))]).then(([fs, metas]) => {
+    Promise.all([Promise.all(files.map(f => normalizePhoto(f))), Promise.all(files.map(readPhotoMeta))]).then(([fs, metas]) => {
       if (!alive) return;
       made = fs.map(f => URL.createObjectURL(f));
       setPrepared(fs.map((file, i) => ({ file, url: made[i], meta: metas[i] })));
     });
     return () => { alive = false; made.forEach(u => URL.revokeObjectURL(u)); };
-  }, [photos]);
+  }, [photos, picksMode]);
 
   const [idx, setIdx] = useState(0);
   const [dishes, setDishes] = useState<GrowDish[]>([]); // one per RATED card (skips omitted)
@@ -116,6 +140,11 @@ export default function RatingStack({ photos, userId, onExit }: { photos: File[]
   // the discarded dishes were still sitting in 已評菜式 until a manual page refresh.
   // allSettled (not all) so one failed delete can't strand the user in the sheet.
   const cancelSession = async () => {
+    // picksMode NEVER deletes: those dishes existed before this screen opened (a
+    // menu-scan pick, already sealed) and discarding them would destroy something the
+    // person deliberately queued. Their ✕ is a plain close — a flicked rating stands,
+    // correctable through 重新評分 in 食記, which replays the whole history honestly.
+    if (picksMode) { onExit(); return; }
     const ids = sessionDishIds.current;
     sessionDishIds.current = [];
     await Promise.allSettled(ids.map(id =>
@@ -265,6 +294,24 @@ export default function RatingStack({ photos, userId, onExit }: { photos: File[]
     } catch { patch(i, { status: 'failed' }); }
   }
 
+  // The pipeline for a QUEUED PICK. The dish already exists, so there is no upload and
+  // no create — but the sealed-bet ordering is identical and non-negotiable: seal (the
+  // route is idempotent, so a pick sealed at scan time just no-ops) strictly BEFORE the
+  // rating. The dish id is never pushed to sessionDishIds: nothing here is ours to delete.
+  async function runPickPipeline(pick: ExistingPick, score: number, i: number) {
+    try {
+      patch(i, {
+        status: 'ready', dishId: pick.dishId, isDish: true,
+        name: pick.name, name_zh: pick.name_zh, coords: pick.coords,
+      });
+      await seal(pick.dishId);
+      await rate(pick.dishId, score);
+      refreshBuddy();
+      enrich(i, pick.dishId);   // fills in ingredients/diet chips if it never got them
+      if (pick.coords) loadNearby(i, pick.dishId, pick.coords);
+    } catch { patch(i, { status: 'failed' }); }
+  }
+
   // A pick on the growth screen (live mode): persist it. Home / skip clear the restaurant.
   const onPickPlace = (i: number, label: string) => {
     patch(i, { choice: label }); // optimistic display
@@ -325,40 +372,60 @@ export default function RatingStack({ photos, userId, onExit }: { photos: File[]
     })();
   };
 
-  // Still decoding (e.g. HEIC → JPEG) — a brief loading sheet.
-  if (!prepared) return (
+  // Still decoding (e.g. HEIC → JPEG) — a brief loading sheet. Picks have nothing to
+  // decode, so they skip straight past it.
+  if (!picksMode && !prepared) return (
     <div className="rate-sheet"><div className="rate-sheet-inner rate-loading">{t('rate.preparing')}</div></div>
   );
-  if (!prepared.length) return null;
-  const pv = prepared;
+  const pv = prepared ?? [];
+  const pk = picks ?? [];
+  const cardCount = picksMode ? pk.length : pv.length;
+  if (!cardCount) return null;
 
   const gotoNextOrGrow = (ratedAnything: boolean) => {
-    if (idx + 1 >= pv.length) { if (ratedAnything) setPhase('grow'); else onExit(); }
+    if (idx + 1 >= cardCount) { if (ratedAnything) setPhase('grow'); else onExit(); }
     else setIdx(i => i + 1);
   };
   const onRate = (score: number) => {
     const i = countRef.current++;
-    ratedSrc.current[i] = pv[idx]; // keep the source so a failed upload can retry in place
-    setDishes(prev => [...prev, freshDish(pv[idx].url, score)]);
-    runPipeline(pv[idx].file, score, i, pv[idx].meta); // detached — don't block advancing
+    if (picksMode) {
+      const pick = pk[idx];
+      setDishes(prev => [...prev, freshDish(pick.photoUrl, score)]);
+      runPickPipeline(pick, score, i);
+    } else {
+      ratedSrc.current[i] = pv[idx]; // keep the source so a failed upload can retry in place
+      setDishes(prev => [...prev, freshDish(pv[idx].url, score)]);
+      runPipeline(pv[idx].file, score, i, pv[idx].meta); // detached — don't block advancing
+    }
     gotoNextOrGrow(true);
   };
   // Retry a failed card (upload bounced — 413/network/5xx). The File is still in
   // memory; re-run the whole pipeline for that index with the same held score.
   const onRetry = (i: number) => {
-    const src = ratedSrc.current[i];
     const gd = dishes[i];
-    if (!src || !gd) return;
+    if (!gd) return;
     patch(i, { status: 'creating' });
+    if (picksMode) {
+      const pick = pk.find(p => p.dishId === gd.dishId);
+      if (pick) runPickPipeline(pick, gd.score, i);
+      return;
+    }
+    const src = ratedSrc.current[i];
+    if (!src) return;
     runPipeline(src.file, gd.score, i, src.meta);
   };
   const onSkip = () => gotoNextOrGrow(countRef.current > 0);
 
   if (phase === 'flick') {
+    const card = picksMode ? pk[idx] : null;
     return (
       <SnapRating
         key={idx}
-        photoUrl={pv[idx].url}
+        photoUrl={picksMode ? card!.photoUrl : pv[idx].url}
+        // A queued pick usually has no photo (it came off a menu), so the card leads
+        // with its NAME instead — otherwise there'd be nothing to rate against.
+        dishName={card?.name}
+        dishNameZh={card?.name_zh ?? undefined}
         showHint={idx === 0}
         onClose={cancelSession}
         onRate={onRate}
@@ -370,7 +437,10 @@ export default function RatingStack({ photos, userId, onExit }: { photos: File[]
   return (
     <div className="rate-sheet">
       <div className="rate-sheet-inner">
-        <TasteGrowth live={dishes} engine={engine} blobInputs={blobInputs} onExit={onExit} onCancel={cancelSession} onPickPlace={onPickPlace} onAddPlace={onAddPlace} onEditName={onEditName} onReclassify={onReclassify} onRetry={onRetry} />
+        {/* No onCancel in picksMode: TasteGrowth falls back to onExit, so its ✕ is a
+            plain close-and-keep rather than a discard that would delete dishes we
+            never created. */}
+        <TasteGrowth live={dishes} engine={engine} blobInputs={blobInputs} onExit={onExit} onCancel={picksMode ? undefined : cancelSession} onPickPlace={onPickPlace} onAddPlace={onAddPlace} onEditName={onEditName} onReclassify={onReclassify} onRetry={onRetry} />
       </div>
     </div>
   );

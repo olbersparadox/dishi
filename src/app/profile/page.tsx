@@ -11,7 +11,7 @@ import ExplainModal from '@/components/ExplainModal';
 import type { ExportDish } from '@/lib/tasteExport';
 import { isPersona, type Persona } from '@/lib/persona';
 import { RateIcon, TrashIcon, UtensilsIcon, HomeIcon, PhotoIcon } from '@/components/icons';
-import RatingStack from '@/components/RatingStack';
+import RatingStack, { type ExistingPick } from '@/components/RatingStack';
 import { clearJournalCache } from '@/lib/journalCache';
 import { wordKeyFor } from '@/lib/flickWords';
 import { useLang } from '@/lib/i18n';
@@ -24,7 +24,13 @@ export default function ProfilePage() {
   );
 }
 
-type ToRate = { id: string; name: string; name_zh: string | null; cuisine: string | null; source: string; restaurant: string | null };
+type ToRate = {
+  id: string; name: string; name_zh: string | null; cuisine: string | null;
+  source: string; restaurant: string | null;
+  // Carried so a queued pick can be rated through the flick → growth flow: the photo
+  // for its card (menu picks usually have none), the coords to seed nearby places.
+  photo_url: string | null; lat: number | null; lng: number | null;
+};
 
 /** Rated rows as the API returns them — kept whole (ids + identity links)
  * so the 已評嘅菜 list can group same-real-dish occasions instead of showing
@@ -45,6 +51,7 @@ function TasteProfile() {
   // behind the glass) rather than navigating away — so the drag-and-rate screen sits
   // on top of the live Taste AI section.
   const [ratePhotos, setRatePhotos] = useState<File[] | null>(null);
+  const [ratePick, setRatePick] = useState<ExistingPick | null>(null); // a queued 待評 pick
   const [logHelp, setLogHelp] = useState(false); // tap the ⓘ on the entry card → how/why to rate
   // Bumped when the rating overlay closes so THIS page's client-fetched data (taste
   // vector, rated list, to-rate) reloads without a hard refresh. Also drives a key on
@@ -54,7 +61,13 @@ function TasteProfile() {
   // The album rating flow just created + rated dishes, but it lives on THIS tab (not
   // /log), so the 食記 journal's in-memory cache never saw them — clear it so the next
   // visit refetches and shows the new dishes (was: stale until a full reload).
-  const closeRating = () => { clearJournalCache(); setRatePhotos(null); setRefreshKey(k => k + 1); router.refresh(); };
+  // Shared exit for BOTH rating entry points (album batch and a queued pick): drop the
+  // journal cache, remount the taste card, and refetch — a just-rated pick has to leave
+  // the 待評 queue, and the engine reading behind the card has moved.
+  const closeRating = () => {
+    clearJournalCache(); setRatePhotos(null); setRatePick(null);
+    setRefreshKey(k => k + 1); router.refresh();
+  };
   const [vector, setVector] = useState<Record<string, number>>({});
   const [affinity, setAffinity] = useState<Record<string, number>>({});
   const [count, setCount] = useState(0);
@@ -230,6 +243,7 @@ function TasteProfile() {
       {/* Rating flow as a full-screen overlay ON TOP of this Taste AI page (kept
           mounted behind, so the drag-and-rate glass blurs the live section). */}
       {ratePhotos && userId && <RatingStack photos={ratePhotos} userId={userId} onExit={closeRating} />}
+      {ratePick && userId && <RatingStack picks={[ratePick]} userId={userId} onExit={closeRating} />}
 
       {/* Dishes waiting to be rated — picked off a menu scan or during a shared
           table, not yet rated. Living here (not buried on /log) is deliberate:
@@ -252,7 +266,14 @@ function TasteProfile() {
                   this queue forever with no way out but rating it — which would have
                   taught the engine from a dish you never actually ate. */}
               <div className="pick-card-actions">
-                <button className="icon-btn lg rate" onClick={() => router.push(`/log?rate=${p.id}`)}
+                {/* Same flick → growth flow as an album batch (it used to bounce out to
+                    the old single-dish /log page). Nothing is created here, so the
+                    session can never delete this pick — see RatingStack.picksMode. */}
+                <button className="icon-btn lg rate" onClick={() => setRatePick({
+                  dishId: p.id, photoUrl: p.photo_url ?? null,
+                  name: p.name, name_zh: p.name_zh,
+                  coords: p.lat != null && p.lng != null ? { lat: p.lat, lng: p.lng } : null,
+                })}
                   aria-label={t('log.rateNow')} title={t('log.rateNow')}>
                   <RateIcon size={20} />
                 </button>

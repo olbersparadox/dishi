@@ -35,7 +35,10 @@ export async function GET(req: NextRequest) {
   if (req.nextUrl.searchParams.get('unrated') === '1') {
     const { data: mine } = await supabase
       .from('dishes')
-      .select('id, name, name_zh, cuisine, source, created_at, restaurants(name)')
+      // photo_url + coords: the queued pick is now rated through the SAME flick →
+      // growth flow as an album batch, so its card needs the photo (when it has one)
+      // and its coords need to seed the nearby-restaurant refine.
+      .select('id, name, name_zh, cuisine, photo_url, lat, lng, source, created_at, restaurants(name)')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
       .limit(30);
@@ -53,6 +56,7 @@ export async function GET(req: NextRequest) {
         .filter(d => !rated.has(d.id))
         .map((d: any) => ({
           id: d.id, name: d.name, name_zh: d.name_zh, cuisine: d.cuisine,
+          photo_url: d.photo_url ?? null, lat: d.lat ?? null, lng: d.lng ?? null,
           source: d.source, restaurant: d.restaurants?.name ?? null,
         })),
     });

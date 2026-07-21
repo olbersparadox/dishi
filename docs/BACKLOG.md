@@ -29,21 +29,18 @@ Model tier per item: **[S]** = Sonnet (well-specified build) · **[F]** = Fable/
   primary login path. Mostly template + a few lines; verifyOtp path already
   exists. Full spec: `docs/specs/otp-login.md`.
 
-- [ ] **[F] Queued picks (待評菜式) should rate through the NEW flow.** Today the
-  rate icon on a pick routes to `/log?rate=<id>` — the old single-dish page.
-  It should open RatingStack (flick card → growth screen) like the album path.
-  **Blocked on one owner decision, not on code:** RatingStack commits the rating
-  the moment you flick, and its ✕ means "discard the session", implemented as
-  DELETE the dishes it created. A queued pick is NOT ours to delete — it came
-  from a menu scan and already carries a seal. There is no un-rate endpoint
-  (only `DELETE /api/my/dishes`, which cascades the rating away with the whole
-  dish and replays the profile). So ✕ on a pick must either (a) mean plain
-  "close", leaving the flicked rating committed — cheap, but ✕ then means two
-  different things on the same screen; or (b) get a real un-rate path: delete
-  the rating, replay the profile, and decide what happens to the already-revealed
-  seal (the honesty contract says a revealed prediction stays revealed). Pick (a)
-  or (b) before building. Everything else about the port is mechanical: an
-  `existing` mode that skips create/upload and seals+rates a known dish_id.
+- [x] **[F] Queued picks (待評菜式) rate through the NEW flow.** ✅ DONE `_PENDING_`.
+  The rate icon opened `/log?rate=<id>` (the old single-dish page); it now opens
+  RatingStack in `picksMode` — flick card → growth screen, same as the album path.
+  **Owner chose (a):** ✕ on a pick is a plain close, the flicked rating stands, and
+  correction goes through 重新評分 in 食記 (which replays full history, so it's
+  engine-correct and never re-seals). (b) — a real un-rate — was rejected because
+  sending a dish back to 待評 with its prediction ALREADY REVEALED lets the re-rating
+  be made with dishi's guess in hand, which corrupts the sealed-bet contract and makes
+  the streak gameable. Two independent guards ensure a pick is never deleted:
+  `cancelSession` early-returns in picksMode, and no `onCancel` is passed to
+  TasteGrowth (its `onCancel ?? onExit` fallback makes ✕ close-and-keep).
+  `?unrated=1` now also returns `photo_url`/`lat`/`lng` for the card + nearby seed.
 
 ## Next
 
