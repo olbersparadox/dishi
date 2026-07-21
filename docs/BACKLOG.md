@@ -619,6 +619,16 @@ SAVE button, never the chop glyph itself. 9 tests. Verified live: saved a
 real display_name, confirmed via direct DB query, then reverted it and the
 test table session — nothing left in the live account.
 
+**Amended `94b0680` (owner review, 2026-07-21):** the per-user rotation/
+variable-radius/border-weight above shipped as spec'd, but read as the
+app's separate 印 ink-seal motif rather than Table Mode's own clean look —
+swapped for a plain uniform circle with initials, no shape variation.
+`deriveChopStyle`/`ChopStyle` deleted (unused after the swap); `chopGlyph`
+unchanged. 4 tests removed with it (432 total). The spec's "disambiguate by
+chop styling... on long-press/tap" no longer applies — every chop looks
+identical now, so disambiguation (if it's ever needed) would have to be
+full-name-on-tap alone.
+
 ---
 
 ## 3. Realtime pick stamps — *(Sonnet)* — ✅ DONE `4c0deed` (signed-in members only — see below)
