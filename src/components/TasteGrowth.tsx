@@ -73,7 +73,7 @@ const emptyDish = (): Dish => ({ named: false, ing: [], diet: [], places: [], pl
 type Flyer = { id: number; word: string; x: number; y: number };
 
 export type NameEdit = { zh: string; en: string; edZh: boolean; edEn: boolean };
-export type GrowEngine = { fill: number; ready: boolean; hintKey: string; hintParams?: Record<string, number> };
+export type GrowEngine = { fill: number; ready: boolean; v: number; hintKey: string; hintParams?: Record<string, number> };
 
 export default function TasteGrowth({ live, engine, onExit, onCancel, onPickPlace, onEditName, onReclassify, onRetry }: {
   live: GrowDish[];
@@ -168,14 +168,15 @@ export default function TasteGrowth({ live, engine, onExit, onCancel, onPickPlac
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [live]);
 
-  // The bar reads REAL taste-engine confidence toward the AI-export unlock (from
-  // /api/buddy), with the honest growth hint under it. Before the first reading lands it
-  // falls back to session progress.
+  // The bar reads the REAL dishi version ladder (from /api/buddy): progress toward
+  // the next version, with 「dishi v{n} 已經解鎖」 once v1+ is reached, or the honest
+  // growth hint while still locked. Before the first reading lands it falls back to
+  // session progress (and a neutral analysing line — never a fake unlock claim).
   const dishesLeft = Math.max(0, Math.ceil((100 - fill) / 10));
   const barFill = engine ? engine.fill : fill;
   const barLine = engine
-    ? (engine.ready ? t('grow.ready') : t(engine.hintKey, engine.hintParams))
-    : (dishesLeft <= 0 ? t('grow.ready') : t('grow.toready', { n: dishesLeft }));
+    ? (engine.ready ? t('version.unlocked', { n: engine.v }) : t(engine.hintKey, engine.hintParams))
+    : (dishesLeft <= 0 ? t('grow.analysing') : t('grow.toready', { n: dishesLeft }));
   const blobScale = 0.72 + Math.min(absorbed, 16) * 0.05;
 
   // refinement = reward: RatingStack owns the choice (it persists it) — it round-trips

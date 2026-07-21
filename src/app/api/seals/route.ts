@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseServer, supabaseAdmin } from '@/lib/supabase/server';
-import { contentScore, emptyTaste } from '@/lib/taste';
-import { directionOf, SEAL_GATE } from '@/lib/seal';
-import { composeReason } from '@/lib/menuScoring';
+import { stakeSeal } from '@/lib/sealStake';
 
 /**
  * GET /api/seals?dish_id=... -> { sealed: boolean }
@@ -49,42 +47,12 @@ export async function POST(req: NextRequest) {
     supabase.from('dishes').select('attributes, cuisine').eq('id', dish_id).maybeSingle(),
   ]);
   if (existing) return NextResponse.json({ sealed: true, already: true });
-
-  const ratingCount = profile?.rating_count ?? 0;
-  if (ratingCount < SEAL_GATE) return NextResponse.json({ sealed: false, reason: 'below_gate' });
   if (!dish) return NextResponse.json({ error: 'Dish not found.' }, { status: 404 });
 
-  const vector = profile?.vector ?? emptyTaste();
-  const affinity = profile?.cuisine_affinity ?? {};
-  const evidence = profile?.evidence ?? {};
-  const raw = contentScore(vector, dish.attributes, affinity, dish.cuisine);
-  const direction = directionOf(raw);
-
-  // The honest reason, sealed alongside the prediction — composed from the SAME
-  // real matched dimensions the scan reasons use, in BOTH languages so the reveal
-  // reads correctly whichever the user is in. This is what makes the reveal say
-  // "the engine committed to 'melting tenderness' before you rated," not just a bare
-  // direction. Composed at seal time so it reflects the engine AS IT WAS, not as it
-  // is after the rating moves it.
-  const scorable = { attributes: dish.attributes, cuisine: dish.cuisine };
-  const reasonZh = composeReason(scorable, vector, affinity, evidence, 'zh');
-  const reasonEn = composeReason(scorable, vector, affinity, evidence, 'en');
-
-  const { error } = await admin.from('sealed_predictions').insert({
-    user_id: user.id,
-    dish_id,
-    predicted_raw: raw,
-    predicted_direction: direction,
-    predicted_reason_zh: reasonZh,
-    predicted_reason_en: reasonEn,
-    engine_rating_count: ratingCount,
-    profile_version: profile?.profile_version ?? 1,
-  });
-  if (error) {
-    // Unique(user_id, dish_id) racing with a concurrent request is fine —
-    // treat as already-sealed rather than surfacing a false error.
-    if (error.code === '23505') return NextResponse.json({ sealed: true, already: true });
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-  return NextResponse.json({ sealed: true });
+  // The staking core (prediction + bilingual sealed reason + maturity gate +
+  // idempotency) lives in sealStake.ts, shared with the version-unlock auto-seal.
+  const result = await stakeSeal(admin, user.id, { id: dish_id, ...dish }, profile);
+  if (result === 'below_gate') return NextResponse.json({ sealed: false, reason: 'below_gate' });
+  if (result === 'error') return NextResponse.json({ error: 'Could not seal.' }, { status: 500 });
+  return NextResponse.json({ sealed: true, ...(result === 'already' ? { already: true } : {}) });
 }

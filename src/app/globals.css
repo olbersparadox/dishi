@@ -121,18 +121,15 @@ button { font: inherit; cursor: pointer; }
  * anywhere else. */
 .btn.export {
   background: var(--seal); border-color: var(--seal); color: var(--seal-ink);
-  font-family: var(--font-display);
+  /* Sans + heavy in BOTH states (the unlocked 「dishi v{n} 植入」 matches the locked
+     line's size/weight exactly, per the version-ladder design call). Latin uses
+     Schibsted; Chinese falls to the system sans. */
+  font-family: var(--font-body), system-ui, sans-serif; font-weight: 850;
 }
 /* Locked export: keep the full vermillion (don't dim like a normal :disabled) — it
    reads as "coming, keep rating" not "unavailable". Still non-interactive (disabled),
    and the lock icon carries the locked meaning. The icon + count sit centred inline. */
-.btn.export.is-locked {
-  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
-  /* Locked label is SANS (overrides .btn's display serif) + heavier — reads as a
-     firm status line, not a titled CTA. Latin uses Schibsted; Chinese falls to the
-     system sans. 650 (.btn base) + 200. */
-  font-family: var(--font-body), system-ui, sans-serif; font-weight: 850;
-}
+.btn.export.is-locked { display: inline-flex; align-items: center; justify-content: center; gap: 7px; }
 .btn.export.is-locked:disabled { opacity: 1; }
 /* Small icon-only actions (edit/delete on a rated dish) — a quiet round tap
    target rather than a bordered .btn, since a row of these next to a dish's
@@ -880,6 +877,16 @@ button { font: inherit; cursor: pointer; }
 }
 .taste-form-legend .dot-knows { background: var(--ink); }
 .taste-form-legend .dot-learning { background: var(--ink-faint); }
+
+/* The dishi version ladder line (replaced Levels): V{n} leads the legend; the bar
+   below runs the full stat-line width with V{n+1} pinned at its right end. */
+.version-line { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 14px; }
+.version-now, .version-next {
+  font-family: var(--font-display); font-weight: 800; font-size: 16px; color: var(--ink);
+  letter-spacing: 0.02em; flex-shrink: 0;
+}
+.version-next { font-size: 13px; color: var(--ink-soft); font-weight: 700; }
+.version-bar-row { display: flex; align-items: center; gap: 10px; margin-top: 16px; }
 
 /* Level progress bar under the taste form. These classes were referenced by
    TasteFormCard but had no styles, so the bar rendered at zero height (i.e.

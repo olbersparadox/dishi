@@ -13,7 +13,9 @@ import type { ExportDish } from '@/lib/tasteExport';
 import type { Persona } from '@/lib/persona';
 
 type BuddyState = {
-  level: { name: string; level: number; size: number; progress: number; next: { name: string } | null };
+  // The dishi version ladder (replaced Levels): v = ratcheted unlock history (what
+  // the UI names), progress = live 0..1 toward the next version (may honestly dip).
+  version: { v: number; live: number; progress: number; nextAt: number; justUnlockedTo: number | null };
   strength: number;
   elements: { kind: string; id: string; label: string }[];
   hint: { key: string; params?: Record<string, number> };
@@ -99,20 +101,26 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
         vector={state.vector} labelFor={(dim) => t(`dim.${dim}`)}
       />
 
-      <div className="taste-form-legend">
-        <span><span className="dot dot-knows" />{t('buddy.knows.count', { n: state.knows.length })}</span>
-        <span><span className="dot dot-learning" />{t('buddy.learning.count', { n: state.learning.length })}</span>
+      {/* The version line: V{n} (the ratcheted dishi version) leads the 識咗/摸緊
+          legend, and the bar below runs the FULL stat-line width toward V{n+1} at its
+          right end — progress between version thresholds, not raw confidence. The
+          ladder is unbounded (see version.ts); Levels and their animal names are gone. */}
+      <div className="version-line">
+        <span className="version-now">V{state.version.v}</span>
+        <div className="taste-form-legend" style={{ marginTop: 0 }}>
+          <span><span className="dot dot-knows" />{t('buddy.knows.count', { n: state.knows.length })}</span>
+          <span><span className="dot dot-learning" />{t('buddy.learning.count', { n: state.learning.length })}</span>
+        </div>
       </div>
 
-      {/* Level name + "N XP to <next>" text removed per design — the bar alone
-          carries progress now, without the nagging countdown line. */}
-      <div className="xp-bar" role="progressbar" aria-valuenow={Math.round(state.level.progress * 100)}
-        aria-valuemin={0} aria-valuemax={100}
-        aria-label={state.level.next
-          ? `Progress to ${t(`buddy.level.${state.level.next.name}`)}`
-          : 'Max level'}
-        style={{ maxWidth: 200, marginTop: 18, marginLeft: 'auto', marginRight: 'auto' }}>
-        <div className="xp-fill" style={{ width: `${state.level.progress * 100}%` }} />
+      <div className="version-bar-row">
+        <div className="xp-bar" role="progressbar" aria-valuenow={Math.round(state.version.progress * 100)}
+          aria-valuemin={0} aria-valuemax={100}
+          aria-label={`dishi v${state.version.v} → v${state.version.v + 1}`}
+          style={{ flex: 1 }}>
+          <div className="xp-fill" style={{ width: `${state.version.progress * 100}%` }} />
+        </div>
+        <span className="version-next">V{state.version.v + 1}</span>
       </div>
 
       <div className="stat-row" style={{ marginTop: 20, marginBottom: 0 }}>
@@ -124,7 +132,7 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
     </div>
 
     <TasteExport vector={vector} affinity={affinity} count={count} dishes={dishes}
-      persona={persona} onPersona={onPersona} name={name} />
+      persona={persona} onPersona={onPersona} name={name} version={state.version.v} />
     </>
   );
 }

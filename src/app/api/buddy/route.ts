@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
-import { supabaseServer } from '@/lib/supabase/server';
-import { emptyTaste } from '@/lib/taste';
+import { supabaseServer, supabaseAdmin } from '@/lib/supabase/server';
+import { emptyTaste, contentScore } from '@/lib/taste';
 import {
-  engineConfidence, levelForConfidence,
-  buddyElements, growthHint, exploredDims, UNLOCK_CONFIDENCE,
+  engineConfidence, buddyElements, growthHint, exploredDims, UNLOCK_CONFIDENCE,
 } from '@/lib/buddy';
+import { versionForProfile, ratchetVersion } from '@/lib/version';
+import { stakeSeal, type SealableDish } from '@/lib/sealStake';
 
 /**
  * GET  /api/buddy -> { species | null, state } — state computed fresh from the user's
@@ -45,11 +46,44 @@ export async function GET() {
   // ONE confidence number drives the bar, the % readout, and (via the shared
   // scale) the export unlock — rebased off the old flick-count XP (spec §2).
   const confidence = engineConfidence(inputs);
+
+  // ── dishi version (the unbounded ladder that replaced Levels) ──────────────────
+  // Live version from the same inputs as everything above; the STORED version is a
+  // ratcheted unlock history (only ever rises — see version.ts). On the moment a NEW
+  // version unlocks, the engine stakes ONE sealed prediction: its strongest-
+  // confidence call about a dish the user hasn't rated yet — every 「dishi v{n}
+  // 已經解鎖」 ships with the engine putting its reputation on the line. GET-with-
+  // side-effect matches the existing lazy-seal pattern on profile load.
+  const live = versionForProfile({
+    ratingCount: inputs.ratingCount,
+    exploredDimCount: exploredDims(inputs.vector).length,
+    distinctCuisines,
+  });
+  const stored = profile?.version_unlocked ?? 0;
+  const unlocked = ratchetVersion(stored, live.version);
+  let justUnlockedTo: number | null = null;
+  if (unlocked > stored && profile) {
+    const { error: ratchetErr } = await supabase
+      .from('taste_profiles').update({ version_unlocked: unlocked }).eq('user_id', user.id);
+    if (!ratchetErr) {
+      justUnlockedTo = unlocked;
+      await autoSealOnUnlock(supabase, user.id, dishIds, profile).catch(() => {
+        /* the unlock itself must never fail on the celebration seal */
+      });
+    }
+  }
+
   return NextResponse.json({
     species: buddy?.species ?? null,
     state: {
-      level: levelForConfidence(confidence),
       strength: Math.round(confidence * 100),
+      version: {
+        v: unlocked,               // ratcheted — what the UI names ("dishi v2")
+        live: live.version,        // may sit below v after deletions; bar uses live progress
+        progress: live.progress,   // 0..1 toward the next version
+        nextAt: live.nextAt,
+        justUnlockedTo,            // non-null exactly once, on the unlock that just happened
+      },
       // The AI-export unlock threshold (為食鬼/Gourmand), as a %, so clients — e.g. the
       // rating-flow growth screen — can show honest progress toward "Taste AI ready".
       unlockAt: Math.round(UNLOCK_CONFIDENCE * 100),
@@ -78,6 +112,50 @@ export async function GET() {
       profile_version: profile?.profile_version ?? 1,
     },
   });
+}
+
+/**
+ * The version-unlock auto-seal (backlog item 2, folded into the ladder): among the
+ * user's UNRATED dishes with real attributes and no existing seal, stake ONE sealed
+ * prediction on the dish the engine feels STRONGEST about (max |contentScore| —
+ * conviction either direction counts; a confident "you won't like this" is as much
+ * reputation on the line as a confident hit). Reuses sealed_predictions + the reveal
+ * flow wholesale — no new tables, no new UI. If no candidate exists, stake nothing:
+ * a filler seal would be the engine pretending conviction it doesn't have.
+ */
+async function autoSealOnUnlock(
+  supabase: ReturnType<typeof supabaseServer>,
+  userId: string,
+  ratedDishIds: string[],
+  profile: { vector?: Record<string, number>; cuisine_affinity?: Record<string, number>;
+             evidence?: Record<string, number>; rating_count?: number; profile_version?: number },
+) {
+  const { data: dishRows } = await supabase
+    .from('dishes')
+    .select('id, attributes, cuisine')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(200);
+  const rated = new Set(ratedDishIds);
+  const candidates: SealableDish[] = ((dishRows ?? []) as SealableDish[])
+    .filter(d => !rated.has(d.id) && d.attributes && Object.keys(d.attributes).length > 0);
+  if (!candidates.length) return;
+
+  const admin = supabaseAdmin();
+  const { data: sealedRows } = await admin
+    .from('sealed_predictions').select('dish_id').eq('user_id', userId)
+    .in('dish_id', candidates.map(d => d.id));
+  const sealed = new Set((sealedRows ?? []).map(r => r.dish_id));
+
+  const vector = profile.vector ?? {};
+  const affinity = profile.cuisine_affinity ?? {};
+  const best = candidates
+    .filter(d => !sealed.has(d.id))
+    .map(d => ({ d, conviction: Math.abs(contentScore(vector, d.attributes, affinity, d.cuisine ?? undefined)) }))
+    .sort((a, b) => b.conviction - a.conviction)[0];
+  if (!best || best.conviction <= 0) return; // zero conviction = nothing honest to stake
+
+  await stakeSeal(admin, userId, best.d, profile);
 }
 
 // POST (adopt/switch a species) is retired: the species picker UI is gone —

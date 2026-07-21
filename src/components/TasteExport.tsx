@@ -28,7 +28,7 @@ import { CopyIcon, CheckIcon, LockIcon } from './icons';
  * anticipation copy + album-path link — is the separate §5 UI slice.)
  */
 export default function TasteExport({
-  vector, affinity, count, dishes, persona, onPersona, name,
+  vector, affinity, count, dishes, persona, onPersona, name, version: dishiVersion = 1,
 }: {
   vector: Record<string, number>;
   affinity: Record<string, number>;
@@ -37,6 +37,9 @@ export default function TasteExport({
   persona: Persona;
   onPersona: (p: Persona) => void;
   name: string | null;
+  /** The ratcheted dishi version (from /api/buddy via TasteFormCard) — the number the
+   * CTA names and the export stamps. Same ladder as the bar above; see version.ts. */
+  version?: number;
 }) {
   const { t, lang } = useLang();
   const [prompt, setPrompt] = useState<string | null>(null);
@@ -124,7 +127,7 @@ export default function TasteExport({
           )}
           <button className={`btn export ${!ready ? 'is-locked' : ''}`} style={{ width: '100%' }} onClick={generate} disabled={!ready || generating}>
             {ready
-              ? t('export.button')
+              ? t('export.button', { v: Math.max(1, dishiVersion) })
               : <><LockIcon size={16} /> {t('export.locked', { n: ratingsToUnlock(ci) })}</>}
           </button>
         </>

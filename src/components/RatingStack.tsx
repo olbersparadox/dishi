@@ -56,19 +56,21 @@ export default function RatingStack({ photos, onExit }: { photos: File[]; onExit
   const [idx, setIdx] = useState(0);
   const [dishes, setDishes] = useState<GrowDish[]>([]); // one per RATED card (skips omitted)
   const [phase, setPhase] = useState<Phase>('flick');
-  // The REAL engine state (from /api/buddy) that drives the growth bar — actual taste
-  // confidence toward the AI-export unlock, not a demo mapping. Refreshed as ratings +
+  // The REAL engine state (from /api/buddy) that drives the growth bar — the dishi
+  // version ladder: progress toward the NEXT version (toward v1 while locked), and
+  // the ratcheted version number for the unlocked line. Refreshed as ratings +
   // enrichment land (both move the profile).
-  const [engine, setEngine] = useState<{ fill: number; ready: boolean; hintKey: string; hintParams?: Record<string, number> } | null>(null);
+  const [engine, setEngine] = useState<{ fill: number; ready: boolean; v: number; hintKey: string; hintParams?: Record<string, number> } | null>(null);
   const refreshBuddy = async () => {
     try {
       const j = await fetch('/api/buddy').then(r => (r.ok ? r.json() : null));
       const s = j?.state;
-      if (!s || typeof s.strength !== 'number') return;
-      const unlockAt = s.unlockAt || 50;
+      const vz = s?.version;
+      if (!vz || typeof vz.progress !== 'number') return;
       setEngine({
-        fill: Math.min(100, (s.strength / unlockAt) * 100),
-        ready: s.strength >= unlockAt,
+        fill: Math.min(100, vz.progress * 100),
+        ready: vz.v >= 1,          // v1 ≡ the export unlock, by construction
+        v: vz.v,
         hintKey: s.hint?.key ?? 'buddy.hint.tune',
         hintParams: s.hint?.params,
       });
