@@ -382,3 +382,136 @@ not "white cut" literalism is fine but method = poached), 手撕雞 (shredded,
 not "hand-torn" as method), 風沙雞 (fried garlic crumb, not "wind-sand").
 Add only ones that fit in a line or two; the glossary must stay compact to
 stay obeyed.
+
+
+---
+
+# Backlog additions — 2026-07-21 (dishi version ladder + taste-page/growth UI batch)
+
+Context: field session 09:40–09:44 HKT on the 味 AI page and growth screen.
+Product decision (Jerry, confirmed): "Level" becomes "Version" — same growth
+substrate, better framing for this product. Versions are UNBOUNDED (v99,
+v123, …), early ones unlock fast, later ones need progressively more signal.
+The habit loop: every new version unlock → export to your AI. Deep version
+semantics and per-version perks are EXPLICITLY DEFERRED to a design session
+with Jerry — do not invent perks; build the mechanical scaffold only.
+
+---
+
+## 1. Unbounded version ladder (replaces Levels) — *(Fable 5)*
+
+**Core:** new pure module function `versionForProfile(inputs) →
+{ version, progress, nextAt }` alongside the existing buddy math.
+
+**Constraints (hard):**
+- **v1 ≡ export unlock.** "dishi v1 已經解鎖" and "can export" must be the
+  same fact, derived from the same number — never two thresholds that can
+  disagree. Anchor v1 to the existing `UNLOCK_CONFIDENCE` signal level.
+- **Unbounded + monotone.** Confidence saturates at 1.0, so versions cannot
+  ride the confidence scale forever. Substrate: cumulative honest signal
+  (the same inputs evidenceConfidence weighs — ratings, explored dims,
+  distinct cuisines — accumulated, not saturated). Diversity keeps its
+  outsized weight; the 30th identical ramen still teaches ~nothing.
+- **Early-easy, later-hard.** Threshold spacing grows (geometric or
+  quadratic — implementer's judgment): v2 within roughly a good first week
+  of normal use; by v10+ each version is a real undertaking. Tune against
+  Jerry's live account as the reference curve (25 flicks / 8 cuisines /
+  10 explored dims ≈ should sit at v1, partway to v2).
+- **Replay-safe + ratcheted.** Version must be recomputable from ratings
+  history (no drift, same principle as profile replay). RECOMMENDED (flag,
+  Jerry has not ruled): achieved version RATCHETS — it's an unlock history,
+  so deleting a rating never demotes; the progress bar toward next version
+  reflects live signal and may dip. Note the tradeoff in code comment.
+- **Naming:** "dishi v{n}" everywhere. Animal level names (Hatchling…) exit
+  the UI. Keep or delete `CONFIDENCE_LEVELS` internally as implementation
+  convenience, but nothing user-facing speaks Levels.
+- **Export unification:** the export's own version stamp (`export.delta`
+  v{v} copy) becomes the SAME number — dishi v2 unlock generates the v2
+  export with visible deltas since v1. This is the profile-versioning
+  engagement loop from the standing backlog, now with its unlock trigger.
+
+**UI (from the screenshots):**
+- 「V{n}」 label left of the 識咗/摸緊 line; 「V{n+1}」 at the bar's right
+  end; bar spans full stat-line width and shows progress between the two
+  version thresholds (not raw confidence).
+- Unlock-moment copy 「Taste AI 1.0 Ready 喇」 fires ONCE at first v1
+  unlock, then steady-state 「dishi v{n} 已經解鎖」 + dynamic
+  progress-to-next copy. Kill the "Taste AI 1.0" naming.
+- Export CTA copy → 「dishi v{n} 植入」, font size/weight matched to the
+  locked-state 「再評多 {n} 味就生成到」 line. Vermillion stays — this
+  button is one of its two sanctioned uses.
+
+**Tests:** curve monotonicity; v1==export-unlock equivalence; ratchet
+behavior; replay determinism; early-version pacing snapshot (so a future
+curve tweak is a conscious diff, not an accident).
+
+---
+
+## 2. Auto-seal on version unlock — *(fold into item 1, Fable 5)*
+
+At the moment a new version unlocks, the engine stakes ONE sealed
+prediction (reuse `sealed_predictions` wholesale — no new tables/UI): its
+strongest-confidence call about a dish direction the user hasn't confirmed
+yet. Every "dishi v{n} 已經解鎖" ships with the engine putting its
+reputation on the line; reveal follows the existing seal reveal flow.
+
+**Known gap (Jerry, explicit):** users don't yet understand what the seal
+IS. Ship the mechanic, then schedule a deep-dive review on delivering /
+educating the essence of it — capture reveal-rate + streak data meanwhile
+so that review has numbers. Do not add explanatory UI beyond existing copy
+in this pass.
+
+---
+
+## 3. Tappable stat boxes with explainer layer — *(Sonnet)*
+
+引擎強度 / 滑動 / 菜系 / 味覺調校 each tappable → popover/sheet, same
+presentation pattern as the globe & notification icons. Four short
+bilingual blurbs, written from the REAL engine semantics (書面語 register,
+these are explainers):
+- 引擎強度: how much signal the taste vector is built on — ratings ×
+  variety × cuisines; diversity counts extra; this number gates nothing
+  falsely (it IS the version substrate).
+- 滑動: total dishes rated.
+- 菜系: distinct cuisines with real ratings.
+- 味覺調校: of 18 tracked dimensions, how many have crystallized into an
+  actual preference (clear of noise) — stricter than 識咗, which only needs
+  enough evidence to trust a reading.
+Copy drafted at build time from `buddy.ts`/`tasteExport.ts` semantics; must
+stay true if thresholds move (reference constants, don't hardcode claims).
+
+---
+
+## 4. Growth screen: REAL blob, not the dev mockup — *(Sonnet)*
+
+The growth screen's header circle is a static dev-mock blob. Replace with
+the real `blobForm` render seeded from the live profile
+(`${userId}:v${profileVersion}` — note: profileVersion ties into item 1's
+version number once unified), updating as ratings commit during the
+session. A new user's blob will be small and plain — that is correct
+behavior, not a regression. Remove the mock asset so it can't return.
+
+---
+
+## 5. Absorb-effect words in Chinese — *(Sonnet)*
+
+The learned-attribute absorb animation mostly emits English tokens
+("seaweed", "rice"). When app language is zh: dimension words use the
+existing `dim.*` zh labels; ingredient words use the ingredient zh names
+already carried on the dish. English only when no zh label exists. (The
+9:41 screenshot shows 奶類 + "rice" side by side — mixed register, fix.)
+
+---
+
+## 6. Small UI batch — *(Sonnet, one pass)*
+
+- 加間舖 / 略過 / 住家菜 chips: darker text color (current --ink-soft on
+  glaze reads too faint on the dark-banner overlay context).
+- Black banner's blurred backdrop: lighten / lower alpha — currently too
+  dark, crushes the header area (9:42 screenshot).
+
+---
+
+Deferred by decision: version semantics deep-design, per-version perks
+(fun factor, smarter AI instructions per taste), seal education — all
+Jerry+Claude design sessions, not implementation tickets.
