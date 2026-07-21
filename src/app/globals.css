@@ -683,11 +683,24 @@ button { font: inherit; cursor: pointer; }
 /* One merged ink pill; the three segments read as a single control split by a thin
    hairline, not three separate buttons. Equal thirds keep the labels balanced. */
 .log-src-merged {
+  position: relative;
   display: grid; grid-template-columns: repeat(3, 1fr);
   background: var(--ink); color: var(--glaze);
   border-radius: 16px; overflow: hidden;
   margin-bottom: 26px;
 }
+/* Small circled ⓘ pinned to the card's top-right — a quiet affordance on the dark
+   ground, brightening on press. Sits above the segment <label>s (z-index) so its
+   own tap opens the explainer rather than the photo picker underneath. */
+.log-src-info {
+  position: absolute; top: 8px; right: 8px; z-index: 2;
+  width: 20px; height: 20px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  border: 1px solid rgba(245, 240, 232, 0.4); background: transparent;
+  color: var(--glaze); cursor: pointer; padding: 0;
+  font-family: var(--font-display); font-size: 12.5px; font-style: italic; line-height: 1;
+}
+.log-src-info:active { background: rgba(245, 240, 232, 0.16); }
 .log-src-seg {
   position: relative;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;

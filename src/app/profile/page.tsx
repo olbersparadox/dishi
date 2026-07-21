@@ -7,6 +7,7 @@ import TasteFormCard from '@/components/TasteFormCard';
 import SealReveal, { type SealResult } from '@/components/SealReveal';
 import DishName from '@/components/DishName';
 import SealStamp from '@/components/SealStamp';
+import ExplainModal from '@/components/ExplainModal';
 import type { ExportDish } from '@/lib/tasteExport';
 import { isPersona, type Persona } from '@/lib/persona';
 import { RateIcon, TrashIcon, UtensilsIcon, HomeIcon, PhotoIcon } from '@/components/icons';
@@ -44,6 +45,7 @@ function TasteProfile() {
   // behind the glass) rather than navigating away — so the drag-and-rate screen sits
   // on top of the live Taste AI section.
   const [ratePhotos, setRatePhotos] = useState<File[] | null>(null);
+  const [logHelp, setLogHelp] = useState(false); // tap the ⓘ on the entry card → how/why to rate
   // Bumped when the rating overlay closes so THIS page's client-fetched data (taste
   // vector, rated list, to-rate) reloads without a hard refresh. Also drives a key on
   // the buddy card so it re-fetches /api/buddy. router.refresh() (on close) covers the
@@ -202,6 +204,10 @@ function TasteProfile() {
           chosen per-dish inside the flow. Each segment is a <label> so the tap natively
           opens the picker with a real user gesture. */}
       <div className="log-src-merged">
+        {/* ⓘ — how/why to rate. Sits above the three <label> segments (own onClick,
+            stopPropagation) so tapping it opens the explainer, not the photo picker. */}
+        <button type="button" className="log-src-info" aria-label={t('logsrc.help.title')}
+          onClick={e => { e.stopPropagation(); setLogHelp(true); }}>i</button>
         {([
           { id: 'rest', icon: <UtensilsIcon size={42} />, key: 'logsrc.rest' },
           { id: 'home', icon: <HomeIcon size={42} />, key: 'logsrc.home' },
@@ -217,6 +223,9 @@ function TasteProfile() {
           </label>
         ))}
       </div>
+      {logHelp && (
+        <ExplainModal title={t('logsrc.help.title')} body={t('logsrc.help.body')} onClose={() => setLogHelp(false)} />
+      )}
 
       {/* Rating flow as a full-screen overlay ON TOP of this Taste AI page (kept
           mounted behind, so the drag-and-rate glass blurs the live section). */}
