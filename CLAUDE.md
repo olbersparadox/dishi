@@ -81,7 +81,9 @@ consumer-side dish-level demand data.
 - Prefer small shared components (`DishInfoDisplay`, `icons.tsx`) over
   duplication; pure logic goes in `src/lib` with a vitest file.
 - UI: quiet ink-on-paper aesthetic; ink (`--ink`) for primary, vermillion
-  (`--seal`) reserved for the seal stamp and export CTA only.
+  (`--seal`) reserved for the seal stamp, the export CTA, and the dish-edit
+  "儲存" button's dirty state (`.btn.primary.dirty` — vermillion the moment a
+  field actually changes; wired app-wide at every dish-edit site).
 
 ## Model selection (decide per task, state the choice)
 

@@ -356,7 +356,8 @@ export default function TasteGrowth({ live, engine, blobInputs, onExit, onCancel
                             onChange={e => { setDEn(e.target.value); setEdEn(true); if (!edZh) setDZh(''); }} />
                           <div className="learn-editactions">
                             <button className="btn ghost small" onClick={cancelEdit}>{t('home.cancel')}</button>
-                            <button className="btn primary small" onClick={commitEdit}>{t('home.save')}</button>
+                            {/* Vermillion once the name's actually been edited. */}
+                            <button className={`btn primary small ${edZh || edEn ? 'dirty' : ''}`} onClick={commitEdit}>{t('home.save')}</button>
                           </div>
                         </div>
                       // The name is a "refine" tile — a rounded rectangle (like the thumb),

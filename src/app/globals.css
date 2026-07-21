@@ -109,7 +109,13 @@ button { font: inherit; cursor: pointer; }
 }
 .btn.primary {
   background: var(--ink); border-color: var(--ink); color: var(--glaze);
+  transition: background 150ms, border-color 150ms, color 150ms;
 }
+/* Dish-edit "儲存" turns vermillion the moment a field actually changes — a
+   deliberate, app-wide exception to the "seal/export CTA only" vermillion rule:
+   here it signals "you have unsaved edits" on the save action itself. Wired via a
+   `dirty` flag at every dish-edit site (Eat Journal rename, growth-screen refine). */
+.btn.primary.dirty { background: var(--seal); border-color: var(--seal); color: var(--seal-ink); }
 .btn.ghost { border-color: var(--line); color: var(--ink-soft); }
 .btn.small { padding: 9px 18px; font-size: 14px; }
 .btn.large { padding: 14px 18px; font-size: 16px; flex: 1; }

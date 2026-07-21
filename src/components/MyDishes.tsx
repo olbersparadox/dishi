@@ -521,7 +521,15 @@ export default function MyDishes({ t, lang }: { t: (k: string, p?: Record<string
                   )}
 
                   <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
-                    <button className="btn primary small" disabled={saving} onClick={() => rename(d.id)}>
+                    {/* Vermillion once anything actually changed — a typed name or a
+                        picked restaurant — so "unsaved edits" reads at a glance. */}
+                    <button
+                      className={`btn primary small ${
+                        ((editedEn || editedZh) && (draftName.trim() || draftNameZh.trim())) ||
+                        (changingRestaurant && draftRestaurant !== null)
+                          ? 'dirty' : ''
+                      }`}
+                      disabled={saving} onClick={() => rename(d.id)}>
                       {saving ? t('home.saving') : t('home.save')}
                     </button>
                     <button className="btn ghost small" disabled={saving} onClick={() => setEditing(null)}>{t('home.cancel')}</button>
