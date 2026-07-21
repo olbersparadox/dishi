@@ -318,12 +318,6 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'scan.err.unreadable': { zh: '讀取不到這張相片。試試拍近一點、拍平一點、光線充足一點，或一次拍一頁。', en: "Couldn't read that photo. Try getting closer, flatter, or better lit \u2014 or scan one page at a time." },
 
   // ---- table mode ----
-  'table.title': { zh: '一齊食', en: 'Eat together' },
-  'table.blurb': { zh: '大家用同一代碼入席，菜式排名確保無人被犧牲 — 而非草率平均。', en: 'Everyone joins with a code, and the menu gets ranked so nobody at the table gets sacrificed — not just averaged.' },
-  'table.start': { zh: '開檯', en: 'Start a table' },
-  'table.start.blurb': { zh: '拍下餐牌（可選）— 不拍則以 Dishi 上的菜式排列。', en: 'Snap the menu (optional) — otherwise the table ranks dishes from around Dishi.' },
-  'table.starting': { zh: '整緊檯…', en: 'Setting the table…' },
-  'table.readingmenu': { zh: '讀緊餐牌…', en: 'Reading the menu…' },
   'table.join': { zh: '同朋友一齊點', en: 'Order Together' },
   'table.join.blurb': {
     zh: '一個先掃餐牌出 [枱號]，其他人跟住入',
@@ -331,18 +325,10 @@ export const dict: Record<string, { zh: string; en: string }> = {
   },
   'table.joining': { zh: '入緊…', en: 'Joining…' },
   'table.joinbtn': { zh: '加入', en: 'Join' },
-  'table.open.full': { zh: '我要自己開檯', en: 'Want to start your own table? Open the Table page →' },
   'table.leave': { zh: '離開', en: 'Leave' },
   'table.back': { zh: '返回', en: 'Back' },
   'table.invite': { zh: '+ 邀請', en: '+ Invite' },
   'table.noprofile': { zh: '未有檔案', en: 'no profile yet' },
-  // Mirrors scan.read's exact phrasing ("讀到 {n} 道菜") — the same header
-  // language, so a table session reads as the same product moment whether it
-  // started from a menu scan or a join code (item 1, Table Mode social batch).
-  'table.itemsread': { zh: '讀到 {n} 道菜', en: '{n} dishes read' },
-  'table.few': { zh: '有兩個或以上口味檔案入檯，排名先至好玩。', en: 'Rankings get interesting once two or more taste profiles are at the table.' },
-  'table.ranked': { zh: '為 {n} 種口味排名 — 要人人都啱先算贏。', en: 'Ranked for {n} palates — a dish only wins if it works for everyone.' },
-  'table.nomenu': { zh: '（尚無餐牌 — 正以 Dishi 上的菜式排列。）', en: '(No menu attached — ranking dishes from around Dishi.)' },
   'table.unanimous': { zh: '全檯啱', en: 'whole table' },
   'table.fairness': { zh: '公平之選', en: 'fairness call' },
   // 名印 one-time setup (Table Mode social batch, item 2) — a display name for the

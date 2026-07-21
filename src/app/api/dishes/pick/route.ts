@@ -6,7 +6,8 @@ import { sanitizeDietFlags, sanitizeCookingMethod, sanitizeHeaviness } from '@/l
 /**
  * POST /api/dishes/pick
  * body: { restaurant_id?: string, new_restaurant?: {name,lat,lng,area?,address?},
- *         table_session_id?: string, items: [{ name, name_zh?, cuisine?, attributes? }] }
+ *         table_session_id?: string,
+ *         items: [{ name, name_zh?, cuisine?, attributes?, table_item_key? }] }
  *
  * Creates one dish row per item — no photo, no rating yet — using the SAME `dishes`
  * table real photo-logged dishes live in. This is deliberate: a "pick" made off a
@@ -57,6 +58,10 @@ export async function POST(req: NextRequest) {
         diet: sanitizeDietFlags(raw?.diet),
         photo_url: null,
         source,
+        // Which ranked candidate this came from — lets table-mode "who picked
+        // this" stamps match unambiguously when two candidates share a printed
+        // name (see dishes.table_item_key's migration comment).
+        table_item_key: typeof raw?.table_item_key === 'string' ? raw.table_item_key.slice(0, 60) : null,
       };
     })
     .filter((r): r is NonNullable<typeof r> => r !== null)

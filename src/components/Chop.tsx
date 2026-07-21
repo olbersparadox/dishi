@@ -1,18 +1,18 @@
 'use client';
-// A table member's pick avatar — a plain circular profile-icon-with-initials, the
-// same clean typography-driven look as the rest of the app (matching scan's
-// settled-list aesthetic), not the app's separate 印 ink-seal motif. No per-user
-// shape variation — every chop is visually identical except its glyph. HARD
-// CONSTRAINT: ink only (.chop in globals.css is --ink on --glaze) — never
-// vermillion. Vermillion is reserved for the seal stamp, the AI-export CTA, and the
-// dish-edit dirty state.
-import { chopGlyph } from '@/lib/chop';
+// A table member's pick avatar — a circular profile icon, solid-color-per-user
+// (2026-07-21, direct owner request) with white initials, no shape variation
+// (every chop is the same circle, just a different color + glyph). HARD
+// CONSTRAINT still in force: never vermillion (see src/lib/chop.ts's
+// CHOP_COLORS comment) — that stays reserved for the seal stamp and the
+// AI-export CTA.
+import { chopGlyph, chopColor } from '@/lib/chop';
 
-export default function Chop({ name, size = 30 }: { name: string; size?: number }) {
+export default function Chop({ name, size = 36 }: { name: string; size?: number }) {
+  const color = chopColor(name);
   return (
     <span
       className="chop"
-      style={{ width: size, height: size, fontSize: Math.round(size * 0.42) }}
+      style={{ width: size, height: size, fontSize: Math.round(size * 0.4), background: color, borderColor: color }}
       aria-hidden
     >
       {chopGlyph(name)}

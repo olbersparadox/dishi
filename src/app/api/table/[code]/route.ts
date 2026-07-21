@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseServer, supabaseAdmin } from '@/lib/supabase/server';
 import { rankForGroup, GroupMember } from '@/lib/group';
 import { DishVector } from '@/lib/taste';
+import { shapeTableMenuItems } from '@/lib/tableMenuItems';
+
+// Total menu_items a session can ever hold — matches the cap POST /api/table's
+// own initial create already uses, so appending pages can't grow a session
+// unbounded (rankForGroup recomputes over the full candidate list every poll).
+const MAX_MENU_ITEMS = 40;
 
 /**
  * GET /api/table/[code]
@@ -59,6 +65,13 @@ export async function GET(_req: NextRequest, { params }: { params: { code: strin
     key: string; name: string; name_zh?: string | null; name_original?: string; price?: string | null;
     hook?: string; cuisine: string | null; attributes: DishVector; photo_url?: string | null;
     menu_item_id?: string; // present only for orderable restaurant-menu candidates
+    // Stage-2 enrichment's day-0 utility fields — present on session.menu_items
+    // (a real /scan share) once that dish was enriched; absent (never populated,
+    // by design) on a restaurant's own typed menu or the community-dish pool.
+    // DishListRow renders whatever it's given and nothing when it's missing —
+    // no fabricated chips.
+    diet?: string[] | null; cooking_method?: string | null; heaviness?: string | null;
+    ingredients?: string[] | null;
   };
   let candidates: Candidate[] = [];
   let tableInfo: { table_label: string; restaurant_name: string } | null = null;
@@ -88,6 +101,8 @@ export async function GET(_req: NextRequest, { params }: { params: { code: strin
     candidates = (session.menu_items as any[]).map((m, i) => ({
       key: `menu-${i}`, name: m.name, name_zh: m.name_zh ?? null, name_original: m.name_original, price: m.price,
       hook: m.hook, cuisine: m.cuisine, attributes: m.attributes, photo_url: null,
+      diet: m.diet ?? [], cooking_method: m.cooking_method ?? null, heaviness: m.heaviness ?? null,
+      ingredients: m.ingredients ?? [],
     }));
   } else {
     const { data: dishes } = await admin
@@ -111,7 +126,11 @@ export async function GET(_req: NextRequest, { params }: { params: { code: strin
     // name-only matching fragments the moment 蝦餃 gets linked to 水晶鮮蝦餃.
     // user_id + display_name: item 3 (realtime pick stamps) needs a stable id to
     // seed each picker's chop from, and their own chosen name over the auto-handle.
-    .select('user_id, name, name_zh, profiles(handle, display_name), dish_identities(name, name_zh)')
+    // table_item_key: exact disambiguation when candidates share a printed name —
+    // see dishes.table_item_key's migration comment. id: so a client can find its
+    // OWN pick's row to DELETE on unpick without caching one locally (2026-07-21 —
+    // "picked" must be exactly "my stamp is present," never a separate local flag).
+    .select('id, user_id, name, name_zh, table_item_key, profiles(handle, display_name), dish_identities(name, name_zh)')
     .eq('table_session_id', session.id)
     .order('created_at', { ascending: false });
 
@@ -139,18 +158,78 @@ export async function GET(_req: NextRequest, { params }: { params: { code: strin
     // shared awareness, not a shared cart. Each pick is still an individual dish
     // row the picker rates on their own.
     table_picks: (tablePicks ?? []).map((p: any) => ({
+      id: p.id,
       user_id: p.user_id,
       name: p.name, name_zh: p.name_zh, handle: p.profiles?.handle ?? 'someone',
       display_name: p.profiles?.display_name ?? null,
       identity_name: p.dish_identities?.name ?? null,
       identity_name_zh: p.dish_identities?.name_zh ?? null,
+      table_item_key: p.table_item_key ?? null,
     })),
     items: ranked.map(r => ({
       ...r.item,
+      // Table candidates are always fully resolved server-side — there's no
+      // streaming/scoring wait the way a live scan has — so DishListRow should
+      // never show its shimmer placeholder here, only real chips or none.
+      enriched: true,
       group_match: r.group_match,
       member_matches: r.member_matches,
       unanimous: r.unanimous,
       protected_by_fairness: r.protected_by_fairness,
     })),
   });
+}
+
+/**
+ * PATCH /api/table/[code]
+ * body: { items: [...] } — an appended scan page's dishes (already Stage-2
+ * enriched on the client, same shape POST /api/table accepts). Previously an
+ * appended page only ever extended the SCANNER's own local view, never the
+ * group's shared table (see docs/BACKLOG.md) — this is the write path that
+ * closes that gap. Host-only: only the person who owns the session can grow
+ * it, matching every other host-gated action (share/invite copy, etc.).
+ *
+ * Appends via a Postgres function (append_table_menu_items, see its migration
+ * comment), never a client read-modify-write: the row is locked for the
+ * duration of the append, so two overlapping appends to the same session
+ * serialize instead of one silently clobbering the other, and it's the ONLY
+ * thing this function can do — there is no update/replace path here, by
+ * construction, so an existing pick's table_item_key (an array index into
+ * menu_items) can never be invalidated by something reordering or replacing
+ * entries out from under it.
+ */
+export async function PATCH(req: NextRequest, { params }: { params: { code: string } }) {
+  const supabase = supabaseServer();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: 'Sign in first.' }, { status: 401 });
+
+  const code = params.code.toUpperCase();
+  const admin = supabaseAdmin();
+
+  const { data: session } = await admin
+    .from('table_sessions').select('id, host_id, menu_items').eq('code', code).maybeSingle();
+  if (!session) return NextResponse.json({ error: 'No table with that code.' }, { status: 404 });
+  if (session.host_id !== user.id) {
+    return NextResponse.json({ error: 'Only the person who started this table can add pages to it.' }, { status: 403 });
+  }
+  if (!session.menu_items) {
+    // A QR/restaurant session or the bare community-pool fallback has no scanned
+    // menu_items array to append to — appending is only meaningful for a
+    // scan-shared session.
+    return NextResponse.json({ error: 'This table has no scanned menu to add pages to.' }, { status: 400 });
+  }
+
+  const body = await req.json().catch(() => null);
+  const items = Array.isArray(body?.items) ? body.items : [];
+  const shaped = shapeTableMenuItems(items, items.length); // no local cap here — the RPC enforces the TOTAL cap atomically
+  if (shaped.length === 0) {
+    return NextResponse.json({ error: 'No dishes to add.' }, { status: 400 });
+  }
+
+  const { data: menuItems, error } = await admin.rpc('append_table_menu_items', {
+    p_session_id: session.id, p_items: shaped, p_max_total: MAX_MENU_ITEMS,
+  });
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  return NextResponse.json({ menu_item_count: Array.isArray(menuItems) ? menuItems.length : null });
 }

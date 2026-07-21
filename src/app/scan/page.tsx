@@ -10,8 +10,10 @@ import ExplainModal from '@/components/ExplainModal';
 import RestaurantPicker, { RestaurantChoice } from '@/components/RestaurantPicker';
 import { mapWithConcurrency } from '@/lib/concurrency';
 import DishInfoDisplay from '@/components/DishInfoDisplay';
+import DishListRow from '@/components/DishListRow';
+import TableBar from '@/components/TableBar';
 import { sumPrices } from '@/lib/price';
-import { CameraIcon, MenuBookIcon, ArrowRightIcon, CloseIcon, SpeechIcon } from '@/components/icons';
+import { CameraIcon, MenuBookIcon, ArrowRightIcon, CloseIcon } from '@/components/icons';
 import { sameDishInSession, restaurantKeptNote } from '@/lib/menuMerge';
 import { getScanSession, setScanSession, clearScanSession } from '@/lib/scanSession';
 import { useLang, menuLanguageToCode, languageLabel, hasNonChineseScript, foreignMenuSecondary, scanPresetPair } from '@/lib/i18n';
@@ -105,7 +107,7 @@ function Scanner() {
   // the value of doing this together is visible without leaving the scan screen.
   const [tableSession, setTableSession] = useState<{ code: string; session_id: string } | null>(restored?.tableSession ?? null);
   const [tableMemberCount, setTableMemberCount] = useState(0);
-  const [tablePicks, setTablePicks] = useState<{ name: string; name_zh: string | null; handle: string; identity_name?: string | null; identity_name_zh?: string | null }[]>([]);
+  const [tablePicks, setTablePicks] = useState<{ name: string; name_zh: string | null; handle: string; identity_name?: string | null; identity_name_zh?: string | null; table_item_key?: string | null }[]>([]);
 
   // Foreign-menu preset (Fix 5). Computed here at the top — before any early
   // return — so the header globe can be told about it and so the results render
@@ -250,6 +252,7 @@ function Scanner() {
           items: chosen.map(i => ({
             name: i.name, name_zh: i.name_zh, cuisine: i.cuisine, attributes: i.attributes ?? {},
             cooking_method: i.cooking_method, heaviness: i.heaviness, diet: i.diet,
+            table_item_key: i.name_original,
           })),
         }),
       });
@@ -455,7 +458,7 @@ function Scanner() {
       // than replacing the whole item, makes the merge order-independent: whichever
       // response arrives first or last, neither stage can ever clobber the other's
       // work.
-      const enrichPromise = meta.mock ? Promise.resolve() : mapWithConcurrency(
+      const enrichPromise = meta.mock ? Promise.resolve(null as (ScannedItem | null)[] | null) : mapWithConcurrency(
         items,
         SCORE_CONCURRENCY,
         async (item) => {
@@ -478,7 +481,7 @@ function Scanner() {
             return { ...prev, items: nextItems };
           });
         },
-      ).catch(() => {}); // best-effort: a failed enrichment batch must never block scoring or settle
+      ).catch(() => null as (ScannedItem | null)[] | null); // best-effort: a failed enrichment batch must never block scoring or settle
 
       // Kana/hangul tripwire (語言對 fix v2). The skeleton model sometimes leaves
       // the printed Japanese/Korean name in name_zh despite the prompt telling it
@@ -507,7 +510,7 @@ function Scanner() {
       // preserved while any dish is still pending; once every dish has an outcome
       // (scored or failed), the view "settles" into ranked order with the hero
       // promoted.
-      const scorePromise = meta.phase === 'needs_scoring'
+      const scorePromise: Promise<(ScannedItem | null)[] | null> = meta.phase === 'needs_scoring'
         ? mapWithConcurrency(
             items,
             SCORE_CONCURRENCY,
@@ -531,13 +534,38 @@ function Scanner() {
                 return { ...prev, items: nextItems };
               });
             },
-          )
-        : Promise.resolve();
+          ).catch(() => null)
+        : Promise.resolve(null);
 
-      await scorePromise;
+      const scoreResults = await scorePromise;
       setSettled(true);
-      await enrichPromise; // usually already resolved by now; awaited so this function doesn't return early
+      const enrichResults = await enrichPromise; // usually already resolved by now; awaited so this function doesn't return early
       await namefixPromise; // same: a re-author still in flight shouldn't be dropped on return
+
+      // Grow the SHARED table session too, not just this scanner's own local view
+      // (owner request, 2026-07-21 — previously an appended page only ever
+      // extended the local menu, never the group's). Waits for both stages so the
+      // dishes land in the shared list already carrying real ranking attributes
+      // and chips, not a bare name — best-effort: a failed sync here must never
+      // surface as a scan error, since the scanner's own view already has the
+      // dishes regardless of whether the table picked them up.
+      if (append && tableSession) {
+        const forTable = items.map((item, i) => {
+          const enriched = enrichResults?.[i];
+          const scored = scoreResults?.[i];
+          return {
+            name: item.name, name_zh: item.name_zh, name_original: item.name_original, price: item.price,
+            hook: enriched?.hook ?? item.hook, cuisine: item.cuisine,
+            attributes: scored?.attributes ?? item.attributes ?? {},
+            diet: enriched?.diet ?? item.diet, cooking_method: enriched?.cooking_method ?? item.cooking_method,
+            heaviness: enriched?.heaviness ?? item.heaviness, ingredients: enriched?.ingredients ?? item.ingredients,
+          };
+        });
+        fetch(`/api/table/${tableSession.code}`, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ items: forTable }),
+        }).catch(() => {});
+      }
       return;
     } catch (e: any) {
       // Known reasons get localized copy (this app is zh-first by default, and a
@@ -647,13 +675,6 @@ function Scanner() {
               </button>
             </div>
             {joinError && <p style={{ color: 'var(--lacquer)', fontSize: 12.5, marginTop: 6 }}>{joinError}</p>}
-            {/* /table's create-a-table flow lost its nav tab in the restructure
-                and had ZERO inbound links — this quiet line is its front door.
-                (Creating a table without scanning a menu is a real capability:
-                the table ranks dishes from around Dishi instead.) */}
-            <p className="card-meta" style={{ marginTop: 12 }}>
-              <a href="/table" className="table-open-link" style={{ color: 'var(--ink)' }}>{t('table.open.full')}</a>
-            </p>
           </div>
         )}
       </div>
@@ -748,22 +769,7 @@ function Scanner() {
           are the SAME live numbers /table itself polls — just visible without
           leaving the scan screen. */}
       {tableSession && (
-        <div className="table-bar">
-          <span className="table-bar-left">
-            <span className="table-bar-codewrap">
-              <span className="table-bar-label">{t('scan.tablelabel')}</span>
-              <span className="table-bar-code">{tableSession.code}</span>
-            </span>
-            {/* Headcount + dishes picked as one quiet meta line, sitting right
-                after the code (separated by a "|") — status, not a dashboard. */}
-            <span className="table-bar-stat">
-              {t('scan.tablestatus', { n: tableMemberCount, m: tablePicks.length })}
-            </span>
-          </span>
-          <button className="btn small" onClick={copyTableLink}>
-            {t('table.invite')}
-          </button>
-        </div>
+        <TableBar code={tableSession.code} memberCount={tableMemberCount} pickCount={tablePicks.length} onInvite={copyTableLink} />
       )}
 
       {result.mock && (
@@ -833,40 +839,24 @@ function Scanner() {
           dish means "not confident enough to say," which is the honest default. */}
       {readyToRank && (
         <div className="scan-settle">
-          {displayItems.map((item, i) => {
-            const fire = fireWinners.has(item.name_original);
-            return (
-              <article
-                className={`card scan-pickable scan-settle-row ${fire ? 'scan-hero' : ''} ${picked.has(item.name_original) ? 'picked' : ''}`}
-                key={`${item.name}-${i}`}
-                onClick={() => togglePick(item.name_original)}
-              >
-                <div className="card-body">
-                  <div className="scan-item">
-                    <span className="scan-rank">{i + 1}.</span>
-                    <div className="scan-item-main">
-                      <div className="dish-row">
-                        <div className="card-title" style={{ display: 'flex', alignItems: 'baseline', gap: 7, minWidth: 0 }}>
-                          <DishName name={item.name} name_zh={item.name_zh} name_original={item.name_original} pair={scanPair} menuLanguage={menuCode}
-                            suffix={fire ? <span className="scan-fire scan-fire-pop" aria-label={t('scan.fire')}>{'\uD83D\uDD25'}</span> : undefined} />
-                          {item.isNew && <span className="scan-new-tag">{t('scan.new')}</span>}
-                        </div>
-                        {item.price && <span className="dish-price">{item.price}</span>}
-                      </div>
-                      {item.enriched && <DishInfoDisplay info={item} hookOnly />}
-                    </div>
-                  </div>
-                  <DishDetails item={item} t={t} lang={lang} pickedBy={pickersFor(item, tablePicks)} hideHook />
-                  {fire && item.reason && (
-                    <p className="scan-reason fade-in">
-                      <span className="scan-reason-icon" aria-hidden><SpeechIcon size={18} /></span>
-                      <span>{item.reason}</span>
-                    </p>
-                  )}
-                </div>
-              </article>
-            );
-          })}
+          {displayItems.map((item, i) => (
+            <DishListRow
+              key={`${item.name}-${i}`}
+              item={{
+                key: item.name_original, name: item.name, name_zh: item.name_zh, name_original: item.name_original,
+                price: item.price, cooking_method: item.cooking_method, heaviness: item.heaviness,
+                diet: item.diet, ingredients: item.ingredients, enriched: item.enriched, isNew: item.isNew,
+              }}
+              rank={i + 1}
+              picked={picked.has(item.name_original)}
+              onSelect={() => togglePick(item.name_original)}
+              pickedBy={pickersFor(item, tablePicks)}
+              fire={fireWinners.has(item.name_original)}
+              reason={item.reason}
+              pair={scanPair}
+              menuLanguage={menuCode}
+            />
+          ))}
         </div>
       )}
 
@@ -946,24 +936,28 @@ function Scanner() {
  * enrichment lands) and everything fades in once `enriched` flips true, rather
  * than popping in abruptly.
  */
-/** Which table members (if any) also picked this exact dish. Matches on name/
- * name_zh directly rather than fuzzy identity resolution — everyone at a shared
- * table is picking from the SAME stored item list (session.menu_items, seeded
- * once when sharing started), so an exact match is the correct comparison here,
- * not an approximation of one. */
+/** Which table members (if any) also picked this exact dish. Matches on
+ * table_item_key (item.name_original — this scan's own stable per-dish key,
+ * since a shared session's picks always carry it) when the pick has one,
+ * exact and unambiguous; falls back to the old name/name_zh matching only for
+ * picks made before this existed. Name-only matching cross-stamped every dish
+ * sharing a printed name from a single pick — a real menu can print the same
+ * short name on a standalone dish, a combo, and a rice set (found live on a
+ * real 32-dish menu, 2026-07-21) — so it's no longer the primary signal. */
 function pickersFor(
   item: ScannedItem,
-  tablePicks: { name: string; name_zh: string | null; handle: string; identity_name?: string | null; identity_name_zh?: string | null }[],
+  tablePicks: { name: string; name_zh: string | null; handle: string; identity_name?: string | null; identity_name_zh?: string | null; table_item_key?: string | null }[],
 ): string[] {
   const norm = (s: string | null | undefined) => (s ?? '').trim().toLowerCase();
   const target = norm(item.name);
   const targetZh = norm(item.name_zh);
   return tablePicks
-    // Match the menu's printed name against the pick's own names AND its
-    // canonical identity's names — so a pick renamed after logging (or linked
-    // to a canonical identity under a different spelling) still shows as
-    // "also picked" instead of silently fragmenting.
     .filter(p => {
+      if (p.table_item_key) return p.table_item_key === item.name_original;
+      // Match the menu's printed name against the pick's own names AND its
+      // canonical identity's names — so a pick renamed after logging (or linked
+      // to a canonical identity under a different spelling) still shows as
+      // "also picked" instead of silently fragmenting.
       const aliases = [p.name, p.name_zh, p.identity_name, p.identity_name_zh].map(norm).filter(Boolean);
       return aliases.includes(target) || (!!targetZh && aliases.includes(targetZh));
     })

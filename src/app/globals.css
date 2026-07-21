@@ -208,28 +208,24 @@ button { font: inherit; cursor: pointer; }
 
 /* A table member's pick avatar — a plain circular profile-icon-with-initials, the
    same clean look as the rest of the app (matching scan's settled-list aesthetic),
-   not the app's separate 印 ink-seal motif. INK ONLY. This is the one place the
-   temptation toward vermillion will be strongest (a red circle is a genuinely good
-   look) — do not do it; see CLAUDE.md's vermillion reservation (seal stamp /
-   export CTA / dish-edit dirty state, nothing else). Every chop is visually
-   identical except its glyph — no per-user shape variation. */
+   not the app's separate 印 ink-seal motif. Solid color per user (2026-07-21,
+   direct owner request — supersedes the earlier ink-only decision) is set
+   per-instance inline (see Chop.tsx / chopColor); this class only owns the
+   shared shape/type. Vermillion stays off-limits regardless — see
+   src/lib/chop.ts's CHOP_COLORS comment; that's the one non-negotiable. Sans,
+   not the app's display serif — initials read as a UI label, not a headline. */
 .chop {
   display: inline-flex; align-items: center; justify-content: center;
-  flex-shrink: 0; border-radius: 50%; border: 1.5px solid var(--ink); color: var(--ink);
-  background: var(--glaze); font-family: var(--font-display); font-weight: 700; line-height: 1;
+  flex-shrink: 0; border-radius: 50%; border: 1.5px solid; color: #fff;
+  font-family: var(--font-body), system-ui, sans-serif; font-weight: 700; line-height: 1;
 }
 .chop-row { display: inline-flex; align-items: center; gap: 6px; }
 
-/* Realtime pick stamps (Table Mode social batch, item 3) — an overlap-fan of chops
-   under a dish row, each pulled left over the one before it so a full table doesn't
-   blow out the row's height. z-index climbs left-to-right so later (more recent)
-   stamps sit visually on top, matching reading order. */
-.chop-stamp-row { display: flex; align-items: center; }
-.chop-stamp-pop { display: inline-flex; margin-left: -8px; position: relative; }
-.chop-stamp-pop:first-child { margin-left: 0; }
-.chop-stamp-pop:nth-child(1) { z-index: 5; } .chop-stamp-pop:nth-child(2) { z-index: 4; }
-.chop-stamp-pop:nth-child(3) { z-index: 3; } .chop-stamp-pop:nth-child(4) { z-index: 2; }
-.chop-stamp-pop:nth-child(5) { z-index: 1; }
+/* Realtime pick stamps (Table Mode social batch, item 3) — a row of chops under a
+   dish, right-aligned under the price (owner request, 2026-07-21). Spaced, not
+   overlapping — each chop's own color is the point, an overlap-fan would hide it. */
+.chop-stamp-row { display: flex; align-items: center; gap: 4px; }
+.chop-stamp-pop { display: inline-flex; }
 /* The "thunk": a stamp landing on the table, physically. Plays exactly once, on
    MOUNT — React keeps the same DOM node across re-renders as long as the chop's key
    (item.key + user_id) is stable, so this never replays for an already-settled
@@ -631,6 +627,16 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
    handoff's Screen 4 — the old separate rank column is gone. The fire mark
    sits inline in the name row at text scale. */
 .scan-fire { font-size: 17px; line-height: 1; flex-shrink: 0; margin-left: 6px; position: relative; top: -1px; }
+/* Table-mode's per-member fire (2026-07-21): a small 🔥 dotted in that member's own
+   chop color — "predicted to suit them," distinct from the pick stamps' "they
+   actually picked this." Same badge technique as the AI-sparkle on the header globe
+   and the notification bell's red dot: an absolutely-positioned circle with a paper
+   cutout so it stays legible sitting over the emoji. */
+.fire-dot-badge { position: relative; display: inline-flex; font-size: 15px; line-height: 1; margin-left: 4px; }
+.fire-dot {
+  position: absolute; top: -2px; right: -3px; width: 8px; height: 8px; border-radius: 50%;
+  border: 1.5px solid var(--glaze);
+}
 .scan-reason { font-size: 13px; margin-top: 8px; color: var(--seal); font-weight: 550; display: flex; align-items: flex-start; gap: 6px; }
 /* The speech-bubble mark on the why-recommended line, in a distinct accent so it
    reads as Dishi "speaking". */
@@ -908,6 +914,9 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 /* --- dish name row with right-aligned thin price --- */
 .dish-row { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
 .dish-row .card-title { min-width: 0; }
+/* Right column: price, then table-mode's pick stamps stacked right under it —
+   same right edge, not a separate full-width row (owner request, 2026-07-21). */
+.dish-row-right { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; flex-shrink: 0; }
 
 /* --- restaurant-owner front door on the Taste tab --- */
 .owner-entry {
@@ -1268,8 +1277,6 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
   margin-top: 26px; padding-top: 20px; border-top: 1px solid var(--line);
 }
 .join-table-title { font-family: var(--font-display); font-size: 18px; font-weight: 1000; letter-spacing: 0.04em; margin-bottom: 6px; }
-.table-open-link { letter-spacing: 0.08em; }
-.lang-en .table-open-link { letter-spacing: normal; }
 .join-table-blurb { font-size: 13px; color: var(--ink-soft); margin-bottom: 14px; line-height: 1.5; letter-spacing: 0.02em; }
 .lang-en .join-table-blurb { letter-spacing: normal; }
 .join-row { display: flex; align-items: center; gap: 12px; }

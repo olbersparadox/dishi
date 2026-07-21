@@ -240,3 +240,14 @@ export function BellIcon({ size = 22 }: IconProps) {
     </svg>
   );
 }
+
+/** Door + outward arrow — leave a table session. */
+export function LeaveIcon({ size = 20 }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor"
+      strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M13 4H6a1 1 0 00-1 1v14a1 1 0 001 1h7" />
+      <path d="M10 12h10m0 0l-3.5-3.5M20 12l-3.5 3.5" />
+    </svg>
+  );
+}

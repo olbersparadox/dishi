@@ -582,6 +582,62 @@ plan changed: **this repo has no component/DOM test harness** (confirmed
 against the b6d3c58 precedent) — verified live in the browser instead
 (a real table session, screenshotted, then cleaned up).
 
+**Amended (owner correction, 2026-07-21):** the above was a false DONE. The
+"unified surface" was a second, hand-styled component that imitated scan's
+settled-list look rather than importing it — the exact failure mode this
+repo's UI-verification rule now names ("reuse, don't imitate"). Re-fixed
+for real: extracted `src/components/DishListRow.tsx` and
+`src/components/TableBar.tsx` verbatim from scan/page.tsx's own settled-row
+and table-glance JSX; scan and table both now import and call these same
+components (scan passes its host-only `fire`/`reason`/`pair` extras, table
+passes `stamps`), and the old inline table row/card markup — cuisine chip,
+剛剛選了 feed card, inline 揀呢個/已選 button, fire logic — was deleted
+from table/page.tsx outright, not flagged off. Root-caused a real backend
+bug along the way: `POST /api/table`'s JSON share-path was silently
+dropping `diet`/`cooking_method`/`heaviness`/`ingredients` when a scan
+shared itself as a table, which the 測試菜A/B seed fixture (itself missing
+those fields) had masked in the original item-1 testing — fixed in
+`src/app/api/table/route.ts` and `src/app/api/table/[code]/route.ts`.
+Added the component/DOM test harness this repo lacked (`@testing-library/react`
++ jsdom, scoped to one file, `vitest.config.ts` alias) —
+`tests/tableComponentIdentity.test.tsx` renders `DishListRow` through both
+call sites and asserts identical output modulo the stamps slot, plus
+source-level assertions that would fail (and were confirmed to fail,
+against the pre-correction commit) if a second implementation reappears.
+Verified live against the real `R4E87` session (32-dish scanned menu, not
+the seed fixture): host view and a second, separately-authenticated joiner
+(test account) both render the same 你的最佳選擇 header, `TableBar`, and
+numbered rows, with a live pick round-tripping to a filled card + chop
+stamp for the joiner.
+
+**Amended (owner review of the live screenshot, 2026-07-21):** that same
+screenshot showed real crowding once a real 32-dish/3-member session filled
+the screen — a text 離開 button squeezed into the table bar, a
+member-roster chip row that only repeated names the per-dish stamps
+already carry, and a redundant 「{name} 也選了」 text line stacked under
+every stamp. Fixed: 離開 moved to an icon-only button (new `LeaveIcon` in
+`icons.tsx`) on the title row instead of the table bar; the roster row
+deleted outright; `DishListRow`'s `pickedBy` text is simply no longer
+passed from table's call site (the prop and its rendering stay — scan
+still uses it — table just stops feeding it), so a picked dish shows only
+its chop stamp(s), no repeated name text.
+
+**Amended (owner call, 2026-07-21): killed `/table`'s standalone landing
+screen (一齊食).** It only ever duplicated the join-by-code box scan/page.tsx
+already shows front and center — same endpoint, same destination — and had
+had zero inbound links since losing its nav tab (its one non-duplicate
+capability, starting a table with no menu / an unenriched raw photo, wasn't
+worth a second UI). `/table` with no `?code=` now redirects to `/scan`;
+`Landing` deleted from table/page.tsx along with its now-unused
+`PhotoPicker`/`normalizePhoto` imports; the dead front-door link removed
+from scan/page.tsx. `POST /api/table`'s multipart/form-data branch (its
+only caller) deleted too — the route is JSON-only now. Orphaned i18n keys
+(`table.title`, `table.blurb`, `table.start`, `table.start.blurb`,
+`table.starting`, `table.readingmenu`, `table.open.full`, and the
+already-stale `table.itemsread` from the item-1 correction above) and the
+matching `.table-open-link` CSS removed. `/table?code=` still lands
+correctly on the session view — verified live.
+
 ---
 
 ## 2. Chop identity (名印) — *(Sonnet)* — ✅ DONE `5ca23a0`
@@ -763,6 +819,42 @@ by side: 佢話超好味，你話麻麻地.
 **Tests:** RLS proof that an unrevealed echo rating is unreadable by the
 counterpart; reveal on completion; timeout unseal; no echo for guest or
 solo picks.
+
+---
+
+## 6. Joined members can add scan pages too, not just the host — *(Sonnet)* — raised 2026-07-21
+
+Today only the host can grow a shared table's menu — and only from their own
+`/scan` tab. A joined member can't contribute a page at all, structurally:
+joining via a code drops you straight onto `/table`'s session view, which
+has zero camera/scan capability (removed with the standalone landing screen,
+see item 1's correction). Real scenario this blocks: someone else at the
+table is holding the drinks menu, or page 3 of a multi-page menu, and has no
+way to add it without physically handing their phone to the host.
+
+Two genuinely separate pieces:
+- **Authorization** — trivial. `PATCH /api/table/[code]` (the append
+  endpoint built 2026-07-21) currently checks `session.host_id ===
+  user.id`; swap for "is a `table_members` row for this session." The
+  append itself is already safely concurrent (the underlying Postgres
+  function row-locks the session for the append, so simultaneous
+  contributors from different members serialize instead of racing) —
+  built with multi-contributor use already in mind.
+- **Entry point** — the real work. `/table`'s session view has nothing to
+  extend; this needs a new "add a page" action reachable from there, which
+  then has to drive the same scan → Stage-2 enrich → score → push pipeline
+  `/scan`'s own append flow runs today, just triggered from a different
+  screen with no pre-existing `result`/`tableSession` local state to build
+  on.
+
+**Open product question before building — needs owner's call:** should
+*any* member be able to append freely once authorization opens up, or does
+an unmoderated multi-contributor menu risk someone dropping in a wrong or
+junk photo with no one positioned to catch it? Host-only was a deliberately
+simple, safe default; opening it trades that safety for the realism of
+"everyone can pitch in." Worth deciding the trust model before writing the
+entry point, since it shapes whether "add a page" needs any confirmation
+step or can just fire-and-merge like the host's own does.
 
 ---
 

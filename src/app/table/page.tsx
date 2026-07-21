@@ -1,28 +1,36 @@
 'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import AuthGate from '@/components/AuthGate';
-import { normalizePhoto } from '@/lib/image';
-import DishName from '@/components/DishName';
-import PhotoPicker from '@/components/PhotoPicker';
 import Chop from '@/components/Chop';
-import { useLang, cuisineLabel } from '@/lib/i18n';
+import { chopColor } from '@/lib/chop';
+import DishListRow from '@/components/DishListRow';
+import TableBar from '@/components/TableBar';
+import { LeaveIcon } from '@/components/icons';
+import { useLang } from '@/lib/i18n';
 import { sumPrices } from '@/lib/price';
 import { supabaseBrowser } from '@/lib/supabase/client';
 import type { RealtimeChannel } from '@supabase/supabase-js';
-import { stampsFromPicks, mergeStamps, applyStampEvent, type Stamp, type StampEvent } from '@/lib/tableStamps';
+import { stampsFromPicks, pickMatchesItem, mergeStamps, applyStampEvent, type StampOverlay, type StampEvent } from '@/lib/tableStamps';
 
 type Member = { user_id: string; handle: string; display_name: string | null; has_profile: boolean; rating_count: number };
 type RankedItem = {
   key: string; name: string; name_zh?: string | null; name_original?: string; price?: string | null;
-  hook?: string; cuisine: string | null; photo_url?: string | null;
+  cuisine: string | null; photo_url?: string | null;
+  // Stage-2 enrichment's day-0 utility fields — present when this candidate came
+  // from a real /scan share; absent (and simply not rendered) for a restaurant's
+  // own typed menu or the community-dish pool, neither of which ever carries them.
+  diet?: string[] | null; cooking_method?: string | null; heaviness?: string | null;
+  ingredients?: string[] | null; enriched?: boolean;
   group_match: number; member_matches: { handle: string; match: number }[];
   unanimous: boolean; protected_by_fairness: boolean;
   attributes?: Record<string, number>;
 };
 type TablePick = {
-  user_id: string; name: string; name_zh: string | null;
+  id: string; user_id: string; name: string; name_zh: string | null;
   handle: string; display_name: string | null;
   identity_name?: string | null; identity_name_zh?: string | null;
+  table_item_key?: string | null;
 };
 type SessionState = {
   code: string; session_id: string; restaurant_id: string | null;
@@ -44,93 +52,24 @@ export default function TablePage() {
   );
 }
 
+// No standalone landing screen anymore (owner call, 2026-07-21): it only ever
+// duplicated the join-by-code box scan/page.tsx already has front and center,
+// and its one non-duplicate capability (starting a table with no menu / a raw
+// unenriched photo) wasn't worth the second UI. Starting or joining a table
+// now only ever happens from /scan; this route is just the shared session
+// view for a code, reached via ?code= from a scan's invite link or its join box.
 function Table() {
+  const router = useRouter();
   const [code, setCode] = useState<string | null>(null);
 
-  // Rejoin from URL (?code=XXXXX) so a shared link drops friends straight in.
   useEffect(() => {
     const p = new URLSearchParams(window.location.search).get('code');
     if (p) setCode(p.toUpperCase());
-  }, []);
+    else router.replace('/scan');
+  }, [router]);
 
-  return code
-    ? <Session code={code} onLeave={() => setCode(null)} />
-    : <Landing onEnter={setCode} />;
-}
-
-// ---------------------------------------------------------------- landing ----
-function Landing({ onEnter }: { onEnter: (code: string) => void }) {
-  const { t } = useLang();
-  const [joinCode, setJoinCode] = useState('');
-  const [busy, setBusy] = useState<'create' | 'join' | null>(null);
-  const [error, setError] = useState('');
-  const [menuFile, setMenuFile] = useState<File | null>(null);
-
-  async function createTable() {
-    setBusy('create'); setError('');
-    try {
-      const form = new FormData();
-      if (menuFile) form.append('photo', await normalizePhoto(menuFile));
-      const res = await fetch('/api/table', { method: 'POST', body: form });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error);
-      onEnter(json.code);
-    } catch (e: any) {
-      setError(e.message || t('table.starting'));
-    } finally { setBusy(null); }
-  }
-
-  async function joinTable() {
-    setBusy('join'); setError('');
-    try {
-      const res = await fetch('/api/table/join', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: joinCode }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error);
-      onEnter(json.code);
-    } catch (e: any) {
-      setError(e.message || t('table.joining'));
-    } finally { setBusy(null); }
-  }
-
-  return (
-    <div>
-      <h1 style={{ marginBottom: 4 }}>{t('table.title')}</h1>
-      <p className="card-meta" style={{ marginBottom: 16 }}>
-        {t('table.blurb')}
-      </p>
-
-      <div className="card"><div className="card-body">
-        <h3>{t('table.start')}</h3>
-        <p className="card-meta" style={{ margin: '4px 0 10px' }}>
-          {t('table.start.blurb')}
-        </p>
-        <PhotoPicker onPick={f => setMenuFile(f)} />
-        <button className="btn primary" style={{ width: '100%', marginTop: 10 }}
-          disabled={busy !== null} onClick={createTable}>
-          {busy === 'create' ? (menuFile ? t('table.readingmenu') : t('table.starting')) : t('table.start')}
-        </button>
-      </div></div>
-
-      <div className="card"><div className="card-body">
-        <h3>{t('table.join')}</h3>
-        <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-          <input
-            className="field code-input" placeholder="ABCDE" maxLength={5}
-            value={joinCode} onChange={e => setJoinCode(e.target.value.toUpperCase())}
-          />
-          <button className="btn" disabled={busy !== null || joinCode.length !== 5} onClick={joinTable}>
-            {busy === 'join' ? t('table.joining') : t('table.joinbtn')}
-          </button>
-        </div>
-      </div></div>
-
-      {error && <p style={{ color: 'var(--lacquer)' }}>{error}</p>}
-    </div>
-  );
+  if (!code) return null; // redirecting to /scan
+  return <Session code={code} onLeave={() => router.push('/scan')} />;
 }
 
 // ---------------------------------------------------------------- session ----
@@ -142,7 +81,8 @@ function Landing({ onEnter }: { onEnter: (code: string) => void }) {
 // settled list (scan-item/scan-rank/dish-row, DishName, price, DishInfoDisplay-style
 // chips) for every member, with only two per-person differences: the group_match
 // ranking BLEND (unchanged math — see rankForGroup/group.ts, presentation only
-// unifies here) and "your own picks" highlighted via pickedKeys. The percentage-bar
+// unifies here) and "your own picks" highlighted (derived from whose stamp is on
+// the dish, see Session's render — never a separate local flag). The percentage-bar
 // breakdown (查看全桌的意見) is retired along with the rings — it displayed exact
 // numbers scan's OWN settled-list philosophy deliberately avoids (see the "no
 // displayed numbers, only an earned mark" comment in scan/page.tsx); 全檯啱 is that
@@ -152,15 +92,24 @@ function Session({ code, onLeave }: { code: string; onLeave: () => void }) {
   const [state, setState] = useState<SessionState | null>(null);
   const [error, setError] = useState('');
   const [picking, setPicking] = useState<string | null>(null); // item.key currently saving
-  const [pickedKeys, setPickedKeys] = useState<Set<string>>(new Set());
-  // The dish row id /api/dishes/pick created for each of MY OWN picks — captured from
-  // its response so un-picking (below) knows exactly what to DELETE. Keyed by
-  // item.key, the same candidate identity pickedKeys already uses.
-  const [pickedDishIds, setPickedDishIds] = useState<Record<string, string>>({});
+  // "Picked" is no longer its own local flag (owner correction, 2026-07-21): a dish
+  // is picked iff MY OWN stamp is present, derived straight from the same stamps
+  // list everyone else's chops come from — a Set that only updated on click used to
+  // drift from server truth on reload (a dish you'd already picked would render
+  // un-filled, though its stamp still showed correctly), which is exactly the
+  // inconsistency this closes. See stamps/picked in the render below.
+  //
   // Realtime pick stamps (item 3): a LATENCY overlay on top of the poll's own
-  // table_picks (see tableStamps.ts for the full architecture note). Cleared after
-  // every successful poll, since the poll is authoritative once it lands.
-  const [realtimeStamps, setRealtimeStamps] = useState<Record<string, Stamp[]>>({});
+  // table_picks (see tableStamps.ts for the full architecture note — the overlay
+  // is bidirectional, an 'unpick' entry hides a stamp the poll still has, not just
+  // 'pick' adding one). Cleared after every successful poll, since the poll is
+  // authoritative once it lands.
+  const [realtimeStamps, setRealtimeStamps] = useState<Record<string, StampOverlay>>({});
+  // Bridges the SAME gap realtimeStamps bridges, for the one thing stamps alone
+  // can't answer: which dish ROW to DELETE if I un-pick before the next poll has
+  // caught up with a pick I *just* made. Cleared alongside realtimeStamps on every
+  // poll, once state.table_picks itself carries the real id.
+  const [pendingDishIds, setPendingDishIds] = useState<Record<string, string>>({});
   const channelRef = useRef<RealtimeChannel | null>(null);
   const [chopName, setChopName] = useState('');
   const [chopSaving, setChopSaving] = useState(false);
@@ -214,7 +163,7 @@ function Session({ code, onLeave }: { code: string; onLeave: () => void }) {
   // through the exact same reducer (tableStamps.ts), never two slightly-different
   // code paths that could drift.
   function applyLocalStampEvent(itemKey: string, event: StampEvent) {
-    setRealtimeStamps(prev => ({ ...prev, [itemKey]: applyStampEvent(prev[itemKey] ?? [], event) }));
+    setRealtimeStamps(prev => ({ ...prev, [itemKey]: applyStampEvent(prev[itemKey] ?? {}, event) }));
   }
   function broadcastStamp(itemKey: string, event: StampEvent) {
     channelRef.current?.send({ type: 'broadcast', event: event.type, payload: { item_key: itemKey, user_id: event.user_id, name: event.name } });
@@ -229,17 +178,16 @@ function Session({ code, onLeave }: { code: string; onLeave: () => void }) {
         body: JSON.stringify({
           restaurant_id: state.restaurant_id ?? undefined,
           table_session_id: state.session_id,
-          items: [{ name: item.name, name_zh: item.name_zh, cuisine: item.cuisine, attributes: item.attributes ?? {} }],
+          items: [{ name: item.name, name_zh: item.name_zh, cuisine: item.cuisine, attributes: item.attributes ?? {}, table_item_key: item.key }],
         }),
       });
       const json = await res.json().catch(() => null);
       const dishId = json?.picked?.[0]?.id as string | undefined;
       if (res.ok && dishId) {
-        setPickedKeys(prev => new Set(prev).add(item.key));
-        setPickedDishIds(prev => ({ ...prev, [item.key]: dishId }));
+        setPendingDishIds(prev => ({ ...prev, [item.key]: dishId }));
         const event: StampEvent = { type: 'pick', user_id: state.you, name: myName(state) };
         applyLocalStampEvent(item.key, event); // instant local thunk — matches scan's own chop
-        broadcastStamp(item.key, event);       // instant for everyone else at the table
+        broadcastStamp(item.key, event);       // instant for everyone else at the table; also flips "picked" (derived from stamps) immediately
       }
     } finally {
       setPicking(null);
@@ -248,10 +196,13 @@ function Session({ code, onLeave }: { code: string; onLeave: () => void }) {
 
   // Un-pick (item 3): DELETEs the dish row /api/dishes/pick created — the same
   // owning-user-scoped endpoint the queue's own 刪除 trash icon already uses, so
-  // there's no new deletion path to reason about, just a new caller of it. Only
-  // ever targets MY OWN pick (pickedDishIds is keyed to what THIS client created).
+  // there's no new deletion path to reason about, just a new caller of it. Finds
+  // MY OWN pick via the same pickMatchesItem rule stamps use (state.table_picks is
+  // server truth), falling back to pendingDishIds only for the brief window right
+  // after a pick before the next poll has landed.
   async function unpickDish(item: RankedItem, state: SessionState) {
-    const dishId = pickedDishIds[item.key];
+    const mine = state.table_picks.find(p => p.user_id === state.you && pickMatchesItem(p, item));
+    const dishId = mine?.id ?? pendingDishIds[item.key];
     if (!dishId) return;
     setPicking(item.key);
     try {
@@ -260,8 +211,7 @@ function Session({ code, onLeave }: { code: string; onLeave: () => void }) {
         body: JSON.stringify({ dish_id: dishId }),
       });
       if (res.ok) {
-        setPickedKeys(prev => { const n = new Set(prev); n.delete(item.key); return n; });
-        setPickedDishIds(prev => { const { [item.key]: _, ...rest } = prev; return rest; });
+        setPendingDishIds(prev => { const { [item.key]: _, ...rest } = prev; return rest; });
         const event: StampEvent = { type: 'unpick', user_id: state.you, name: myName(state) };
         applyLocalStampEvent(item.key, event);
         broadcastStamp(item.key, event);
@@ -282,6 +232,7 @@ function Session({ code, onLeave }: { code: string; onLeave: () => void }) {
       // so a stale entry (e.g. an unpick broadcast this client missed) can never
       // outlive the DB truth for more than one poll cycle. See tableStamps.ts.
       setRealtimeStamps({});
+      setPendingDishIds({}); // state.table_picks now carries the real id for anything pending
     } catch (e: any) {
       setError(e.message || 'Lost the table.');
     }
@@ -333,22 +284,6 @@ function Session({ code, onLeave }: { code: string; onLeave: () => void }) {
   );
   if (!state) return <p className="card-meta">{t('table.pulling')}</p>;
 
-  const profiled = state.members.filter(m => m.has_profile).length;
-
-  // Cap which 全檯啱 dishes actually get the 🔥 mark. `unanimous` is "every profiled
-  // member's raw score clears a floor" (group.ts) — with a small or single-member
-  // table that floor is easy to clear broadly, so an UNCAPPED fire mark could land on
-  // most of the menu and stop meaning anything. Same discipline scan/page.tsx already
-  // applies to its own fire winners (there: top 2 by raw_score) — here: top 3 by
-  // group_match, since 全檯啱 covers more people agreeing, not one person's own match.
-  const topUnanimous = new Set(
-    state.items
-      .filter(it => it.unanimous)
-      .sort((a, b) => b.group_match - a.group_match)
-      .slice(0, 3)
-      .map(it => it.key),
-  );
-
   // Per-item stamps (item 3): poll-derived base (stampsFromPicks, name-matched
   // against table_picks — self-heals every 5s regardless of realtime) merged with
   // the realtime latency overlay. Recomputed each render; state.items/table_picks
@@ -356,31 +291,76 @@ function Session({ code, onLeave }: { code: string; onLeave: () => void }) {
   const stampsByKey = new Map(
     state.items.map(it => [
       it.key,
-      mergeStamps(stampsFromPicks(it, state.table_picks), realtimeStamps[it.key] ?? []),
+      mergeStamps(stampsFromPicks(it, state.table_picks), realtimeStamps[it.key] ?? {}),
     ]),
   );
   const STAMP_CAP = 5;
 
+  // Distinct dishes with at least one stamp, live-merged (poll + realtime overlay)
+  // — the ONE list the table-bar header's count AND the footer both derive from
+  // (owner correction, 2026-07-21). state.table_picks.length was wrong two ways:
+  // it's raw PICK ROWS, not distinct dishes (two people picking the same dish
+  // inflated it), and it's poll-only, so it lagged up to 5s behind what the
+  // stamps/filled cards already showed instantly — pick/unpick fast enough and the
+  // header count visibly disagreed with the rows underneath it.
+  const anyPickedItems = state.items.filter(it => (stampsByKey.get(it.key) ?? []).length > 0);
+
+  // Per-member fire (owner request, 2026-07-21): same "genuinely positive, capped
+  // for scarcity" discipline scan's own solo fire uses (there: top 2 by raw_score
+  // past a confidence gate), adapted to member_matches' ABSOLUTE per-member percent
+  // (not the batch-relative group_match). 55 is the exact percent equivalent of
+  // rankForGroup's own POSITIVE_RAW floor (see group.ts's derivation comment) — the
+  // same bar `unanimous` already uses, not a new threshold invented for display.
+  const FIRE_MATCH_FLOOR = 55;
+  const FIRE_CAP_PER_MEMBER = 2;
+  const fireByKey = new Map<string, { userId: string; color: string }[]>();
+  for (const member of state.members) {
+    if (!member.has_profile) continue;
+    const top = state.items
+      .map(it => ({ key: it.key, match: it.member_matches.find(m => m.handle === member.handle)?.match ?? 0 }))
+      .filter(x => x.match >= FIRE_MATCH_FLOOR)
+      .sort((a, b) => b.match - a.match)
+      .slice(0, FIRE_CAP_PER_MEMBER);
+    const color = chopColor(member.display_name ?? member.handle);
+    for (const t of top) {
+      const arr = fireByKey.get(t.key) ?? [];
+      arr.push({ userId: member.user_id, color });
+      fireByKey.set(t.key, arr);
+    }
+  }
+
   return (
     <div>
+      {/* Title row + 讀到 N 道菜 — the EXACT header language scan's own results
+          screen uses (t('scan.results')/t('scan.read')), not a table-specific
+          rewrite of it. A session started from a join code reads as the same
+          product moment as one started from a scan. 離開 lives here now (icon-
+          only, right-aligned against the title) rather than as a text button
+          crowding the table bar (owner feedback, 2026-07-21) — the member-
+          roster chip row was dropped outright for the same reason: it only
+          repeated names the per-dish chop stamps below already carry. */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-        <h1 style={{ marginBottom: 4 }}>Table <span className="table-code">{state.code}</span></h1>
-        <button className="btn ghost small" onClick={onLeave}>{t('table.leave')}</button>
+        <h1 style={{ margin: 0 }}>{t('scan.results')}</h1>
+        <button className="icon-btn" aria-label={t('table.leave')} title={t('table.leave')} onClick={onLeave}>
+          <LeaveIcon size={22} />
+        </button>
       </div>
+      {/* marginTop 13 (owner request, 2026-07-21): shifts this line + the table
+          bar below it down as a pair, without touching their own spacing to
+          each other or to the title row above. */}
+      <p className="card-meta" style={{ marginTop: 13, marginBottom: 6 }}>
+        {t('scan.read', { n: state.items.length })}
+      </p>
 
-      <div className="chips" style={{ margin: '8px 0' }}>
-        {/* 名印 next to each name — the fallback handle (mosuko-i47v) is what a
-            member displays until THEY set a display_name; other people's own
-            fallback state is never something this client should nudge about, only
-            the viewer's own row triggers the setup prompt below. */}
-        {state.members.map(m => (
-          <span key={m.user_id} className={`chip chop-row ${m.has_profile ? 'on' : ''}`}>
-            <Chop name={m.display_name ?? m.handle} size={20} />
-            {m.display_name ?? m.handle}{!m.has_profile && <span style={{ opacity: 0.55 }}> · {t('table.noprofile')}</span>}
-          </span>
-        ))}
-        <button className="chip" onClick={share}>{t('table.invite')}</button>
-      </div>
+      {/* The table-bar — literally the same component scan.tsx mounts for its own
+          "sharing a scan" glance (TableBar.tsx), not a look-alike header. Its own
+          CSS margin-bottom (22px) is what now nets a clean ~7px gap against
+          .scan-settle's shared -15px margin-top below (see DishListRow's own
+          settled-list neighbor for the same math) — palate-blend copy used to sit
+          here doing that job; removed outright (owner request, 2026-07-21), the
+          table bar's existing margin already does it. */}
+      <TableBar code={state.code} memberCount={state.members.length} pickCount={anyPickedItems.length}
+        onInvite={share} />
 
       {/* One-time 名印 setup: only for the viewer's own row, only once per device
           (see CHOP_PROMPT_DISMISSED_KEY) — a genuinely optional identity touch,
@@ -405,125 +385,67 @@ function Session({ code, onLeave }: { code: string; onLeave: () => void }) {
         </div></div>
       )}
 
-      {/* 讀到 N 道菜 — the same header language scan's settled list uses, so a
-          table session reads as the same product moment whether it started from a
-          scan or a join code. The palate-count line (few/ranked) follows: it's
-          genuinely table-specific context (how many taste profiles are blending
-          into this ranking) that scan has no equivalent of, so it stays. */}
-      <p className="card-meta" style={{ marginBottom: 4 }}>
-        {t('table.itemsread', { n: state.items.length })}
-      </p>
-      <p className="card-meta" style={{ marginBottom: 14 }}>
-        {profiled < 2 ? t('table.few') : t('table.ranked', { n: profiled })}
-        {!state.has_menu && ` ${t('table.nomenu')}`}
-      </p>
-
-      {state.table_picks.length > 0 && (
-        <div className="card" style={{ marginBottom: 14 }}><div className="card-body">
-          <p style={{ fontWeight: 700, marginBottom: 6, fontSize: 14 }}>{t('table.pickedsofar')}</p>
-          <div className="chips">
-            {state.table_picks.map((p, i) => (
-              <span className="chip" key={i}>
-                <DishName name={p.name} name_zh={p.name_zh} /> · {p.display_name ?? p.handle}
-              </span>
-            ))}
-          </div>
-        </div></div>
-      )}
-
-      {/* Numbered rows, no rings, no per-member percentages — the same visual
-          grammar as scan's settled list. 全檯啱 (unanimous) gets the identical 🔥
-          earned-mark treatment scan gives its own fire dishes: a highlighted card
-          border, not a number. 公平之選 stays as a small chip explaining a pick
-          that protected someone's interest rather than chasing the raw blend. */}
+      {/* THE shared list — DishListRow, the exact same component scan/page.tsx's
+          own settled results render. No SINGLE fire (scan's own solo-match claim
+          doesn't apply to a group), no cuisine chip, no inline pick pill: DishListRow
+          never had those, nothing to suppress. fireFor IS table's own per-member
+          equivalent (owner request, 2026-07-21) — one small 🔥 dotted per member
+          this dish suits, distinct from the pick stamps below (predicted vs actual). */}
       <div className="scan-settle">
         {state.items.map((item, i) => {
-          const picked = pickedKeys.has(item.key);
           const stamps = stampsByKey.get(item.key) ?? [];
-          // 全檯啱 fires on EITHER signal: the predicted taste-blend (topUnanimous,
-          // capped) OR real observed convergence — 2+ people actually tapping 揀呢個.
-          // The latter is at least as strong a signal as the former (it's OBSERVED,
-          // not predicted) and deserves the identical earned-mark treatment.
-          const fire = topUnanimous.has(item.key) || stamps.length >= 2;
+          // Picked = my own stamp is present, full stop — never a separate flag
+          // that could say something different than the "W" everyone (including
+          // me) sees under the dish (owner correction, 2026-07-21).
+          const picked = stamps.some(s => s.user_id === state.you);
           return (
-            <article
-              // scan-pickable gives the flat numbered-row treatment (hanging rank
-              // gutter, no per-row border-box) scan's settled list uses; cursor
-              // reset to default because — unlike scan, where tapping anywhere on
-              // the row toggles a LOCAL pick that still needs a batch confirm step
-              // — a table pick here is POSTed immediately and only the button
-              // actually does anything, so a pointer cursor over the whole row
-              // would be a false affordance.
-              className={`card scan-pickable scan-settle-row ${fire ? 'scan-hero' : ''} ${picked ? 'picked' : ''}`}
-              style={{ cursor: 'default' }}
+            <DishListRow
               key={item.key}
-            >
-              <div className="card-body">
-                <div className="scan-item">
-                  <span className="scan-rank">{i + 1}.</span>
-                  <div className="scan-item-main">
-                    <div className="dish-row">
-                      <div className="card-title" style={{ display: 'flex', alignItems: 'baseline', gap: 7, minWidth: 0 }}>
-                        <DishName name={item.name} name_zh={item.name_zh} name_original={item.name_original}
-                          suffix={fire ? <span className="scan-fire" aria-label={t('table.unanimous')}>{'🔥'}</span> : undefined} />
-                      </div>
-                      {item.price && <span className="dish-price">{item.price}</span>}
-                    </div>
-                    {item.hook && <div className="card-meta">{item.hook}</div>}
-                    {(item.cuisine || item.protected_by_fairness) && (
-                      <div className="chips" style={{ marginTop: 4 }}>
-                        {item.cuisine && <span className="chip">{cuisineLabel(item.cuisine, lang) || item.cuisine}</span>}
-                        {item.protected_by_fairness && <span className="chip">{t('table.fairness')}</span>}
-                      </div>
-                    )}
-                    {/* Chop stamps: who's picked THIS dish, live. Overlap-fan (each
-                        chop pulled left over the previous one) capped at STAMP_CAP,
-                        with a "+N" overflow badge past that — a table of 12 people
-                        piling onto one dish shouldn't blow out the row's height.
-                        Each chop's key is stable (item.key + user_id), so its mount
-                        pop-in animation (.chop-stamp-pop) plays exactly once, the
-                        moment IT specifically joins, never replaying on unrelated
-                        re-renders of the row. */}
-                    {stamps.length > 0 && (
-                      <div className="chop-stamp-row" style={{ marginTop: 6 }} aria-label={t('table.stampedby', { n: stamps.length })}>
-                        {stamps.slice(0, STAMP_CAP).map(s => (
-                          <span className="chop-stamp-pop" key={`${item.key}:${s.user_id}`}>
-                            <Chop name={s.name} size={22} />
-                          </span>
-                        ))}
-                        {stamps.length > STAMP_CAP && (
-                          <span className="chop-stamp-overflow">+{stamps.length - STAMP_CAP}</span>
-                        )}
-                      </div>
-                    )}
-                    <button
-                      // Picked-by-me is now TAPPABLE — un-picking lifts the stamp
-                      // (item 3), not a terminal disabled state anymore.
-                      className={`btn small ${picked ? 'ghost' : 'primary'}`}
-                      style={{ marginTop: 8 }}
-                      disabled={picking === item.key}
-                      onClick={() => (picked ? unpickDish(item, state) : pickDish(item, state))}
-                    >
-                      {picking === item.key
-                        ? t('log.saving')
-                        : picked
-                          ? t('table.pickeddone')
-                          : state.orderable ? t('table.orderbtn') : t('table.pickbtn')}
-                    </button>
-                  </div>
+              item={{
+                key: item.key, name: item.name, name_zh: item.name_zh, name_original: item.name_original,
+                price: item.price, cooking_method: item.cooking_method, heaviness: item.heaviness,
+                diet: item.diet, ingredients: item.ingredients, enriched: item.enriched,
+              }}
+              rank={i + 1}
+              picked={picked}
+              fireFor={fireByKey.get(item.key)}
+              onSelect={() => {
+                if (picking) return; // ignore a second tap while the first is still in flight
+                if (picked) unpickDish(item, state); else pickDish(item, state);
+              }}
+              // No pickedBy text — the chop stamp already carries who (owner
+              // feedback, 2026-07-21): stacking a stamp AND a repeated "{name}
+              // 也選了" line under every picked dish was the crowding.
+              stamps={stamps.length > 0 ? (
+                // Right-aligned under the price, spaced not overlapped (owner
+                // request, 2026-07-21) — capped at STAMP_CAP with a "+N" overflow
+                // badge so a table of 12 people piling onto one dish doesn't blow
+                // out the row's width. Each chop's key is stable (item.key +
+                // user_id), so its mount pop-in animation plays exactly once, the
+                // moment IT specifically joins.
+                <div className="chop-stamp-row" style={{ marginTop: 5 }} aria-label={t('table.stampedby', { n: stamps.length })}>
+                  {stamps.slice(0, STAMP_CAP).map(s => (
+                    <span className="chop-stamp-pop" key={`${item.key}:${s.user_id}`}>
+                      <Chop name={s.name} size={26} />
+                    </span>
+                  ))}
+                  {stamps.length > STAMP_CAP && <span className="chop-stamp-overflow">+{stamps.length - STAMP_CAP}</span>}
                 </div>
-              </div>
-            </article>
+              ) : undefined}
+            />
           );
         })}
       </div>
 
-      {/* Footer bar: your own picks THIS session, count + running price — the
-          same cart-bar chrome scan uses for its own pick summary, read-only here
-          (no batch confirm step; each pick already persisted the moment it was
-          tapped above). Appears once there's something to show. */}
+      {/* Footer bar: the WHOLE TABLE's picks THIS session (same anyPickedItems the
+          header count above uses — they can no longer disagree), count + running
+          price — same cart-bar chrome scan uses for its own (solo) pick summary,
+          read-only here (no batch confirm step; each pick already persisted the
+          moment it was tapped above). The per-row filled-card highlight stays
+          mine-only — that's a different, correct distinction ("did I pick this"),
+          not a bug. Appears once there's something to show. */}
       {(() => {
-        const pickedItems = state.items.filter(i => pickedKeys.has(i.key));
+        const pickedItems = anyPickedItems;
         if (!pickedItems.length) return null;
         const priceSummary = sumPrices(pickedItems.map(i => i.price ?? null));
         const priceLabel = priceSummary.parsedCount > 0
