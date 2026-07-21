@@ -290,10 +290,10 @@ export const dict: Record<string, { zh: string; en: string }> = {
   // translated name over the original menu text + ingredient chips; this rec chip
   // is the constant — dishi's personalised pick. 'your match' reads as a verdict.
   'scan.benefit.rec': { zh: '啱你口味', en: 'your match' },
-  'scan.help.title': { zh: '掃餐牌之後', en: 'After you scan' },
+  'scan.help.title': { zh: '哪一道最適合你？', en: 'Which dish is for you?' },
   'scan.help.body': {
-    zh: '拍下餐牌，dishi 立即為你讀通整張——把外語菜名翻譯成你看得懂的文字，標出食材與致敏原，再根據你的口味指出哪一道最適合你。日文、韓文、泰文、西班牙文……任何語言都難不倒。',
-    en: 'Snap the menu and dishi reads the whole thing for you — it translates foreign dish names into words you understand, flags ingredients and allergens, and points out which dishes match your taste. Japanese, Korean, Thai, Spanish — no menu language is a problem.',
+    zh: '拍下餐牌，dishi 會根據你的口味，告訴你整張餐牌上哪幾道最適合你，同時標出食材與致敏原。去到日本、韓國、泰國，外語菜名也一樣翻譯成你看得懂的文字，走到哪裡都點得稱心。',
+    en: 'Snap the menu and dishi tells you which dishes on it suit your taste, flagging ingredients and allergens along the way. Travelling in Japan, Korea or Thailand? It translates foreign dish names into words you understand too, so you order well wherever you are.',
   },
   'scan.tablestatus': { zh: '|    {n} 人 · 已選 {m} 道', en: '|    {n} here · {m} picked' },
   'scan.tablelabel': { zh: '枱號：', en: 'Table ' },
