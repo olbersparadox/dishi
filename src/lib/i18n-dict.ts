@@ -368,8 +368,8 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'logsrc.album': { zh: '相簿舊菜', en: 'Old photos' },
   'logsrc.help.title': { zh: '食物相食評', en: 'Rating food photos' },
   'logsrc.help.body': {
-    zh: '可以逐張評分，也可以一次揀一疊相片批量評。把相簿裡的舊食物照片翻出來好好利用，重拾你的口味數據去訓練 dishi——評得越多、越多元，dishi 就學得越準，推薦越貼近你的口味。',
-    en: 'Rate them one by one, or pick a whole stack of photos and rate in a batch. Put the old food shots in your camera roll to good use — recover your taste data to train dishi: the more you rate, and the more varied, the sharper dishi gets and the closer its picks land to you.',
+    zh: '可以逐張評分，也可以一次揀一疊相片批量評。你的食物相裡，藏著許多關於你口味的理解——好好利用它們，訓練專屬於你的 AI 口味引擎：評得越多、越多元，dishi 就越懂你，推薦越貼近你的口味。',
+    en: 'Rate one at a time, or pick a whole stack of photos and rate in a batch. Hidden inside your food shots is a wealth of understanding about your taste — put them to good use and train an AI taste engine that belongs to you: the more you rate, and the more varied, the better dishi knows you.',
   },
   'log.title.home': { zh: '記錄住家菜', en: 'Log a home-cooked dish' },
   'log.title.album': { zh: '記錄相簿舊相', en: 'Log from your camera roll' },
