@@ -1233,8 +1233,12 @@ button { font: inherit; cursor: pointer; }
   flex-shrink: 0; width: 56px; height: 56px; border: none; border-radius: 50%;
   background: var(--paper-inset); color: var(--ink);
   display: flex; align-items: center; justify-content: center;
+  transition: background 150ms, color 150ms;
 }
-.join-go:not(:disabled):hover { background: var(--line); }
+/* Once the full 5-char code is in (button enabled), the submit flips to the inked
+   state — solid black with a white arrow — so it reads as "ready, tap me". */
+.join-go:not(:disabled) { background: var(--ink); color: var(--glaze); }
+.join-go:not(:disabled):hover { background: var(--ink-soft); }
 .join-go:disabled { color: var(--ink-faint); cursor: default; }
 
 /* --- session bar, shown above scan results once a table session exists ---
