@@ -62,14 +62,39 @@ bilingual ingredients — see DECISIONS.md).
 
 Confirmed design (Jerry), 2026-07-22: replaces 餐廳菜/住家菜/相簿舊菜 with
 📷 食物相 / ✎ 打字 / 🧾 外賣單 — organized by what the user is HOLDING, not how
-they classify the meal. Items 1 (IA/chips) and 3 (打字 typed quick-add)
-SHIPPED 2026-07-22 — see DECISIONS.md. Items 2 and 4 below are unblocked
-(item 1's IA is live) but still need their Fable-tier build.
+they classify the meal.
 
-- [ ] **[F] 2. 食物相: merged photo path with inferred context.** Spec below.
-- [ ] **[F] 4. 外賣單: delivery screencap path.** Interim behavior (until
-  this ships): the 外賣單 chip routes through the same photo picker as
-  食物相 — see DECISIONS.md item 1 for why. Spec below.
+Items 1 and 3 shipped 2026-07-22, then were ROLLED BACK the same day on
+owner feedback — see DECISIONS.md for both the original build and the
+rollback writeup. The entry pill is back to 餐廳菜/住家菜/相簿舊菜 (old copy
+restored verbatim). Items 2 and 4 are blocked again pending item 1's
+redesign.
+
+- [ ] **[S] 1. IA change: chips, copy, icons, explanation card — REOPENED.**
+  Owner feedback on the shipped version: the new pill's raw styling didn't
+  match the rest of the app's polish. Needs a design pass before rebuilding
+  — not a re-land of the same implementation. Original spec still in
+  DECISIONS.md for reference; icons (`PencilIcon`/`TakeawayIcon`) already
+  exist in `icons.tsx` if reused.
+- [ ] **[F] 2. 食物相: merged photo path with inferred context.** Blocked on
+  item 1. Spec below.
+- [ ] **[S] 3. 打字: typed quick add — REOPENED.** Owner-reported, live:
+  tapping 而家評 hung indefinitely at "AI 認緊呢道菜…" (enrich-before-rating
+  never resolved for the user, despite resolving in ~15-25s during build-time
+  verification — needs real diagnosis, not just a longer timeout: check
+  whether the enrich call actually completes server-side, add a client-side
+  timeout/fallback so a slow or stuck enrich can't strand the person on a
+  blank screen); the predictive dish-name/restaurant lookups felt slow; the
+  overlay's raw ad hoc styling (plain `<h3>`/inputs on `.rate-sheet`/`.card`)
+  didn't match the app. Code is PRESERVED, unmounted, for the retry:
+  `TypedQuickAdd.tsx`, `RatingStack`'s `typed` mode, `RestaurantPicker`'s
+  `{kind:'home'}` addition, `GET /api/dishes/suggest` + `dishSuggest.ts`
+  (predictive ranking), `typedQuickAdd.ts` (body builder) — all still have
+  passing tests. Owner specifically wants the predictive-suggestion piece
+  re-tested once the hang + styling are fixed, separately from judging it on
+  its own merits. Don't just re-enable the old UI — diagnose the hang first.
+- [ ] **[F] 4. 外賣單: delivery screencap path.** Blocked on item 1. Spec
+  below.
 
 ## Later / standing
 

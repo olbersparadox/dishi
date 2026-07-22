@@ -1287,3 +1287,43 @@ against the live DB, cleaned up after):
 tsc clean; 503/503 tests (17 new: `dishSuggest.test.ts`,
 `typedQuickAdd.test.ts`).
 
+---
+
+## Rollback: log-entry redesign items 1 + 3 — 2026-07-22, same day as ship
+
+Owner feedback after live use, reported directly (not a design-review
+pass): tapping 而家評 on a typed entry hung indefinitely at "AI 認緊呢道菜…"
+(enrich never visibly resolved, despite resolving in ~15-25s during
+build-time live verification — a real gap between what got tested and what
+the owner actually hit); the predictive dish-name/restaurant lookups felt
+slow; the `TypedQuickAdd` overlay's styling was raw and inconsistent with
+the rest of the app (ad hoc `<h3>`/plain inputs on `.rate-sheet`/`.card`,
+not integrated with any existing form system). Owner's framing: "avoid
+breaking what was a better experience."
+
+**Reverted** (`src/app/profile/page.tsx`, `src/lib/i18n-dict.ts`,
+`src/app/globals.css`): the entry pill back to 餐廳菜/住家菜/相簿舊菜 with the
+original icons and file-input behavior; the explanation-card copy back to
+食物相食評 verbatim, character-for-character against the pre-2026-07-22
+version. No behavioural difference from before item 1 ever shipped.
+
+**Preserved, unmounted** — owner explicitly wants the predictive-suggestion
+piece re-tested once the hang and styling are fixed, so nothing behind it
+was deleted: `TypedQuickAdd.tsx`, `RatingStack`'s `typed` mode, the
+`{kind:'home'}` addition to `RestaurantPicker`'s `RestaurantChoice`,
+`GET /api/dishes/suggest` + `src/lib/dishSuggest.ts` (predictive ranking),
+`src/lib/typedQuickAdd.ts` (request-body builder). All still pass their
+existing tests (`dishSuggest.test.ts`, `typedQuickAdd.test.ts`,
+`identityCardChassis.test.tsx`, `restaurantPickerManualAdd.test.tsx`) —
+none of that logic changed, only the entry point that reached it.
+
+**Re-opened in BACKLOG.md** (items 1 and 3, both flagged REOPENED, not a
+fresh spec): item 3 specifically needs the hang diagnosed for real before
+anything else — is enrich actually completing server-side with the client
+just never finding out, or does it genuinely stall for some inputs — plus a
+client-side timeout/fallback so a slow enrich can never strand someone on a
+blank screen. Item 1 needs a design pass, not a re-land of the same pill.
+
+tsc clean; 503/503 tests (unchanged — the revert only touched already-shipped
+render code, not the preserved lib/API/component layer or their tests).
+

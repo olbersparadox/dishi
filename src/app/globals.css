@@ -776,9 +776,6 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
   background: rgba(245, 240, 232, 0.18);
 }
 .log-src-seg:active { opacity: 0.85; }
-/* 打字's segment is a <button> (opens the quick-add overlay), not a file-picker
-   <label> like its siblings — undo the UA button chrome so it reads identically. */
-button.log-src-seg { background: none; border: 0; color: inherit; }
 
 /* --- qr ordering --- */
 .qty-stepper {

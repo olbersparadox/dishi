@@ -10,9 +10,8 @@ import SealStamp from '@/components/SealStamp';
 import ExplainModal from '@/components/ExplainModal';
 import type { ExportDish } from '@/lib/tasteExport';
 import { isPersona, type Persona } from '@/lib/persona';
-import { RateIcon, TrashIcon, CameraIcon, PencilIcon, TakeawayIcon } from '@/components/icons';
+import { RateIcon, TrashIcon, UtensilsIcon, HomeIcon, PhotoIcon } from '@/components/icons';
 import RatingStack, { type ExistingPick } from '@/components/RatingStack';
-import TypedQuickAdd from '@/components/TypedQuickAdd';
 import { clearJournalCache } from '@/lib/journalCache';
 import { wordKeyFor } from '@/lib/flickWords';
 import { useLang } from '@/lib/i18n';
@@ -56,7 +55,6 @@ function TasteProfile() {
   // on top of the live Taste AI section.
   const [ratePhotos, setRatePhotos] = useState<File[] | null>(null);
   const [ratePick, setRatePick] = useState<ExistingPick | null>(null); // a queued 待評 pick
-  const [typing, setTyping] = useState(false); // 打字 quick-add overlay open
   const [logHelp, setLogHelp] = useState(false); // tap the ⓘ on the entry card → how/why to rate
   // Bumped when the rating overlay closes so THIS page's client-fetched data (taste
   // vector, rated list, to-rate) reloads without a hard refresh. Also drives a key on
@@ -70,7 +68,7 @@ function TasteProfile() {
   // journal cache, remount the taste card, and refetch — a just-rated pick has to leave
   // the 待評 queue, and the engine reading behind the card has moved.
   const closeRating = () => {
-    clearJournalCache(); setRatePhotos(null); setRatePick(null); setTyping(false);
+    clearJournalCache(); setRatePhotos(null); setRatePick(null);
     setRefreshKey(k => k + 1); router.refresh();
   };
   const [vector, setVector] = useState<Record<string, number>>({});
@@ -214,22 +212,28 @@ function TasteProfile() {
           Taste) — this is the bridge so photographing and rating a dish directly
           (not via a menu-scan pick) is still one tap away, right where Jerry
           asked for "rate a dish" to live. */}
-      {/* ONE merged entry pill, three segments split by a thin hairline — organized by
-          what the person is HOLDING (backlog 2026-07-22), not how they'd classify the
-          meal: 食物相 replaces the old 餐廳菜/住家菜/相簿舊菜 split (same photo-picker
-          behaviour underneath — restaurant/home/skip is chosen per-dish inside the flow,
-          old-photo treatment triggers off EXIF age, not a chip). 打字 opens the typed
-          quick-add flow. 外賣單 is the delivery-screencap chip; its real vision-extraction
-          pipeline is a separate (Fable-tier) build, so for now it routes through the SAME
-          photo picker as 食物相 — an honest interim, not a dead button. */}
+      {/* ONE merged entry pill, three segments split by a thin hairline. All three do
+          the EXACT SAME thing — open the photo library (multi-select) and hand the roll
+          to the flick rating flow. The three labels are purely a TEACHING surface: they
+          tell the person everything counts — a restaurant dish, tonight's home cooking,
+          or an old camera-roll shot — but there's no behavioural difference. EXIF (when
+          present) supplies where + when for all of them; home vs restaurant vs skip is
+          chosen per-dish inside the flow. Each segment is a <label> so the tap natively
+          opens the picker with a real user gesture.
+          (2026-07-22: the 食物相/打字/外賣單 redesign was rolled back — the 打字 typed
+          quick-add flow hung on enrich and felt inconsistent with the rest of the app.
+          TypedQuickAdd.tsx, the /api/dishes/suggest predictive endpoint, and RatingStack's
+          typed mode are kept in the codebase, unmounted, for a later retry — see
+          docs/BACKLOG.md.) */}
       <div className="log-src-merged">
-        {/* ⓘ — how/why to rate. Sits above the segments (own onClick, stopPropagation)
-            so tapping it opens the explainer, not a chip's own action. */}
+        {/* ⓘ — how/why to rate. Sits above the three <label> segments (own onClick,
+            stopPropagation) so tapping it opens the explainer, not the photo picker. */}
         <button type="button" className="card-info-badge" aria-label={t('logsrc.help.title')}
           onClick={e => { e.stopPropagation(); setLogHelp(true); }}>i</button>
         {([
-          { id: 'photo', icon: <CameraIcon size={42} strokeWidth={1.3} />, key: 'logsrc.photo' },
-          { id: 'delivery', icon: <TakeawayIcon size={42} />, key: 'logsrc.delivery' },
+          { id: 'rest', icon: <UtensilsIcon size={42} />, key: 'logsrc.rest' },
+          { id: 'home', icon: <HomeIcon size={42} />, key: 'logsrc.home' },
+          { id: 'album', icon: <PhotoIcon size={42} />, key: 'logsrc.album' },
         ] as const).map(seg => (
           <label key={seg.id} className="log-src-seg">
             {seg.icon}<span>+{t(seg.key)}</span>
@@ -240,9 +244,6 @@ function TasteProfile() {
             }} />
           </label>
         ))}
-        <button type="button" className="log-src-seg" onClick={() => setTyping(true)}>
-          <PencilIcon size={42} /><span>+{t('logsrc.type')}</span>
-        </button>
       </div>
       {logHelp && (
         <ExplainModal title={t('logsrc.help.title')} body={t('logsrc.help.body')} onClose={() => setLogHelp(false)} />
@@ -252,7 +253,6 @@ function TasteProfile() {
           mounted behind, so the drag-and-rate glass blurs the live section). */}
       {ratePhotos && userId && <RatingStack photos={ratePhotos} userId={userId} onExit={closeRating} />}
       {ratePick && userId && <RatingStack picks={[ratePick]} userId={userId} onExit={closeRating} />}
-      {typing && userId && <TypedQuickAdd userId={userId} onExit={closeRating} />}
 
       {/* Dishes waiting to be rated — picked off a menu scan or during a shared
           table, not yet rated. Living here (not buried on /log) is deliberate:
