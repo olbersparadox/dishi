@@ -263,10 +263,10 @@ function Scanner() {
       // Taste tab. Picked dishes already carry real attributes from the scan, so the
       // seal is meaningful now. Server-gated (>= SEAL_GATE ratings) + idempotent, so
       // this no-ops when the engine's too young or a seal already exists; awaited so
-      // the seal is committed BEFORE /log can let you rate (contentScore/composeReason
-      // only — no LLM, so it's quick). The Taste-tab/log queue-load sealing stays as
-      // the backstop for dishes born WITHOUT attributes yet (typed names, whose
-      // enrichment is deferred) — those can only be sealed once enriched.
+      // the seal is committed BEFORE the Taste tab can let you rate (contentScore/
+      // composeReason only — no LLM, so it's quick). The Taste-tab queue-load
+      // sealing stays as the backstop for dishes born WITHOUT attributes yet (typed
+      // names, whose enrichment is deferred) — those can only be sealed once enriched.
       const pickedIds: string[] = (json.picked ?? []).map((p: { id?: string }) => p.id).filter(Boolean) as string[];
       await Promise.all(pickedIds.map(id =>
         fetch('/api/seals', {
@@ -274,7 +274,10 @@ function Scanner() {
           body: JSON.stringify({ dish_id: id }),
         }).catch(() => { /* a missing stamp is cosmetic; never block the pick on it */ }),
       ));
-      router.push('/log');
+      // The 待評菜式 queue and its rate action both live on the Taste tab now
+      // (RatingStack, picksMode) — the old single-dish /log page these picks used
+      // to bounce out to is gone.
+      router.push('/profile');
     } catch (e: any) {
       setPickError(e.message || 'Something went wrong saving those picks.');
     } finally {

@@ -80,6 +80,65 @@ export async function searchNearbyRestaurants(
   })).filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lng));
 }
 
+/**
+ * Text Search (New) — resolves a manually-TYPED restaurant name against real
+ * Google places, for the picker's "search-on-add" step: Nearby Search is capped
+ * at 10 prominence-ranked results, so a well-known spot the user is literally
+ * standing in (the 新容記 Tin Wan miss) can be entirely absent from the chip row
+ * even though Google knows it. One call per confirmed add attempt, never
+ * per-keystroke — see the route's own comment for why typeahead was rejected.
+ *
+ * COST NOTE: unlike Nearby Search above, this field mask does NOT land Text
+ * Search in the cheap "Essentials" tier. Per Google's current SKU docs,
+ * displayName/location/formattedAddress each trigger "Text Search Pro"
+ * (SKU 4FDA-34B1-A910) — 5,000 free/month, then $32/1,000 up to the first
+ * 100k. Verified against the live pricing table 2026-07-22, not assumed from
+ * the Nearby Search comment above. Acceptable here because volume is capped
+ * (fires only on a confirmed manual add that the local chip list didn't
+ * already resolve), but re-check before raising maxResultCount or widening
+ * when this fires.
+ */
+export async function searchPlacesText(
+  query: string, lat: number, lng: number, radiusMeters = 1000, languageCode = 'en', maxResultCount = 5,
+): Promise<GooglePlace[]> {
+  const apiKey = process.env.GOOGLE_PLACES_API_KEY;
+  if (!apiKey || !query.trim()) return [];
+
+  const res = await fetch('https://places.googleapis.com/v1/places:searchText', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Goog-Api-Key': apiKey,
+      'X-Goog-FieldMask': FIELD_MASK,
+    },
+    body: JSON.stringify({
+      textQuery: query,
+      locationBias: {
+        circle: { center: { latitude: lat, longitude: lng }, radius: radiusMeters },
+      },
+      languageCode,
+      maxResultCount,
+    }),
+  });
+
+  if (!res.ok) {
+    // Fail soft, same discipline as Nearby Search: a Places hiccup must never
+    // block a manual add — the picker just falls through to createNew().
+    console.error('Places Text Search error', res.status, await res.text().catch(() => ''));
+    return [];
+  }
+
+  const json = await res.json();
+  const places = (json.places ?? []) as any[];
+  return places.map(p => ({
+    place_id: p.id,
+    name: p.displayName?.text ?? 'Unknown restaurant',
+    lat: p.location?.latitude,
+    lng: p.location?.longitude,
+    address: p.formattedAddress ?? null,
+  })).filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lng));
+}
+
 function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371000;
   const dLat = (lat2 - lat1) * Math.PI / 180;

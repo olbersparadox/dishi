@@ -1,5 +1,5 @@
 'use client';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLang } from '@/lib/i18n';
 import { namesMatch } from '@/lib/restaurant';
 
@@ -65,6 +65,20 @@ export default function RestaurantPicker({ onChange, skipFirst = false, seedCoor
   const [geocodedOnce, setGeocodedOnce] = useState(false);
   const [suggestion, setSuggestion] = useState<Nearby | null>(null);
   const [suggestionDismissed, setSuggestionDismissed] = useState(false);
+  // Search-on-add candidates (Places Text Search), shown when the typed name
+  // didn't cosmetically match anything already in the local `nearby` chip list
+  // — that list is capped at ~10 prominence-ranked results, so a real place can
+  // be entirely absent from it (the 新容記 Tin Wan miss). One call per confirmed
+  // 加入 tap, never per keystroke.
+  const [searchMatches, setSearchMatches] = useState<Nearby[]>([]);
+  const [searching, setSearching] = useState(false);
+  // Brief attention shake on the needloc caption when confirm is tapped with no
+  // coords yet — the caption text was already always shown in that state, but a
+  // passively-present line reads as "nothing happened" on tap; this makes the tap
+  // register visibly. Session-local only, never persisted.
+  const [needlocFlash, setNeedlocFlash] = useState(false);
+  const suggestionRef = useRef<HTMLDivElement>(null);
+  const searchMatchesRef = useRef<HTMLDivElement>(null);
 
   const loadNearby = useCallback(async (lat: number, lng: number) => {
     setCoords({ lat, lng });
@@ -94,6 +108,7 @@ export default function RestaurantPicker({ onChange, skipFirst = false, seedCoor
     setSelectedKey(key);
     setAdding(false);
     setSuggestion(null);
+    setSearchMatches([]);
     if (r.source === 'dishi') {
       onChange({ kind: 'existing', id: r.id!, name: r.name });
     } else {
@@ -106,9 +121,16 @@ export default function RestaurantPicker({ onChange, skipFirst = false, seedCoor
       });
     }
   }
-  function confirmNew() {
+  async function confirmNew() {
     const typed = newName.trim();
-    if (!typed || !coords) return;
+    if (!typed) return;
+    if (!coords) {
+      // Genuinely-silent path (field-tested): the tap must speak, not just have
+      // a passively-present caption below it.
+      setNeedlocFlash(true);
+      setTimeout(() => setNeedlocFlash(false), 500);
+      return;
+    }
     // Same-place nudge: if what they typed cosmetically matches a chip that's
     // already sitting right there (Dishi's or Google's), ask before forking a
     // duplicate. One question, human decides — never silently auto-merged, and
@@ -117,16 +139,39 @@ export default function RestaurantPicker({ onChange, skipFirst = false, seedCoor
       const match = nearby.find(r => namesMatch(typed, r));
       if (match) { setSuggestion(match); return; }
     }
+    // Search-on-add: the local chip list missed it, but that list is capped —
+    // broaden to Places Text Search before assuming it's genuinely new. One
+    // call, only on this confirmed tap, never while typing.
+    setSearching(true);
+    let matches: Nearby[] = [];
+    try {
+      const res = await fetch(`/api/restaurants/search?q=${encodeURIComponent(typed)}&lat=${coords.lat}&lng=${coords.lng}&lang=${lang}`);
+      const json = await res.json();
+      matches = json.restaurants ?? [];
+    } catch { /* fail soft — a Places hiccup never blocks the add, just treat as no match */ }
+    setSearching(false);
+    if (matches.length > 0) { setSearchMatches(matches); return; }
     createNew(typed);
   }
   function createNew(typed: string) {
     setSuggestion(null);
     setSelectedKey('manual-new');
+    // Collapse the form: selectedKey now maps to a real chip below, so the
+    // open input is no longer needed to show the choice took. Tapping that
+    // chip (reopenManual) brings the form back, pre-filled for editing.
+    setAdding(false);
     onChange({
       kind: 'new', name: typed, ...coords!,
       area: area.trim() || undefined,
       address: address.trim() || undefined,
     });
+  }
+  // Re-opens the add form on the already-confirmed manual entry, without
+  // clearing newName/selectedKey — an edit, not a re-type.
+  function reopenManual() {
+    setSuggestion(null);
+    setSearchMatches([]);
+    setAdding(true);
   }
   // "No restaurant" — split into 住家菜 (home) and 略過 (skip) to match the album rating
   // flow's wording. Both mean the same to the caller (no restaurant → onChange(null));
@@ -145,8 +190,19 @@ export default function RestaurantPicker({ onChange, skipFirst = false, seedCoor
     setAdding(true);
     setSelectedKey(null);
     setSuggestion(null);
+    setSearchMatches([]);
     onChange(null);
   }
+
+  // The same-place nudge can render below the iOS keyboard when the input is
+  // near the bottom of a short viewport — scroll it into view the moment it
+  // appears, rather than leaving it silently offscreen.
+  useEffect(() => {
+    if (suggestion) suggestionRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [suggestion]);
+  useEffect(() => {
+    if (searchMatches.length > 0) searchMatchesRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [searchMatches]);
 
   // Prefill area/address once, the first time "add more details" opens — a
   // starting point, not a fact. Always freely editable afterward, and never
@@ -192,6 +248,11 @@ export default function RestaurantPicker({ onChange, skipFirst = false, seedCoor
             </button>
           );
         })}
+        {!adding && selectedKey === 'manual-new' && (
+          <button className="chip on" onClick={reopenManual}>
+            {newName.trim()}
+          </button>
+        )}
         <button className={`chip chip-util ${adding ? 'on' : ''}`} onClick={toggleAdd}>
           {t('picker.add')}
         </button>
@@ -214,15 +275,37 @@ export default function RestaurantPicker({ onChange, skipFirst = false, seedCoor
                 // "no, it's new" answer shouldn't suppress a fresh nudge.
                 setSuggestionDismissed(false);
                 setSuggestion(null);
+                setSearchMatches([]);
               }}
             />
-            <button className="btn small" onClick={confirmNew} disabled={!coords || !newName.trim()}>
+            <button className="btn small" onClick={confirmNew} disabled={!newName.trim() || searching}>
               {t('picker.confirm')}
             </button>
           </div>
 
+          {searching && <p className="card-meta" style={{ marginTop: 6 }}>{t('picker.searching')}</p>}
+
+          {searchMatches.length > 0 && (
+            <div ref={searchMatchesRef} style={{ marginTop: 8 }}>
+              <p className="card-meta" style={{ marginBottom: 6 }}>{t('picker.searchmatch')}</p>
+              <div className="chips">
+                {searchMatches.map(m => (
+                  <button key={m.place_id} className="chip" onClick={() => pick(m)}>
+                    {lang === 'zh' ? (m.name_zh ?? m.name) : m.name}
+                  </button>
+                ))}
+              </div>
+              <button
+                className="btn ghost small" style={{ marginTop: 8 }}
+                onClick={() => { setSearchMatches([]); createNew(newName.trim()); }}
+              >
+                {t('picker.notsame')}
+              </button>
+            </div>
+          )}
+
           {suggestion && (
-            <div style={{ marginTop: 8 }}>
+            <div ref={suggestionRef} style={{ marginTop: 8 }}>
               <p className="card-meta" style={{ marginBottom: 6 }}>
                 {t('picker.sameas', {
                   name: lang === 'zh' ? (suggestion.name_zh ?? suggestion.name) : suggestion.name,
@@ -266,7 +349,11 @@ export default function RestaurantPicker({ onChange, skipFirst = false, seedCoor
           )}
         </div>
       )}
-      {adding && !coords && <p className="card-meta" style={{ marginTop: 6 }}>{t('picker.needloc')}</p>}
+      {adding && !coords && (
+        <p className={`card-meta ${needlocFlash ? 'needloc-flash' : ''}`} style={{ marginTop: 6 }}>
+          {t('picker.needloc')}
+        </p>
+      )}
     </div>
   );
 }

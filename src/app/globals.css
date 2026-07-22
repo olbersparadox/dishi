@@ -95,6 +95,18 @@ h3 { font-size: 16px; }
 .card-body { padding: 18px 18px 20px; }
 .card-title { font-family: var(--font-display); font-size: 17px; font-weight: 500; letter-spacing: 0.05em; }
 .card-meta { font-size: 13px; color: var(--ink-soft); margin-top: 2px; }
+/* Confirm tapped with no coords yet (RestaurantPicker): the caption was already
+   always shown in that state, but passively-present read as "nothing happened"
+   on tap. A brief ink shake, no color change (stays inside the palette contract —
+   this is not the seal/dirty-save vermillion). */
+.needloc-flash { animation: needlocAttn 0.4s ease; color: var(--ink); font-weight: 650; }
+@keyframes needlocAttn {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-3px); }
+  40% { transform: translateX(3px); }
+  60% { transform: translateX(-2px); }
+  80% { transform: translateX(2px); }
+}
 
 button { font: inherit; cursor: pointer; }
 /* All buttons are pills with 1px borders per the handoff — the outline weight
@@ -165,15 +177,6 @@ button { font: inherit; cursor: pointer; }
   background: var(--paper-inset, #eee9dd); color: var(--ink-soft);
 }
 .icon-btn.delete:hover, .icon-btn.delete:focus-visible { background: var(--line); color: var(--ink); }
-/* Inline spinner for icon buttons mid-action (e.g. ✓ while translating). Inherits
-   the button's currentColor; reuses the ringSpin keyframe. */
-.icon-spinner {
-  display: inline-block; vertical-align: middle;
-  width: 16px; height: 16px; border-radius: 50%;
-  border: 2px solid currentColor; border-top-color: transparent;
-  animation: ringSpin 0.7s linear infinite;
-}
-@media (prefers-reduced-motion: reduce) { .icon-spinner { animation: none; } }
 
 /* Tiny spinner beside a dish name that's still being translated (globe switch to a
    non-canonical language). Quiet ink, sized to the name via em, reuses ringSpin. */
@@ -186,12 +189,6 @@ button { font: inherit; cursor: pointer; }
 }
 @media (prefers-reduced-motion: reduce) { .dishname-spinner { animation: none; } }
 
-.retake-photo-btn {
-  position: absolute; right: 10px; bottom: 10px;
-  width: 36px; height: 36px; border-radius: 50%; border: none;
-  background: rgba(0,0,0,0.55); backdrop-filter: blur(2px); color: #fff;
-  display: flex; align-items: center; justify-content: center;
-}
 .btn:focus-visible, .chip:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 
 .chip {
@@ -904,12 +901,6 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
   border: 1px solid rgba(245, 240, 232, 0.35); color: var(--glaze); white-space: nowrap;
 }
 .scan-benefit-chip.rec { background: rgba(245, 240, 232, 0.16); border-color: transparent; font-weight: 600; }
-.nophoto-pill {
-  border: 1px solid var(--line); border-radius: 99px; padding: 14px 18px;
-  display: flex; align-items: center; justify-content: center; gap: 10px; color: var(--ink-soft);
-  font-size: 14px; background: none; text-align: center;
-}
-
 
 /* --- dish name row with right-aligned thin price --- */
 .dish-row { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }

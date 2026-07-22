@@ -66,9 +66,14 @@ consumer-side dish-level demand data.
   switches (deliberately NOT Web Storage: must clear on browser refresh).
 - `src/lib/openrouter.ts` (`callClaudeStream`) + `src/lib/jsonSalvage.ts`
   (`salvageJsonObjects`) — token-level SSE scan streaming + incremental JSON.
-- `src/app/log/page.tsx` — log flow with three entry modes via `?source=`:
-  `restaurant` (default) / `home` (no restaurant step at all) /
-  `album` (photo-first, no typed-only pill, skip-first restaurant).
+- Logging a dish: one entry point, `src/app/profile/page.tsx`'s merged
+  restaurant/home/album pill, which all three open the SAME photo picker →
+  `src/components/RatingStack.tsx` (flick card → `TasteGrowth` growth
+  screen). Menu-scan picks feed the same rating queue (`log.toRate` on the
+  Taste tab) instead of a separate flow. The old standalone `/log` page
+  (three `?source=` modes, its own picker/flow) was killed 2026-07-22 —
+  don't recreate it; if a photo-first or home-cooking entry needs new UI,
+  it belongs on the merged pill, not a new route.
 - Taste engine: `src/lib/taste.ts` (EMA + full-history replay on re-rating —
   never incremental-update a re-rated dish), `src/lib/buddy.ts`,
   `src/components/TasteForm*.tsx` (blob ↔ radar).

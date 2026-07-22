@@ -153,30 +153,16 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'home.homecooking': { zh: '住家菜', en: 'Home cooking' },
 
   // ---- log ----
-  'log.title': { zh: '記錄一道菜', en: 'Log a dish' },
   'log.cancelflow': { zh: '取消', en: 'Cancel' },
-  'log.nophoto': { zh: '沒有拍照？直接輸入名稱', en: 'No photo? Just type the dish' },
-  'log.where': { zh: '你喺邊度食緊？', en: 'Where are you eating?' },
-  'log.continue': { zh: '繼續', en: 'Continue' },
-  'log.reading': { zh: '正在辨識你的菜式…', en: 'Reading the plate…' },
-  'log.how': { zh: '好唔好食？', en: 'How was it?' },
   'voice.err.permission': { zh: '未取得麥克風權限 — 可改用文字輸入', en: 'Microphone access was denied — you can type instead' },
   'voice.err.language': { zh: '此裝置不支援粵語語音辨識 — 可改用文字輸入', en: "This device doesn't support speech recognition for this language — you can type instead" },
   'voice.err.nospeech': { zh: '沒有偵測到聲音 — 可重試或改用文字', en: "Didn't catch any speech — try again or type instead" },
   'voice.err.generic': { zh: '無法錄音 — 可改用文字輸入', en: "Voice recording isn't working right now — you can type instead" },
-  'log.done': { zh: '搞掂', en: 'Done' },
   'log.saving': { zh: '儲緊…', en: 'Saving…' },
-  'log.notdish.title': { zh: '呢張...唔係幾似食物喎？', en: 'This... doesn\u2019t really look like a dish?' },
-  'log.notdish.blurb': { zh: '可能你的口味確實與別不同，又或者這張相片裡根本沒有食物。Dishi 老實說：不是食物的相片，無法學習你的口味 — 評下去也是徒然。確定要評分嗎？', en: 'Either your taste is wonderfully unusual, or there\u2019s nothing edible in this photo. Honest heads up: Dishi genuinely can\u2019t learn your taste from something that isn\u2019t food \u2014 rating it won\u2019t teach the engine anything. Still want to rate it anyway?' },
-  'log.notdish.retake': { zh: '換張相', en: 'Try another photo' },
-  'log.notdish.anyway': { zh: '照評，我的口味比較特別', en: 'Rate it anyway' },
   // Vision genuinely failed (timeout/garbled response after retries) — distinct
   // from notdish above, where a model DID look and said "not food." Here nobody
   // ever looked, and Dishi says so instead of silently pretending it's a dish.
-  'log.visionfail.title': { zh: '糟糕，讀取不到這張相片', en: 'Couldn’t read that photo' },
-  'log.visionfail.blurb': { zh: '唔係你張相有問題 — 係 Dishi 讀相嗰陣斷咗線，而家連入面係咪食物都未確認到。試多次應該得，或者照留低張相，自己打返個菜名。', en: 'Nothing wrong with your photo — Dishi’s reading service dropped the connection, so it hasn’t even confirmed there’s food in it. A retry usually works; or keep the photo and name the dish yourself.' },
   'log.visionfail.retry': { zh: '再試一次', en: 'Try again' },
-  'log.visionfail.keep': { zh: '照留低，自己改名', en: 'Keep it — I’ll name it' },
   // 對決 (pairwise taste duels) — the 印 stamp signals a sealed prediction, same
   // honesty contract as the rating seal. 揀唔落 is a TIE (a real "these two are equal
   // for me" signal), distinct from the ✕ dismiss which teaches nothing.
@@ -200,7 +186,6 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'notif.title': { zh: '通知', en: 'Notifications' },
   'notif.empty': { zh: '暫無新通知', en: 'Nothing new right now' },
   'notif.duel.sub': { zh: '揀一樣，幫個引擎調校口味', en: 'Pick one to refine your taste' },
-  'log.addphotohint': { zh: '有空補拍一張也可以，不拍也能評分。', en: 'Optional \u2014 add a photo whenever you like, rating works fine without one.' },
   'log.toRate': { zh: '待評菜式', en: 'Dishes to rate' },
   'log.rateNow': { zh: '而家評', en: 'Rate now' },
   'scan.pickcount': { zh: '已選 {n} 道', en: '{n} dishes picked' },
@@ -210,10 +195,6 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'table.orderbtn': { zh: '叫呢個', en: 'Order' },
   'table.pickeddone': { zh: '✓ 已選', en: '\u2713 Picked' },
   'table.stampedby': { zh: '{n} 人揀咗呢道', en: '{n} people picked this' },
-  'log.looks': { zh: '睇落係{cuisine}菜 · ', en: 'Looks {cuisine} · ' },
-  'log.lowconf': { zh: '唔太肯定 — ', en: 'Low-confidence guess — ' },
-  'log.confirmName': { zh: '確認', en: 'Confirm' },
-  'log.learned': { zh: '學到了', en: 'Learned something' },
   'buddy.knows.count': { zh: '已識 {n} 味', en: 'knows {n}' },
   'buddy.learning.count': { zh: '摸索 {n} 味', en: 'learning {n}' },
   'log.willTranslate': { zh: '將依你的輸入自動翻譯', en: 'Will be translated from your input' },
@@ -244,7 +225,6 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'dim.braised': { zh: '炆', en: 'braised' },
   'dim.baked': { zh: '焗', en: 'baked' },
   'dim.raw': { zh: '生食', en: 'raw' },
-  'log.uploadfail': { zh: '上載失敗。檢查下網絡再試。', en: 'The upload failed. Check your connection and try again.' },
 
   // ---- flick rating ----
   'flick.inhaled': { zh: '一掃而空', en: 'Inhaled it' },
@@ -279,6 +259,8 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'picker.sameas': { zh: '係咪即係「{name}」？', en: 'Same place as "{name}"?' },
   'picker.samesame': { zh: '是，同一間', en: 'Yes, same place' },
   'picker.notsame': { zh: '不是，是新的店', en: 'No, it\u2019s a new place' },
+  'picker.searching': { zh: '搜尋緊…', en: 'Searching…' },
+  'picker.searchmatch': { zh: '搵到呢啲，係咪其中一間？', en: 'Found these — is it one of them?' },
 
   // ---- voice ----
   'voice.listening': { zh: '● 聽緊 — 撳一下停止', en: '● Listening — tap to stop' },
@@ -376,10 +358,6 @@ export const dict: Record<string, { zh: string; en: string }> = {
     zh: '可以逐張評分，也可以一次揀一疊相片批量評。你的食物相裡，藏著許多關於你口味的理解——好好利用它們，訓練專屬於你的 AI 口味引擎：評得越多、越多元，dishi 就越懂你，推薦越貼近你的口味。',
     en: 'Rate one at a time, or pick a whole stack of photos and rate in a batch. Hidden inside your food shots is a wealth of understanding about your taste — put them to good use and train an AI taste engine that belongs to you: the more you rate, and the more varied, the better dishi knows you.',
   },
-  'log.title.home': { zh: '記錄住家菜', en: 'Log a home-cooked dish' },
-  'log.title.album': { zh: '記錄相簿舊相', en: 'Log from your camera roll' },
-  'log.album.hint': { zh: '從相簿選一張食物相 — 多久以前吃的都可以', en: 'Pick a food shot from your photos — no matter how long ago' },
-  'log.album.where': { zh: '記得在哪裡吃嗎？不記得可以跳過', en: 'Remember where you had it? Skip if not' },
   'profile.helped': { zh: ' — 你的記錄曾幫助其他人做決定', en: ' — your logs helped other people decide' },
   'profile.cuisines': { zh: '菜系', en: 'Cuisines' },
   'profile.rated': { zh: '已評菜式', en: 'Dishes you\u2019ve rated' },
@@ -500,7 +478,6 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'home.name.zh': { zh: '中文', en: 'Chinese' },
   'home.save': { zh: '儲存', en: 'Save' },
   'home.cancel': { zh: '取消', en: 'Cancel' },
-  'home.confirm': { zh: '確認', en: 'Confirm' },
   'home.locked': { zh: '已有其他人評過這道菜 — 為保護他們的記錄，已鎖定不可修改。', en: 'Someone else has rated this \u2014 locked to protect their history.' },
   'home.addphoto': { zh: '加相', en: 'Add a photo' },
   'home.saving': { zh: '儲存緊…', en: 'Saving\u2026' },

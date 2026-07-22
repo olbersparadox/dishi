@@ -145,6 +145,48 @@ out as 炆飯.
 
 ---
 
+## 1. Picker: 加入 must produce visible selected state — *(Sonnet)* — ✅ DONE
+
+**Bug class:** silent success indistinguishable from silent failure.
+
+In `src/components/RestaurantPicker.tsx`, a successful `createNew()` sets
+`selectedKey='manual-new'` — which corresponds to no rendered element — and
+leaves the add form open, input untouched. Nothing on screen changes. Users
+reasonably conclude the tap failed and cancel, discarding the staged choice.
+Two additional genuinely-silent paths exist: `confirmNew()` returns wordlessly
+when `coords` is null, and the `namesMatch` same-place nudge can render below
+the iOS keyboard.
+
+**Shipped:**
+- `createNew()` now collapses the add form (`setAdding(false)`) and a real
+  chip renders for `selectedKey === 'manual-new'`, showing the typed name
+  with the same `on` styling as a nearby chip. Tapping it (`reopenManual`)
+  reopens the form pre-filled with the existing text — an edit, not a
+  re-type — without touching `selectedKey`/`newName`.
+- The `!coords` path in `confirmNew()` no longer just returns silently: it
+  triggers a brief `needloc-flash` shake animation (new CSS keyframe,
+  ink-only — kept inside the palette contract, nowhere near the vermillion
+  seal/dirty-save reservation) on the existing `picker.needloc` caption, so
+  a tap with location off visibly registers instead of doing nothing. The
+  confirm button's `disabled` no longer double-guards on `!coords` (only on
+  empty name) — `confirmNew()` itself owns that branch now, since it needs
+  to fire the flash.
+- The same-place suggestion nudge (`suggestion` state) now scrolls itself
+  into view (`suggestionRef` + `scrollIntoView` in a `useEffect`) the
+  moment it appears, so it can't render silently below the iOS keyboard.
+
+**Tests:** `tests/restaurantPickerManualAdd.test.tsx` (2 tests, RTL/jsdom) —
+after typing + 加入, a selected chip with the typed name renders and the
+form collapses; tapping it reopens the form with the text preserved.
+Confirm-with-no-coords fires the flash class instead of calling `onChange`.
+
+**Verified live** (2026-07-22, owner account, real dish edit → 轉餐廳 →
++ 加間舖 → typed "新容記" → 加入): chip rendered selected, form collapsed,
+儲存 went dirty-vermillion; tapping the chip reopened the form pre-filled.
+Cancelled without saving — no test data left in the live account.
+
+---
+
 ## 3. Nearby list: distance ranking, no Google cap — *(Sonnet)* — ✅ DONE `d661536`
 
 Two changes in `src/app/api/restaurants/nearby/route.ts` + `src/lib/places.ts`:
@@ -233,6 +275,78 @@ mirroring `DIET_RECHECK_LINE`.
 the tripwire should also gate the *attribute vector* re-score, or only
 name/ingredients — re-scoring costs a second LLM call per fire. Recommend
 yes (the vector is what the engine eats) but surface the cost when building.
+
+---
+
+## 2. Typed-name resolution via Places Text Search — *(build: Sonnet; design decided here)* — ✅ DONE
+
+**Problem:** Nearby Search is capped at 10 prominence-ranked results; in dense
+HK a well-known spot routinely misses the cut. Manual adds then create
+`place_id`-less rows — exactly the fragmentation the restaurant-identity work
+(backlog: restaurant identity resolution) exists to prevent.
+
+**Design (confirmed): search-on-add, not typeahead.** When the user taps 加入,
+FIRST call a new endpoint `GET /api/restaurants/search?q=..&lat=..&lng=..`
+which runs Places Text Search (New, `places:searchText`) with:
+- `locationBias` circle at the picker's coords (~1km radius),
+- same minimal field mask as `places.ts` (`places.id,places.displayName,places.location,places.formattedAddress`),
+- `languageCode` from the app language, `maxResultCount` ~5.
+
+Then:
+- **Match(es) found** → show them via the existing same-place nudge UI,
+  extended to hold multiple candidates ("係咪呢間？" + chips). Picking one goes
+  through the normal Google-chip path → carries a real `place_id` → server
+  dedup works.
+- **No match / user rejects all** → `createNew()` as today (manual,
+  `place_id`-less — still allowed, never blocked).
+
+Rejected alternative: live search-as-you-type. Every keystroke-debounced query
+is a billed call with no cache locality; search-on-add is exactly one call per
+add attempt and slots into the existing nudge UX.
+
+**Cost discipline — verified against the live Google pricing table, 2026-07-22
+(not assumed from the Nearby Search comment):** unlike Nearby Search, this
+field mask does NOT land Text Search in the cheap "Essentials" tier —
+`displayName`/`location`/`formattedAddress` each trigger "Text Search Pro"
+(SKU 4FDA-34B1-A910): 5,000 free/month, then $32/1,000 up to the first 100k.
+Accepted at triage since volume is bounded to one call per confirmed manual
+add (only fires when the local nearby-chip list didn't already resolve the
+typed name). No in-app daily quota cap exists for this or the sibling nearby
+endpoint — quota control is at the GCP project level, not in code; flagging
+this as an infra check, not something this item's code should invent.
+
+**Shipped:**
+- `src/lib/places.ts`: `searchPlacesText(query, lat, lng, radiusMeters=1000,
+  languageCode, maxResultCount=5)` — same fail-soft discipline as
+  `searchNearbyRestaurants` (no key → `[]`, non-ok response → `[]`, blank
+  query → `[]` without calling Google).
+- `GET /api/restaurants/search?q=..&lat=..&lng=..&lang=..` — new route, no
+  cache (a typed name + coords bucket has poor hit locality, so a cache
+  would add complexity for near-zero savings on already-bounded volume).
+- `RestaurantPicker.tsx`: `confirmNew()` is now async. Order: local
+  `namesMatch` check against the already-loaded `nearby` chips (unchanged,
+  free, instant) → if no local match, ONE search-on-add call → matches
+  render as a new multi-candidate nudge (`searchMatches` state, "搵到呢啲，
+  係咪其中一間？" + a chip per candidate + a reject button that falls
+  through to `createNew()`) → no matches → `createNew()` directly. New
+  `searching` state disables the confirm button and shows a "搜尋緊…"
+  caption during the round trip. The candidate block scrolls itself into
+  view on appear (`searchMatchesRef`), same discipline as the existing
+  same-place nudge.
+- Two new i18n keys: `picker.searching`, `picker.searchmatch`.
+
+**Tests:** `tests/places.test.ts` — request shape (textQuery, locationBias
+circle, field mask, languageCode, maxResultCount), result mapping, fail-soft
+on non-ok/no-key/blank-query (5 new tests). `tests/restaurantPickerManualAdd.test.tsx`
+— a name the local list misses resolves via the search endpoint and picking
+a candidate carries its `place_id`; rejecting every candidate falls through
+to a manual create (2 new tests).
+
+**Verified live** (2026-07-22, owner account, real dish edit → 轉餐廳 →
++ 加間舖 → typed "肯德基", not in the 6 local chips): search fired against
+the real Google Places API, returned 5 real KFC branches near the dish's
+coords under "搵到呢啲，係咪其中一間？"; picking one closed the nudge and
+armed 儲存's dirty state. Cancelled without saving.
 
 ---
 
