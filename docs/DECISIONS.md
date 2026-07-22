@@ -1115,6 +1115,12 @@ RatingStack log-time mount was verified by code + the same GET the sweep
 exercises live, not driven end-to-end (needs a real photo flick).
 tsc clean; 491/491 tests (11 new).
 
+### Polish refinements (2026-07-22) — ✅ DONE `a569c36`, `e4e078f`
+
+Two styling touches on the identity card after initial ship:
+- **`e4e078f`:** fill ✓/✗ circles black with white icon by default (was outline-only, filling only on :active). Matches the reveal's OK-circle treatment in `src/app/globals.css`.
+- **`a569c36`:** drop 係同一味/唔同嘅 button copy, icons carry the meaning — aria-label only, no visible text. Matches the reveal's own circle-check convention. Component + test updates in `IdentityConfirmCard.tsx` + `identityCardChassis.test.tsx`.
+
 ---
 
 # Backlog additions — 2026-07-22 (log entry: three paths by what you're holding)
@@ -1369,4 +1375,91 @@ filled 中文/英文 (蛋撻/egg tart) and turned 儲存 vermillion.
 
 tsc clean; 503/503 tests (unchanged — reuses `dishSuggest.ts`/the suggest
 route as-is, no new pure logic to test).
+
+---
+
+## Carb-tripwire follow-up: honest vector re-score — *(Fable 5)* — ✅ DONE, 2026-07-22
+
+Original backlog entry (verbatim): Open follow-up from the shipped
+carb-metonym work (DECISIONS.md, 07-20 batch item 4): the tripwire corrects
+ingredients/diet but not the 18-dim attribute VECTOR or an already-polluted
+NAME — honest vector re-score needs the name re-authored first
+(translate/vision + authority ladder). Costs one more LLM call per fire;
+recommended, cost accepted at triage.
+
+**What actually shipped — three legs:**
+
+**1. Prevention at source (always-on, the load-bearing find).**
+`SCORE_ONE_SYSTEM` — the prompt whose 18 numbers the engine actually eats —
+was the ONE derivation prompt still carrying NO shorthand glossary: 炆米
+could be scored as a braised-rice dish even after the enrichment tripwire
+had corrected the ingredient chips. It now embeds
+`HK_MENU_SHORTHAND_GUIDANCE` (the can't-silently-drop embed test extended
+5 → 6 sites), and `scoreOneDish` accepts `name_zh` so the scorer sees the
+shorthand-bearing 中文 name — both scan-score and dishes-enrich call sites
+pass it. This fixes the SCAN path's vectors at source, which matters because
+no fire-triggered re-score can practically run there (score and enrich are
+separate parallel client calls; with the scorer reading shorthand correctly,
+cross-call re-score orchestration buys nothing). Cost: ~250 extra input
+tokens per score call, qwen-tier — accepted as the trust-critical fix.
+
+**2. Correction on fire (the extra call the triage accepted).**
+`enrichOneDish` now returns `EnrichmentResult` = Enrichment +
+`carb_suspect?: boolean`, set when the carb tripwire fired on the first
+pass — deliberately true even if the re-ask itself failed (a failed retry
+leaves the reading MORE suspect, not less). `/api/dishes/enrich` acts on it,
+name FIRST then numbers, per the spec's ordering:
+- EN name: only when the EN slot is machine-fillable (`needEn` — an
+  empty/placeholder slot, so this structurally can never demote a human or
+  menu name), re-translate WITH the glossary
+  (`translateDishName(seed, { guidance })` — the base translate prompt
+  stays small for the every-rename fast path; guidance is opt-in).
+- Vector: one re-score via the new `buildScoreUserText` composition —
+  both names + `Key ingredients (verified): …` (grounding in the corrected
+  recipe the re-ask produced, the strongest honest signal held) + the SAME
+  `CARB_RECHECK_LINE` the enrichment retry uses, so the two retries speak
+  identically and can't drift. Pure + unit-tested (6 tests).
+- The route's existing replay-if-rated block then heals the profile with
+  the corrected vector — no new machinery.
+Cost honesty: the triage accepted "one more LLM call per fire" (the
+re-score); the name redo is a second ~60-token rider on the same fire, and
+only when the EN slot was empty anyway — flagged here rather than silently
+exceeded.
+
+**3. Backfill extension (stored pollution).**
+`backfill-carb-shorthand.ts --apply` previously refused to touch name/vector
+by design ("needs name re-author first — review by hand"). Now that the
+honest path exists: ladder-guarded EN re-author + grounded vector re-score +
+ONE profile replay per affected owner (same mechanism as a re-rate). The
+ladder guard is a new pure helper `canReauthorEnName` in `dishIdentity.ts`
+(7 tests): machine re-authoring is allowed only on a machine-derived EN name
+— never `name_edited_at` (HUMAN, hard stop), never an identity-linked dish
+(canonical name lives on the identity row; conservative skip), and only
+with a CJK zh seed distinct from the EN to re-translate FROM. The zh name
+is NEVER re-authored by this path — it may be the printed original, and
+misreadings only ever live in derived fields. Rationale for why scan-dish
+EN re-authoring is NOT a MENU-tier demotion: the zh is the menu's verbatim
+truth; the EN was authored by the scan model, so re-deriving it from the
+same zh original is a better rendering of the same MENU-tier source.
+
+**Verified live** (2026-07-22, real model + real DB):
+- Backfill dry-run against prod: 60 dishes scanned, 0 suspicious — the
+  07-20 backfill + glossary already cleaned the stored set, so there was
+  nothing to --apply (the extended script's query/guard/reporting path ran
+  end-to-end regardless).
+- Live harness (throwaway script, deleted): the grounded re-score returned
+  a real vector reading 蝦子炆米 as a braised VERMICELLI dish (braised 0.9);
+  `enrichOneDish` on the polluted stored shape (EN "Braised Rice" / zh 炆米)
+  now reads "rice vermicelli" at FIRST pass — no fire, `carb_suspect`
+  false, i.e. the glossary preventing rather than the backstop correcting;
+  the glossary-guided re-author turned "Braised Rice" into "Braised Rice
+  Vermicelli with Shrimp Roe".
+- Honest gap: `carb_suspect` was not observed firing live — the model no
+  longer misreads the known cases, and the flag exists precisely for the
+  residual failure mode. Its plumbing is deterministic code covered by
+  type-checking + the pure-function tests around it.
+
+tsc clean; 515/515 tests (12 new: buildScoreUserText ×6 in
+`carbShorthand.test.ts`, canReauthorEnName ×7 in `dishIdentity.test.ts`,
+embed test extended in place).
 
