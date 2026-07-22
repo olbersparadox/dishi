@@ -1508,9 +1508,9 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 .identity-answer:disabled { opacity: 0.5; cursor: default; }
 .identity-answer-circle {
   display: grid; place-items: center; width: 48px; height: 48px;
-  border: 1.5px solid var(--ink); border-radius: 50%;
+  background: var(--ink); color: var(--glaze); border-radius: 50%;
 }
-.identity-answer:not(:disabled):active .identity-answer-circle { background: var(--ink); color: var(--glaze); }
+.identity-answer:not(:disabled):active .identity-answer-circle { opacity: 0.7; }
 .identity-result { font-size: 15px; line-height: 1.5; color: var(--ink); font-weight: 650; }
 /* Reveal STAYS on screen (no auto-close) so the result is readable; the ✓ closes. */
 .duel-reveal { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-top: 16px; text-align: center; }
