@@ -58,6 +58,21 @@ bilingual ingredients — see DECISIONS.md).
 - [ ] **[F] 5. 檯友回音 (Table Echo)** — item 4 (companion edges) SHIPPED
   2026-07-22 (see DECISIONS.md), so this is now unblocked. Spec below.
 
+## Log entry redesign — three paths by what you're holding, build order 1→3→2→4
+
+Confirmed design (Jerry), 2026-07-22: replaces 餐廳菜/住家菜/相簿舊菜 with
+📷 食物相 / ✎ 打字 / 🧾 外賣單 — organized by what the user is HOLDING, not how
+they classify the meal. 相簿舊菜 is absorbed (fuzzy eaten-date triggers
+automatically from EXIF age, not a chip); retro-pick-at-scan-time rejected;
+multi-channel hero animation killed. Full spec below.
+
+- [ ] **[S] 1. IA change: chips, copy, icons, explanation card.** Spec below.
+- [ ] **[F] 2. 食物相: merged photo path with inferred context.** Depends on
+  item 1. Spec below.
+- [ ] **[S] 3. 打字: typed quick add.** Depends on item 1. Spec below.
+- [ ] **[F] 4. 外賣單: delivery screencap path.** Depends on items 1-3
+  (new blank-card + rating-cap machinery). Spec below.
+
 ## Later / standing
 
 - [ ] **Strategy: consumer scan density.** One dense neighborhood before
@@ -151,3 +166,156 @@ by side: 佢話超好味，你話麻麻地.
 **Tests:** RLS proof that an unrevealed echo rating is unreadable by the
 counterpart; reveal on completion; timeout unseal; no echo for guest or
 solo picks.
+
+---
+
+# Backlog additions — 2026-07-22 (log entry: three paths by what you're holding)
+
+Confirmed design (Jerry): reorganize log entry around what the user is
+HOLDING, not how they classify the meal. The three chips 餐廳菜/住家菜/相簿舊菜
+are replaced by:
+
+  📷 食物相 · Food photo      — any photo of food, now or from the library
+  ✎ 打字      · Type it        — no photo; name the dish, rate it
+  🧾 外賣單   · Delivery order  — screenshot of an order/confirmation screen
+
+相簿舊菜 is ABSORBED, not lost: old-photo treatment (fuzzy eaten-date, no
+restaurant context assumption) triggers automatically from EXIF age — that
+chip was asking users to do the machine's job. Retro-pick-at-scan-time is
+REJECTED (contaminates the "what should I order" moment); the saved-menu
+ask-later variant is parked as a possible future interaction, not built.
+Killed with it: the multi-channel hero animation.
+
+Hard guardrails carried from prior decisions: every imported/entered dish
+lands UNRATED (frequency ≠ preference — no channel writes implicit positive
+signal); no lingering count-badge guilt — rating happens in capped,
+session-shaped moments; each path writes its `source` flag for the engine's
+coverage-bias treatment.
+
+---
+
+## 1. IA change: chips, copy, icons, explanation card — *(Sonnet)*
+
+**Chips on the dark banner (replacing the current three):**
+- 食物相 — camera outline icon (reuse existing house camera glyph)
+- 打字 — pencil outline icon (house line weight; NOT a keyboard glyph —
+  too dense at chip size)
+- 外賣單 — takeaway-box outline icon (proposed; if the box reads as
+  "leftovers" in testing, fallback is a phone-with-receipt glyph — flag at
+  build time with both rendered)
+
+Copy register: 口語, per standing localization rule — these are short
+brand-voice moments. English strings: "Food photo" / "Type it" /
+"Delivery order".
+
+**Explanation card ((i) popover on the banner) — revised copy, proposed:**
+
+  影低、打低、定 cap 低 — 樣樣都得。
+  📷 食物相 — 影相或者揀返舊相，AI 認菜。
+  ✎ 打字 — 冇相？打個菜名就得。
+  🧾 外賣單 — cap 低張外賣單，成單菜一次過入晒。
+  評完，你嘅口味 AI 就學多一步。
+
+  (en) Snap it, type it, or screenshot it.
+  📷 Food photo — shoot or pick from your library; AI reads the dish.
+  ✎ Type it — no photo? The name is enough.
+  🧾 Delivery order — screenshot an order and every dish comes in at once.
+  Every rating teaches your taste AI.
+
+Jerry owns final copy; the above is the working draft. "cap 低" is
+deliberate HK code-switch — flag if too casual for this surface.
+
+---
+
+## 2. 食物相: merged photo path with inferred context — *(Fable 5)*
+
+The merge lives or dies on ONE rule: context becomes INFERRED, never a
+form. After photo selection the app guesses from EXIF timestamp + location
++ photo content and surfaces a single one-tap confirm row, guess
+preselected:
+
+  喺邊食㗎？  [大爺燒鵝?]  [屋企]  [第二度]
+
+- Fresh photo + coords near a known restaurant → that restaurant
+  preselected (nearby machinery + Text Search from the picker work).
+- No coords / indoor-home signals → 屋企 preselected.
+- EXIF age past threshold → old-photo treatment automatically: fuzzy
+  eaten-date UI, NO restaurant guess asserted (per the standing camera-roll
+  item), 第二度 opens the picker.
+- Proceeding without touching the row accepts the guess. If implementation
+  finds itself adding a second required question, STOP — the old chips were
+  better than a form; surface the problem instead.
+
+**Rating flow: unchanged.** The existing photo rating moment is the
+reference experience; this item only changes how context attaches.
+
+**Tests:** inference matrix (fresh+located / fresh+unlocated / old EXIF);
+one-tap acceptance path; old-photo fuzzy-date trigger; source flags.
+
+---
+
+## 3. 打字: typed quick add — *(Sonnet)*
+
+The floor of the core action: just ate something, no photo, ten seconds.
+
+**Order of collection (decided): dish name FIRST, then restaurant.** The
+dish is what they remember; the restaurant is context. Predictive input on
+both:
+- Dish field: suggest from `dish_identities` at nearby/recent restaurants
+  first, then the user's own dish history, then generic completion. Chinese
+  field before English per the standing log-flow polish item; auto-translate
+  hint on the untouched field.
+- Restaurant field: nearby chips + typed Text Search (reuses the picker
+  work wholesale), 屋企 as a first-class chip, skippable (unattached dish
+  is allowed — better a logged dish than an abandoned flow).
+- Then the SAME rating moment as the photo path, on a blank card (name +
+  restaurant, no image). Blank-card visual: existing card anatomy minus
+  photo slot — do not invent a placeholder illustration; absence is honest.
+
+**Enrichment: immediate, not lazy** (decided, flag if cost objects): one
+text-path enrich call on commit so ingredient chips / flavor derivation /
+diet flags exist by the time the rating lands — the rating context is the
+point of enriching at all.
+
+**Tests:** predictive ordering (identity matches outrank generic);
+skip-restaurant path; enrich-on-commit; source flag.
+
+---
+
+## 4. 外賣單: delivery screencap path — *(Fable 5)*
+
+Scope: the IN-THE-MOMENT chip (food just arrived, screenshot the order,
+2–3 dishes enter as blank cards). The mass history-import remains a
+SEPARATE cold-start moment (previous discussion) and is not this item.
+
+**Pipeline:** screenshot → vision extraction (new prompt variant on the
+scan pipeline: itemized order lines, quantities ignored, platform chrome
+ignored, restaurant name string captured) → one blank card per dish →
+restaurant auto-attach: resolve the extracted restaurant string via Places
+Text Search with location bias; attach on high-confidence match with a
+one-tap confirm chip, else fall to the picker. Order date, if visible on
+screen, becomes the eaten-date (editable); else now.
+
+**Rating flow: instruction interstitial (per Jerry), then the capped
+stack.** After import, ONE screen states plainly what happened and what
+happens next — proposed copy:
+
+  入咗 {n} 味菜。而家評唔評都得 —
+  評一味，口味 AI 就準一步。
+  [評住先]  [遲啲先]
+
+遲啲先 exits cleanly; the dishes sit in 待評 with NO badge, no counter
+nagging. 評住先 opens the existing rating stack capped at ~5 per session
+(session-shaped, not backlog-shaped). HK menu-shorthand glossary applies to
+extraction (delivery listings use the same metonyms).
+
+**Tests:** extraction fixture (foodpanda + Keeta screenshot layouts, zh +
+en); restaurant auto-attach confidence gating; date capture; cap
+enforcement; no-badge assertion.
+
+---
+
+Build order: 1 → 3 (Sonnet, ships the IA + the floor), then 2 → 4
+(Fable 5). Old chips and their routes are deleted in item 1's PR — per
+CLAUDE.md, superseded views do not remain importable, and each path's
+verification includes screenshots of the real flow before "done".
