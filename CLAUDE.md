@@ -139,5 +139,27 @@ consumer-side dish-level demand data.
 - **Sameness tests assert identity.** A test for "X renders the same as Y"
   must compare component trees / snapshots such that a lookalike FAILS it.
 
+## Token & model economy (mandatory)
+
+- **Commit as you go.** Commit after each verified unit of work (feature
+  passing tests, fix confirmed) — never accumulate a session's work into
+  one endgame commit. A session cutoff must never strand uncommitted work.
+
+- **Cheap model for mechanical endgame.** Commit, push, packaging, and
+  other mechanical wrap-up need no intelligence. If the session is running
+  on Fable 5 or Opus and only mechanical steps remain, STOP and say:
+  "Only commit/push remains — switch me to Haiku (/model) before I
+  continue." Do not proceed on the expensive model after asking.
+
+- **Never resume an expensive session for mechanical work.** If a session
+  died before commit, do not resume it on Fable 5 — resuming re-ingests
+  the full context and burns quota on nothing. Start a FRESH session on
+  Haiku: "commit and push pending changes in <repo>; message: <summary>".
+  Fresh + cheap beats resumed + expensive every time.
+
+- **Flag runaway context.** If the current session's context has grown
+  large and remaining work is simple, proactively suggest finishing in a
+  fresh cheaper session rather than continuing.
+
 Private/local context (IDs, test accounts) lives in `CLAUDE.local.md` — not
 committed. Deeper product history: `SPEC.md` and `docs/`.
