@@ -9,30 +9,41 @@ When a new item is decided anywhere: add it here and push.
 Model tier per item: **[S]** = Sonnet (well-specified build) · **[F]** = Fable/Opus
 (design decisions, entity resolution, diagnosis).
 
-## Now
+Audited 2026-07-22 against git history + live code (four items found
+falsely open and archived: OTP login, 語言對 fixes, seal at pick time,
+bilingual ingredients — see DECISIONS.md).
 
-- [ ] **[S] 語言對 fixes (live-test failures).** Japanese-menu acceptance test
-  fails on ec16af0: scan z-instruction never received the katakana/false-friend
-  hardening (it landed only in nameTranslate.ts), and bilingual menus defeat
-  menuLanguageToCode so the foreign-secondary preset never fires. v2: prompt wording alone is unreliable on the skeleton model (qwen) — add the
-  kana/hangul tripwire that re-authors z through the proven translate path, plus
-  chip label-dedupe.
-  Full spec: `docs/specs/language-pair-globe-fixes.md`.
-- [ ] **[F] dishi — your AI palate (export redesign).** Replace "prompt export"
-  with a persona: the user's palate, unlocked (not given) once the engine
-  genuinely knows enough, written in a user-chosen voice, leveling up as the
-  engine learns — each version visibly knows MORE (dishes, dates, places,
-  home-cook patterns). Unified confidence-as-level bar with honest endowed
-  progress on day 1; day-1 export locked, album-logging tutorial as the fast
-  path to first unlock. Engine-adjacent (buddy level rebase) — use Opus.
+## Now — in progress
+
+- [ ] **[F] dishi — your AI palate (export redesign) — §5 remainder.**
+  §3/§4 SHIPPED `a3517b1` (persona voices 老實派/食家腔/貪玩 + persistence,
+  `persona.ts`, `taste_profiles_persona.sql`); engine + payload work landed
+  earlier. REMAINING: §5 UI + the voice-approval step. Review of the shipped
+  portion deferred by owner ("later"). Engine-adjacent — use Opus/Fable.
   Full spec: `docs/specs/dishi-palate-export.md`.
-- [ ] **[S] OTP login (kill the magic-link browser trap).** Code-as-hero email,
-  `autoComplete="one-time-code"` for iOS keyboard autofill, code entry as the
-  primary login path. Mostly template + a few lines; verifyOtp path already
-  exists. Full spec: `docs/specs/otp-login.md`.
 
-## Next
+## Ready to build — specs are decided, no open questions
 
+- [ ] **[S] Picker: 加入 must produce visible selected state.** Verified
+  still broken 2026-07-22: `selectedKey='manual-new'` maps to no rendered
+  element. Full spec below (2026-07-20 batch, item 1).
+- [ ] **[S] Typed-name resolution via Places Text Search.** Verified not
+  built 2026-07-22: no `/api/restaurants/search` route exists. Design
+  already decided (search-on-add, not typeahead). Full spec below
+  (2026-07-20 batch, item 2).
+- [ ] **[F] Carb-tripwire follow-up: honest vector re-score.** Open
+  follow-up from the shipped carb-metonym work (DECISIONS.md, 07-20 batch
+  item 4): the tripwire corrects ingredients/diet but not the 18-dim
+  attribute VECTOR or an already-polluted NAME — honest vector re-score
+  needs the name re-authored first (translate/vision + authority ladder).
+  Costs one more LLM call per fire; recommended, cost accepted at triage.
+
+## Needs an owner decision before any code
+
+- [ ] **[S] Table item 6 — joined members add scan pages.** Authorization
+  is trivial; the entry point is real work. BLOCKED on the trust-model
+  call: can any member append freely, or does an unmoderated menu need a
+  confirmation step? Full spec below (Table Mode batch, item 6).
 - [ ] **[F] Persona rethink (老實派 / 食家腔 / 貪玩) — dedicated design session.**
   The in-card picker was REMOVED from the export card (2026-07-21): as a row of
   chips it wasn't doing anything a user could feel. Open design question: where
@@ -42,22 +53,23 @@ Model tier per item: **[S]** = Sonnet (well-specified build) · **[F]** = Fable/
   implemented — `persona.ts` voices + persistence are kept, default 'honest').
   Also open: the 貪玩 blurb "鬼馬、生動、港式抵死" is defined by its Cantonese
   cheek — 書面化 would be a rename/reframe, decide in the same session.
-- [ ] **[S] Bilingual ingredient display.** The ingredients line under the diet
-  chips (DishInfoDisplay) shows lowercase English as stored today. Give ingredients
-  a zh/en pair so the line reads native in Chinese-first mode. Deferred out of the
-  diet-flag-integrity work; needs its own small vocabulary/translation pass.
-- [ ] **[F] Diet taxonomy growth (gluten, soy, nuts-general).** The 雞扎 fix took
-  DIET_FLAGS from 7 → 13 (added poultry/lamb/egg/dairy/offal). Further allergen
-  axes are real but each needs its own recipe-grounding thought — do NOT bolt them
-  on ad hoc; keep the vocabulary closed and deliberate.
-- [ ] **[S] Seal at pick time.** Move seal creation (`POST /api/seals`) from
-  queue-load to the pick-confirm moment on the scan page, so the prediction is
-  committed when the user ORDERS, not when they next open the Taste tab.
-  Strengthens the honesty framing; small change, endpoint already idempotent.
 - [ ] **[F] 食記 ordering for album logs.** Old camera-roll photos have a fuzzy
   eaten-date; decide: order journal by when-eaten vs when-logged, and how to
   capture an approximate eaten-date at log time without adding friction.
   Design conversation first — do not build straight from this line.
+- [ ] **[F] Diet taxonomy growth (gluten, soy, nuts-general).** The 雞扎 fix took
+  DIET_FLAGS from 7 → 13 (added poultry/lamb/egg/dairy/offal). Further allergen
+  axes are real but each needs its own recipe-grounding thought — do NOT bolt them
+  on ad hoc; keep the vocabulary closed and deliberate.
+
+## Table Mode continuation — Fable-tier, in dependency order
+
+- [ ] **[F] 3b. Guest (no-account) table participation** — new auth
+  surface, needs its own design session first. Spec below.
+- [ ] **[F] 4. Companion edges (同檯 data layer)** — schema + RLS +
+  export-prose judgment. Spec below.
+- [ ] **[F] 5. 檯友回音 (Table Echo)** — must not start before item 4's
+  session/consent model is merged. Spec below.
 
 ## Later / standing
 

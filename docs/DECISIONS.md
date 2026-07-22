@@ -11,6 +11,86 @@ carried them in.
 
 ---
 
+## OTP login (kill the magic-link browser trap) — *(Sonnet)* — ✅ DONE `20789e6`, `0e3cd2b`, `11ae61b`
+
+Was carried as an open "Now" item in BACKLOG.md well after it actually
+shipped — caught late (owner flagged it 2026-07-22) because nothing had
+moved it to this file. Full original spec: `docs/specs/otp-login.md`.
+
+**Problem:** the login email led with a magic link; tapping it opens
+whatever browser the mail app chooses (Gmail webview, default Safari), so
+the session lands in a different browser than where the user started — the
+classic magic-link trap. Login had to become: type email → read/tap
+6-digit code → in, in the SAME browser, every time.
+
+**Shipped in `src/components/AuthGate.tsx`:**
+- `autoComplete="one-time-code"` on the code input — the attribute that
+  makes iOS surface the code from Apple Mail/Messages as a tappable chip
+  above the keyboard.
+- `signInWithOtp({ email })` with no `emailRedirectTo` — pure OTP, no
+  redirect target, since the template carries no magic link.
+- `verifyOtp({ email, token: code.trim(), type: 'email' })` on submit; no
+  hardcoded digit count client-side, `verifyOtp` itself rejects a wrong
+  code.
+- Follow-up commits: copy updated to state the code is 6 digits (Supabase
+  OTP length set to 6, `0e3cd2b`); monospace font on the code input
+  (`11ae61b`) for legibility/alignment.
+
+Android/SMS-OTP explicitly stayed out of scope per the original spec
+(no reliable email autofill standard there; WebOTP costs per login).
+
+---
+
+## 語言對 fixes (live-test failures) — *(Sonnet)* — ✅ DONE `c8af257`, `821fb5e`, `6ccad67`, `8147297`
+
+Another item carried as open long after it shipped — caught in the same
+2026-07-22 audit as the OTP entry above. Original scope: Japanese-menu
+acceptance test failed on ec16af0 — scan z-instruction never received the
+katakana/false-friend hardening (it landed only in nameTranslate.ts), and
+bilingual menus defeated menuLanguageToCode so the foreign-secondary preset
+never fired. v2: prompt wording alone proved unreliable on the skeleton
+model (qwen) — added the kana/hangul tripwire that re-authors z through the
+proven translate path, plus chip label-dedupe.
+Full spec + addenda: `docs/specs/language-pair-globe-fixes.md`.
+
+Shipped across four commits:
+- `c8af257` — v1: harden scan z-field + resilient menuLanguageToCode (the
+  two live-test gaps).
+- `821fb5e` — v2: kana/hangul tripwire re-authors z via the translate
+  path; DishInfoDisplay chip dedupe by label, not just icon.
+- `6ccad67` — v3 (Fix 5): scan preset yields to an explicit globe choice.
+- `8147297` — dishname: track Latin and CJK separately, per slot by actual
+  script.
+
+---
+
+## Seal at pick time — *(Sonnet)* — ✅ DONE `c7970f8`
+
+Moved seal creation (`POST /api/seals`) from queue-load to the pick-confirm
+moment on the scan page, so the prediction is committed when the user
+ORDERS, not when they next open the Taste tab. Strengthens the honesty
+framing; small change, endpoint already idempotent. (Also caught in the
+2026-07-22 audit — had stayed listed as open after shipping.)
+
+---
+
+## Bilingual ingredient display — *(Sonnet)* — ✅ DONE via `713f645` (ingredientLabel.ts glossary)
+
+Original item: "The ingredients line under the diet chips (DishInfoDisplay)
+shows lowercase English as stored today. Give ingredients a zh/en pair so
+the line reads native in Chinese-first mode."
+
+Resolved by a different mechanism than the item imagined: no zh field is
+stored per dish — instead the shared `src/lib/ingredientLabel.ts` glossary
+(extracted during the taste-page UI batch, item 5) maps the fixed English
+ingredient vocabulary to zh-HK names, and `DishInfoDisplay` renders
+`ingredientZh(name) ?? name` in Chinese-first mode. Falls back to English
+only for unmapped vocabulary — by design it never fabricates a zh name.
+If unmapped English shows up in practice, the fix is a glossary row, not a
+schema change. (Caught in the 2026-07-22 audit.)
+
+---
+
 ## Done (recent, for context)
 
 - [x] **語言對 — the globe picker (language-pair dish names)** — pair state +
