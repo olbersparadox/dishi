@@ -1327,3 +1327,46 @@ blank screen. Item 1 needs a design pass, not a re-land of the same pill.
 tsc clean; 503/503 tests (unchanged — the revert only touched already-shipped
 render code, not the preserved lib/API/component layer or their tests).
 
+---
+
+## Predictive dish-name suggestions in the EXISTING rating flow's rename UI — *(Sonnet)* — ✅ DONE, 2026-07-22
+
+Owner's ask after the rollback above: "add predictive suggestion to the
+existing rating flow" — not the abandoned 打字 overlay, but a real,
+already-shipped surface where a person types a dish name: the rename editor
+inside `TasteGrowth.tsx` (the `.learn-nameedit` block — opened either to
+correct a vision-guessed name, or via "係嘢食嚟" reclassify on a mis-flagged
+non-dish). This is the SAME `GET /api/dishes/suggest` +
+`src/lib/dishSuggest.ts` ranking preserved from the rolled-back build, wired
+into a different, already-trusted UI instead of a new overlay.
+
+**Why this sidesteps every complaint from the rollback:**
+- No hang: rename is a pure client-side edit + `onEditName`/`onReclassify`
+  callback — no enrich-before-rating wait in the critical path at all.
+- No slow location lookup: reuses the dish's ALREADY-RESOLVED coords
+  (`live[editIdx].coords`, from EXIF or the live-GPS fallback RatingStack
+  already ran) for the nearby-restaurant bias — no fresh
+  `navigator.geolocation` call, which is what made the quick-add flow feel
+  slow.
+- No raw/inconsistent styling: renders as a `.chips`/`.chip` row using the
+  exact same classes as everywhere else in the app, inside the existing
+  `.learn-nameedit` card — not a new ad hoc overlay.
+
+**Behavior:** opening the rename editor pre-fills 中文/英文 with the current
+name, which immediately fires one suggestion lookup (own-history matches
+show up before the person types anything — a proactive hint, not just a
+reactive autocomplete). Typing further re-queries on a 250ms debounce.
+Picking a chip fills both fields and marks them dirty (turns 儲存
+vermillion, per the standing dirty-save convention) exactly like a manual
+edit would.
+
+**Verified live** (fixture-mounted `TasteGrowth` against the real
+`/api/dishes/suggest` endpoint — a temporary preview route, screenshotted,
+then deleted, per the file-upload limitation on scripting a real photo
+through this browser tooling): opened the rename editor on a 蛋撻 fixture,
+the own-history suggestion appeared immediately without typing, tapping it
+filled 中文/英文 (蛋撻/egg tart) and turned 儲存 vermillion.
+
+tsc clean; 503/503 tests (unchanged — reuses `dishSuggest.ts`/the suggest
+route as-is, no new pure logic to test).
+

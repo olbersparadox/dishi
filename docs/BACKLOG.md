@@ -84,15 +84,16 @@ redesign.
   verification — needs real diagnosis, not just a longer timeout: check
   whether the enrich call actually completes server-side, add a client-side
   timeout/fallback so a slow or stuck enrich can't strand the person on a
-  blank screen); the predictive dish-name/restaurant lookups felt slow; the
-  overlay's raw ad hoc styling (plain `<h3>`/inputs on `.rate-sheet`/`.card`)
-  didn't match the app. Code is PRESERVED, unmounted, for the retry:
-  `TypedQuickAdd.tsx`, `RatingStack`'s `typed` mode, `RestaurantPicker`'s
-  `{kind:'home'}` addition, `GET /api/dishes/suggest` + `dishSuggest.ts`
-  (predictive ranking), `typedQuickAdd.ts` (body builder) — all still have
-  passing tests. Owner specifically wants the predictive-suggestion piece
-  re-tested once the hang + styling are fixed, separately from judging it on
-  its own merits. Don't just re-enable the old UI — diagnose the hang first.
+  blank screen); the overlay's raw ad hoc styling (plain `<h3>`/inputs on
+  `.rate-sheet`/`.card`) didn't match the app. Code is PRESERVED, unmounted,
+  for the retry: `TypedQuickAdd.tsx`, `RatingStack`'s `typed` mode,
+  `RestaurantPicker`'s `{kind:'home'}` addition, `typedQuickAdd.ts` (body
+  builder) — still have passing tests. Don't just re-enable the old UI —
+  diagnose the hang first.
+  (The predictive dish-name suggestion piece — `GET /api/dishes/suggest` +
+  `dishSuggest.ts` — SHIPPED 2026-07-22 into a DIFFERENT, already-working
+  surface instead: the rename editor in `TasteGrowth.tsx`. See DECISIONS.md.
+  It's live in the app now; only the 打字 entry point above is still open.)
 - [ ] **[F] 4. 外賣單: delivery screencap path.** Blocked on item 1. Spec
   below.
 

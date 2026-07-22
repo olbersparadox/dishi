@@ -17,6 +17,7 @@ import DishInfoDisplay from '@/components/DishInfoDisplay';
 import { CheckIcon, CloseIcon } from '@/components/icons';
 import { topGlyphDims, type FormInputs } from '@/lib/blobForm';
 import { TasteFormLive } from '@/components/TasteForm';
+import type { SuggestRow } from '@/lib/dishSuggest';
 
 // A real nearby restaurant option (from EXIF → /api/restaurants/nearby), carrying what
 // it takes to PERSIST the pick: a Dishi row (restaurant_id) or a Google place (place_id
@@ -148,6 +149,39 @@ export default function TasteGrowth({ live, engine, blobInputs, onExit, onCancel
   // cancelling (or saving with no name) reverts to the not-a-dish state.
   const [editReclassify, setEditReclassify] = useState(false);
   const flyId = useRef(0);
+
+  // Predictive suggestions on the open name editor — same ranking as the (currently
+  // unmounted) 打字 quick-add: nearby-restaurant dish_identities, then the person's
+  // own history (dishSuggest.ts). Reuses the dish's ALREADY-RESOLVED EXIF/live coords
+  // (`live[editIdx].coords`) for the nearby bias instead of a fresh geolocation call —
+  // that's what made the quick-add flow feel slow; this row already has it for free.
+  const [nameSuggestions, setNameSuggestions] = useState<SuggestRow[]>([]);
+  const suggestGen = useRef(0);
+  const skipNextSuggest = useRef(false); // set by pickNameSuggestion — picking a chip shouldn't re-suggest itself
+  const editCoords = editIdx !== null ? (live[editIdx]?.coords ?? null) : null;
+  useEffect(() => {
+    if (editIdx === null) { setNameSuggestions([]); return; }
+    if (skipNextSuggest.current) { skipNextSuggest.current = false; return; }
+    const q = (dZh || dEn).trim();
+    if (q.length < 1) { setNameSuggestions([]); return; }
+    const gen = ++suggestGen.current;
+    const h = setTimeout(async () => {
+      try {
+        const params = new URLSearchParams({ q });
+        if (editCoords) { params.set('lat', String(editCoords.lat)); params.set('lng', String(editCoords.lng)); }
+        const res = await fetch(`/api/dishes/suggest?${params}`);
+        const json = await res.json().catch(() => null);
+        if (suggestGen.current === gen) setNameSuggestions(json?.suggestions ?? []);
+      } catch { if (suggestGen.current === gen) setNameSuggestions([]); }
+    }, 250);
+    return () => clearTimeout(h);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dZh, dEn, editIdx, editCoords?.lat, editCoords?.lng]);
+  const pickNameSuggestion = (s: SuggestRow) => {
+    skipNextSuggest.current = true;
+    setDZh(s.name_zh ?? ''); setDEn(s.name); setEdZh(true); setEdEn(true);
+    setNameSuggestions([]);
+  };
 
   // A quality (or a refinement) flies into the blob → blob absorbs + grows, bar bumps.
   const absorb = (word: string, bump: number) => {
@@ -399,6 +433,16 @@ export default function TasteGrowth({ live, engine, blobInputs, onExit, onCancel
                           <input className="field" value={dEn}
                             placeholder={edZh && !edEn ? t('log.willTranslate') : undefined}
                             onChange={e => { setDEn(e.target.value); setEdEn(true); if (!edZh) setDZh(''); }} />
+                          {nameSuggestions.length > 0 && (
+                            <div className="chips" style={{ marginTop: 8 }}>
+                              {nameSuggestions.map((s, si) => (
+                                <button key={`${s.name}|${s.name_zh}|${si}`} type="button" className="chip"
+                                  onClick={() => pickNameSuggestion(s)}>
+                                  {s.name_zh || s.name}
+                                </button>
+                              ))}
+                            </div>
+                          )}
                           <div className="learn-editactions">
                             <button className="btn ghost small" onClick={cancelEdit}>{t('home.cancel')}</button>
                             {/* Vermillion once the name's actually been edited. */}
