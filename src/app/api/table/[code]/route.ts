@@ -186,8 +186,15 @@ export async function GET(_req: NextRequest, { params }: { params: { code: strin
  * enriched on the client, same shape POST /api/table accepts). Previously an
  * appended page only ever extended the SCANNER's own local view, never the
  * group's shared table (see docs/BACKLOG.md) — this is the write path that
- * closes that gap. Host-only: only the person who owns the session can grow
- * it, matching every other host-gated action (share/invite copy, etc.).
+ * closes that gap.
+ *
+ * Any member, not just the host (Table Mode item 6, 2026-07-22, owner
+ * decision): someone else at the table is often the one holding the drinks
+ * menu or page 3 of a multi-page one — checks membership (a `table_members`
+ * row for this session), not `host_id`. Trust model is deliberately open:
+ * the append itself is race-safe (see below) and the Postgres function now
+ * dedupes an incoming item against what's already on the shared menu, so an
+ * overlapping photo from a second contributor can't duplicate a dish.
  *
  * Appends via a Postgres function (append_table_menu_items, see its migration
  * comment), never a client read-modify-write: the row is locked for the
@@ -207,10 +214,13 @@ export async function PATCH(req: NextRequest, { params }: { params: { code: stri
   const admin = supabaseAdmin();
 
   const { data: session } = await admin
-    .from('table_sessions').select('id, host_id, menu_items').eq('code', code).maybeSingle();
+    .from('table_sessions').select('id, menu_items').eq('code', code).maybeSingle();
   if (!session) return NextResponse.json({ error: 'No table with that code.' }, { status: 404 });
-  if (session.host_id !== user.id) {
-    return NextResponse.json({ error: 'Only the person who started this table can add pages to it.' }, { status: 403 });
+
+  const { data: memberRow } = await admin
+    .from('table_members').select('user_id').eq('session_id', session.id).eq('user_id', user.id).maybeSingle();
+  if (!memberRow) {
+    return NextResponse.json({ error: 'Join this table first.' }, { status: 403 });
   }
   if (!session.menu_items) {
     // A QR/restaurant session or the bare community-pool fallback has no scanned

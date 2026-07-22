@@ -9,9 +9,25 @@ import TableBar from '@/components/TableBar';
 import { LeaveIcon } from '@/components/icons';
 import { useLang } from '@/lib/i18n';
 import { sumPrices } from '@/lib/price';
+import { normalizePhoto } from '@/lib/image';
+import { mapWithConcurrency } from '@/lib/concurrency';
 import { supabaseBrowser } from '@/lib/supabase/client';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { stampsFromPicks, pickMatchesItem, mergeStamps, applyStampEvent, type StampOverlay, type StampEvent } from '@/lib/tableStamps';
+
+// A page a joined member scans and pushes straight onto the shared menu —
+// deliberately a SUBSET of scan/page.tsx's own ScannedItem: this screen never
+// renders per-item scan progress (the poll-refreshed ranked list below is the
+// only view of it), so it only needs enough shape to survive the enrich/score
+// round trip and the PATCH body. Never a second scan UI — see the comment on
+// addPage below for why scan/page.tsx's own onPick isn't reused directly.
+type ScanPageItem = {
+  name: string; name_zh?: string | null; name_original: string; price: string | null;
+  cuisine: string; hook: string;
+  diet: string[]; cooking_method: string | null; heaviness: string | null; ingredients: string[];
+  attributes?: Record<string, number>;
+};
+const SCORE_CONCURRENCY = 6; // matches scan/page.tsx's own cap for the same two per-dish endpoints
 
 type Member = { user_id: string; handle: string; display_name: string | null; has_profile: boolean; rating_count: number };
 type RankedItem = {
@@ -111,6 +127,11 @@ function Session({ code, onLeave }: { code: string; onLeave: () => void }) {
   // poll, once state.table_picks itself carries the real id.
   const [pendingDishIds, setPendingDishIds] = useState<Record<string, string>>({});
   const channelRef = useRef<RealtimeChannel | null>(null);
+  // Add a page (Table Mode item 6, 2026-07-22): any member can grow the
+  // shared menu now, not just the host who started it — someone else at the
+  // table is often the one holding page 3, or the drinks list.
+  const [appending, setAppending] = useState(false);
+  const [appendError, setAppendError] = useState('');
   const [chopName, setChopName] = useState('');
   const [chopSaving, setChopSaving] = useState(false);
   const [chopDismissed, setChopDismissed] = useState(true); // true (hidden) until checked, so the prompt never flashes on
@@ -238,6 +259,125 @@ function Session({ code, onLeave }: { code: string; onLeave: () => void }) {
     }
   }, [code]);
 
+  // Add a page: any member can grow the shared scanned menu now (item 6,
+  // owner decision 2026-07-22 — open trust model, no confirmation gate).
+  //
+  // Deliberately NOT a call into scan/page.tsx's onPick: that function is
+  // built around a scanner's own local `result` state (incremental per-item
+  // rendering, dedup against ITS OWN accumulated items, restaurant-guess
+  // reconciliation) that this screen doesn't have and doesn't need — the
+  // shared ranked list below is the only view of the menu here, refreshed by
+  // the normal poll (or immediately, right after this succeeds). Reusing it
+  // would mean threading a `result`-shaped stand-in through a component that
+  // was never meant to hold one, for a screen that has nowhere to show
+  // per-item progress anyway. What IS shared: the same three endpoints
+  // (/api/menu-scan stream, its enrich/score stages) and shapeTableMenuItems
+  // server-side — this is a second CALLER of that pipeline, not a second
+  // implementation of it.
+  async function addPage(file: File | null) {
+    if (!file) return;
+    setAppending(true);
+    setAppendError('');
+    try {
+      const form = new FormData();
+      form.append('photo', await normalizePhoto(file));
+      form.append('lang', lang);
+      const res = await fetch('/api/menu-scan', { method: 'POST', body: form });
+      if (!res.ok || !res.body) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error((errJson as any).error || 'Scan failed.');
+      }
+
+      // Same NDJSON line-delimited stream scan/page.tsx consumes, but nothing
+      // here needs the per-item events as they arrive — this screen has no
+      // incremental view to update, so just collect the final item list.
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let lineBuffer = '';
+      let items: ScanPageItem[] = [];
+      let meta: { mock: boolean; phase: 'done' | 'needs_scoring' } | null = null;
+
+      while (true) {
+        const { done: streamDone, value } = await reader.read();
+        if (streamDone) break;
+        lineBuffer += decoder.decode(value, { stream: true });
+        const lines = lineBuffer.split(/\r?\n/);
+        lineBuffer = lines.pop() ?? '';
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          let ev: any;
+          try { ev = JSON.parse(line); } catch { continue; } // one bad line must never sink an otherwise-good scan
+          if (ev.kind === 'start') meta = ev;
+          else if (ev.kind === 'item') items.push(ev.item as ScanPageItem);
+          else if (ev.kind === 'error') {
+            const err: any = new Error(ev.error);
+            err.reason = ev.reason;
+            throw err;
+          }
+        }
+      }
+      if (!meta) throw new Error('Scan ended unexpectedly.');
+      if (items.length === 0) return; // a page with nothing readable is a quiet no-op, not an error
+
+      // Stage 2 (enrich) always runs; Stage 3 (score, real taste attributes) only
+      // when the profile is ready — same gating scan/page.tsx's own append uses,
+      // so a member without enough ratings yet still contributes fully-visible
+      // dishes, just without personal match/fire (which this shared list doesn't
+      // render per-item anyway — group_match comes from rankForGroup server-side).
+      const enrichPromise = meta.mock ? Promise.resolve(null as (ScanPageItem | null)[] | null) : mapWithConcurrency(
+        items, SCORE_CONCURRENCY,
+        async (item) => {
+          const r = await fetch('/api/menu-scan/enrich', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ item }),
+          });
+          if (!r.ok) throw new Error('enrich failed');
+          return (await r.json()).item as ScanPageItem;
+        },
+      ).catch(() => null);
+
+      const scorePromise: Promise<(ScanPageItem | null)[] | null> = meta.phase === 'needs_scoring'
+        ? mapWithConcurrency(
+            items, SCORE_CONCURRENCY,
+            async (item) => {
+              const r = await fetch('/api/menu-scan/score', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ item, lang }),
+              });
+              if (!r.ok) throw new Error('score failed');
+              return (await r.json()).item as ScanPageItem;
+            },
+          ).catch(() => null)
+        : Promise.resolve(null);
+
+      const [enriched, scored] = await Promise.all([enrichPromise, scorePromise]);
+
+      const forTable = items.map((item, i) => {
+        const e = enriched?.[i];
+        const s = scored?.[i];
+        return {
+          name: item.name, name_zh: item.name_zh, name_original: item.name_original, price: item.price,
+          hook: e?.hook ?? item.hook, cuisine: item.cuisine,
+          attributes: s?.attributes ?? item.attributes ?? {},
+          diet: e?.diet ?? item.diet, cooking_method: e?.cooking_method ?? item.cooking_method,
+          heaviness: e?.heaviness ?? item.heaviness, ingredients: e?.ingredients ?? item.ingredients,
+        };
+      });
+
+      const patchRes = await fetch(`/api/table/${code}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: forTable }),
+      });
+      const patchJson = await patchRes.json().catch(() => null);
+      if (!patchRes.ok) throw new Error(patchJson?.error || 'Could not add that page.');
+      await refresh(); // pull the grown shared list immediately, don't wait for the next 5s poll tick
+    } catch (e: any) {
+      const localized = e?.reason === 'not_menu' ? t('scan.err.notmenu')
+        : e?.reason === 'unreadable' ? t('scan.err.unreadable')
+        : null;
+      setAppendError(localized || e.message || 'Something went wrong reading that menu.');
+    } finally {
+      setAppending(false);
+    }
+  }
+
   // Realtime channel: one per session, subscribed once we know session_id (arrives
   // async via the first refresh()). `self: false` because a local pick/unpick is
   // already applied instantly via applyLocalStampEvent — receiving our own broadcast
@@ -339,11 +479,25 @@ function Session({ code, onLeave }: { code: string; onLeave: () => void }) {
           crowding the table bar (owner feedback, 2026-07-21) — the member-
           roster chip row was dropped outright for the same reason: it only
           repeated names the per-dish chop stamps below already carry. */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
         <h1 style={{ margin: 0 }}>{t('scan.results')}</h1>
-        <button className="icon-btn" aria-label={t('table.leave')} title={t('table.leave')} onClick={onLeave}>
-          <LeaveIcon size={22} />
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+          {/* Add a page (item 6, 2026-07-22): any member, not just the host who
+              started the table — only meaningful for a scan-shared session
+              (has_menu && !orderable; a QR/restaurant session's menu comes from
+              its live-curated items, PATCH /api/table/[code] rejects appends
+              there). Same label/loading copy as scan/page.tsx's own 加掃一版. */}
+          {state.has_menu && !state.orderable && (
+            <label className={`btn ghost small ${appending ? 'is-disabled' : ''}`} style={{ cursor: appending ? 'default' : 'pointer' }}>
+              <input type="file" accept="image/*" hidden disabled={appending}
+                onChange={e => { const f = e.target.files?.[0] ?? null; e.target.value = ''; addPage(f); }} />
+              {appending ? t('scan.addingpage') : t('scan.addpage')}
+            </label>
+          )}
+          <button className="icon-btn" aria-label={t('table.leave')} title={t('table.leave')} onClick={onLeave}>
+            <LeaveIcon size={22} />
+          </button>
+        </div>
       </div>
       {/* marginTop 13 (owner request, 2026-07-21): shifts this line + the table
           bar below it down as a pair, without touching their own spacing to
@@ -351,6 +505,17 @@ function Session({ code, onLeave }: { code: string; onLeave: () => void }) {
       <p className="card-meta" style={{ marginTop: 13, marginBottom: 6 }}>
         {t('scan.read', { n: state.items.length })}
       </p>
+      {appending && (
+        <div className="scan-appending" role="status">
+          <span className="scan-appending-dot" aria-hidden />
+          {t('scan.addingpage')}
+        </div>
+      )}
+      {appendError && (
+        <p className="card-meta" style={{ color: 'var(--lacquer)', marginBottom: 6 }} role="alert">
+          {appendError}
+        </p>
+      )}
 
       {/* The table-bar — literally the same component scan.tsx mounts for its own
           "sharing a scan" glance (TableBar.tsx), not a look-alike header. Its own
