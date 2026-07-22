@@ -24,12 +24,8 @@ bilingual ingredients — see DECISIONS.md).
 
 ## Ready to build — specs are decided, no open questions
 
-- [ ] **[F] Carb-tripwire follow-up: honest vector re-score.** Open
-  follow-up from the shipped carb-metonym work (DECISIONS.md, 07-20 batch
-  item 4): the tripwire corrects ingredients/diet but not the 18-dim
-  attribute VECTOR or an already-polluted NAME — honest vector re-score
-  needs the name re-authored first (translate/vision + authority ladder).
-  Costs one more LLM call per fire; recommended, cost accepted at triage.
+(Carb-tripwire follow-up: honest vector re-score — SHIPPED 2026-07-22, see
+DECISIONS.md.)
 
 ## Needs an owner decision before any code
 

@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   dismissalBlocks, identityRecheckDue, IDENTITY_UNSURE_COOLDOWN_DAYS,
   normalizeDishName, namesWorthAsking, candidateMatches,
-  nameAuthority, preferredName, ownerMenuExactMatch,
+  nameAuthority, preferredName, ownerMenuExactMatch, canReauthorEnName,
   AUTHORITY_OWNER, AUTHORITY_MENU, AUTHORITY_HUMAN, AUTHORITY_VISION,
 } from '../src/lib/dishIdentity';
 
@@ -232,5 +232,34 @@ describe('pair verdicts (identity-confirm card, 係咪同一味？)', () => {
     expect(identityRecheckDue(undefined, NOW)).toBe(true);
     expect(identityRecheckDue(daysAgo(1), NOW)).toBe(false);
     expect(identityRecheckDue(daysAgo(IDENTITY_UNSURE_COOLDOWN_DAYS), NOW)).toBe(true);
+  });
+});
+
+// ── canReauthorEnName: the machine-re-author gate (carb honest-re-score) ──────
+// A machine may fix a machine-derived ENGLISH name (re-deriving it from the same
+// zh menu original is a better rendering of the same source, not a demotion) —
+// but never a human's words, never under an identity, never without a zh seed.
+describe('canReauthorEnName', () => {
+  const base = { name: 'Braised Rice', name_zh: '蝦子炆米', name_edited_at: null, dish_identity_id: null };
+
+  it('allows the classic pollution case: machine EN, verbatim zh, no identity', () => {
+    expect(canReauthorEnName(base)).toBe(true);
+  });
+  it('HARD STOP on a human-edited name (HUMAN tier is never machine-overwritten)', () => {
+    expect(canReauthorEnName({ ...base, name_edited_at: '2026-07-01T00:00:00Z' })).toBe(false);
+  });
+  it('skips identity-linked dishes (canonical name lives on the identity row)', () => {
+    expect(canReauthorEnName({ ...base, dish_identity_id: 'ident-1' })).toBe(false);
+  });
+  it('needs a CJK zh seed to re-translate from — no seed, no re-author', () => {
+    expect(canReauthorEnName({ ...base, name_zh: null })).toBe(false);
+    expect(canReauthorEnName({ ...base, name_zh: '' })).toBe(false);
+    expect(canReauthorEnName({ ...base, name_zh: 'Braised Rice' })).toBe(false); // latin "zh" — nothing trustworthy
+  });
+  it('a zh-placeholder EN slot (name === name_zh) is not a re-author case — nothing derived to fix', () => {
+    expect(canReauthorEnName({ ...base, name: '蝦子炆米', name_zh: '蝦子炆米' })).toBe(false);
+  });
+  it('absent optional fields behave as machine-tier (the backfill row shape)', () => {
+    expect(canReauthorEnName({ name: 'Braised Rice', name_zh: '炆米' })).toBe(true);
   });
 });

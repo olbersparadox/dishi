@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { carbSuspicion, HK_MENU_SHORTHAND_GUIDANCE, CARB_RECHECK_LINE, SCAN_PROMPTS, ENRICH_SYSTEM } from '../src/lib/menuScan';
+import { carbSuspicion, buildScoreUserText, HK_MENU_SHORTHAND_GUIDANCE, CARB_RECHECK_LINE, SCAN_PROMPTS, ENRICH_SYSTEM, SCORE_ONE_SYSTEM } from '../src/lib/menuScan';
 import { VISION_PROMPTS } from '../src/lib/vision';
 
 // HK menus name the carb by a single shorthand character (米=米粉, 河=河粉, 意=意粉,
@@ -107,9 +107,12 @@ describe('carb-shorthand prompt hardening (cannot silently drop)', () => {
     }
   });
 
-  it('every perception prompt embeds the shorthand glossary — scan (×2), enrich, vision (×2)', () => {
-    const sites = [...SCAN_PROMPTS, ENRICH_SYSTEM, ...VISION_PROMPTS];
-    expect(sites.length).toBe(5);
+  it('every perception prompt embeds the shorthand glossary — scan (×2), enrich, vision (×2), score', () => {
+    // SCORE_ONE_SYSTEM joined the list with the honest-vector-re-score follow-up:
+    // its 18 numbers are what the engine eats, and it was the ONE derivation prompt
+    // still reading 炆米 as rice after the others got the glossary.
+    const sites = [...SCAN_PROMPTS, ENRICH_SYSTEM, ...VISION_PROMPTS, SCORE_ONE_SYSTEM];
+    expect(sites.length).toBe(6);
     for (const p of sites) expect(p).toContain(HK_MENU_SHORTHAND_GUIDANCE);
   });
 
@@ -127,5 +130,40 @@ describe('carb-shorthand prompt hardening (cannot silently drop)', () => {
     }
     expect(HK_MENU_SHORTHAND_GUIDANCE.toLowerCase()).toContain('poach');
     expect(HK_MENU_SHORTHAND_GUIDANCE).toContain('NEVER deep-fried');
+  });
+});
+
+// ── The honest vector re-score (carb follow-up) ────────────────────────────────
+// When the tripwire fires, the vector scored in parallel from the same shorthand
+// name is polluted too — the re-score's user text must carry every honest signal
+// we hold: both names, the corrected (verified) ingredients, and the same recheck
+// line the enrichment retry used, so the two retries speak identically.
+describe('buildScoreUserText — the re-score composition', () => {
+  it('plain call carries the name and cuisine only', () => {
+    expect(buildScoreUserText({ name: 'Beef Chow Fun', cuisine: 'cantonese' }))
+      .toBe('Beef Chow Fun (cantonese)');
+  });
+  it('both names travel when they differ — the shorthand lives in the 中文 one', () => {
+    const text = buildScoreUserText({ name: 'Braised Rice', name_zh: '蝦子炆米', cuisine: 'cantonese' });
+    expect(text).toContain('Braised Rice / 蝦子炆米');
+  });
+  it('an identical zh name is not repeated', () => {
+    expect(buildScoreUserText({ name: '炆米', name_zh: '炆米', cuisine: 'unknown' }))
+      .toBe('炆米 (unknown)');
+  });
+  it('grounding ingredients land as a verified list', () => {
+    const text = buildScoreUserText(
+      { name: 'Braised Rice', name_zh: '蝦子炆米', cuisine: 'cantonese' },
+      { groundIngredients: ['rice vermicelli', 'shrimp roe'] },
+    );
+    expect(text).toContain('Key ingredients (verified): rice vermicelli, shrimp roe');
+  });
+  it('carbRecheck appends the SAME correction line the enrichment retry uses', () => {
+    const text = buildScoreUserText({ name: '炆米', cuisine: 'unknown' }, { carbRecheck: true });
+    expect(text).toContain(CARB_RECHECK_LINE);
+  });
+  it('empty grounding adds no ingredient line', () => {
+    const text = buildScoreUserText({ name: 'x', cuisine: 'unknown' }, { groundIngredients: [] });
+    expect(text).not.toContain('Key ingredients');
   });
 });

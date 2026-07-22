@@ -15,11 +15,17 @@ is the poaching liquor), 白切雞 is poached chicken, 風沙雞 is crispy garli
  * fills in automatically) — always a suggestion the field can still be freely
  * overridden, never a forced replacement.
  *
+ * `opts.guidance` prepends extra domain context for a RE-translation — the carb
+ * tripwire's honest name re-author passes the HK shorthand glossary here, so a
+ * 炆米 that first came back "Braised Rice" gets a second chance that actually
+ * knows 米 = 米粉. Deliberately the caller's choice, not always-on: the base
+ * prompt stays small for the every-rename fast path.
+ *
  * Returns null on any failure (no key configured, model error, empty response) so
  * callers can fail silently — a missed auto-fill is a minor inconvenience, never
  * something that should block saving a rename the user already typed themselves.
  */
-export async function translateDishName(text: string): Promise<string | null> {
+export async function translateDishName(text: string, opts?: { guidance?: string }): Promise<string | null> {
   const trimmed = text.trim();
   if (!trimmed) return null;
 
@@ -28,7 +34,8 @@ export async function translateDishName(text: string): Promise<string | null> {
     ? `Translate this Traditional Chinese dish name to English: ${trimmed}`
     : `Translate this English dish name to Traditional Chinese: ${trimmed}`;
 
-  const result = await callClaude(SYSTEM, instruction, { maxTokens: 60 });
+  const system = opts?.guidance ? `${SYSTEM}\n${opts.guidance}` : SYSTEM;
+  const result = await callClaude(system, instruction, { maxTokens: 60 });
   const cleaned = result?.trim().replace(/^["']|["']$/g, '');
   return cleaned || null;
 }

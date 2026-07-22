@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase/server';
-import { scoreOneDish, enrichOneDish } from '@/lib/menuScan';
+import { scoreOneDish, enrichOneDish, HK_MENU_SHORTHAND_GUIDANCE } from '@/lib/menuScan';
 import { translateDishName, inferCuisineFromName } from '@/lib/translate';
 import { replayProfile } from '@/lib/replay';
 
@@ -56,12 +56,39 @@ export async function POST(req: NextRequest) {
   const needZh = !nameZh;                  // Chinese slot empty
   const seed = name || nameZh;             // reason from whatever the person typed
 
-  const [cuisineInferred, attributes, enrichment, translated] = await Promise.all([
+  const [cuisineInferred, attributes0, enrichment, translated0] = await Promise.all([
     inferCuisineFromName(seed).catch(() => null),
-    scoreOneDish({ name: seed, cuisine: 'unknown' }).catch(() => ({})),
+    scoreOneDish({ name: seed, name_zh: nameZh || null, cuisine: 'unknown' }).catch(() => ({})),
     enrichOneDish({ name: seed, name_zh: nameZh || null, cuisine: 'unknown' }).catch(() => null),
     (needEn || needZh) ? translateDishName(seed).catch(() => null) : Promise.resolve(null),
   ]);
+
+  // ── Honest re-score on a carb-tripwire fire (carb backlog follow-up) ──
+  // The enrichment's re-ask corrected the ingredients, but the VECTOR above was
+  // scored in PARALLEL from the same misreadable shorthand name — and the vector is
+  // what the taste engine eats. Name first, then numbers, per the authority ladder:
+  //  1. The English NAME: only when the EN slot is machine-fillable (needEn — an
+  //     empty/placeholder slot, so this can never demote a human or menu name),
+  //     re-translate WITH the shorthand glossary so 炆米 can't land as "Braised
+  //     Rice". The parallel translate above ran without it.
+  //  2. The VECTOR: one serial re-score, grounded in the corrected ingredient list
+  //     (the strongest honest signal the re-ask produced) + the same recheck line.
+  // This is the "one more LLM call per fire" the triage accepted (the name redo is
+  // a ~60-token rider on the same fire, only when the EN slot was empty anyway).
+  // Failures fall back to the parallel results — degraded, never blocked.
+  let attributes = attributes0 as Record<string, number>;
+  let translated = translated0;
+  if (enrichment?.carb_suspect) {
+    const [rescored, retranslated] = await Promise.all([
+      scoreOneDish(
+        { name: seed, name_zh: nameZh || null, cuisine: 'unknown' },
+        { groundIngredients: enrichment.ingredients, carbRecheck: true },
+      ).catch(() => null),
+      needEn ? translateDishName(seed, { guidance: HK_MENU_SHORTHAND_GUIDANCE }).catch(() => null) : Promise.resolve(null),
+    ]);
+    if (rescored && Object.keys(rescored).length > 0) attributes = rescored;
+    if (retranslated) translated = retranslated;
+  }
 
   // In force mode a FAILED derivation must not wipe good data with empties — keep the
   // existing values and let the client fall back honestly. (First-time enrichment has

@@ -398,6 +398,12 @@ ${HK_MENU_SHORTHAND_GUIDANCE}
 Diet flags are your best estimate, not a guarantee — never claim certainty about allergens.`;
 
 export type Enrichment = { hook: string; hook_zh: string; diet: DietFlag[]; cooking_method: CookingMethod | null; heaviness: Heaviness | null; ingredients: string[] };
+/** enrichOneDish's actual return: the enrichment plus whether the carb tripwire
+ * FIRED on the first pass. Callers that persist a vector use the flag to justify
+ * the one extra honest re-score (the vector was scored in parallel from the same
+ * misreadable name); everyone else can ignore it. Deliberately true even when the
+ * re-ask itself failed — a failed retry leaves the reading MORE suspect, not less. */
+export type EnrichmentResult = Enrichment & { carb_suspect?: boolean };
 
 /**
  * Enrich ONE dish (name + cuisine + optional section context in, hook/diet/
@@ -422,7 +428,7 @@ function parseEnrichment(text: string | null): Enrichment | null {
   };
 }
 
-export async function enrichOneDish(item: { name: string; name_zh?: string | null; cuisine: string; section?: string | null }): Promise<Enrichment> {
+export async function enrichOneDish(item: { name: string; name_zh?: string | null; cuisine: string; section?: string | null }): Promise<EnrichmentResult> {
   // Feed BOTH names when they differ: HK carb shorthand (and loosely-translated
   // protein names) live in the \u4e2d\u6587 name, so the model reasons from more truth \u2014
   // \u7086\u7c73 alongside a bland English name lets the shorthand glossary do its job.
@@ -446,7 +452,13 @@ export async function enrichOneDish(item: { name: string; name_zh?: string | nul
     if (dietBad || carbBad) {
       const rechecks = [dietBad ? DIET_RECHECK_LINE : null, carbBad ? CARB_RECHECK_LINE : null].filter(Boolean).join('\n');
       const retry = parseEnrichment(await callClaude(ENRICH_SYSTEM, `${userText}\n${rechecks}`, { maxTokens: 260 }));
-      if (retry) return retry;
+      // carb_suspect marks that the FIRST reading misread the carb \u2014 the signal a
+      // vector scored in parallel from the same name is polluted too. It stays true
+      // regardless of the retry outcome: a corrected retry proves the first pass was
+      // wrong; a failed retry leaves it unverified. Either way the vector deserves
+      // its one honest re-score (the follow-up this flag exists for).
+      if (retry) return carbBad ? { ...retry, carb_suspect: true } : retry;
+      if (carbBad) return { ...first, carb_suspect: true };
     }
   }
   return first;
@@ -611,8 +623,34 @@ export function carbSuspicion(
   return false;
 }
 
-const SCORE_ONE_SYSTEM = `You estimate sensory flavor attributes for ONE dish, using culinary knowledge only (no photo).
-Respond with ONLY compact JSON, no fences: {"a": [18 numbers 0..1, one decimal, in this exact order: ${DIMS.join(', ')}]}`;
+// Exported (not just for callers — the carbShorthand embed test asserts the
+// shorthand glossary is present here and can't silently drop, same as the other
+// five perception prompts). The glossary matters MOST here of anywhere: this
+// prompt's 18 numbers are what the taste engine actually eats, and before it
+// carried the glossary, 炆米 was scored as a braised-RICE dish even after the
+// enrichment tripwire had corrected the ingredient chips.
+export const SCORE_ONE_SYSTEM = `You estimate sensory flavor attributes for ONE dish, using culinary knowledge only (no photo).
+Respond with ONLY compact JSON, no fences: {"a": [18 numbers 0..1, one decimal, in this exact order: ${DIMS.join(', ')}]}
+${HK_MENU_SHORTHAND_GUIDANCE}`;
+
+/** The user-text half of a score call — pure and exported so the honest-re-score
+ * composition (grounding + recheck) is unit-testable without an LLM. Both names
+ * travel when they differ (the shorthand lives in the 中文 name, exactly as
+ * enrichOneDish already feeds its own call); `groundIngredients` anchors a
+ * RE-score in the corrected recipe the tripwire re-ask produced — the strongest
+ * honest signal we hold — and `carbRecheck` appends the same correction line the
+ * enrichment retry uses, so both retries speak identically and can't drift. */
+export function buildScoreUserText(
+  item: { name: string; name_zh?: string | null; cuisine: string },
+  opts?: { groundIngredients?: string[]; carbRecheck?: boolean },
+): string {
+  const zh = item.name_zh && item.name_zh !== item.name ? ` / ${item.name_zh}` : '';
+  let text = `${item.name}${zh} (${item.cuisine})`;
+  const ings = (opts?.groundIngredients ?? []).filter(Boolean);
+  if (ings.length) text += `\nKey ingredients (verified): ${ings.join(', ')}`;
+  if (opts?.carbRecheck) text += `\n${CARB_RECHECK_LINE}`;
+  return text;
+}
 
 /**
  * Score a SINGLE dish (name + cuisine in, 18 flavor numbers out). Deliberately not
@@ -621,9 +659,11 @@ Respond with ONLY compact JSON, no fences: {"a": [18 numbers 0..1, one decimal, 
  * call rather than the sum of every dish, and each dish's ring can light up the
  * moment ITS call finishes instead of all-or-nothing at the end.
  */
-export async function scoreOneDish(item: { name: string; cuisine: string }): Promise<DishVector> {
-  const userText = `${item.name} (${item.cuisine})`;
-  const text = await callClaude(SCORE_ONE_SYSTEM, userText, { maxTokens: 150 });
+export async function scoreOneDish(
+  item: { name: string; name_zh?: string | null; cuisine: string },
+  opts?: { groundIngredients?: string[]; carbRecheck?: boolean },
+): Promise<DishVector> {
+  const text = await callClaude(SCORE_ONE_SYSTEM, buildScoreUserText(item, opts), { maxTokens: 150 });
   const parsed = parseJsonResponse<{ a?: unknown }>(text);
   return mergeScoredAttributes(1, Array.isArray(parsed?.a) ? [parsed!.a] : null)[0];
 }

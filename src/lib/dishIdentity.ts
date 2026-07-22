@@ -39,6 +39,8 @@
 // people to tap through the confirm without reading it, which is exactly how a
 // 壽司 gets silently merged into a 蝦壽司 forever.
 
+import { CJK } from './i18n-dict';
+
 /**
  * Normalises a dish name for comparison — NOT for display. Folds cosmetic variation
  * only: case, whitespace, punctuation, and full-width/half-width forms. CJK
@@ -139,6 +141,35 @@ export function nameAuthority(dish: Pick<DishLike, 'source' | 'name_edited_at'>)
   if (humanEdited) return AUTHORITY_HUMAN;
   if (dish.source === 'photo') return AUTHORITY_VISION;
   return AUTHORITY_NONE;
+}
+
+/**
+ * May a MACHINE re-author this dish's ENGLISH name (the carb-shorthand honest
+ * re-score, and any future machine correction of a machine-derived name)?
+ *
+ * The ladder question here is subtle: a scan dish's zh name is the menu's verbatim
+ * truth (MENU tier), but its ENGLISH name was authored by the scan model — so
+ * re-deriving the English FROM THE SAME zh original is a better rendering of the
+ * same MENU-tier source, not a tier demotion. What machine re-authoring must never
+ * touch:
+ *  - a human's words (`name_edited_at` set — HUMAN tier, hard stop);
+ *  - an identity-linked dish (its canonical name lives on the identity row and may
+ *    be OWNER/MENU-propagated; rewriting the dish's own EN underneath it would
+ *    fight the identity resolution — conservative skip, report instead);
+ *  - a dish with no CJK zh seed distinct from the EN (nothing trustworthy to
+ *    re-translate FROM — re-authoring would be guess-on-guess).
+ * The zh name itself is NEVER re-authored by this path: it may be the printed
+ * original, and misreadings only ever live in derived fields.
+ */
+export function canReauthorEnName(dish: {
+  name: string | null; name_zh: string | null;
+  name_edited_at?: string | null; dish_identity_id?: string | null;
+}): boolean {
+  if (dish.name_edited_at) return false;
+  if (dish.dish_identity_id) return false;
+  const zh = (dish.name_zh ?? '').trim();
+  if (!zh || !CJK.test(zh)) return false;
+  return zh !== (dish.name ?? '').trim();
 }
 
 /**

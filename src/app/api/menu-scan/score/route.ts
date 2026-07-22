@@ -33,7 +33,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Not enough ratings yet for scoring.' }, { status: 409 });
   }
 
-  const attributes = await scoreOneDish({ name: item.name_original || item.name, cuisine: item.cuisine });
+  // Both names travel (the HK carb shorthand lives in the 中文 one) — SCORE_ONE_SYSTEM
+  // now carries the shorthand glossary, so the 18 numbers the engine eats are scored
+  // from the real dish (炆米 = braised rice VERMICELLI), not a character-literal read.
+  const attributes = await scoreOneDish({ name: item.name_original || item.name, name_zh: item.name_zh, cuisine: item.cuisine });
   const taste: TasteVector = profile?.vector ?? emptyTaste();
   const affinity: Record<string, number> = profile?.cuisine_affinity ?? {};
   const lang: 'en' | 'zh' = body?.lang === 'zh' ? 'zh' : 'en';
