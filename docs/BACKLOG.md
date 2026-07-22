@@ -24,13 +24,11 @@ bilingual ingredients — see DECISIONS.md).
 
 ## Ready to build — specs are decided, no open questions
 
-- [ ] **[S] Picker: 加入 must produce visible selected state.** Verified
-  still broken 2026-07-22: `selectedKey='manual-new'` maps to no rendered
-  element. Full spec below (2026-07-20 batch, item 1).
-- [ ] **[S] Typed-name resolution via Places Text Search.** Verified not
-  built 2026-07-22: no `/api/restaurants/search` route exists. Design
-  already decided (search-on-add, not typeahead). Full spec below
-  (2026-07-20 batch, item 2).
+- [ ] **[F] Dish-identity confirm card (係咪同一味？).** Chassis reuse
+  (duel card) + design confirmed by owner 2026-07-22; a few implementation
+  judgment calls flagged inline (negative-pair storage shape, the
+  human-distinctness-is-sticky authority rule) — full spec below (2026-07-22
+  batch).
 - [ ] **[F] Carb-tripwire follow-up: honest vector re-score.** Open
   follow-up from the shipped carb-metonym work (DECISIONS.md, 07-20 batch
   item 4): the tripwire corrects ingredients/diet but not the 18-dim
@@ -81,88 +79,6 @@ bilingual ingredients — see DECISIONS.md).
   cold-start popularity ranking for profileless users · reverse taste import.
 
 Done items, with full rationale and amendments, live in `docs/DECISIONS.md`.
-
----
-
-# Backlog additions — 2026-07-20 (restaurant picker ×3 + HK menu shorthand)
-
-Context: real field session at Tin Wan, 2026-07-20 ~13:49 HKT. 新容記 (well-known,
-user was standing in it) absent from the picker chips; typing it and tapping 加入
-produced no visible result; Vercel logs confirm `/api/dishes/pick` was never
-called — the picks were lost. Same scan: 干炒牛河 shipped with a 飯 ingredient
-chip and the literal English "Dry Fried Beef River"; a separate menu's 炆米 came
-out as 炆飯.
-
-(Items 3-4 of this batch shipped — see `docs/DECISIONS.md`.)
-
----
-
-## 1. Picker: 加入 must produce visible selected state — *(Sonnet)*
-
-**Bug class:** silent success indistinguishable from silent failure.
-
-In `src/components/RestaurantPicker.tsx`, a successful `createNew()` sets
-`selectedKey='manual-new'` — which corresponds to no rendered element — and
-leaves the add form open, input untouched. Nothing on screen changes. Users
-reasonably conclude the tap failed and cancel, discarding the staged choice.
-Two additional genuinely-silent paths exist: `confirmNew()` returns wordlessly
-when `coords` is null, and the `namesMatch` same-place nudge can render below
-the iOS keyboard.
-
-**Changes:**
-- On `createNew()`: collapse the add form and render the typed name as a
-  selected chip in the chip row (same `on` styling as picking a nearby chip),
-  with a small affordance to reopen/edit. `selectedKey='manual-new'` now maps
-  to a real element.
-- Tapping the manual chip again reopens the form pre-filled (edit, not
-  re-type).
-- The `!coords` early-return must speak: the `picker.needloc` line already
-  exists — ensure it is visible *at the moment of the tap* (e.g. brief
-  highlight), not just passively present.
-- When the same-place nudge (`picker.sameas`) appears, scroll it into view /
-  ensure it isn't under the keyboard (`scrollIntoView` on mount is
-  acceptable).
-
-**Tests:** component test — after typing + 加入, the chip row contains the
-typed name with selected styling and the form is collapsed; reopening
-preserves the text.
-
----
-
-## 2. Typed-name resolution via Places Text Search — *(build: Sonnet; design decided here)*
-
-**Problem:** Nearby Search is capped at 10 prominence-ranked results; in dense
-HK a well-known spot routinely misses the cut. Manual adds then create
-`place_id`-less rows — exactly the fragmentation the restaurant-identity work
-(backlog: restaurant identity resolution) exists to prevent.
-
-**Design (confirmed): search-on-add, not typeahead.** When the user taps 加入,
-FIRST call a new endpoint `GET /api/restaurants/search?q=..&lat=..&lng=..`
-which runs Places Text Search (New, `places:searchText`) with:
-- `locationBias` circle at the picker's coords (~1km radius),
-- same minimal field mask as `places.ts` (`places.id,places.displayName,places.location,places.formattedAddress`),
-- `languageCode` from the app language, `maxResultCount` ~5.
-
-Then:
-- **Match(es) found** → show them via the existing same-place nudge UI,
-  extended to hold multiple candidates ("係咪呢間？" + chips). Picking one goes
-  through the normal Google-chip path → carries a real `place_id` → server
-  dedup works.
-- **No match / user rejects all** → `createNew()` as today (manual,
-  `place_id`-less — still allowed, never blocked).
-
-Rejected alternative: live search-as-you-type. Every keystroke-debounced query
-is a billed call with no cache locality; search-on-add is exactly one call per
-add attempt and slots into the existing nudge UX.
-
-**Cost discipline (mirror the places.ts comment):** implementation MUST verify
-in the current Google pricing table which SKU tier this field mask lands
-Text Search in, and note it in the code comment. Volume is bounded (one call
-per manual add), no cache needed. Confirm the existing daily quota cap covers
-the new endpoint.
-
-**Tests:** endpoint unit test with mocked fetch (bias + field mask asserted);
-picker test for the multi-candidate nudge path and the reject→manual path.
 
 ---
 
@@ -313,3 +229,75 @@ simple, safe default; opening it trades that safety for the realism of
 "everyone can pitch in." Worth deciding the trust model before writing the
 entry point, since it shapes whether "add a page" needs any confirmation
 step or can just fire-and-merge like the host's own does.
+
+---
+
+# Backlog additions — 2026-07-22 (identity-confirm card on the duel chassis)
+
+Context: resolves the UI half of the standing dish-identity-resolution item
+(same real-world dish, different AI names — 蝦餃 vs 水晶鮮蝦餃). Confirmed
+design (Jerry): reuse the 今日對決 card as the shared chassis; identity
+confirmation becomes a second mechanic on the same surface.
+
+---
+
+## Dish-identity confirm card (係咪同一味？) — *(Fable 5, extends the existing dish-identity backlog item)*
+
+**Chassis reuse (from the duel card, wholesale):** two-dish side-by-side
+layout, photo-else-name-card sides, bold dish names, restaurant subtitle,
+quiet skip pattern, inline result strip after answering.
+
+**Deliberate divergences (NOT optional):**
+- **Sides are not tappable.** In a duel, tapping a side means "I prefer
+  this" — identical affordance here would let duel muscle memory merge two
+  dishes by accident. Answers come ONLY from a button row beneath:
+  - ✓ circle-check icon → 係同一味
+  - ✗ circle-X icon → 唔同嘅
+  - text link, de-emphasized → 唔肯定 (skip semantics + cooldown, borrowed
+    from duels)
+  Icons per Jerry: circle check for yes, circle X for no. Ink-colored,
+  house line-icon weight — not green/red (paper-and-ink palette holds;
+  the icon shapes carry the meaning).
+- **Different header, no seal glyph** — nothing is predicted or sealed
+  here. Header: 係咪同一味？ (en: "Same dish?"). The card must be
+  instantly distinguishable from 今日對決 at a glance.
+
+**Answer mechanics:**
+- 係同一味 → link both dishes to one `dish_identity` at `AUTHORITY_HUMAN`;
+  existing canonical-name propagation does its job. Result strip confirms
+  in plain speech (e.g. 已合併 — 依家兩個名都指住同一味菜).
+- 唔同嘅 → write a NEGATIVE pair (new storage — sibling table or a
+  verdict column on the pair record; implementer proposes, flags
+  tradeoff). A denied pair is never asked again. Re-asking reads as the
+  app not listening; the negative record is as load-bearing as the merge.
+- 唔肯定 → cooldown re-ask window (duel DUEL_RECENT_DAYS pattern), never
+  more than the log-time cap below.
+
+**Authority interaction (recommended, flag in implementation):** a human
+唔同嘅 verdict must NOT be silently overridden by a later menu-scan
+asserting sameness (scan authority 3 > human 2 on NAMES, but identity
+DISTINCTNESS is a different assertion — the ladder governs what a dish is
+called, not whether two dishes are one). Proposed rule: human distinctness
+verdicts are sticky; a conflicting owner/menu-scan signal queues a
+re-confirm card instead of auto-merging. If implementation finds this
+conflicts with existing owner-authority wiring, STOP and surface — this is
+exactly the judgment call the Fable 5 tier exists for.
+
+**Trigger point:** log time. When a log's dish name fuzzy-matches an
+existing `dish_identity` at the same restaurant (candidate scoring: the
+fuzzy-match direction already named in the standing backlog item), the
+card appears inline in the post-log flow. HARD CAP: one identity question
+per log. No identity cards on the Taste tab in v1 (avoid competing with
+今日對決 for the same slot).
+
+**Compounding effects (wire, don't just note):**
+- Duel pair selection already excludes same-identity pairs — every
+  confirmed merge upgrades future duel quality; every denial protects a
+  genuine contrast pair.
+- Merges feed the owner-dashboard "popular from menu scans" accuracy and
+  the eventual owner menu-item matching (standing Fable 5 item).
+
+**Tests:** merge path links identities + propagates canonical name;
+negative pair suppresses re-asks permanently (both orderings); 唔肯定
+cooldown; one-per-log cap; human-distinctness stickiness vs a scan
+sameness signal; duel selection reflects post-merge identity state.
