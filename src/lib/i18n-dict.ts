@@ -174,6 +174,16 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'duel.tieresult': { zh: '兩者相近，已記錄', en: 'About even — noted' },
   'duel.learned': { zh: '學到：{dims}', en: 'Learned: {dims}' },
   'duel.ok': { zh: '好', en: 'OK' },
+
+  // 係咪同一味？ — identity-confirm card (gate 3 of the identity pipeline, on
+  // the duel chassis). Header/buttons keep the spec's own Cantonese wording —
+  // this card's voice is a direct owner design, like the flick verdicts.
+  'identity.title': { zh: '係咪同一味？', en: 'Same dish?' },
+  'identity.same': { zh: '係同一味', en: 'Same dish' },
+  'identity.notsame': { zh: '唔同嘅', en: 'Different' },
+  'identity.unsure': { zh: '唔肯定', en: 'Not sure' },
+  'identity.merged': { zh: '已合併——依家兩個名都指住同一味菜', en: 'Merged — both names now point to the same dish.' },
+  'identity.kept': { zh: '收到——兩味分開記', en: 'Got it — kept as two dishes.' },
   // 語言對 globe picker (dish-name languages only — chrome stays zh/en)
   'lang.title': { zh: '掃任何語言餐牌', en: 'Scan Any Menu' },
   'lang.subtitle': { zh: '自動翻譯2種語言', en: 'Choose 2 languages to translate into' },
@@ -200,11 +210,7 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'log.willTranslate': { zh: '將依你的輸入自動翻譯', en: 'Will be translated from your input' },
   'log.relearned': { zh: '已根據你的修改重新學習你的口味', en: 'Re-learned your taste from your correction' },
   'journal.setdate': { zh: '某年某月某日', en: 'Add eaten date' },
-  'log.samedish.title': { zh: '{restaurant} 有兩味：', en: '{restaurant} has two dishes:' },
-  'log.samedish.pair': { zh: '「{a}」同「{b}」', en: '\u201c{a}\u201d and \u201c{b}\u201d' },
-  'log.samedish.q': { zh: '是否同一道菜？', en: 'Are they the same dish?' },
-  'log.samedish.yes': { zh: '係', en: 'Yes' },
-  'log.samedish.no': { zh: '唔係', en: 'No' },
+  'journal.companions': { zh: '同檯', en: 'With' },
   // Dimension display names — used by the post-rating learned feedback (and
   // available to any future surface that speaks about dimensions in the UI).
   'dim.spicy': { zh: '辣', en: 'spicy' },
@@ -391,6 +397,7 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'export.locked': { zh: '要評多 {n} 味菜', en: 'Rate {n} more dishes' },
   'export.version': { zh: 'v{v} — 與上次相比變化不大。', en: 'v{v} \u2014 little has changed since last time.' },
   'export.delta': { zh: 'v{v} \u2014 同上次比較：{dims}', en: 'v{v} \u2014 since last time: {dims}' },
+  'export.delta.companions': { zh: '新檯友：{names}', en: 'New table companions: {names}' },
   'export.copy': { zh: '複製', en: 'Copy' },
   'export.paste': { zh: '貼進 ChatGPT / Claude 或你慣用的 AI，請它記住。', en: 'Paste into ChatGPT, Claude, or whichever AI you use, and ask it to remember this.' },
   'form.migration.title': { zh: '你的夥伴進化了', en: 'Your companion evolved' },

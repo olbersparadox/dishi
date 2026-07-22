@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
+  dismissalBlocks, identityRecheckDue, IDENTITY_UNSURE_COOLDOWN_DAYS,
   normalizeDishName, namesWorthAsking, candidateMatches,
   nameAuthority, preferredName, ownerMenuExactMatch,
   AUTHORITY_OWNER, AUTHORITY_MENU, AUTHORITY_HUMAN, AUTHORITY_VISION,
@@ -202,5 +203,34 @@ describe('adjudicateSameDish (gate 2 — must REJECT, not agree)', () => {
   it('never calls the model when there is nothing to adjudicate', async () => {
     expect(await adjudicateSameDish(target, [])).toEqual([]);
     expect(callClaude).not.toHaveBeenCalled();
+  });
+});
+
+
+describe('pair verdicts (identity-confirm card, 係咪同一味？)', () => {
+  const NOW = new Date('2026-07-22T12:00:00Z').getTime();
+  const daysAgo = (n: number) => new Date(NOW - n * 24 * 60 * 60 * 1000).toISOString();
+
+  it("a real denial ('different') blocks forever — a settled no is never re-asked", () => {
+    expect(dismissalBlocks('different', daysAgo(0), NOW)).toBe(true);
+    expect(dismissalBlocks('different', daysAgo(400), NOW)).toBe(true);
+  });
+
+  it("唔肯定 ('unsure') blocks only within the cooldown window, then the pair may return", () => {
+    expect(dismissalBlocks('unsure', daysAgo(1), NOW)).toBe(true);
+    expect(dismissalBlocks('unsure', daysAgo(IDENTITY_UNSURE_COOLDOWN_DAYS - 1), NOW)).toBe(true);
+    expect(dismissalBlocks('unsure', daysAgo(IDENTITY_UNSURE_COOLDOWN_DAYS), NOW)).toBe(false);
+    expect(dismissalBlocks('unsure', daysAgo(90), NOW)).toBe(false);
+  });
+
+  it('an unparseable clock fails CLOSED (blocks) — never nag on bad data', () => {
+    expect(dismissalBlocks('unsure', 'not-a-date', NOW)).toBe(true);
+  });
+
+  it('identityRecheckDue: unstamped is due; a fresh no-result stamp is not; a stale one reopens', () => {
+    expect(identityRecheckDue(null, NOW)).toBe(true);
+    expect(identityRecheckDue(undefined, NOW)).toBe(true);
+    expect(identityRecheckDue(daysAgo(1), NOW)).toBe(false);
+    expect(identityRecheckDue(daysAgo(IDENTITY_UNSURE_COOLDOWN_DAYS), NOW)).toBe(true);
   });
 });

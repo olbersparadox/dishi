@@ -801,3 +801,317 @@ two browser tabs on one session: pick/un-pick in one tab landed in the
 other with zero reload.
 
 ---
+
+## 4. Companion edges (同檯 data layer) — *(Fable 5)* — ✅ DONE, 2026-07-22
+
+Every CONFIRMED pick in a multi-member table session writes companion
+edges: (user_a, user_b, dish_id, table_session_id, picked_at) for each
+consenting member pair present. This is the "who you ate with" layer.
+
+**Privacy lines (hard, decided):**
+- Edges link accounts ONLY when both were consenting members of the same
+  table session (joining a table = consent to be visible to that table).
+- Guests generate NO edges until they have an account (and only for
+  sessions after sign-up — no retroactive edge creation from pre-account
+  stamps unless the re-key in item 3 happened within the live session).
+- Export and UI speak display names only — never handles/emails/ids.
+- RLS: a user can read only edges they are a party to. Verify policy with
+  the standing dry-run pattern (pg_policy query + rolled-back insert).
+
+**Payoffs to wire in this item (in order):**
+1. 食記 entries show companion chops on shared-meal dishes.
+2. AI export gains a companions layer — e.g. highest-rated dishes skew
+   toward shared meals; frequent companions and the cuisines you explore
+   together. Keep it to honest aggregate statements derived from real
+   edges; no invented sociability. Feeds the export-versioning delta stream
+   (a new companion appearing since last version is a legitimate delta
+   line).
+3. (Later, not this item) recurring-companion taste compatibility.
+
+Schema design, RLS, and the export-prose judgment are why this is Fable 5.
+
+**Shipped — schema (`supabase/applied/companion_edges.sql`, applied live):**
+`companion_edges(id, user_a, user_b, dish_id, table_session_id, picked_at)`
+with a canonical undirected pair (`check user_a < user_b`, so one row per
+pair and no mirror-row bookkeeping) and `unique (dish_id, user_a, user_b)`.
+Design decisions made here, per the spec's "implementer proposes" latitude:
+- **All member pairs per pick, not just picker-pairs** — the spec's literal
+  wording ("each consenting member pair present"), and the honest reading
+  of communal HK dining: a pick at a shared table is shared BY the table.
+  The picker stays derivable from `dishes.user_id`, so nothing is lost.
+- **Late joiners backfill within the session** — joining consents you to
+  the whole session (you can already SEE its picks via GET), so
+  `/api/table/join` back-fills pairs involving the new member against
+  existing picks, with `picked_at` kept as the PICK's own time
+  (`dishes.created_at`), not the join time. The spec's "no retroactive
+  edges" line governs guest pre-account sessions, not within-session join
+  order — tap-timing asymmetries would be noise, not signal.
+- **FK conventions mirror the schema's own precedents:** dish deletion
+  (un-pick, or a later journal delete) CASCADEs edges away; account
+  deletion cascades; table-session deletion SETs NULL (same as
+  `dishes.table_session_id`) so historical companionship survives session
+  cleanup.
+- **RLS:** party-only SELECT (`auth.uid() in (user_a, user_b)`), NO client
+  write policies at all — writes go through the service role in exactly two
+  routes. Proven with the standing dry-run pattern, all rolled back: party
+  SELECT returns the seeded edge; a random third-party uid sees 0 rows; an
+  authenticated INSERT fails with 42501.
+
+**Write paths (both best-effort with logged failures — an edge miss must
+never fail the pick/join itself, but this repo's silent-write-death failure
+class means it must at least leave a server-log trace):**
+- `POST /api/dishes/pick`: on a table-session pick, all member pairs per
+  inserted dish, upserted with `ignoreDuplicates` on the unique index.
+- `POST /api/table/join`: backfill for the joiner (runs on idempotent
+  re-joins too, so a once-failed backfill self-heals on the next join).
+Pure pair/aggregation logic lives in `src/lib/companions.ts`
+(canonicalPair / edgeRowsForPick / edgeRowsForJoin / companionStats),
+10 vitest cases in `tests/companions.test.ts`.
+
+**Payoff 1 (食記):** `GET /api/my/dishes` joins each page of dishes against
+the caller's OWN edges (party-scoped — a dish's (other,other) pairs belong
+to those members' journals, not mine) and returns `companions: [{name}]`;
+MyDishes renders a quiet 「同檯」 + `Chop` row under the dish info. Identity
+chain is display_name-else-handle — the SAME chain the table's live stamps
+used, so a person doesn't change name between the meal and the diary of it.
+(The strict display-names-only privacy line is interpreted as governing the
+EXPORT prose; in-app, the handle already IS the person's visible table
+identity, and rendering a different one in 食記 than they had at the table
+would be wrong.)
+
+**Payoff 2 (AI export):** `/api/taste/export` aggregates the caller's edges
+server-side (companionStats + dish-cuisine join) and returns display names
+ONLY — companions who never set one arrive as an anonymous `unnamedCount`,
+never as handles. `buildTastePrompt` renders a fixed-heading "## Who I
+actually eat with" section (facts, not inference, so it isn't band-gated —
+it exists exactly when edges exist) with per-companion meal/dish counts and
+cuisines-together, plus an "N of these were shared-table meals" line on the
+loved-anchors section (`ExportDish.shared` ← journal companions). The
+export-versioning delta gained new-companion detection with ZERO new
+storage: a companion is "new since the last export" when their earliest
+shared `picked_at` postdates `taste_profiles.last_export_at`. The client
+shows it as 「新檯友：{names}」 under the version note. 5 new prompt tests
+in `tests/tasteExport.test.ts`.
+
+**Verified live** (2026-07-22, real `K8Q4G` session, both real accounts):
+tester joined + picked via the UI → one canonical (owner, tester) edge row
+appeared with the session id; owner picked the same dish → second dish's
+edge; owner rated theirs via the real ratings endpoint → 食記 showed the
+entry with 「同檯 W」 (screenshot posted); owner generated a real export →
+"## Who I actually eat with / - Wool: 1 meal together, 2 shared dishes —
+mostly japanese" + the shared-anchors line + the 「新檯友：Wool」 delta
+line (screenshot posted). Cleanup verified exact: deleting the two dishes
+cascaded ALL edges away (0 left — the FK design proving itself), tester's
+display_name + membership reverted, owner's export baseline
+(last_export_vector/at, profile_version) restored byte-identical from a
+pre-test backup. tsc clean; 480/480 tests.
+
+---
+
+## 6. Joined members can add scan pages too, not just the host — *(Sonnet)* — ✅ DONE, 2026-07-22
+
+**Owner decision (2026-07-22):** any member can append freely — no
+confirmation gate. Also decided at build time: if a later page scans the
+same dish at the same price as something already on the shared menu,
+disregard it rather than adding a duplicate row.
+
+**Authorization** — `PATCH /api/table/[code]` swapped its `session.host_id
+=== user.id` check for a `table_members` row lookup (the exact query
+`GET /api/table/[code]` already used one function up, for consistency).
+The append itself was already safely concurrent (the underlying Postgres
+function row-locks the session), so opening it to any member needed no
+concurrency changes — only who's allowed to call it.
+
+**Dedup (the owner's "if same dish and same price... disregard" ask)** —
+implemented server-side, inside `append_table_menu_items` itself, not in
+the TypeScript route: the function already does a row-locked read of
+`current_items` before appending, and doing the filter there (rather than
+a separate JS-side read-then-filter before calling the RPC) means it
+inherits that same lock — two members appending an overlapping page at
+nearly the same moment can't both sneak a duplicate past a stale read.
+Match key: case/whitespace-normalized printed name (`name_original`,
+falling back to `name`) + exact price string — same text and price is
+"the same dish"; a genuine price difference (a size variant, a menu
+update) is kept as a distinct row on purpose. Applied live via Supabase
+MCP (`append_table_menu_items_dedup` migration) and dry-run tested
+(`begin`/`rollback` against a temp session) before trusting it: exact
+duplicate filtered, same-name-different-price kept, genuinely new dish
+kept — all three assertions passed. Recorded in
+`supabase/applied/append_table_menu_items_fn.sql` with the amendment
+dated and reasoned.
+
+**Entry point** — built directly on `table/page.tsx`, not by redirecting
+into `/scan?code=`: scan/page.tsx's own append flow is built around a
+scanner's own local `result` state (incremental per-item rendering, dedup
+against ITS OWN accumulated items, restaurant-guess reconciliation) that
+this screen doesn't have and was never meant to hold — the shared
+poll-refreshed ranked list is the only view of the menu here. Deliberately
+NOT touched: scan/page.tsx's `onPick` function is untouched, zero
+regression risk to the app's core loop. What table/page.tsx's new
+`addPage()` DOES share with scan's flow: the same three endpoints
+(`/api/menu-scan` NDJSON stream, `/api/menu-scan/enrich`,
+`/api/menu-scan/score`) and `shapeTableMenuItems` server-side — a second
+CALLER of that pipeline, not a second implementation of it. UI: a
+"加掃一版" button (same i18n keys and `.scan-appending`/`.btn.ghost.small`
+styling scan/page.tsx already uses) in the title row, shown only for a
+scan-shared session (`has_menu && !orderable` — a QR/restaurant session's
+menu comes from its own live-curated items; `PATCH` already rejected
+appends there). On success, calls `refresh()` immediately rather than
+waiting for the next 5s poll tick.
+
+**Verified live** (2026-07-22, real `K8Q4G` session, 9 items, host = owner):
+joined as the tester account (non-host), confirmed the 加掃一版 button
+renders for a joined member; called `PATCH /api/table/K8Q4G` directly with
+a fabricated dish as the non-host member — 200, count 9→10 (authorization
+fix confirmed, no 403); sent the exact same item again — count stayed at
+10 (dedup confirmed against the live database, not just the dry run).
+File uploads aren't scriptable through the available browser tooling, so
+the literal scan→enrich→score leg of the pipeline itself wasn't exercised
+end-to-end live — it's unchanged, identical-shape reuse of scan/page.tsx's
+own already-verified-in-production endpoints, but flagging the gap rather
+than overclaiming. Test data (the fabricated item, the tester's
+membership row) reverted after verification — `K8Q4G` is back to its
+original 9-item, host-only state.
+
+---
+
+---
+
+# Backlog additions — 2026-07-22 (identity-confirm card on the duel chassis)
+
+Context: resolves the UI half of the standing dish-identity-resolution item
+(same real-world dish, different AI names — 蝦餃 vs 水晶鮮蝦餃). Confirmed
+design (Jerry): reuse the 今日對決 card as the shared chassis; identity
+confirmation becomes a second mechanic on the same surface.
+
+---
+
+## Dish-identity confirm card (係咪同一味？) — *(Fable 5, extends the existing dish-identity backlog item)* — ✅ DONE, 2026-07-22
+
+**Chassis reuse (from the duel card, wholesale):** two-dish side-by-side
+layout, photo-else-name-card sides, bold dish names, restaurant subtitle,
+quiet skip pattern, inline result strip after answering.
+
+**Deliberate divergences (NOT optional):**
+- **Sides are not tappable.** In a duel, tapping a side means "I prefer
+  this" — identical affordance here would let duel muscle memory merge two
+  dishes by accident. Answers come ONLY from a button row beneath:
+  - ✓ circle-check icon → 係同一味
+  - ✗ circle-X icon → 唔同嘅
+  - text link, de-emphasized → 唔肯定 (skip semantics + cooldown, borrowed
+    from duels)
+  Icons per Jerry: circle check for yes, circle X for no. Ink-colored,
+  house line-icon weight — not green/red (paper-and-ink palette holds;
+  the icon shapes carry the meaning).
+- **Different header, no seal glyph** — nothing is predicted or sealed
+  here. Header: 係咪同一味？ (en: "Same dish?"). The card must be
+  instantly distinguishable from 今日對決 at a glance.
+
+**Answer mechanics:**
+- 係同一味 → link both dishes to one `dish_identity` at `AUTHORITY_HUMAN`;
+  existing canonical-name propagation does its job. Result strip confirms
+  in plain speech (e.g. 已合併 — 依家兩個名都指住同一味菜).
+- 唔同嘅 → write a NEGATIVE pair (new storage — sibling table or a
+  verdict column on the pair record; implementer proposes, flags
+  tradeoff). A denied pair is never asked again. Re-asking reads as the
+  app not listening; the negative record is as load-bearing as the merge.
+- 唔肯定 → cooldown re-ask window (duel DUEL_RECENT_DAYS pattern), never
+  more than the log-time cap below.
+
+**Authority interaction (recommended, flag in implementation):** a human
+唔同嘅 verdict must NOT be silently overridden by a later menu-scan
+asserting sameness (scan authority 3 > human 2 on NAMES, but identity
+DISTINCTNESS is a different assertion — the ladder governs what a dish is
+called, not whether two dishes are one). Proposed rule: human distinctness
+verdicts are sticky; a conflicting owner/menu-scan signal queues a
+re-confirm card instead of auto-merging. If implementation finds this
+conflicts with existing owner-authority wiring, STOP and surface — this is
+exactly the judgment call the Fable 5 tier exists for.
+
+**Trigger point:** log time. When a log's dish name fuzzy-matches an
+existing `dish_identity` at the same restaurant (candidate scoring: the
+fuzzy-match direction already named in the standing backlog item), the
+card appears inline in the post-log flow. HARD CAP: one identity question
+per log. No identity cards on the Taste tab in v1 (avoid competing with
+今日對決 for the same slot).
+
+**Compounding effects (wire, don't just note):**
+- Duel pair selection already excludes same-identity pairs — every
+  confirmed merge upgrades future duel quality; every denial protects a
+  genuine contrast pair.
+- Merges feed the owner-dashboard "popular from menu scans" accuracy and
+  the eventual owner menu-item matching (standing Fable 5 item).
+
+**Tests:** merge path links identities + propagates canonical name;
+negative pair suppresses re-asks permanently (both orderings); 唔肯定
+cooldown; one-per-log cap; human-distinctness stickiness vs a scan
+sameness signal; duel selection reflects post-merge identity state.
+
+**Shipped — what the spec's open calls resolved to:**
+- **Negative-pair storage: verdict column, not a sibling table** (the spec
+  asked the implementer to propose + flag the tradeoff). The existing
+  `dish_identity_dismissals` table — which already recorded permanent
+  denials and was already read symmetrically per pair — gained
+  `verdict ('different'|'unsure')`
+  (`supabase/applied/dish_identity_dismissals_verdict.sql`, applied live).
+  A sibling table would have re-implemented the same unique key with a
+  worse join. Tradeoff accepted: 'unsure' rows refresh in place
+  (created_at is the cooldown clock), so there's no history of repeated
+  唔肯定 answers — nothing consumes that history. 'different' upserts now
+  MERGE (not ignoreDuplicates) so a real denial overwrites an expiring
+  unsure. Cooldown = 30 days (`IDENTITY_UNSURE_COOLDOWN_DAYS`, the
+  DUEL_RECENT_DAYS rhythm), pure-tested in `dismissalBlocks`.
+- **Authority interaction: the stickiness rule is structurally satisfied —
+  no STOP needed.** Audited every write path: `ownerMenuReconcile` only
+  RENAMES identities already linked by a human (and links them to owner
+  menu items); nothing anywhere sets `dish_identity_id` automatically.
+  Gate 3 — the human — is the only merge author in the system, and
+  candidate pairs are filtered through human verdicts BEFORE gates run.
+  A scan/owner sameness signal therefore cannot override a 唔同嘅 even in
+  principle; documented in dishIdentity.ts's PAIR VERDICTS section.
+- **Chassis reuse is enforced, not aspirational:** the side anatomy
+  (photo-else-blank, zh-pinned DishName, location) was EXTRACTED from
+  DuelOverlay into `DuelSide.tsx`; both cards mount it, and
+  `tests/identityCardChassis.test.tsx` fails if the identity card ever
+  re-implements it inline (banned markers), if its sides become buttons,
+  or if a seal glyph appears. The 唔肯定 link reuses the duel's own
+  `.duel-tie` treatment; answer circles are ink-only (palette contract).
+- **Trigger points:** log time — RatingStack probes on restaurant-attach
+  (nearby pick + manual add) and, for queued picks (born at a restaurant),
+  on growth-screen entry (first 3, sequential, stop on first hit); the
+  card renders inline via TasteGrowth's `identitySlot`. HARD CAP one per
+  log session (a ref that never resets). Plus the journal's retro sweep,
+  now mounting the SAME card (the old plain yes/no text card deleted, its
+  5 `log.samedish.*` keys removed). No cards on the Taste tab.
+- **Sweep reopen:** `identityRecheckDue` — a "checked, nothing found"
+  stamp reopens after the same 30-day window, fixing a pre-existing hole
+  where a dish that GAINED a lookalike later could never be asked about
+  again (checked_at used to block forever), and giving expiring 唔肯定
+  pairs their re-ask path.
+- **Fixed in passing (pre-existing):** the journal sweep's in-flight
+  suggestion was silently discarded whenever `dishes` re-set during a
+  normal load (cache first, fresh fetch after) — the cleanup-scoped
+  cancel killed it every time. Found live when the card refused to
+  appear; result application now survives data refreshes and drops only
+  on real unmount.
+- **Compounding:** duel selection already excludes same-identity pairs
+  (duels.ts:81, live DB read per selection) — a merge upgrades duel pair
+  quality immediately, no new wiring needed.
+
+**Verified live** (2026-07-22, owner account, REAL data — the two
+identical 蛋撻 rows at 美心皇宮 中環店 that genuinely need this feature):
+journal sweep probed (gate 1 string hit, gate 2 LLM confirmed, ~4s),
+the 係咪同一味 card rendered on the duel chassis with both real photos,
+zh-primary names, restaurant • district subtitles, circle-✓/✗ + 唔肯定,
+no seal glyph (screenshot posted). Answered 唔肯定 live → card closed
+quietly, `verdict='unsure'` row written with a fresh clock; reload →
+no re-ask (cooldown suppression proven live). Cleanup: the test verdict
+and the suppressed probe's checked_at stamp were reverted, so the OWNER
+gets asked the real question naturally — deliberately did NOT answer the
+merge on the owner's real pair; that's their call. The merge path's
+result strip + POST body are covered by the jsdom chassis tests, and the
+server merge path itself is unchanged production code. Honest gap: the
+RatingStack log-time mount was verified by code + the same GET the sweep
+exercises live, not driven end-to-end (needs a real photo flick).
+tsc clean; 491/491 tests (11 new).
+

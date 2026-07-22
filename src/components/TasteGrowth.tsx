@@ -88,7 +88,7 @@ export type GrowEngine = {
   justUnlocked?: boolean;
 };
 
-export default function TasteGrowth({ live, engine, blobInputs, onExit, onCancel, onPickPlace, onAddPlace, onEditName, onReclassify, onRetry }: {
+export default function TasteGrowth({ live, engine, blobInputs, onExit, onCancel, onPickPlace, onAddPlace, onEditName, onReclassify, onRetry, identitySlot }: {
   live: GrowDish[];
   engine?: GrowEngine | null;                            // REAL taste-engine confidence for the bar
   // The REAL profile (same vector/evidence/ratingCount/seed blobForm.ts consumes
@@ -103,6 +103,10 @@ export default function TasteGrowth({ live, engine, blobInputs, onExit, onCancel
   onEditName?: (i: number, edit: NameEdit) => void;      // persist a rename (full cascade)
   onReclassify?: (i: number, edit: NameEdit) => void;    // "it IS food" → name + rate it
   onRetry?: (i: number) => void;                         // re-run the pipeline on a failed upload
+  /** 係咪同一味？ — the log-time identity-confirm card, rendered inline above the
+   * dish rows when the just-logged dish fuzzy-matched a known identity (at most
+   * one per log session; RatingStack owns the probe + cap). */
+  identitySlot?: React.ReactNode;
 }) {
   const { t, lang } = useLang();
   const rowCount = live.length;
@@ -317,6 +321,10 @@ export default function TasteGrowth({ live, engine, blobInputs, onExit, onCancel
       {/* One ask above the rows: confirming/refining is what makes the engine accurate,
           and it's optional (now or later). */}
       <p className="grow-refine-ask">{t('grow.confirm.ask')}</p>
+
+      {/* 係咪同一味？ — inline, above the dish rows, where the just-logged dish
+          it's about is in view. At most one per log session. */}
+      {identitySlot}
 
       <ul className="learn-list">
         {live.map((it, i) => {

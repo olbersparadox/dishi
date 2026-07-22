@@ -180,6 +180,57 @@ export function namesWorthAsking(a: string, b: string): boolean {
   return longer.includes(shorter);
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// PAIR VERDICTS — what a human's earlier answer means for asking again
+// ─────────────────────────────────────────────────────────────────────────────
+// The identity-confirm card (係咪同一味？) records one of two verdicts per pair
+// in dish_identity_dismissals:
+//   'different' — a real denial. PERMANENT. Re-asking a settled "no" reads as
+//                 the app not listening; the negative record is as load-bearing
+//                 as a merge. This is also what makes human distinctness STICKY
+//                 against any later scan/owner sameness signal: candidate pairs
+//                 are filtered through these verdicts BEFORE anything else runs,
+//                 and no automated path links identities (gate 3 — the human —
+//                 is the only merge author in the whole system).
+//   'unsure'    — 唔肯定. Skip semantics with a cooldown, borrowed from the
+//                 duel rhythm (DUEL_RECENT_DAYS): the pair is off the table for
+//                 a while, then may be asked again.
+
+/** How long a 唔肯定 keeps a pair off the table — same rhythm as DUEL_RECENT_DAYS. */
+export const IDENTITY_UNSURE_COOLDOWN_DAYS = 30;
+
+export type PairVerdict = 'different' | 'unsure';
+
+/** Whether an earlier verdict still blocks re-asking about this pair. */
+export function dismissalBlocks(
+  verdict: PairVerdict,
+  createdAt: string,
+  now: number = Date.now(),
+): boolean {
+  if (verdict !== 'unsure') return true; // a real denial is permanent
+  const t = new Date(createdAt).getTime();
+  if (isNaN(t)) return true; // unparseable clock -> fail closed (don't nag)
+  return now - t < IDENTITY_UNSURE_COOLDOWN_DAYS * 24 * 60 * 60 * 1000;
+}
+
+/**
+ * Whether a dish whose last identity probe found nothing (dish_identity_checked_at)
+ * is due a re-check. The stamp exists so a genuine singleton isn't re-probed — and
+ * re-billed for LLM adjudication — on every visit; but a permanent stamp would also
+ * mean a dish that GAINS a lookalike later (someone logs 水晶鮮蝦餃 next month), or
+ * whose pair earned only an expiring 唔肯定, could never be asked about again. The
+ * same cooldown window bounds both concerns: at most one probe per dish per window.
+ */
+export function identityRecheckDue(
+  checkedAt: string | null | undefined,
+  now: number = Date.now(),
+): boolean {
+  if (!checkedAt) return true;
+  const t = new Date(checkedAt).getTime();
+  if (isNaN(t)) return true;
+  return now - t >= IDENTITY_UNSURE_COOLDOWN_DAYS * 24 * 60 * 60 * 1000;
+}
+
 /**
  * Gate 1. Given a target dish and the other dishes at the same restaurant, returns
  * the ones worth adjudicating. Compares each language independently — a menu-scan

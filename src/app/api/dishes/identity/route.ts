@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseServer, supabaseAdmin } from '@/lib/supabase/server';
-import { candidateMatches, nameAuthority, preferredName, type DishLike } from '@/lib/dishIdentity';
+import { candidateMatches, nameAuthority, preferredName, dismissalBlocks, type DishLike, type PairVerdict } from '@/lib/dishIdentity';
 import { adjudicateSameDish } from '@/lib/dishMatch';
 import { applyOwnerMenuAuthority, propagateIdentityNameToDishes } from '@/lib/ownerMenuReconcile';
 
@@ -58,24 +58,28 @@ export async function GET(req: NextRequest) {
   // whole point is recognising someone else's row as the same real dish.
   const [{ data: pool }, { data: restaurant }, { data: dismissals }] = await Promise.all([
     admin.from('dishes')
-      .select('id, name, name_zh, dish_identity_id, source, name_edited_at')
+      .select('id, name, name_zh, dish_identity_id, source, name_edited_at, photo_url')
       .eq('restaurant_id', dish.restaurant_id)
       .neq('id', dish.id)
       .limit(200),
     admin.from('restaurants').select('name').eq('id', dish.restaurant_id).maybeSingle(),
-    // Pairs this person already said "no, different dish" to. Filtered out BEFORE
-    // adjudication — both to avoid re-asking a settled question and to avoid paying
-    // for an LLM call whose answer would be discarded anyway. Checked symmetrically:
-    // "A is not B" means "B is not A".
+    // Pairs this person already ANSWERED about. Filtered out BEFORE adjudication —
+    // both to avoid re-asking a settled question and to avoid paying for an LLM
+    // call whose answer would be discarded anyway. Checked symmetrically: "A is
+    // not B" means "B is not A". Verdict-aware (identity-confirm card): a real
+    // 'different' blocks forever; an 'unsure' (唔肯定) blocks only within its
+    // cooldown window — see dismissalBlocks in dishIdentity.ts.
     admin.from('dish_identity_dismissals')
-      .select('dish_id, other_dish_id')
+      .select('dish_id, other_dish_id, verdict, created_at')
       .eq('user_id', user.id)
       .or(`dish_id.eq.${dishId},other_dish_id.eq.${dishId}`),
   ]);
 
   const dismissed = new Set<string>();
   for (const d of dismissals ?? []) {
-    dismissed.add(d.dish_id === dishId ? d.other_dish_id : d.dish_id);
+    if (dismissalBlocks((d.verdict ?? 'different') as PairVerdict, d.created_at)) {
+      dismissed.add(d.dish_id === dishId ? d.other_dish_id : d.dish_id);
+    }
   }
 
   const candidates = candidateMatches(dish as DishLike, (pool ?? []) as DishLike[])
@@ -100,6 +104,10 @@ export async function GET(req: NextRequest) {
       identity_id: winner.dish_identity_id ?? null,
       name: canonical.name,
       name_zh: canonical.name_zh,
+      // For the identity-confirm card's chassis side: the candidate's photo and
+      // the shared restaurant (both dishes are at it, by construction).
+      photo_url: (winner as DishLike & { photo_url?: string | null }).photo_url ?? null,
+      restaurant: restaurant?.name ?? null,
     },
   });
 }
@@ -123,19 +131,32 @@ export async function POST(req: NextRequest) {
   const dishId = typeof body?.dish_id === 'string' ? body.dish_id : null;
   const sameAsDishId = typeof body?.same_as_dish_id === 'string' ? body.same_as_dish_id : null;
   const notSameAsDishId = typeof body?.not_same_as_dish_id === 'string' ? body.not_same_as_dish_id : null;
+  const unsureAboutDishId = typeof body?.unsure_about_dish_id === 'string' ? body.unsure_about_dish_id : null;
   if (!dishId) return NextResponse.json({ error: 'dish_id is required.' }, { status: 400 });
   if (!sameAsDishId) {
-    // "No, different dish." Persist the decline so this exact pair is never
-    // asked about again (previously a no-op — which meant any retro-check
-    // would re-surface the same declined suggestion forever).
-    if (notSameAsDishId) {
+    // A non-merge verdict on the pair, persisted so the question isn't re-asked:
+    //  - 唔同嘅 ('different'): PERMANENT. Re-asking a settled no reads as the app
+    //    not listening. MERGED upsert (not ignoreDuplicates): a real denial must
+    //    overwrite an earlier expiring 唔肯定 on the same pair, and refresh is
+    //    harmless when the row was already a denial.
+    //  - 唔肯定 ('unsure'): skip-with-cooldown (identity-confirm card). The row's
+    //    created_at is the cooldown clock — re-answering unsure refreshes it.
+    const verdictRow = notSameAsDishId
+      ? { other: notSameAsDishId, verdict: 'different' as const }
+      : unsureAboutDishId
+        ? { other: unsureAboutDishId, verdict: 'unsure' as const }
+        : null;
+    if (verdictRow) {
       const admin = supabaseAdmin();
       await admin.from('dish_identity_dismissals').upsert(
-        { user_id: user.id, dish_id: dishId, other_dish_id: notSameAsDishId },
-        { onConflict: 'user_id,dish_id,other_dish_id', ignoreDuplicates: true },
+        {
+          user_id: user.id, dish_id: dishId, other_dish_id: verdictRow.other,
+          verdict: verdictRow.verdict, created_at: new Date().toISOString(),
+        },
+        { onConflict: 'user_id,dish_id,other_dish_id' },
       );
     }
-    return NextResponse.json({ linked: false });
+    return NextResponse.json({ linked: false, verdict: verdictRow?.verdict ?? null });
   }
 
   const admin = supabaseAdmin();

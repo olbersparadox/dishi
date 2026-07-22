@@ -1491,6 +1491,28 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 /* The prompt: bigger, bolder, black — per the design call. */
 .duel-q { text-align: center; margin-top: 16px; font-family: var(--font-display); font-weight: 800; font-size: 20px; color: var(--ink); }
 .duel-tie { display: block; margin: 8px auto 0; background: none; border: none; color: var(--ink-soft); font-size: 13px; text-decoration: underline; cursor: pointer; }
+
+/* 係咪同一味？ — identity-confirm card on the duel chassis. The sides are the
+   SAME .duel-option anatomy (DuelSide.tsx) but rendered as static divs: not
+   tappable, by spec — tapping a side means "I prefer this" in a duel, and that
+   muscle memory must not be able to merge two dishes here. Answers are the
+   circle-check / circle-X pair (ink only — the shapes carry the meaning, never
+   green/red; the palette contract holds) + the quiet 唔肯定 skip (.duel-tie). */
+.identity-card { margin-bottom: 16px; }
+.identity-side { cursor: default; }
+.identity-answers { display: flex; justify-content: center; gap: 34px; margin-top: 16px; }
+.identity-answer {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  background: none; border: none; padding: 0; color: var(--ink); cursor: pointer;
+}
+.identity-answer:disabled { opacity: 0.5; cursor: default; }
+.identity-answer-circle {
+  display: grid; place-items: center; width: 48px; height: 48px;
+  border: 1.5px solid var(--ink); border-radius: 50%;
+}
+.identity-answer:not(:disabled):active .identity-answer-circle { background: var(--ink); color: var(--glaze); }
+.identity-answer-label { font-size: 13px; color: var(--ink-soft); }
+.identity-result { font-size: 15px; line-height: 1.5; color: var(--ink); font-weight: 650; }
 /* Reveal STAYS on screen (no auto-close) so the result is readable; the ✓ closes. */
 .duel-reveal { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-top: 16px; text-align: center; }
 .duel-verdict { display: flex; align-items: center; gap: 10px; font-family: var(--font-display); font-weight: 700; font-size: 34px; color: var(--ink); }

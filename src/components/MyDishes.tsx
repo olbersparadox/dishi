@@ -11,6 +11,10 @@ import DishInfoDisplay from './DishInfoDisplay';
 import { normalizePhoto } from '@/lib/image';
 import { getJournalCache, setJournalCache } from '@/lib/journalCache';
 import { pickDistrict, type DistrictMap } from '@/lib/district';
+import Chop from './Chop';
+import IdentityConfirmCard from './IdentityConfirmCard';
+import type { DuelDish } from './DuelSide';
+import { identityRecheckDue } from '@/lib/dishIdentity';
 
 export type MyDish = {
   id: string; name: string; name_zh: string | null; cuisine: string | null;
@@ -23,6 +27,10 @@ export type MyDish = {
   dish_identity_checked_at?: string | null;
   identity_name?: string | null; identity_name_zh?: string | null;
   cooking_method?: string | null; heaviness?: string | null; diet?: string[] | null;
+  /** 同檯 companions (Table Mode item 4): who shared the table when this dish
+   * was picked — same chop identity (display_name, else handle) the table's
+   * own live stamps used. Empty/absent for solo dishes. */
+  companions?: { name: string }[];
 };
 
 /** Rated-on label for a journal row: date + weekday (7月11日 星期六 / Sat, Jul 11). */
@@ -153,38 +161,48 @@ export default function MyDishes({ t, lang }: { t: (k: string, p?: Record<string
   const [changingRating, setChangingRating] = useState(false);
   const [ratingSaved, setRatingSaved] = useState<string | null>(null); // dish id, transient
 
-  // Retro dish-identity check. The /log flow only asks "same dish as X?" when a
-  // dish's rating screen opens — so every dish rated BEFORE the identity pipeline
-  // shipped (July 13) structurally never gets asked, which is exactly how the
-  // 蝦餃 / 水晶鮮蝦餃 pair at 美心皇宮 stayed fragmented. This sweep probes the
-  // already-rated, still-unlinked dishes when the list loads, and surfaces at
-  // most ONE quiet confirm at a time. Sequential and capped: each probe may cost
-  // an LLM adjudication server-side, and dismissed pairs are filtered before
-  // adjudication, so a "no" is never paid for twice.
+  // Retro dish-identity check. The live ask happens at LOG time now (the growth
+  // screen's 係咪同一味 card, via RatingStack) — this sweep covers everything
+  // that path structurally misses: dishes rated before the identity pipeline
+  // existed, dishes whose lookalike arrived LATER, and pairs whose earlier
+  // answer was an expiring 唔肯定. Probes when the list loads; surfaces at most
+  // ONE confirm at a time. Each probe may cost an LLM adjudication server-side,
+  // and answered pairs are filtered before adjudication, so a settled verdict
+  // is never paid for twice.
   const [identityAsk, setIdentityAsk] = useState<{
-    dish: MyDish; suggestion: { dish_id: string; name: string; name_zh: string | null };
+    dish: MyDish; suggestion: { dish_id: string; name: string; name_zh: string | null; photo_url?: string | null; restaurant?: string | null };
   } | null>(null);
-  const [identityBusy, setIdentityBusy] = useState(false);
   const identitySweepDone = useRef(false);
+  // True while THIS component is genuinely mounted — set in an effect (not just
+  // the initializer) so StrictMode's simulated unmount/remount lands back on
+  // true. The sweep result below checks this instead of a per-run `cancelled`
+  // flag: the journal sets `dishes` more than once in a normal load (cache
+  // first, fresh fetch after), and a cleanup-scoped cancel let that refresh
+  // silently discard the in-flight suggestion every time — the card never
+  // showed. Only a REAL unmount should drop it.
+  const identityMounted = useRef(true);
+  useEffect(() => {
+    identityMounted.current = true;
+    return () => { identityMounted.current = false; };
+  }, []);
 
   useEffect(() => {
     if (!dishes || identitySweepDone.current) return;
     identitySweepDone.current = true;
     // Oldest-first, not newest-first: the whole point of this sweep is clearing
-    // the backlog of dishes rated BEFORE the identity pipeline existed (July 13)
-    // — newly-rated dishes already get checked live in /log and don't need this.
+    // the backlog — newest dishes were already asked at log time.
     // Cap at 20 rather than 6: the first real production check showed 13 dishes
     // in the current backlog, and a newest-first-with-cap-6 sweep silently never
     // reached position 7 — which is exactly where the real 蝦餃/水晶鮮蝦餃 pair sat.
-    // Excludes dish_identity_checked_at: without this, a genuine singleton (真係
-    // 冚唪唥都冇撞名嘅嘢) gets re-probed — and re-billed for LLM adjudication — on
-    // every single Taste-tab visit forever, since it will never gain a real link.
+    // identityRecheckDue: a "checked, nothing found" stamp blocks re-probing (a
+    // genuine singleton must not be re-billed every visit) but REOPENS after the
+    // cooldown window — a dish that gains a lookalike later, or whose pair got an
+    // expiring 唔肯定, would otherwise never be askable again.
     const unlinked = dishes
-      .filter(d => d.restaurant_id && !d.dish_identity_id && !d.dish_identity_checked_at)
+      .filter(d => d.restaurant_id && !d.dish_identity_id && identityRecheckDue(d.dish_identity_checked_at))
       .sort((a, b) => a.created_at.localeCompare(b.created_at))
       .slice(0, 20);
     if (unlinked.length === 0) return;
-    let cancelled = false;
     (async () => {
       // Parallel, not sequential: a sequential await-per-dish loop was too slow to
       // finish within a normal visit — real logs showed it getting interrupted by
@@ -200,38 +218,19 @@ export default function MyDishes({ t, lang }: { t: (k: string, p?: Record<string
           return j.suggestion ? { dish: d, suggestion: j.suggestion } : null;
         } catch { return null; }
       }));
-      if (cancelled) return;
+      if (!identityMounted.current) return; // real unmount only — see identityMounted
       const first = results.find(r => r !== null);
       if (first) setIdentityAsk(first);
     })();
-    return () => { cancelled = true; };
   }, [dishes]);
 
-  async function answerIdentityAsk(same: boolean) {
-    if (!identityAsk) return;
-    setIdentityBusy(true);
-    try {
-      await fetch('/api/dishes/identity', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          dish_id: identityAsk.dish.id,
-          same_as_dish_id: same ? identityAsk.suggestion.dish_id : undefined,
-          not_same_as_dish_id: same ? undefined : identityAsk.suggestion.dish_id,
-        }),
-      });
-      if (same) {
-        // Refetch rather than patch locally: a real merge changes more than
-        // just this dish's own dish_identity_id (the OTHER dish gets linked
-        // too, and the identity's canonical name comes from the server's
-        // authority ladder) — a local patch can't know either of those, so
-        // pulling the real row is what actually makes the group and its
-        // name show up immediately instead of only after the next reload.
-        refetchFirstPage();
-      }
-    } catch { /* a failed answer just means it may be asked again later */ }
+  // The card (IdentityConfirmCard) owns the POST and the result strip; all this
+  // mount decides is what happens AFTER: a real merge refetches (the canonical
+  // name and the OTHER dish's link both changed server-side in ways a local
+  // patch can't know), everything else just clears the ask.
+  function identityAskDone(outcome: 'same' | 'different' | 'unsure') {
+    if (outcome === 'same') refetchFirstPage();
     setIdentityAsk(null);
-    setIdentityBusy(false);
   }
 
   const refetchFirstPage = useCallback(() => {
@@ -409,27 +408,27 @@ export default function MyDishes({ t, lang }: { t: (k: string, p?: Record<string
   let rowIdx = 0;
   return (
     <>
+      {/* 係咪同一味？ — the SAME IdentityConfirmCard the growth screen mounts at
+          log time (one card, two mount points — never a lookalike). The plain
+          yes/no text card that used to live here was replaced by the duel-chassis
+          card when it shipped (backlog 2026-07-22). */}
       {identityAsk && (
-        <div className="card"><div className="card-body">
-          <p className="card-meta" style={{ marginBottom: 4 }}>
-            {t('log.samedish.title', { restaurant: identityAsk.dish.restaurant ?? '' })}
-          </p>
-          <p style={{ fontWeight: 700, fontSize: 17, marginBottom: 10 }}>
-            {t('log.samedish.pair', {
-              a: (lang === 'zh' && identityAsk.dish.name_zh) ? identityAsk.dish.name_zh : identityAsk.dish.name,
-              b: (lang === 'zh' && identityAsk.suggestion.name_zh) ? identityAsk.suggestion.name_zh : identityAsk.suggestion.name,
-            })}
-          </p>
-          <p style={{ fontWeight: 650, fontSize: 15, marginBottom: 12 }}>{t('log.samedish.q')}</p>
-          <div style={{ display: 'flex', gap: 10 }}>
-            <button className="btn primary large" disabled={identityBusy} onClick={() => answerIdentityAsk(true)}>
-              {t('log.samedish.yes')}
-            </button>
-            <button className="btn ghost large" disabled={identityBusy} onClick={() => answerIdentityAsk(false)}>
-              {t('log.samedish.no')}
-            </button>
-          </div>
-        </div></div>
+        <IdentityConfirmCard
+          mine={{
+            id: identityAsk.dish.id, name: identityAsk.dish.name, name_zh: identityAsk.dish.name_zh,
+            photo_url: identityAsk.dish.photo_url,
+            restaurant: identityAsk.dish.restaurant,
+            restaurant_district: identityAsk.dish.restaurant_district ?? null,
+          } satisfies DuelDish}
+          other={{
+            id: identityAsk.suggestion.dish_id, name: identityAsk.suggestion.name,
+            name_zh: identityAsk.suggestion.name_zh,
+            photo_url: identityAsk.suggestion.photo_url ?? null,
+            restaurant: identityAsk.suggestion.restaurant ?? identityAsk.dish.restaurant,
+            restaurant_district: identityAsk.dish.restaurant_district ?? null, // same restaurant, by construction
+          } satisfies DuelDish}
+          onDone={identityAskDone}
+        />
       )}
       {groups.map(group => {
         const rows = group.map(d => {
@@ -564,6 +563,22 @@ export default function MyDishes({ t, lang }: { t: (k: string, p?: Record<string
                       component. The cooking-style hook is hidden here (hideHook)
                       because it now lives inline in the meta line above. */}
                   <DishInfoDisplay info={d} compact hideHook />
+
+                  {/* 同檯 companions (Table Mode item 4): the same Chop the table's
+                      live stamps rendered, so the meal's people carry into its
+                      diary. Quiet label + chips, no counts — presence, not score. */}
+                  {(d.companions?.length ?? 0) > 0 && (
+                    <div className="chop-stamp-row" style={{ marginTop: 6 }}
+                      aria-label={t('journal.companions')} title={t('journal.companions')}>
+                      <span className="card-meta" style={{ marginRight: 2 }}>{t('journal.companions')}</span>
+                      {d.companions!.slice(0, 5).map(c => (
+                        <Chop key={c.name} name={c.name} size={22} />
+                      ))}
+                      {d.companions!.length > 5 && (
+                        <span className="chop-stamp-overflow">+{d.companions!.length - 5}</span>
+                      )}
+                    </div>
+                  )}
                 </>
               )}
 

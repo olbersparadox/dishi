@@ -23,6 +23,8 @@ import { normalizePhoto } from '@/lib/image';
 import { readPhotoMeta, type PhotoMeta } from '@/lib/photoMeta';
 import SnapRating from '@/components/SnapRating';
 import TasteGrowth, { type GrowDish, type GrowPlace, type NameEdit } from '@/components/TasteGrowth';
+import IdentityConfirmCard from '@/components/IdentityConfirmCard';
+import type { DuelDish } from '@/components/DuelSide';
 import type { FormInputs } from '@/lib/blobForm';
 
 type Phase = 'flick' | 'grow';
@@ -163,6 +165,35 @@ export default function RatingStack({ photos, picks, userId, onExit }: {
     await Promise.allSettled(ids.map(id =>
       fetch('/api/my/dishes', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dish_id: id }) })));
     onExit();
+  };
+
+  // 係咪同一味？ — the log-time identity trigger (backlog 2026-07-22). Once a
+  // just-logged dish has a restaurant, its name may fuzzy-match a dish_identity
+  // already known there; gates 1+2 run server-side and return at most one
+  // candidate, and the confirm card appears inline on the growth screen.
+  // HARD CAP (spec): one identity question per log session — the ref flips the
+  // moment a suggestion is SHOWN and never resets. No cards on the Taste tab.
+  const [identityAsk, setIdentityAsk] = useState<{ mine: DuelDish; other: DuelDish } | null>(null);
+  const identityShown = useRef(false);
+  const probeIdentity = async (dishId: string, mine: { name: string; name_zh: string | null; photoUrl: string | null }) => {
+    if (identityShown.current) return;
+    try {
+      const res = await fetch(`/api/dishes/identity?dish_id=${dishId}`);
+      const j = res.ok ? await res.json() : null;
+      if (j?.suggestion && !identityShown.current) {
+        identityShown.current = true;
+        setIdentityAsk({
+          mine: {
+            id: dishId, name: mine.name, name_zh: mine.name_zh,
+            photo_url: mine.photoUrl, restaurant: j.suggestion.restaurant ?? null,
+          },
+          other: {
+            id: j.suggestion.dish_id, name: j.suggestion.name, name_zh: j.suggestion.name_zh ?? null,
+            photo_url: j.suggestion.photo_url ?? null, restaurant: j.suggestion.restaurant ?? null,
+          },
+        });
+      }
+    } catch { /* silence is the correct default — a wrong ask is worse than none */ }
   };
 
   // Persist (or clear) a dish's restaurant — same resolution the log flow uses.
@@ -332,7 +363,14 @@ export default function RatingStack({ photos, picks, userId, onExit }: {
     if (!gd?.dishId) return;
     if (label === t('place.home') || label === t('grow.skip')) { persistPlace(gd.dishId, null); return; }
     const place = (gd.nearby ?? []).find(p => p.label === label);
-    if (place) persistPlace(gd.dishId, place);
+    if (place) {
+      const dishId = gd.dishId;
+      persistPlace(dishId, place).then(res => {
+        // The dish just gained a restaurant → its name can now fuzzy-match an
+        // identity there. Probe only on a confirmed persist.
+        if (res) probeIdentity(dishId, { name: gd.name, name_zh: gd.name_zh, photoUrl: gd.photoUrl });
+      });
+    }
   };
 
   // A TYPED restaurant name ("+ 加間舖"). resolveOrCreateRestaurant REQUIRES finite
@@ -348,7 +386,10 @@ export default function RatingStack({ photos, picks, userId, onExit }: {
     const coords = gd.coords ?? (await getLiveCoords());
     if (!coords) { patch(i, { choice: prev, placeError: true }); return; }
     const res = await persistPlace(gd.dishId, { label: name, source: 'manual', lat: coords.lat, lng: coords.lng });
-    if (!res || !('ok' in res)) patch(i, { choice: prev, placeError: true });
+    if (!res || !('ok' in res)) { patch(i, { choice: prev, placeError: true }); return; }
+    // Restaurant attached (possibly a manual add that resolved to an existing
+    // place) — same log-time identity trigger as the nearby-chip path.
+    probeIdentity(gd.dishId, { name: gd.name, name_zh: gd.name_zh, photoUrl: gd.photoUrl });
   };
 
   // Rename on the growth screen → persist the full cascade, then RE-derive for real:
@@ -396,8 +437,24 @@ export default function RatingStack({ photos, picks, userId, onExit }: {
   if (!cardCount) return null;
 
   const gotoNextOrGrow = (ratedAnything: boolean) => {
-    if (idx + 1 >= cardCount) { if (ratedAnything) setPhase('grow'); else onExit(); }
-    else setIdx(i => i + 1);
+    if (idx + 1 >= cardCount) {
+      if (ratedAnything) {
+        setPhase('grow');
+        // Queued picks were born at a restaurant (menu-scan/table), so they can
+        // fuzzy-match an identity there WITHOUT any refine action. Probe a
+        // bounded few, sequentially, stopping at the first suggestion — each
+        // probe may cost an LLM adjudication server-side, and one question is
+        // all this log gets anyway.
+        if (picksMode) {
+          (async () => {
+            for (const p of pk.slice(0, 3)) {
+              if (identityShown.current) break;
+              await probeIdentity(p.dishId, { name: p.name, name_zh: p.name_zh, photoUrl: p.photoUrl });
+            }
+          })();
+        }
+      } else onExit();
+    } else setIdx(i => i + 1);
   };
   const onRate = (score: number) => {
     const i = countRef.current++;
@@ -453,7 +510,15 @@ export default function RatingStack({ photos, picks, userId, onExit }: {
         {/* No onCancel in picksMode: TasteGrowth falls back to onExit, so its ✕ is a
             plain close-and-keep rather than a discard that would delete dishes we
             never created. */}
-        <TasteGrowth live={dishes} engine={engine} blobInputs={blobInputs} onExit={onExit} onCancel={picksMode ? undefined : cancelSession} onPickPlace={onPickPlace} onAddPlace={onAddPlace} onEditName={onEditName} onReclassify={onReclassify} onRetry={onRetry} />
+        <TasteGrowth live={dishes} engine={engine} blobInputs={blobInputs} onExit={onExit} onCancel={picksMode ? undefined : cancelSession} onPickPlace={onPickPlace} onAddPlace={onAddPlace} onEditName={onEditName} onReclassify={onReclassify} onRetry={onRetry}
+          identitySlot={identityAsk ? (
+            <IdentityConfirmCard
+              mine={identityAsk.mine}
+              other={identityAsk.other}
+              onDone={() => setIdentityAsk(null)}
+            />
+          ) : undefined}
+        />
       </div>
     </div>
   );

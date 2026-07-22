@@ -5,41 +5,22 @@
 // (the winner is NOT enlarged); the sealed 印 result and what was learned then STAY
 // on screen until the user taps OK. First-pass visual — refine in Claude Design.
 import { useState } from 'react';
-import { useLang, type LangPair } from '@/lib/i18n';
-import DishName from './DishName';
+import { useLang } from '@/lib/i18n';
 import { CloseIcon, CheckIcon } from './icons';
 import SealStamp from './SealStamp';
-import { pickDistrict, type DistrictMap } from '@/lib/district';
+// Side anatomy (photo / zh-pinned name / location) is the SHARED chassis — the
+// identity-confirm card mounts the same component. See DuelSide.tsx.
+import DuelSide, { type DuelDish } from './DuelSide';
 
-export type DuelDish = {
-  id: string; name: string; name_zh: string | null; photo_url: string | null;
-  restaurant: string | null; restaurant_district?: DistrictMap | null; district?: DistrictMap | null;
-};
+export type { DuelDish } from './DuelSide';
 export type Duel = { id: string; a: DuelDish; b: DuelDish };
 type Reveal = { predicted_correct?: boolean; tie?: boolean; predicted_p: number | null; learned: { dim: string; dir: number }[] };
-
-// The duel card always reads 中文 primary / English secondary, regardless of the
-// person's global language-pair setting elsewhere in the app — a deliberate,
-// stable pairing for this specific comparison UI (per design direction), not the
-// user's general display preference.
-const ZH_PRIMARY_PAIR: LangPair = { primary: 'zh', secondary: 'en' };
-
-// Same "restaurant • district" convention as the Eat Journal (MyDishes.locationLabel):
-// the restaurant's own district when there's a restaurant, else the dish's own logged
-// district. Returns null when there's nothing to show — the caller renders nothing.
-function duelLocation(d: DuelDish, lang: 'zh' | 'en'): string | null {
-  if (d.restaurant) {
-    const area = pickDistrict(d.restaurant_district, lang);
-    return d.restaurant + (area ? ` • ${area}` : '');
-  }
-  return pickDistrict(d.district, lang);
-}
 
 /** onClose(resolved): resolved=true when the duel was answered (pick/tie) and the
  *  user tapped OK — the caller drops it from the list; false on a ✕/backdrop
  *  dismiss, where the duel stays available. */
 export default function DuelOverlay({ duel, onClose }: { duel: Duel; onClose: (resolved: boolean) => void }) {
-  const { t, lang } = useLang();
+  const { t } = useLang();
   const [chosen, setChosen] = useState<string | null>(null); // a dish id, or 'tie'
   const [reveal, setReveal] = useState<Reveal | null>(null);
   const [busy, setBusy] = useState(false);
@@ -82,28 +63,16 @@ export default function DuelOverlay({ duel, onClose }: { duel: Duel; onClose: (r
           </div>
 
           <div className={`duel-pair ${resolving ? 'resolving' : ''}`}>
-            {[duel.a, duel.b].map(dish => {
-              const location = duelLocation(dish, lang);
-              return (
+            {[duel.a, duel.b].map(dish => (
               <button
                 key={dish.id}
                 className={`duel-option ${chosen === dish.id ? 'won' : ''} ${resolving && chosen !== dish.id ? 'faded' : ''}`}
                 disabled={busy || resolving}
                 onClick={() => resolve(dish.id, { winner_dish_id: dish.id })}
               >
-                {dish.photo_url
-                  // eslint-disable-next-line @next/next/no-img-element
-                  ? <img src={dish.photo_url} alt="" className="duel-photo" />
-                  : <div className="duel-photo duel-photo-blank" aria-hidden />}
-                {/* card-title: the exact journal/scan dish-name treatment (serif
-                    primary + small secondary), but PINNED to 中文/English regardless
-                    of the person's global pair — this comparison always reads zh
-                    over en. Tighter gap between the two lines here (see CSS). */}
-                <div className="card-title"><DishName name={dish.name} name_zh={dish.name_zh} pair={ZH_PRIMARY_PAIR} /></div>
-                {location && <div className="duel-option-rest">{location}</div>}
+                <DuelSide dish={dish} />
               </button>
-              );
-            })}
+            ))}
           </div>
 
           {!reveal ? (
