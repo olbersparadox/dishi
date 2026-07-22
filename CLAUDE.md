@@ -84,6 +84,14 @@ consumer-side dish-level demand data.
   (`--seal`) reserved for the seal stamp, the export CTA, and the dish-edit
   "儲存" button's dirty state (`.btn.primary.dirty` — vermillion the moment a
   field actually changes; wired app-wide at every dish-edit site).
+- **Backlog hygiene:** `docs/BACKLOG.md` holds OPEN items only. When an item
+  ships, move its full entry (rationale + every amendment, verbatim — don't
+  summarize or paraphrase) into `docs/DECISIONS.md` under the same batch
+  heading, and leave a one-line "(items N shipped — see DECISIONS.md)" pointer
+  if other items in that batch are still open. Do this as part of marking the
+  item done, automatically, without being asked. Read `docs/BACKLOG.md`
+  surgically (grep section headers, read only the relevant batch) rather than
+  doing full-file reads once it's grown past what you need for the task.
 
 ## Model selection (decide per task, state the choice)
 
