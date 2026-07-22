@@ -104,7 +104,7 @@ describe('buildTastePrompt', () => {
     cuisines: ['Sichuan'],
     lovedDishes: [{ name: 'Mapo Tofu', name_zh: '\u9ebb\u5a46\u8c46\u8150', score: 0.9, restaurant: 'Lao Sze Chuan' }],
     dislikedDishes: [{ name: 'Natto', score: -0.9 }],
-    ratingCount: 30, homeCookCount: 4, diningOutCount: 20, confidence: 'solid' as const,
+    ratingCount: 30, homeCookCount: 4, diningOutCount: 20, lovedSharedCount: 0, confidence: 'solid' as const,
   };
 
   it('leads with provenance \u2014 that it was LEARNED, not self-reported', () => {
@@ -149,11 +149,62 @@ describe('buildTastePrompt', () => {
     const empty = {
       loves: [], strongLoves: [], dislikes: [], strongDislikes: [],
       cuisines: [], lovedDishes: [], dislikedDishes: [],
-      ratingCount: 5, homeCookCount: 0, diningOutCount: 0, confidence: 'thin' as const,
+      ratingCount: 5, homeCookCount: 0, diningOutCount: 0, lovedSharedCount: 0, confidence: 'thin' as const,
     };
     const p = buildTastePrompt(empty);
     expect(p).toMatch(/No clear positive signal yet/i);
     expect(p).toMatch(/No clear negative signal yet/i);
+  });
+});
+
+describe('companions layer (Table Mode item 4)', () => {
+  const base = {
+    loves: ['umami'], strongLoves: [], dislikes: [], strongDislikes: [],
+    cuisines: [], lovedDishes: [{ name: 'Mapo Tofu', score: 0.9, shared: true }],
+    dislikedDishes: [],
+    ratingCount: 30, homeCookCount: 4, diningOutCount: 20, lovedSharedCount: 1,
+    confidence: 'solid' as const,
+  };
+  const companions = {
+    named: [{ name: 'Ka Yan', mealCount: 3, dishCount: 12, cuisines: ['cantonese', 'japanese'] }],
+    unnamedCount: 2,
+  };
+
+  it('renders honest aggregates: named companion, meal/dish counts, cuisines together', () => {
+    const p = buildTastePrompt(base, { companions });
+    expect(p).toContain('## Who I actually eat with');
+    expect(p).toContain('Ka Yan: 3 meals together, 12 shared dishes — mostly cantonese, japanese');
+    // Provenance stated — real shared tables, not a claimed social graph.
+    expect(p).toMatch(/real shared-table sessions/i);
+  });
+
+  it('display names only — the unnamed are counted anonymously, never named some other way', () => {
+    // The structural guarantee lives server-side (/api/taste/export sends
+    // display names only, handles never reach the client here); what the
+    // builder must uphold is: unnamed companions appear ONLY as a count.
+    const p = buildTastePrompt(base, { companions: { named: [], unnamedCount: 2 } });
+    expect(p).toContain('## Who I actually eat with');
+    expect(p).toContain('and 2 other table companions');
+    // The section's ONLY bullet is the anonymous count — no named lines exist
+    // to leak anything when `named` is empty.
+    const section = p.split('## Who I actually eat with')[1].split('\n##')[0];
+    const bullets = section.split('\n').filter(l => l.startsWith('- '));
+    expect(bullets).toHaveLength(1);
+    expect(bullets[0]).toContain('2 other table companions');
+  });
+
+  it('no edges -> no section, no invented sociability', () => {
+    const p = buildTastePrompt(base, { companions: { named: [], unnamedCount: 0 } });
+    expect(p).not.toContain('## Who I actually eat with');
+    const p2 = buildTastePrompt(base);
+    expect(p2).not.toContain('## Who I actually eat with');
+  });
+
+  it('states the loved-dishes-skew-communal fact only when real', () => {
+    const p = buildTastePrompt(base);
+    expect(p).toContain('1 of these were shared-table meals');
+    const solo = buildTastePrompt({ ...base, lovedSharedCount: 0 });
+    expect(solo).not.toContain('shared-table meals');
   });
 });
 
@@ -180,7 +231,7 @@ describe('payload grows with the confidence band', () => {
   const base = {
     loves: ['umami'], strongLoves: [], dislikes: [], strongDislikes: [], cuisines: [],
     lovedDishes: [{ name: 'Saba', name_zh: '鯖魚', score: 0.9, restaurant: 'Tsukiji', eaten_at: '2026-04-01T12:00:00Z' }],
-    dislikedDishes: [], ratingCount: 30, homeCookCount: 3, diningOutCount: 27,
+    dislikedDishes: [], ratingCount: 30, homeCookCount: 3, diningOutCount: 27, lovedSharedCount: 0,
   };
 
   it('solid dates its anchors and shows the where-I-eat split', () => {
@@ -215,7 +266,7 @@ describe('persona voices (spec §3/§4)', () => {
   const s = {
     loves: ['umami'], strongLoves: [], dislikes: [], strongDislikes: [], cuisines: ['Cantonese'],
     lovedDishes: [{ name: 'Char Siu', name_zh: '叉燒', score: 0.9, restaurant: 'Joy Hing' }],
-    dislikedDishes: [], ratingCount: 30, homeCookCount: 2, diningOutCount: 28,
+    dislikedDishes: [], ratingCount: 30, homeCookCount: 2, diningOutCount: 28, lovedSharedCount: 0,
   };
 
   it('keeps the trust contract VERBATIM — in every persona, at every band', () => {

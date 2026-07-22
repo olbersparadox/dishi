@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { useLang, cuisineLabel } from '@/lib/i18n';
 import {
-  extractTasteSections, buildTastePrompt, type ExportDish,
+  extractTasteSections, buildTastePrompt, type ExportDish, type ExportCompanions,
   confidenceInputsFrom, evidenceConfidence, exportUnlocked, ratingsToUnlock,
 } from '@/lib/tasteExport';
 import { type Persona } from '@/lib/persona';
@@ -48,6 +48,7 @@ export default function TasteExport({
   const [copied, setCopied] = useState(false);
 
   const [delta, setDelta] = useState<{ dim: string; dir: 1 | -1 }[]>([]);
+  const [newCompanions, setNewCompanions] = useState<string[]>([]);
   const [version, setVersion] = useState<number | null>(null);
   const [isFirstExport, setIsFirstExport] = useState(true);
   const [generating, setGenerating] = useState(false);
@@ -58,6 +59,9 @@ export default function TasteExport({
   async function generate() {
     setGenerating(true);
     let exportVersion: number | undefined;
+    // 同檯 companions (Table Mode item 4): server-aggregated from real edges,
+    // display names only — the client never even receives handles/ids here.
+    let companions: ExportCompanions | undefined;
     try {
       // Commit the chosen voice on export (persisted server-side) and get the version.
       const res = await fetch('/api/taste/export', {
@@ -67,9 +71,11 @@ export default function TasteExport({
       const json = await res.json().catch(() => ({}));
       if (res.ok) {
         setDelta(json.delta ?? []);
+        setNewCompanions(json.new_companions ?? []);
         setVersion(json.profile_version ?? null);
         setIsFirstExport(!!json.is_first_export);
         exportVersion = json.profile_version ?? undefined;
+        companions = json.companions ?? undefined;
       }
     } catch { /* version/delta are a bonus on top of the prompt, not required for it */ }
     const sections = extractTasteSections(
@@ -79,7 +85,7 @@ export default function TasteExport({
     );
     // English-only, deliberately: this text is read by a MODEL, not by the person.
     // Rendered in the chosen persona voice, with the versioned header.
-    setPrompt(buildTastePrompt(sections, { persona, version: exportVersion, name }));
+    setPrompt(buildTastePrompt(sections, { persona, version: exportVersion, name, companions }));
     setCopied(false);
     setGenerating(false);
   }
@@ -129,6 +135,14 @@ export default function TasteExport({
                 ? t('export.version', { v: version })
                 : null}
           </p>
+          {/* New table companions since the last export — a legitimate delta line
+              of its own (Table Mode item 4): the palate genuinely knows MORE now,
+              and part of what it knows is who you've been eating with. */}
+          {!isFirstExport && newCompanions.length > 0 && (
+            <p className="taste-export-note">
+              {t('export.delta.companions', { names: newCompanions.join('、') })}
+            </p>
+          )}
           <textarea
             className="field taste-export-text" readOnly value={prompt}
             onFocus={e => e.currentTarget.select()}

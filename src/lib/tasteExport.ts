@@ -90,6 +90,19 @@ export type ExportDish = {
   /** How it was logged: 'home' = home cooking; a restaurant name means dining out.
    * Feeds the home-vs-dining split (a real pattern the palate should know). */
   source?: string | null;
+  /** True when this dish was picked at a multi-member table (it has 同檯
+   * companion edges) — lets the export say, honestly, how much of what this
+   * person loved was communal rather than solo. */
+  shared?: boolean;
+};
+
+/** The companions layer the export carries (Table Mode item 4) — aggregates
+ * derived from REAL companion edges, never invented sociability. Privacy line
+ * (hard): export prose speaks display names only — a companion who never set
+ * one is counted anonymously in `unnamedCount`, not named by handle. */
+export type ExportCompanions = {
+  named: { name: string; mealCount: number; dishCount: number; cuisines: string[] }[];
+  unnamedCount: number;
 };
 
 /** What extra evidence the export payload carries, BY confidence band — the spec's
@@ -131,6 +144,9 @@ export type TasteExportSections = {
    * allows (exportPayload.sourceSplit). */
   homeCookCount: number;
   diningOutCount: number;
+  /** How many of the top loved anchors were shared-table dishes — the "highest-rated
+   * dishes skew toward shared meals" fact, stated only when it's real. */
+  lovedSharedCount: number;
   /** Dishi's own honest read of how much it actually knows yet. */
   confidence: 'thin' | 'emerging' | 'solid';
 };
@@ -175,6 +191,7 @@ export function extractTasteSections(
     ratingCount: input.ratingCount,
     homeCookCount: dishes.filter(d => d.source === 'home').length,
     diningOutCount: dishes.filter(d => !!d.restaurant).length,
+    lovedSharedCount: lovedDishes.filter(d => d.shared).length,
     confidence,
   };
 }
@@ -217,14 +234,14 @@ export const HARD_LIMITS =
  */
 export function buildTastePrompt(
   s: TasteExportSections,
-  opts: { persona?: Persona; version?: number; name?: string | null } = {},
+  opts: { persona?: Persona; version?: number; name?: string | null; companions?: ExportCompanions } = {},
 ): string {
-  const { persona = 'honest', version, name } = opts;
+  const { persona = 'honest', version, name, companions } = opts;
   const v = VOICES[persona];
   const {
     loves, strongLoves, dislikes, strongDislikes,
     cuisines, lovedDishes, dislikedDishes, ratingCount, confidence,
-    homeCookCount, diningOutCount,
+    homeCookCount, diningOutCount, lovedSharedCount,
   } = s;
   // The payload grows with the band (spec §4): emerging gains the home-vs-dining
   // split, solid additionally dates its anchor dishes. One table drives it.
@@ -272,9 +289,34 @@ export function buildTastePrompt(
     out.push('');
   }
 
+  // 同檯 companions (Table Mode item 4): honest aggregates from real shared-table
+  // edges — never invented sociability. Fixed heading (like the provenance and
+  // limits sections); the personality lives in the sections around it. Facts,
+  // not inference, so it isn't band-gated: it exists exactly when edges exist.
+  // Display names only (hard privacy line) — companions who never set one are
+  // counted, not named.
+  if (companions && (companions.named.length > 0 || companions.unnamedCount > 0)) {
+    out.push('## Who I actually eat with');
+    out.push('From real shared-table sessions in Dishi — dishes we picked at the same table, not a claimed social graph.');
+    for (const c of companions.named.slice(0, 4)) {
+      const meals = `${c.mealCount} meal${c.mealCount === 1 ? '' : 's'} together`;
+      const dishesTogether = `${c.dishCount} shared dish${c.dishCount === 1 ? '' : 'es'}`;
+      const cuisineTag = c.cuisines.length ? ` — mostly ${c.cuisines.slice(0, 3).join(', ')}` : '';
+      out.push(`- ${c.name}: ${meals}, ${dishesTogether}${cuisineTag}`);
+    }
+    if (companions.unnamedCount > 0) {
+      out.push(`- …and ${companions.unnamedCount} other table companion${companions.unnamedCount === 1 ? '' : 's'}.`);
+    }
+    out.push('');
+  }
+
   if (lovedDishes.length) {
     out.push(`## ${v.anchorsLead}`);
     out.push(...lovedDishes.map(d => dishLine(d, payload.dishDates)));
+    // Only when it's a real pattern: most of what I loved was communal eating.
+    if (lovedSharedCount > 0) {
+      out.push(`${lovedSharedCount} of these were shared-table meals — dishes picked with other people at the table, not solo orders.`);
+    }
     out.push(v.anchorsAnalogy);
     out.push('');
   }

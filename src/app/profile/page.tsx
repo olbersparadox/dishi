@@ -42,6 +42,9 @@ type RatedRow = {
   eaten_at: string | null; source: string | null;
   dish_identity_id: string | null;
   identity_name: string | null; identity_name_zh: string | null;
+  /** Shared-table dish (has 同檯 companion edges) — feeds the export's honest
+   * "loved dishes skew communal" line. */
+  shared: boolean;
 };
 
 function TasteProfile() {
@@ -149,13 +152,14 @@ function TasteProfile() {
           eaten_at: d.eaten_at ?? null, source: d.source ?? null,
           dish_identity_id: d.dish_identity_id ?? null,
           identity_name: d.identity_name ?? null, identity_name_zh: d.identity_name_zh ?? null,
+          shared: (d.companions?.length ?? 0) > 0,
         }))))
       .catch(() => setRatedRows([]));
   }, [refreshKey]);
 
   const exportDishes: ExportDish[] = ratedRows.map(d => ({
     name: d.name, name_zh: d.name_zh, score: d.my_score as number, restaurant: d.restaurant,
-    eaten_at: d.eaten_at, source: d.source,
+    eaten_at: d.eaten_at, source: d.source, shared: d.shared,
   }));
 
   // 已評嘅菜, grouped by real-world identity: linked occasions (same

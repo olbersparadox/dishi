@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseServer } from '@/lib/supabase/server';
+import { supabaseServer, supabaseAdmin } from '@/lib/supabase/server';
 import { resolveOrCreateRestaurant } from '@/lib/restaurant';
 import { sanitizeDietFlags, sanitizeCookingMethod, sanitizeHeaviness } from '@/lib/menuScan';
+import { edgeRowsForPick } from '@/lib/companions';
 
 /**
  * POST /api/dishes/pick
@@ -71,6 +72,38 @@ export async function POST(req: NextRequest) {
 
   const { data, error } = await supabase.from('dishes').insert(rows).select('id, name, name_zh');
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // 同檯 companion edges (Table Mode item 4): a pick during a table session
+  // links every consenting member pair present, per dish — the "who you ate
+  // with" layer 食記 and the AI export read. Admin client on purpose:
+  // companion_edges has NO client write policies (RLS proof in its migration
+  // file); writes happen only here and in /api/table/join's backfill.
+  // Best-effort with a logged failure — a missing edge must never fail the
+  // pick itself, but a silently-dead write path is this repo's known failure
+  // class, so it must at least leave a trace in the server logs.
+  if (tableSessionId && data && data.length > 0) {
+    try {
+      const admin = supabaseAdmin();
+      const { data: members } = await admin
+        .from('table_members').select('user_id').eq('session_id', tableSessionId);
+      const edgeRows = edgeRowsForPick(
+        (members ?? []).map(m => m.user_id),
+        data.map(d => d.id),
+        tableSessionId,
+      );
+      if (edgeRows.length > 0) {
+        // upsert + ignoreDuplicates: a re-pick of the same dish key or an
+        // overlapping join-backfill lands on the unique (dish, pair) index
+        // and no-ops instead of erroring.
+        const { error: edgeError } = await admin
+          .from('companion_edges')
+          .upsert(edgeRows, { onConflict: 'dish_id,user_a,user_b', ignoreDuplicates: true });
+        if (edgeError) console.error('companion edges (pick) failed', edgeError);
+      }
+    } catch (e) {
+      console.error('companion edges (pick) failed', e);
+    }
+  }
 
   return NextResponse.json({ picked: data });
 }

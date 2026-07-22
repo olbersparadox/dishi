@@ -99,19 +99,46 @@ export async function GET(req: NextRequest) {
   let hearts = new Map<string, number>();
   let myScores = new Map<string, number>();
   let lockedSet = new Set<string>();
+  // 同檯 companions per dish (Table Mode item 4): who shared the table when
+  // this dish was picked. display_name-first with the handle fallback — the
+  // SAME identity chain the table's own chop stamps rendered live, so a
+  // person doesn't change name between the meal and the diary of it.
+  let companions = new Map<string, { name: string }[]>();
 
   if (ids.length) {
     // locked_dish_ids batches what used to be one is_dish_locked RPC PER dish (the
     // journal's main slowness) into a single query returning just the locked ids.
-    const [{ data: marks }, { data: ratings }, { data: lockedRows }] = await Promise.all([
+    const [{ data: marks }, { data: ratings }, { data: lockedRows }, { data: edges }] = await Promise.all([
       admin.from('helpful_marks').select('dish_id').in('dish_id', ids),
       supabase.from('ratings').select('dish_id, score').eq('user_id', user.id).in('dish_id', ids),
       admin.rpc('locked_dish_ids', { p_dish_ids: ids }),
+      // Only edges I'M a party to — a dish's (other,other) pairs belong to
+      // those members' own journals, not mine. Admin client per the standing
+      // RLS pattern (reads scoped to the authenticated user's own edges).
+      admin.from('companion_edges')
+        .select('dish_id, user_a, user_b')
+        .in('dish_id', ids)
+        .or(`user_a.eq.${user.id},user_b.eq.${user.id}`),
     ]);
     for (const m of marks ?? []) hearts.set(m.dish_id, (hearts.get(m.dish_id) ?? 0) + 1);
     for (const r of ratings ?? []) myScores.set(r.dish_id, r.score);
     for (const row of (lockedRows ?? []) as unknown[]) {
       lockedSet.add(typeof row === 'string' ? row : (row as { locked_dish_ids?: string }).locked_dish_ids ?? '');
+    }
+
+    if (edges && edges.length) {
+      const otherIds = Array.from(new Set(edges.map(e => e.user_a === user.id ? e.user_b : e.user_a)));
+      const { data: profiles } = await admin
+        .from('profiles').select('id, display_name, handle').in('id', otherIds);
+      const nameById = new Map((profiles ?? []).map(p => [p.id, (p.display_name as string | null) ?? (p.handle as string | null) ?? 'someone']));
+      // No per-dish dedupe needed: unique (dish, pair) means each edge here
+      // carries a DISTINCT counterpart for that dish.
+      for (const e of edges) {
+        const other = e.user_a === user.id ? e.user_b : e.user_a;
+        const list = companions.get(e.dish_id) ?? [];
+        list.push({ name: nameById.get(other) ?? 'someone' });
+        companions.set(e.dish_id, list);
+      }
     }
   }
 
@@ -130,6 +157,8 @@ export async function GET(req: NextRequest) {
       hearts: hearts.get(d.id) ?? 0,
       my_score: myScores.get(d.id) ?? null,
       locked: lockedSet.has(d.id),
+      companions: companions.get(d.id) ?? [], // 同檯 chop names for shared-meal dishes
+
       created_at: d.created_at, // used as the next page's `before` cursor
       eaten_at: d.eaten_at ?? null, // photo-EXIF when-eaten; shown (not ordered by) on the card
     })),
