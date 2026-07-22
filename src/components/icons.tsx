@@ -207,6 +207,30 @@ export function PhotoIcon({ size = 22 }: IconProps) {
   );
 }
 
+/** Pencil — 打字 quick-add entry chip (house line weight, matches Utensils/Home/
+ *  Photo — NOT the denser EditIcon used for the small inline "edit" action). */
+export function PencilIcon({ size = 22 }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor"
+      strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 20l1-4.5L15.5 5 19 8.5 8.5 19 4 20z" />
+      <path d="M13 7l4 4" />
+    </svg>
+  );
+}
+
+/** Takeaway box — 外賣單 delivery-order entry chip (same house line weight). */
+export function TakeawayIcon({ size = 22 }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor"
+      strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 8l2-4h12l2 4" />
+      <path d="M4 8h16v11a1 1 0 01-1 1H5a1 1 0 01-1-1V8z" />
+      <path d="M9 12h6" />
+    </svg>
+  );
+}
+
 /** Speech bubble — Dishi "talking" (e.g. the why-recommended reason line).
  *  Soft, well-rounded bubble with a small tail. */
 export function SpeechIcon({ size = 16 }: IconProps) {

@@ -353,17 +353,26 @@ export const dict: Record<string, { zh: string; en: string }> = {
   // ---- profile / buddy ----
   'profile.title': { zh: '味 AI', en: 'Taste AI' },
   'profile.flicks': { zh: '{n} 次滑動 · {p} 有用積分', en: '{n} flicks · {p} usefulness points' },
-  // Three-path entry on the Taste tab — these REPLACE the single log button, so
-  // the surface itself says "anything counts": eating out, home cooking, or an
-  // old photo sitting in the camera roll.
-  'logsrc.rest': { zh: '餐廳菜', en: 'Dining out' },
-  'logsrc.home': { zh: '住家菜', en: 'Home-cooked' },
-  'logsrc.album': { zh: '相簿舊菜', en: 'Old photos' },
-  'logsrc.help.title': { zh: '食物相食評', en: 'Rating food photos' },
+  // Three-path entry on the Taste tab, organized by what the user is HOLDING
+  // (backlog 2026-07-22) — replaces the earlier 餐廳菜/住家菜/相簿舊菜 split, which
+  // asked the person to classify the MEAL when the app can infer that itself.
+  // 相簿舊菜 is absorbed into 食物相 (old-photo treatment triggers off EXIF age,
+  // not a separate chip); 打字 and 外賣單 are new.
+  'logsrc.photo': { zh: '食物相', en: 'Food photo' },
+  'logsrc.type': { zh: '打字', en: 'Type it' },
+  'logsrc.delivery': { zh: '外賣單', en: 'Delivery order' },
+  'logsrc.help.title': { zh: '記低你食咗乜', en: 'Ways to log a dish' },
   'logsrc.help.body': {
-    zh: '可以逐張評分，也可以一次揀一疊相片批量評。你的食物相裡，藏著許多關於你口味的理解——好好利用它們，訓練專屬於你的 AI 口味引擎：評得越多、越多元，dishi 就越懂你，推薦越貼近你的口味。',
-    en: 'Rate one at a time, or pick a whole stack of photos and rate in a batch. Hidden inside your food shots is a wealth of understanding about your taste — put them to good use and train an AI taste engine that belongs to you: the more you rate, and the more varied, the better dishi knows you.',
+    zh: '影低、打低、定 cap 低 — 樣樣都得。\n📷 食物相 — 影相或者揀返舊相，AI 認菜。\n✎ 打字 — 冇相？打個菜名就得。\n🧾 外賣單 — cap 低張外賣單，成單菜一次過入晒。\n評完，你嘅口味 AI 就學多一步。',
+    en: 'Snap it, type it, or screenshot it.\n📷 Food photo — shoot or pick from your library; AI reads the dish.\n✎ Type it — no photo? The name is enough.\n🧾 Delivery order — screenshot an order and every dish comes in at once.\nEvery rating teaches your taste AI.',
   },
+  // 打字 typed quick-add (backlog 2026-07-22, item 3) — name first, then
+  // restaurant, then the same blank-card rating moment as the photo path.
+  'typed.name.title': { zh: '打個名先', en: 'Name the dish' },
+  'typed.name.continue': { zh: '繼續', en: 'Continue' },
+  'typed.restaurant.title': { zh: '喺邊度食？', en: 'Where did you eat it?' },
+  'typed.enriching': { zh: 'AI 認緊呢道菜…', en: 'Reading the dish…' },
+  'typed.error.noname': { zh: '至少打一個名先得', en: 'Type a name first' },
   'profile.helped': { zh: ' — 你的記錄曾幫助其他人做決定', en: ' — your logs helped other people decide' },
   'profile.cuisines': { zh: '菜系', en: 'Cuisines' },
   'profile.rated': { zh: '已評菜式', en: 'Dishes you\u2019ve rated' },

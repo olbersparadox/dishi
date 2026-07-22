@@ -1115,3 +1115,175 @@ RatingStack log-time mount was verified by code + the same GET the sweep
 exercises live, not driven end-to-end (needs a real photo flick).
 tsc clean; 491/491 tests (11 new).
 
+---
+
+# Backlog additions — 2026-07-22 (log entry: three paths by what you're holding)
+
+Confirmed design (Jerry): reorganize log entry around what the user is
+HOLDING, not how they classify the meal. The three chips 餐廳菜/住家菜/相簿舊菜
+are replaced by:
+
+  📷 食物相 · Food photo      — any photo of food, now or from the library
+  ✎ 打字      · Type it        — no photo; name the dish, rate it
+  🧾 外賣單   · Delivery order  — screenshot of an order/confirmation screen
+
+相簿舊菜 is ABSORBED, not lost: old-photo treatment (fuzzy eaten-date, no
+restaurant context assumption) triggers automatically from EXIF age — that
+chip was asking users to do the machine's job. Retro-pick-at-scan-time is
+REJECTED (contaminates the "what should I order" moment); the saved-menu
+ask-later variant is parked as a possible future interaction, not built.
+Killed with it: the multi-channel hero animation.
+
+Hard guardrails carried from prior decisions: every imported/entered dish
+lands UNRATED (frequency ≠ preference — no channel writes implicit positive
+signal); no lingering count-badge guilt — rating happens in capped,
+session-shaped moments; each path writes its `source` flag for the engine's
+coverage-bias treatment.
+
+Items 2 (食物相 inferred context) and 4 (外賣單 delivery pipeline) are
+Fable-tier and remain open in BACKLOG.md.
+
+---
+
+## 1. IA change: chips, copy, icons, explanation card — *(Sonnet)* — ✅ DONE, 2026-07-22
+
+**Chips on the dark banner (replacing the current three):**
+- 食物相 — camera outline icon (reuse existing house camera glyph)
+- 打字 — pencil outline icon (house line weight; NOT a keyboard glyph —
+  too dense at chip size)
+- 外賣單 — takeaway-box outline icon (proposed; if the box reads as
+  "leftovers" in testing, fallback is a phone-with-receipt glyph — flag at
+  build time with both rendered)
+
+Copy register: 口語, per standing localization rule — these are short
+brand-voice moments. English strings: "Food photo" / "Type it" /
+"Delivery order".
+
+**Explanation card ((i) popover on the banner) — revised copy, proposed:**
+
+  影低、打低、定 cap 低 — 樣樣都得。
+  📷 食物相 — 影相或者揀返舊相，AI 認菜。
+  ✎ 打字 — 冇相？打個菜名就得。
+  🧾 外賣單 — cap 低張外賣單，成單菜一次過入晒。
+  評完，你嘅口味 AI 就學多一步。
+
+  (en) Snap it, type it, or screenshot it.
+  📷 Food photo — shoot or pick from your library; AI reads the dish.
+  ✎ Type it — no photo? The name is enough.
+  🧾 Delivery order — screenshot an order and every dish comes in at once.
+  Every rating teaches your taste AI.
+
+Jerry owns final copy; the above is the working draft. "cap 低" is
+deliberate HK code-switch — flag if too casual for this surface.
+
+**Implementation notes:**
+- Built `PencilIcon`/`TakeawayIcon` in `icons.tsx` at the same house line
+  weight as `UtensilsIcon`/`HomeIcon`/`PhotoIcon` (stroke 1.3); reused the
+  existing `CameraIcon` at that weight for 食物相 rather than a new glyph
+  ("reuse existing house camera glyph"). Only the box variant was built for
+  外賣單 — flagged for owner review rather than shipping both variants live.
+- The card title changed from "食物相食評" to "記低你食咗乜" (Ways to log a
+  dish) since the popover now covers all three paths, not just photos —
+  Jerry's copy sign-off still applies to the pasted body text, this title is
+  a working default.
+- **外賣單's interim behavior (open question in the pasted spec, resolved
+  with the owner before building):** item 4's real vision-extraction
+  pipeline is Fable-tier and not part of this pass. Asked the owner what
+  外賣單 should do until then — chose "route to the same photo picker as
+  食物相" over holding the chip back or showing it disabled. So today, both
+  食物相 and 外賣單 open the same multi-select photo library and feed the
+  same photo-rating pipeline; 外賣單 becomes its own real (vision-extraction)
+  pipeline when item 4 ships.
+- `.explain-modal-body` gained `white-space: pre-line` so the popover's
+  per-icon bullet lines actually break instead of collapsing into one run-on
+  paragraph — additive, no effect on other callers' single-paragraph copy.
+
+**Verified live** (owner account): screenshotted the three-chip banner
+(camera/takeaway-box/pencil icons) and the explanation card rendering the
+line-broken bullet copy correctly.
+
+---
+
+## 3. 打字: typed quick add — *(Sonnet)* — ✅ DONE, 2026-07-22
+
+The floor of the core action: just ate something, no photo, ten seconds.
+
+**Order of collection (decided): dish name FIRST, then restaurant.** The
+dish is what they remember; the restaurant is context. Predictive input on
+both:
+- Dish field: suggest from `dish_identities` at nearby/recent restaurants
+  first, then the user's own dish history, then generic completion. Chinese
+  field before English per the standing log-flow polish item; auto-translate
+  hint on the untouched field.
+- Restaurant field: nearby chips + typed Text Search (reuses the picker
+  work wholesale), 屋企 as a first-class chip, skippable (unattached dish
+  is allowed — better a logged dish than an abandoned flow).
+- Then the SAME rating moment as the photo path, on a blank card (name +
+  restaurant, no image). Blank-card visual: existing card anatomy minus
+  photo slot — do not invent a placeholder illustration; absence is honest.
+
+**Enrichment: immediate, not lazy** (decided, flag if cost objects): one
+text-path enrich call on commit so ingredient chips / flavor derivation /
+diet flags exist by the time the rating lands — the rating context is the
+point of enriching at all.
+
+**Tests:** predictive ordering (identity matches outrank generic);
+skip-restaurant path; enrich-on-commit; source flag.
+
+**Implementation notes:**
+- The backend for typed dish creation already existed (`POST /api/dishes`
+  JSON mode, `createFromName`) from the earlier "fix B" work (defer
+  typed-name enrichment) — this item is almost entirely new frontend: a
+  `TypedQuickAdd.tsx` two-step overlay (name → restaurant) plus a new
+  `GET /api/dishes/suggest` endpoint and a `RatingStack` typed-mode.
+- **Suggestions, two tiers, not three:** nearby-restaurant `dish_identities`
+  (via the existing `nearby_restaurants` RPC when a restaurant isn't chosen
+  yet) then the person's own dish history — merge/dedupe logic lives in
+  `src/lib/dishSuggest.ts` (pure, tested). The spec's third "generic
+  completion" tier was dropped: Dishi has no browsable dish dictionary
+  beyond what someone has actually logged, so a fake-choice tier would be
+  worse than two honest ones. Flag if a real global-vocabulary source is
+  ever wanted.
+- **屋企 vs 略過 distinction:** `RestaurantPicker`'s `RestaurantChoice` type
+  gained a `{kind:'home'}` variant (previously both chips produced `null`
+  indistinguishably) — additive; the two existing callers (`scan/page.tsx`,
+  `MyDishes.tsx`) only ever check `.kind === 'existing' | 'new'`, so `home`
+  falls through to their existing "no restaurant" behavior unchanged. This
+  is what lets `buildTypedDishBody` (`src/lib/typedQuickAdd.ts`, pure,
+  tested) set `dishes.source` to `'home'` vs `'manual'` correctly, matching
+  `createFromName`'s existing rule.
+- **Enrichment really is immediate, not the usual fix-B defer:** commit
+  order is create → AWAIT `/api/dishes/enrich` → THEN show the flick card,
+  so the blank card already carries real ingredient/diet chips at the
+  rating moment (verified live — see below). Cost accepted per spec: the
+  person waits through "AI 認緊呢道菜…" (observed ~15-25s live) before the
+  card appears, same order of magnitude as the enrich route's own
+  documented 20-30s.
+- **`RatingStack` gained a third mode** (`typed?: TypedEntry[]`), alongside
+  `photos`/`picks`. Unlike `photos` (created ON flick) and `picks` (never
+  ours to delete), a typed entry is created BEFORE the component mounts —
+  so `sessionDishIds` is seeded on MOUNT (a new effect), not inside the
+  pipeline function, and `cancelSession`/"nothing rated" were unified onto
+  one `discardAndExit` helper so a ✕ or an all-skip before ever flicking
+  still discards the just-created, unrated dish instead of leaking it
+  (verified live against the DB — see below). No second `enrich()` call
+  from `runTypedPipeline`: the enrich route's already-enriched early-return
+  doesn't select `diet`/`heaviness`, so a redundant call would blank those
+  chips back out client-side — flagged as a follow-up on that route
+  (pre-existing latent risk for scan-picks too, out of scope here).
+
+**Verified live** (owner account, real create+enrich+seal+rate round trips
+against the live DB, cleaned up after):
+- Happy path: typed 蛋撻/egg tart, picked the own-history suggestion chip,
+  chose 住家菜 → committed → the blank card showed REAL chips (蛋/奶類/牛油/
+  適中) already populated before rating, not after → flicked a positive
+  rating → landed in 已評菜式 with `source:'home'`, engine stats moved
+  (食評 36→37, 味覺調校 11/18→12/18) → deleted via `/api/my/dishes` DELETE
+  (cascade + replay), stats reverted to baseline.
+- Discard path: typed a dish, chose 略過 (confirmed `source:'manual'` in
+  the DB), committed, then closed with ✕ WITHOUT rating — confirmed via
+  direct DB query that the just-created dish was gone (not orphaned).
+
+tsc clean; 503/503 tests (17 new: `dishSuggest.test.ts`,
+`typedQuickAdd.test.ts`).
+

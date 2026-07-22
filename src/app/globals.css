@@ -716,7 +716,7 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 }
 @media (prefers-reduced-motion: reduce) { .explain-modal { animation: none; transform: translate(-50%, -50%); } }
 .explain-modal-title { font-family: var(--font-display); font-size: 20px; font-weight: 700; color: var(--ink); text-align: center; margin-bottom: 12px; }
-.explain-modal-body { font-size: 16px; color: var(--ink-soft); line-height: 1.65; text-align: left; }
+.explain-modal-body { font-size: 16px; color: var(--ink-soft); line-height: 1.65; text-align: left; white-space: pre-line; }
 .explain-modal-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
 /* Undo the <button> UA reset so a SealStamp 印 looks identical to the old inline
    <span>; size/color still come from .seal-stamp (and any context override). */
@@ -776,6 +776,9 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
   background: rgba(245, 240, 232, 0.18);
 }
 .log-src-seg:active { opacity: 0.85; }
+/* 打字's segment is a <button> (opens the quick-add overlay), not a file-picker
+   <label> like its siblings — undo the UA button chrome so it reads identically. */
+button.log-src-seg { background: none; border: 0; color: inherit; }
 
 /* --- qr ordering --- */
 .qty-stepper {

@@ -17,6 +17,10 @@ type Nearby = {
 export type RestaurantChoice =
   | { kind: 'existing'; id: string; name: string }
   | { kind: 'new'; name: string; lat: number; lng: number; area?: string; address?: string; place_id?: string }
+  /** The 住家菜 chip: no restaurant, but distinct from a bare skip — some
+   * callers (打字 quick-add) need to tell "this was home cooking" apart from
+   * "didn't say", to set dishes.source correctly. */
+  | { kind: 'home' }
   | null;
 
 /**
@@ -174,13 +178,16 @@ export default function RestaurantPicker({ onChange, skipFirst = false, seedCoor
     setAdding(true);
   }
   // "No restaurant" — split into 住家菜 (home) and 略過 (skip) to match the album rating
-  // flow's wording. Both mean the same to the caller (no restaurant → onChange(null));
-  // the two labels just let the person say WHY. Toggle: tapping the picked one un-picks it.
+  // flow's wording. 略過 still means onChange(null); 住家菜 carries a distinct
+  // {kind:'home'} so a caller that cares (打字 quick-add, for dishes.source) can
+  // tell "home cooking" apart from "didn't say" — existing callers that only check
+  // for `.kind === 'existing' | 'new'` see no behavioural change. Toggle: tapping
+  // the picked one un-picks it.
   function noRestaurant(key: 'home' | 'skip') {
     if (selectedKey === key) { setSelectedKey(null); onChange(null); return; }
     setSelectedKey(key);
     setAdding(false);
-    onChange(null);
+    onChange(key === 'home' ? { kind: 'home' } : null);
   }
   // Single-select: opening "+ 加間舖" clears any picked chip (skip / a nearby
   // place) and its pending choice — you can't have two picked at once. Tapping it
