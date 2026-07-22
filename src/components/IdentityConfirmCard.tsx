@@ -85,13 +85,11 @@ export default function IdentityConfirmCard({ mine, other, onDone }: {
         {!result ? (
           <>
             <div className="identity-answers">
-              <button className="identity-answer" onClick={() => answer('same')} disabled={busy}>
+              <button className="identity-answer" onClick={() => answer('same')} disabled={busy} aria-label={t('identity.same')}>
                 <span className="identity-answer-circle"><CheckIcon size={22} /></span>
-                <span className="identity-answer-label">{t('identity.same')}</span>
               </button>
-              <button className="identity-answer" onClick={() => answer('different')} disabled={busy}>
+              <button className="identity-answer" onClick={() => answer('different')} disabled={busy} aria-label={t('identity.notsame')}>
                 <span className="identity-answer-circle"><CloseIcon size={22} /></span>
-                <span className="identity-answer-label">{t('identity.notsame')}</span>
               </button>
             </div>
             <button className="duel-tie" onClick={() => answer('unsure')} disabled={busy}>

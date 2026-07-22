@@ -1511,7 +1511,6 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
   border: 1.5px solid var(--ink); border-radius: 50%;
 }
 .identity-answer:not(:disabled):active .identity-answer-circle { background: var(--ink); color: var(--glaze); }
-.identity-answer-label { font-size: 13px; color: var(--ink-soft); }
 .identity-result { font-size: 15px; line-height: 1.5; color: var(--ink); font-weight: 650; }
 /* Reveal STAYS on screen (no auto-close) so the result is readable; the ✓ closes. */
 .duel-reveal { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-top: 16px; text-align: center; }

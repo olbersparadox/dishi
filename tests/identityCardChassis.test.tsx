@@ -45,13 +45,14 @@ describe('spec divergences (hard, not optional)', () => {
   it('sides are NOT tappable — duel muscle memory must not be able to merge dishes', () => {
     mount();
     // Both dish names render, but no button contains a dish name: the only
-    // buttons are the answer row (係同一味 / 唔同嘅 / 唔肯定).
+    // buttons are the answer row (係同一味 / 唔同嘅 — icon + aria-label, no
+    // visible copy — and the visible-text 唔肯定 skip).
     expect(screen.getByText('蝦餃')).toBeTruthy();
     expect(screen.getByText('水晶鮮蝦餃')).toBeTruthy();
     const buttonTexts = screen.getAllByRole('button').map(b => b.textContent ?? '');
     expect(buttonTexts.some(t2 => t2.includes('蝦餃'))).toBe(false);
-    expect(buttonTexts.join('|')).toContain('係同一味');
-    expect(buttonTexts.join('|')).toContain('唔同嘅');
+    expect(screen.getByRole('button', { name: '係同一味' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '唔同嘅' })).toBeTruthy();
     expect(buttonTexts.join('|')).toContain('唔肯定');
   });
   it('header says 係咪同一味？ and carries NO seal glyph — nothing is predicted here', () => {
@@ -68,7 +69,7 @@ describe('answer mechanics', () => {
     global.fetch = fetchMock;
     const onDone = mount();
 
-    fireEvent.click(screen.getByText('係同一味'));
+    fireEvent.click(screen.getByRole('button', { name: '係同一味' }));
     await waitFor(() => expect(screen.getByText(/已合併/)).toBeTruthy());
     const [, init] = (fetchMock as any).mock.calls[0];
     expect(JSON.parse(init.body)).toMatchObject({ dish_id: 'd1', same_as_dish_id: 'd2' });
@@ -82,7 +83,7 @@ describe('answer mechanics', () => {
     const fetchMock = vi.fn(async () => ({ ok: true, json: async () => ({ linked: false, verdict: 'different' }) })) as unknown as typeof fetch;
     global.fetch = fetchMock;
     mount();
-    fireEvent.click(screen.getByText('唔同嘅'));
+    fireEvent.click(screen.getByRole('button', { name: '唔同嘅' }));
     await waitFor(() => expect(screen.getByText(/收到/)).toBeTruthy());
     const [, init] = (fetchMock as any).mock.calls[0];
     expect(JSON.parse(init.body)).toMatchObject({ dish_id: 'd1', not_same_as_dish_id: 'd2' });
