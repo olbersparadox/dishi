@@ -1048,7 +1048,11 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
    never followed it down). */
 .version-line {
   display: flex; align-items: center; justify-content: center; gap: 14px;
-  margin-top: -11px; transform: translateY(var(--version-line-shift, 20px));
+  margin-top: -11px;
+  /* +5px beyond the shared shift, on this line only (the bar below still reads
+     just --version-line-shift) — tightens the line-to-bar gap to 11px, in
+     both states, without moving the bar. */
+  transform: translateY(calc(var(--version-line-shift, 20px) + 5px));
   transition: transform 240ms ease;
 }
 .version-now, .version-next {
