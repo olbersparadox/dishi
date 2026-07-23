@@ -28,8 +28,11 @@ type ToRate = {
   id: string; name: string; name_zh: string | null; cuisine: string | null;
   source: string; restaurant: string | null;
   // Carried so a queued pick can be rated through the flick → growth flow: the photo
-  // for its card (menu picks usually have none), the coords to seed nearby places.
+  // for its card (menu picks usually have none), the coords to seed nearby places,
+  // and the restaurant it was picked AT — known context that must ride to the
+  // growth card as fixed display instead of being re-guessed (pickContext.ts).
   photo_url: string | null; lat: number | null; lng: number | null;
+  restaurant_id: string | null; restaurant_name_zh: string | null;
 };
 
 /** Rated rows as the API returns them — kept whole (ids + identity links)
@@ -282,6 +285,9 @@ function TasteProfile() {
                   dishId: p.id, photoUrl: p.photo_url ?? null,
                   name: p.name, name_zh: p.name_zh,
                   coords: p.lat != null && p.lng != null ? { lat: p.lat, lng: p.lng } : null,
+                  restaurant: p.restaurant_id
+                    ? { id: p.restaurant_id, name: p.restaurant ?? '', name_zh: p.restaurant_name_zh }
+                    : null,
                 })}
                   aria-label={t('log.rateNow')} title={t('log.rateNow')}>
                   <RateIcon size={20} />

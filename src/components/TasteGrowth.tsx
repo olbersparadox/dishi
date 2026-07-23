@@ -54,6 +54,10 @@ export type GrowDish = {
   placeLoading?: boolean;
   hasLocation?: boolean;
   choice?: string | null;
+  /** The restaurant was KNOWN at the dish's creation (a scan/table pick): `choice`
+   *  renders as settled fact — no picker chips, no refine affordance. Correction
+   *  lives in 食記's 轉餐廳; the confirm card stays a fast confirm, not an editor. */
+  placeFixed?: boolean;
   /** A typed "+ 加間舖" couldn't be saved (no position available, or the write failed) —
    *  shown rather than silently dropping what the person typed. */
   placeError?: boolean;
@@ -68,6 +72,7 @@ type Dish = {
   ing: string[]; diet: string[]; heaviness?: string;
   places: string[]; placeLoading: boolean; hasLocation: boolean;
   choice?: string; done: boolean;
+  placeFixed?: boolean;  // restaurant known at creation — settled fact, not a refine surface
   placeError?: boolean;  // a typed "+ 加間舖" couldn't be saved — offer it again, don't drop it
   notDish?: boolean;     // vision said this photo isn't food — never learned from
   failed?: boolean;      // the upload itself bounced (413/network) — NOTHING was saved
@@ -217,6 +222,7 @@ export default function TasteGrowth({ live, engine, blobInputs, onExit, onCancel
         placeLoading: gd.placeLoading ?? false,
         hasLocation: gd.hasLocation ?? false,
         choice: gd.choice ?? undefined,
+        placeFixed: gd.placeFixed ?? false,
         placeError: gd.placeError ?? false,
       };
     }));
@@ -466,7 +472,14 @@ export default function TasteGrowth({ live, engine, blobInputs, onExit, onCancel
                       </div>
                     )}
 
-                {showPlace && (
+                {/* Restaurant known at the pick's creation: settled fact, rendered as a
+                    static ink tile — no expand, no chips, no 改 affordance. Correction
+                    lives in 食記's 轉餐廳, never on the fast-confirm card. */}
+                {d.placeFixed && d.choice ? (
+                  <div className="learn-place">
+                    <span className="learn-place-fixed"><span aria-hidden>📍 </span>{d.choice}</span>
+                  </div>
+                ) : showPlace && (
                   d.placeLoading && d.places.length === 0
                     ? <div className="learn-place"><span className="learn-finding">{t('grow.finding')}</span></div>
                     : !showList && d.choice

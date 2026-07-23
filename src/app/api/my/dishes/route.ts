@@ -37,8 +37,10 @@ export async function GET(req: NextRequest) {
       .from('dishes')
       // photo_url + coords: the queued pick is now rated through the SAME flick →
       // growth flow as an album batch, so its card needs the photo (when it has one)
-      // and its coords need to seed the nearby-restaurant refine.
-      .select('id, name, name_zh, cuisine, photo_url, lat, lng, source, created_at, restaurants(name)')
+      // and its coords need to seed the nearby-restaurant refine. restaurant_id +
+      // both restaurant names: a scan/table pick KNOWS its restaurant — the growth
+      // card renders it as fixed context instead of re-guessing (pickContext.ts).
+      .select('id, name, name_zh, cuisine, photo_url, lat, lng, source, created_at, restaurant_id, restaurants(name, name_zh)')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
       .limit(30);
@@ -58,6 +60,8 @@ export async function GET(req: NextRequest) {
           id: d.id, name: d.name, name_zh: d.name_zh, cuisine: d.cuisine,
           photo_url: d.photo_url ?? null, lat: d.lat ?? null, lng: d.lng ?? null,
           source: d.source, restaurant: d.restaurants?.name ?? null,
+          restaurant_id: d.restaurant_id ?? null,
+          restaurant_name_zh: d.restaurants?.name_zh ?? null,
         })),
     });
   }

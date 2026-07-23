@@ -549,6 +549,14 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
   background: var(--paper-inset); color: var(--ink-soft); animation: chipIn 240ms ease-out;
 }
 .learn-finding { font-size: 12px; color: var(--ink-soft); font-style: italic; }
+/* A pick's restaurant known at creation: the same ink location tile as .refine-place,
+   but STATIC — no breath, not a button — because it's settled fact, not tap-to-change.
+   (Correction lives in 食記's 轉餐廳; the confirm card is a fast confirm, not an editor.) */
+.learn-place-fixed {
+  display: inline-flex; align-items: center; gap: 6px; min-width: 0; max-width: 100%;
+  border-radius: 10px; padding: 6px 13px; font-size: 15px;
+  background: var(--ink); color: var(--glaze);
+}
 .learn-learned { font-size: 12px; color: var(--seal); font-weight: 600; }
 @keyframes chipIn { from { opacity: 0; transform: scale(0.82); } to { opacity: 1; transform: none; } }
 .learn-place { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 5px; }

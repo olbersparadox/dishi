@@ -21,6 +21,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useLang } from '@/lib/i18n';
 import { normalizePhoto } from '@/lib/image';
 import { readPhotoMeta, type PhotoMeta } from '@/lib/photoMeta';
+import { pickPlaceContext, type PickRestaurant } from '@/lib/pickContext';
 import SnapRating from '@/components/SnapRating';
 import TasteGrowth, { type GrowDish, type GrowPlace, type NameEdit } from '@/components/TasteGrowth';
 import IdentityConfirmCard from '@/components/IdentityConfirmCard';
@@ -39,6 +40,10 @@ export type ExistingPick = {
   name: string;
   name_zh: string | null;
   coords: { lat: number; lng: number } | null;
+  /** The restaurant this pick was created AT (scan/table). Known context must ride
+   *  with the dish: the growth card shows it fixed, and the nearby guess never runs
+   *  (its optimistic persist could overwrite this) — see pickContext.ts. */
+  restaurant: PickRestaurant | null;
 };
 
 /** A dish CREATED (and, per the typed-quick-add design, already ENRICHED) by
@@ -383,15 +388,21 @@ export default function RatingStack({ photos, picks, typed, userId, onExit }: {
   // rating. The dish id is never pushed to sessionDishIds: nothing here is ours to delete.
   async function runPickPipeline(pick: ExistingPick, score: number, i: number) {
     try {
+      // The restaurant the pick was created at rides onto the card as FIXED context;
+      // when it's known, the nearby guess must not run at all — its optimistic
+      // persist (persistPlace of the geographically nearest) is a silent-overwrite
+      // path for a restaurant that's already correct. See pickContext.ts.
+      const place = pickPlaceContext(pick.restaurant, !!pick.coords, lang === 'zh' ? 'zh' : 'en');
       patch(i, {
         status: 'ready', dishId: pick.dishId, isDish: true,
         name: pick.name, name_zh: pick.name_zh, coords: pick.coords,
+        ...(place.fixed ? { choice: place.choice, placeFixed: true, hasLocation: true } : {}),
       });
       await seal(pick.dishId);
       await rate(pick.dishId, score);
       refreshBuddy();
       enrich(i, pick.dishId);   // fills in ingredients/diet chips if it never got them
-      if (pick.coords) loadNearby(i, pick.dishId, pick.coords);
+      if (place.loadNearby && pick.coords) loadNearby(i, pick.dishId, pick.coords);
     } catch { patch(i, { status: 'failed' }); }
   }
 

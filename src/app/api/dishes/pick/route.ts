@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseServer, supabaseAdmin } from '@/lib/supabase/server';
 import { resolveOrCreateRestaurant } from '@/lib/restaurant';
-import { sanitizeDietFlags, sanitizeCookingMethod, sanitizeHeaviness } from '@/lib/menuScan';
+import { buildPickRows } from '@/lib/pickRows';
 import { edgeRowsForPick } from '@/lib/companions';
 
 /**
@@ -37,36 +37,10 @@ export async function POST(req: NextRequest) {
   }
 
   const tableSessionId = typeof body?.table_session_id === 'string' ? body.table_session_id : null;
-  const source = tableSessionId ? 'table' : 'scan';
 
-  const rows = items
-    .map((raw: any) => {
-      const name = typeof raw?.name === 'string' ? raw.name.trim().slice(0, 120) : '';
-      if (!name) return null;
-      return {
-        user_id: user.id,
-        restaurant_id: restaurantId,
-        table_session_id: tableSessionId,
-        name,
-        name_zh: typeof raw?.name_zh === 'string' ? raw.name_zh.trim().slice(0, 120) || null : null,
-        cuisine: typeof raw?.cuisine === 'string' ? raw.cuisine.toLowerCase().slice(0, 40) : 'unknown',
-        attributes: raw?.attributes && typeof raw.attributes === 'object' ? raw.attributes : {},
-        // Re-sanitized, not trusted verbatim — the client echoes back what the scan
-        // showed on screen, but it's still client input, and these are closed
-        // vocabularies exactly like `cuisine` above should be too.
-        cooking_method: sanitizeCookingMethod(raw?.cooking_method),
-        heaviness: sanitizeHeaviness(raw?.heaviness),
-        diet: sanitizeDietFlags(raw?.diet),
-        photo_url: null,
-        source,
-        // Which ranked candidate this came from — lets table-mode "who picked
-        // this" stamps match unambiguously when two candidates share a printed
-        // name (see dishes.table_item_key's migration comment).
-        table_item_key: typeof raw?.table_item_key === 'string' ? raw.table_item_key.slice(0, 60) : null,
-      };
-    })
-    .filter((r): r is NonNullable<typeof r> => r !== null)
-    .slice(0, 30); // sane upper bound — this is a batch pick, not a data import
+  // Row construction extracted to pickRows.ts (pure) so the eaten_at rule —
+  // pick time IS the eaten time — is unit-tested, not just asserted here.
+  const rows = buildPickRows(items, { userId: user.id, restaurantId, tableSessionId });
 
   if (rows.length === 0) return NextResponse.json({ error: 'None of those dishes had a usable name.' }, { status: 400 });
 
