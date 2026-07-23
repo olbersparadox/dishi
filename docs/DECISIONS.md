@@ -1627,3 +1627,56 @@ persistence from paste or from named summon. Therefore:
   ready-made before/after visual for acquisition deck.
 
 Full evidence: `docs/rnd/persona-phase0-results.md`.
+
+## dishi.Persona — character persistence in foreign AIs — *(Fable)* — ✅ DONE (install flow `1f5198c` 2026-07-23 closed the item)
+
+Full backlog entry, verbatim, as it stood when the last open piece shipped:
+
+- **Phase 0 — R&D gate: ✅ CLEARED 2026-07-23.** Full results in
+  `docs/rnd/persona-phase0-results.md`. Headline: all in-session behaviors pass
+  on Gemini + Claude (chime, mirroring, scouts, link ritual, 收聲, anchor
+  reasoning); cross-session persistence is zero from paste AND from named
+  summon. Container install confirmed as the core mechanic.
+
+- **Persona names — DECIDED 2026-07-23:** dishi.Spoon (慾望食桌) / dishi.CK
+  (老饕) / dishi.Kiki (潮食 OL), full briefs in
+  `dishi-persona-briefs-spoon-ck-kiki.md` (owner-supplied). Replaced the old
+  老實派/食家腔/貪玩 placeholders everywhere, including in
+  `taste_profiles.persona`'s default (now `'spoon'`).
+
+- **Phase 2 — export doc rewrite: SHIPPED `80a3440` 2026-07-23.**
+  `src/lib/persona.ts` (WORDING, per character) gained `archetype`,
+  `neverDoes`, `hardRule`, bilingual `calibration` (tone reference only, never
+  real evidence), and `handshakeIntro`. `src/lib/tasteExport.ts` (STRUCTURE,
+  shared) gained verbatim house-rule blocks appended for every persona:
+  `chimeContract` (per-persona name), `LANGUAGE_MIRROR`, `SCOUT_MISSION`,
+  `LINK_RITUAL` (manifest-before-link, `do=cook|trip|hunt|ate` grammar, one
+  offer per conversation, nothing commits on tap, manual path always
+  mentioned), `DISMISSAL_SCOPE` (收聲 = this conversation only; doc explicitly
+  forbids the host storing it as a standing instruction), `LOCATION_CONFLICT`
+  (network vs receipt geography disagree → ask one line, never assume),
+  `VERSION_AWARENESS` (capped upgrade reminders). New "Meeting me" / "Arrival"
+  / "House rules" sections in `buildTastePrompt`; the arrival handshake cites
+  a REAL anchor dish from the user's own evidence, never the calibration
+  sample. EPISTEMIC_LINE + HARD_LIMITS kept verbatim, unchanged. +5 tests
+  (`tests/tasteExport.test.ts`), tsc clean, 532/532 passing.
+  **Summon-phrase fallback stays struck** (name collision + memory
+  compression, see Phase 0 report).
+
+- **Install-path flow — SHIPPED `1f5198c` 2026-07-23** (was the last open
+  piece: "the install-path flow (pick-to-copy card → per-host container
+  instructions: 'Create a Gem / Claude Project / custom GPT named dishi.{X}
+  → paste → 佢正式入伙', plain-paste as the one-conversation taster ending in
+  the install upsell, copy-per-host table in doc-generation code)").
+  Built as: `INSTALL_HOSTS` table in `src/lib/tasteExport.ts` — one row per
+  host (Gemini Gem / Claude Project / ChatGPT GPT-or-Project), bilingual-in-
+  code like `PERSONA_META`, each line interpolating the persona's exact
+  `displayName` so the container carries the character's name; the export
+  card (`TasteExport.tsx`) now leads with the install instructions after
+  generate, and plain paste survives only as a labelled one-conversation
+  taster (想先試吓 {X}？) ending in the install upsell (啱嘴形？想 {X} 留低…
+  去安裝). Generate/copy mechanic and `buildTastePrompt` untouched. Brand-
+  voice copy kept 口語 per the register-shift exceptions. +3 tests, 535/535
+  passing, verified in-browser on real data (39 ratings, both states).
+  **Remaining manual step (owner, not code):** Phase 0.5 persistence re-test —
+  install a real Gem/Project once and confirm day-over-day retention.

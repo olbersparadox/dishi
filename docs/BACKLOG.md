@@ -29,41 +29,9 @@ DECISIONS.md.)
 
 ## Needs an owner decision before any code
 
-- [ ] **[F] dishi.Persona — character persistence in foreign AIs.**
-  - **Phase 0 — R&D gate: ✅ CLEARED 2026-07-23.** Full results in
-    `docs/rnd/persona-phase0-results.md`. Headline: all in-session behaviors pass
-    on Gemini + Claude (chime, mirroring, scouts, link ritual, 收聲, anchor
-    reasoning); cross-session persistence is zero from paste AND from named
-    summon. Container install confirmed as the core mechanic.
-
-  - **Persona names — DECIDED 2026-07-23:** dishi.Spoon (慾望食桌) / dishi.CK
-    (老饕) / dishi.Kiki (潮食 OL), full briefs in
-    `dishi-persona-briefs-spoon-ck-kiki.md` (owner-supplied). Replaced the old
-    老實派/食家腔/貪玩 placeholders everywhere, including in
-    `taste_profiles.persona`'s default (now `'spoon'`).
-
-  - **Phase 2 — export doc rewrite: SHIPPED `80a3440` 2026-07-23.**
-    `src/lib/persona.ts` (WORDING, per character) gained `archetype`,
-    `neverDoes`, `hardRule`, bilingual `calibration` (tone reference only, never
-    real evidence), and `handshakeIntro`. `src/lib/tasteExport.ts` (STRUCTURE,
-    shared) gained verbatim house-rule blocks appended for every persona:
-    `chimeContract` (per-persona name), `LANGUAGE_MIRROR`, `SCOUT_MISSION`,
-    `LINK_RITUAL` (manifest-before-link, `do=cook|trip|hunt|ate` grammar, one
-    offer per conversation, nothing commits on tap, manual path always
-    mentioned), `DISMISSAL_SCOPE` (收聲 = this conversation only; doc explicitly
-    forbids the host storing it as a standing instruction), `LOCATION_CONFLICT`
-    (network vs receipt geography disagree → ask one line, never assume),
-    `VERSION_AWARENESS` (capped upgrade reminders). New "Meeting me" / "Arrival"
-    / "House rules" sections in `buildTastePrompt`; the arrival handshake cites
-    a REAL anchor dish from the user's own evidence, never the calibration
-    sample. EPISTEMIC_LINE + HARD_LIMITS kept verbatim, unchanged. +5 tests
-    (`tests/tasteExport.test.ts`), tsc clean, 532/532 passing.
-    **Not yet built — still open:** the install-path flow (pick-to-copy card →
-    per-host container instructions: "Create a Gem / Claude Project / custom
-    GPT named dishi.{X} → paste → 佢正式入伙", plain-paste as the
-    one-conversation taster ending in the install upsell, copy-per-host table
-    in doc-generation code). **Summon-phrase fallback stays struck** (name
-    collision + memory compression, see Phase 0 report).
+(dishi.Persona — character persistence in foreign AIs: install flow SHIPPED
+`1f5198c` 2026-07-23, closing the item — full entry moved to DECISIONS.md.
+Only the owner's manual Phase 0.5 persistence re-test remains, outside code.)
 - [ ] **[F] 食記 ordering for album logs.** Old camera-roll photos have a fuzzy
   eaten-date; decide: order journal by when-eaten vs when-logged, and how to
   capture an approximate eaten-date at log time without adding friction.
