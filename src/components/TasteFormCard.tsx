@@ -299,7 +299,10 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
         <div className="persona-dots" aria-hidden>
           {PERSONAS.map((p, i) => <span key={p} className={`persona-dot ${i === idx ? 'on' : ''}`} />)}
         </div>
-        <hr className="persona-divider" />
+        <div className="persona-divider-wrap">
+          <hr className="persona-divider" />
+          <span className="persona-divider-arrow" aria-hidden />
+        </div>
         {/* Host logos as buttons — same marks/order as the resting row below,
             now each in a thin rounded-square outline marking them tappable. */}
         <div className="persona-hosts">

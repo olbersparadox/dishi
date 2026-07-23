@@ -1379,18 +1379,20 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 /* The persona NAME is a name — the dish-name serif register (font-display,
    heavy), not UI-label styling. */
 .persona-name { font-family: var(--font-display); font-size: 26px; font-weight: 800; color: var(--ink); }
-.persona-blurb { font-size: 15.5px; color: var(--ink-soft); line-height: 1.55; margin-top: 6px; }
+.persona-blurb { font-size: 15.5px; color: var(--ink-soft); line-height: 1.55; margin-top: 4px; letter-spacing: 0.04em; }
 .persona-dots { display: flex; justify-content: center; gap: 7px; margin-top: 14px; }
 .persona-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--line); }
 .persona-dot.on { background: var(--ink); }
-.persona-divider { position: relative; border: none; border-top: 1px solid var(--line); margin: 18px 24px; }
-/* Small downward-pointing triangle, centered on the line — a CSS border-trick
-   arrow, no image asset. */
-.persona-divider::after {
-  content: ''; position: absolute; top: 0; left: 50%; transform: translate(-50%, -50%);
+/* A real element wrapping the <hr>, not a ::after on it — Safari/WebKit doesn't
+   reliably render generated content on <hr>, so the earlier pseudo-element
+   triangle was invisible on-device even though it computed fine in Chromium. */
+.persona-divider-wrap { position: relative; margin: 18px 24px; }
+.persona-divider { border: none; border-top: 1px solid var(--line); margin: 0; }
+.persona-divider-arrow {
+  position: absolute; top: 0; left: 50%; transform: translate(-50%, -50%);
   width: 0; height: 0;
   border-left: 5px solid transparent; border-right: 5px solid transparent;
-  border-top: 6px solid var(--line);
+  border-top: 6px solid var(--ink-soft);
 }
 /* Host logos as buttons: the same marks as the resting row, each in a thin
    rounded-square outline marking them tappable. */
