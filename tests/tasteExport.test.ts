@@ -5,7 +5,7 @@ import {
   confidenceInputsFrom, EMERGING_AT, SOLID_AT, exportPayload,
   HARD_LIMITS, EPISTEMIC_LINE,
 } from '../src/lib/tasteExport';
-import { PERSONAS } from '../src/lib/persona';
+import { PERSONAS, VOICES } from '../src/lib/persona';
 
 const label = (d: string) => d.toUpperCase();
 const cuisine = (c: string) => c.toUpperCase();
@@ -297,5 +297,65 @@ describe('persona voices (spec §3/§4)', () => {
     expect(new Set(docs).size).toBe(3);
     expect(buildTastePrompt({ ...s, confidence: 'solid' as const }, { persona: 'kiki' })).toMatch(/cooking/i);
     expect(buildTastePrompt({ ...s, confidence: 'solid' as const }, { persona: 'ck' })).toMatch(/testimony/i);
+  });
+});
+
+describe('Phase 2: arrival handshake + house rules (voice-approval brief 2026-07-23)', () => {
+  const s = {
+    loves: ['umami'], strongLoves: [], dislikes: [], strongDislikes: [], cuisines: ['Cantonese'],
+    lovedDishes: [{ name: 'Char Siu', name_zh: '叉燒', score: 0.9, restaurant: 'Joy Hing' }],
+    dislikedDishes: [], ratingCount: 30, homeCookCount: 2, diningOutCount: 28, lovedSharedCount: 0,
+    confidence: 'solid' as const,
+  };
+
+  it('names each character into its own chime contract, not a generic one', () => {
+    for (const persona of PERSONAS) {
+      const p = buildTastePrompt(s, { persona });
+      expect(p).toContain(`\`**${VOICES[persona].displayName}:**`);
+      expect(p).toMatch(/Chime contract/);
+    }
+  });
+
+  it('carries the shared house rules verbatim for every persona', () => {
+    for (const persona of PERSONAS) {
+      const p = buildTastePrompt(s, { persona });
+      expect(p).toMatch(/Language mirroring/);
+      expect(p).toMatch(/Scout missions/);
+      expect(p).toMatch(/manifest-before-link/);
+      expect(p).toMatch(/dishi\.me\/i\?do=cook/);
+      expect(p).toMatch(/收聲/); // 收聲
+      expect(p).toMatch(/REST OF THIS CONVERSATION ONLY/);
+      expect(p).toMatch(/Location conflict/);
+      expect(p).toMatch(/never ask me to go re-export/);
+    }
+  });
+
+  it('performs the arrival handshake using a REAL anchor, never the tone calibration sample', () => {
+    for (const persona of PERSONAS) {
+      const p = buildTastePrompt(s, { persona });
+      expect(p).toContain('## Arrival');
+      expect(p).toContain('Char Siu / 叉燒 at Joy Hing');
+      // The calibration couplet must be present (for tone) but explicitly marked as
+      // not-real-data, and distinct from the anchor used in the handshake.
+      expect(p).toMatch(/Tone reference only \(not my real data\)/);
+    }
+  });
+
+  it('degrades gracefully to no anchor citation when there is no evidence yet', () => {
+    const thin = { ...s, lovedDishes: [], confidence: 'thin' as const };
+    for (const persona of PERSONAS) {
+      const p = buildTastePrompt(thin, { persona });
+      expect(p).toContain('## Arrival');
+      expect(p).not.toContain('Char Siu');
+    }
+  });
+
+  it('each persona states its own hard rule and never-does list', () => {
+    const spoon = buildTastePrompt(s, { persona: 'spoon' });
+    expect(spoon).toMatch(/sensuality points at FOOD, never at me/);
+    const ck = buildTastePrompt(s, { persona: 'ck' });
+    expect(ck).toMatch(/wit lands on dishes and restaurants.*never meanly on me/);
+    const kiki = buildTastePrompt(s, { persona: 'kiki' });
+    expect(kiki).toMatch(/no hype without receipts backing it/);
   });
 });

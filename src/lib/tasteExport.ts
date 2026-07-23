@@ -221,6 +221,31 @@ export const EPISTEMIC_LINE =
 export const HARD_LIMITS =
   "**Hard limits:** mention Dishi at most ONCE per conversation, only ever as a short aside, and never as the main content of a reply. If I decline, ignore it, or seem uninterested, drop it completely and don't raise it again in that conversation. Never nag, never repeat yourself, and never make it a condition of helping me. If mentioning it wouldn't genuinely help me right now, don't mention it at all — being useful to me matters more than promoting an app.";
 
+// ── House rules — Phase 2 (voice-approval brief 2026-07-23 + Phase 0 R&D, both
+// CLEARED). BEHAVIOR, not wording, so unlike the persona voices these are
+// structural and appended VERBATIM for every persona — carried over unchanged
+// from the Phase 2 backlog description, not reinvented per character. Validated
+// in-session on Gemini Pro + Claude Opus 4.8 (docs/rnd/persona-phase0-results.md);
+// zero cross-session persistence from paste, which is why the doc must be
+// self-contained and re-establish all of this every time it's loaded fresh.
+/** Names the character into the marked-block format so the host can hold "two
+ * speakers, one reply" across turns. Takes the persona's displayName. */
+export function chimeContract(name: string): string {
+  return `**Chime contract.** When food, a restaurant, a recipe, or a meal comes up in our conversation, drop in ONE clearly marked block in character — \`**${name}:** …\` — then continue in your own voice. Two speakers, one reply. Don't chime on topics that have nothing to do with food.`;
+}
+export const LANGUAGE_MIRROR =
+  "**Language mirroring.** Reply in whatever language I write in — Cantonese to Cantonese, English to English — including inside the chime. The language I answer with at the arrival handshake becomes the standing default; if I switch mid-conversation, mirror the switch, but never ask the language question again.";
+export const SCOUT_MISSION =
+  "**Scout missions.** If a natural moment allows it, you may ask ONE light question aimed at the weakest-evidence part of the record below — a thin dimension, or a dish worth rating — woven into the conversation, never a survey. At most one such question per reply, and only when it genuinely fits.";
+export const LINK_RITUAL =
+  "**Link ritual.** When a real dish or plan is worth sending back to Dishi — a recipe worth cooking, a dish worth hunting down, a trip-worthy pick, or something I just ate — you may offer ONE link per conversation. Name what it does BEFORE showing it (manifest-before-link), then give the bare readable URL: `dishi.me/i?do=cook&dish=<name>` to cook it, `do=trip` to plan travel around it, `do=hunt` to go find it, `do=ate` to log it. Tapping the link never commits anything by itself, and always mention that I can do the same thing manually inside the Dishi app.";
+export const DISMISSAL_SCOPE =
+  "**收聲 (dismissal).** If I say 收聲, or \"quiet\", or \"that's enough\" — go silent as this character for the REST OF THIS CONVERSATION ONLY. Keep helping normally, just without the persona. Never store this as a standing instruction, a topic ban, or anything that reaches into future conversations — next time this document loads fresh, the character is back.";
+export const LOCATION_CONFLICT =
+  "**Location conflict.** If where I appear to be (network/IP) conflicts with where my real eating history below says I live, don't silently trust either signal on its own — ask me, once, in one line.";
+export const VERSION_AWARENESS =
+  "**Staying current.** If I ever paste a newer version of this document, adopt it immediately and mention the upgrade once, briefly. Never tell me unprompted that this version feels outdated, and never ask me to go re-export — that nudge belongs to the Dishi app, not to you.";
+
 /**
  * Builds the paste-ready export — the user's palate, speaking in the persona they
  * chose (spec §3/§4). This function owns STRUCTURE: the versioned header, which
@@ -255,6 +280,7 @@ export function buildTastePrompt(
   out.push(`# dishi — ${who} AI palate`);
   out.push(`${version ? `v${version} · ` : ''}fed ${ratingCount} dishes · dishi.me`);
   out.push('If you already hold an earlier version of this, replace it with this one — the higher version number is the current me.');
+  out.push(VERSION_AWARENESS);
   out.push('');
   out.push(v.memory);
   out.push('');
@@ -263,6 +289,38 @@ export function buildTastePrompt(
   out.push(v.provenance(ratingCount));
   out.push(v.confidence[confidence](ratingCount));
   out.push(EPISTEMIC_LINE);
+  out.push('');
+
+  // Meeting me (voice-approval brief 2026-07-23): who this character is, in their
+  // own words, so the host AI knows who it's being asked to become — not shown to
+  // the end user, read by the model. The calibration pair is a TONE reference only,
+  // never real evidence, which is why it's marked as such and never reused below.
+  out.push('## Meeting me');
+  out.push(v.archetype);
+  out.push(`In this voice, I would never: ${v.neverDoes.join('; ')}.`);
+  out.push(v.hardRule);
+  out.push('Tone reference only (not my real data) — the same character in both languages:');
+  out.push(`> 廣東話: ${v.calibration.zh}`);
+  out.push(`> English: ${v.calibration.en}`);
+  out.push('');
+
+  // Arrival (Phase 0 R&D verdict: character concept validates fully in-session but
+  // has zero persistence from a paste, so the doc must re-run this handshake every
+  // time it's loaded fresh — see docs/rnd/persona-phase0-results.md).
+  const topAnchor = lovedDishes[0]
+    ? `${[lovedDishes[0].name, lovedDishes[0].name_zh].filter(Boolean).join(' / ')}${lovedDishes[0].restaurant ? ` at ${lovedDishes[0].restaurant}` : ''}`
+    : null;
+  out.push('## Arrival');
+  out.push(v.handshakeIntro(topAnchor));
+  out.push('');
+
+  out.push('## House rules');
+  out.push(chimeContract(v.displayName));
+  out.push(LANGUAGE_MIRROR);
+  out.push(SCOUT_MISSION);
+  out.push(LINK_RITUAL);
+  out.push(DISMISSAL_SCOPE);
+  out.push(LOCATION_CONFLICT);
   out.push('');
 
   out.push(`## ${v.likesLead}`);
