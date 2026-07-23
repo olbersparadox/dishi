@@ -36,30 +36,34 @@ DECISIONS.md.)
     reasoning); cross-session persistence is zero from paste AND from named
     summon. Container install confirmed as the core mechanic.
 
-  - **Phase 2 — [F] export doc rewrite + install flow (amended per Phase 0):**
-    - **Install path is primary:** the pick-to-copy card leads to per-host
-      container instructions — "Create a Gem / Claude Project / custom GPT named
-      dishi.{X} → paste → 佢正式入伙" — with plain-paste offered as the
-      one-conversation taster that ends in the install upsell. Copy per host
-      (Gemini Gem / Claude Project / ChatGPT GPT or Project) maintained as a
-      small table in the doc-generation code, expect churn as host UIs change.
-    - **Summon-phrase fallback: struck** (name collision + memory compression,
-      see report).
-    - **Dismissal scoping (hard rule):** 收聲 = this conversation only; doc
-      explicitly forbids the host storing any dismissal as a standing
-      instruction.
-    - **Location conflict (hard rule):** network location vs receipt geography
-      disagree → Bo asks one line ("我啲 receipt 全部喺香港喎, 你而家真係喺 X?"),
-      never assumes either way.
-    - Everything else carries over unchanged: chime contract, language mirroring,
-      scout missions on weakest-evidence dims, intent-link ritual
-      (manifest-before-link, bare readable URL, `do=cook|trip|hunt|ate` grammar,
-      one offer per conversation, nothing commits on tap, manual path always
-      mentioned), version self-awareness with capped upgrade reminders, verbatim
-      EPISTEMIC_LINE + HARD_LIMITS in every persona.
+  - **Persona names — DECIDED 2026-07-23:** dishi.Spoon (慾望食桌) / dishi.CK
+    (老饕) / dishi.Kiki (潮食 OL), full briefs in
+    `dishi-persona-briefs-spoon-ck-kiki.md` (owner-supplied). Replaced the old
+    老實派/食家腔/貪玩 placeholders everywhere, including in
+    `taste_profiles.persona`'s default (now `'spoon'`).
 
-  - **Unblocked next:** persona NAMES (owner brand decision — the only item
-    standing before Phase 1 build).
+  - **Phase 2 — export doc rewrite: SHIPPED `80a3440` 2026-07-23.**
+    `src/lib/persona.ts` (WORDING, per character) gained `archetype`,
+    `neverDoes`, `hardRule`, bilingual `calibration` (tone reference only, never
+    real evidence), and `handshakeIntro`. `src/lib/tasteExport.ts` (STRUCTURE,
+    shared) gained verbatim house-rule blocks appended for every persona:
+    `chimeContract` (per-persona name), `LANGUAGE_MIRROR`, `SCOUT_MISSION`,
+    `LINK_RITUAL` (manifest-before-link, `do=cook|trip|hunt|ate` grammar, one
+    offer per conversation, nothing commits on tap, manual path always
+    mentioned), `DISMISSAL_SCOPE` (收聲 = this conversation only; doc explicitly
+    forbids the host storing it as a standing instruction), `LOCATION_CONFLICT`
+    (network vs receipt geography disagree → ask one line, never assume),
+    `VERSION_AWARENESS` (capped upgrade reminders). New "Meeting me" / "Arrival"
+    / "House rules" sections in `buildTastePrompt`; the arrival handshake cites
+    a REAL anchor dish from the user's own evidence, never the calibration
+    sample. EPISTEMIC_LINE + HARD_LIMITS kept verbatim, unchanged. +5 tests
+    (`tests/tasteExport.test.ts`), tsc clean, 532/532 passing.
+    **Not yet built — still open:** the install-path flow (pick-to-copy card →
+    per-host container instructions: "Create a Gem / Claude Project / custom
+    GPT named dishi.{X} → paste → 佢正式入伙", plain-paste as the
+    one-conversation taster ending in the install upsell, copy-per-host table
+    in doc-generation code). **Summon-phrase fallback stays struck** (name
+    collision + memory compression, see Phase 0 report).
 - [ ] **[F] 食記 ordering for album logs.** Old camera-roll photos have a fuzzy
   eaten-date; decide: order journal by when-eaten vs when-logged, and how to
   capture an approximate eaten-date at log time without adding friction.
