@@ -439,8 +439,8 @@ export function computeExportDelta(
 // (persona.ts) because the copy interpolates the persona's exact display name —
 // the container must carry the character's name for the summon to feel real.
 export type InstallHost = {
-  id: 'gemini' | 'claude' | 'chatgpt';
-  /** Brand name for the host-picker chip — a product name, so never translated. */
+  id: 'claude' | 'gemini' | 'grok' | 'chatgpt';
+  /** Brand name — a product name, so never translated. */
   label: string;
   /** /public path — same assets as the export card's logo row. */
   logo: string;
@@ -450,16 +450,23 @@ export type InstallHost = {
   zh: (name: string) => string[];
   en: (name: string) => string[];
 };
+// Row order matches the export card's live logo row (Claude · Gemini · Grok ·
+// ChatGPT) — the install layer opens FROM those logos, so the two must agree.
 export const INSTALL_HOSTS: InstallHost[] = [
+  {
+    id: 'claude', label: 'Claude', logo: '/ai-logos/logo-claude.webp',
+    zh: n => ['開 Claude，去 Projects，開個新 Project', `個名改做 ${n}`, '成份文件貼落 Project instructions 度'],
+    en: n => ['Open Claude → Projects → New Project', `Name it ${n}`, 'Paste this whole doc into the project instructions'],
+  },
   {
     id: 'gemini', label: 'Gemini', logo: '/ai-logos/logo-gemini.png',
     zh: n => ['開 Gemini，去 Gems，整個新 Gem', `個名改做 ${n}`, '成份文件貼落佢嘅 Instructions 度，儲存'],
     en: n => ['Open Gemini → Gems → New Gem', `Name it ${n}`, 'Paste this whole doc into its Instructions, save'],
   },
   {
-    id: 'claude', label: 'Claude', logo: '/ai-logos/logo-claude.webp',
-    zh: n => ['開 Claude，去 Projects，開個新 Project', `個名改做 ${n}`, '成份文件貼落 Project instructions 度'],
-    en: n => ['Open Claude → Projects → New Project', `Name it ${n}`, 'Paste this whole doc into the project instructions'],
+    id: 'grok', label: 'Grok', logo: '/ai-logos/logo-grok.webp',
+    zh: n => ['開 Grok，開個新 Project／Workspace', `個名改做 ${n}`, '成份文件貼落佢嘅 instructions 度'],
+    en: n => ['Open Grok → new Project / Workspace', `Name it ${n}`, 'Paste this whole doc into its instructions'],
   },
   {
     id: 'chatgpt', label: 'ChatGPT', logo: '/ai-logos/logo-chatgpt.webp',

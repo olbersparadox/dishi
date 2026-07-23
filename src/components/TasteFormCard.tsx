@@ -4,14 +4,26 @@
 // XP/level/knows/learning/stats all come from the SAME /api/buddy response as
 // before — only the visual identity changed, so nothing about what the card
 // honestly reports about the engine changed with it.
-import { useCallback, useEffect, useState } from 'react';
+//
+// This card also owns the AI-palate install flow (owner spec 2026-07-23):
+// tapping the vermillion 植入 CTA morphs THIS card in place into the persona
+// carousel (State B — version line / bar / stat boxes hidden, blob kept), and
+// tapping a host logo there opens the install layer (the shared ExplainModal)
+// whose black copy-circle generates + copies the export doc in the selected
+// voice. The old pick-to-copy textarea UI (TasteExport) was killed on this
+// replacement per CLAUDE.md — no importable legacy.
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { TasteFormLive, TasteFormReveal } from './TasteForm';
 import { topGlyphDims } from '@/lib/blobForm';
 import { useLang, cuisineLabel } from '@/lib/i18n';
-import TasteExport from './TasteExport';
 import ExplainModal from './ExplainModal';
-import type { ExportDish } from '@/lib/tasteExport';
-import type { Persona } from '@/lib/persona';
+import {
+  extractTasteSections, buildTastePrompt, confidenceInputsFrom, evidenceConfidence,
+  exportUnlocked, ratingsToUnlock, INSTALL_HOSTS, type InstallHost, type ExportDish,
+  type ExportCompanions,
+} from '@/lib/tasteExport';
+import { PERSONAS, PERSONA_META, VOICES, type Persona } from '@/lib/persona';
+import { LockIcon, CloseIcon, CopyIcon, CheckIcon } from './icons';
 
 type BuddyState = {
   // The dishi version ladder (replaced Levels): v = ratcheted unlock history (what
@@ -30,7 +42,7 @@ type BuddyState = {
 
 const MIGRATION_SEEN_KEY = 'dishi_form_migration_seen';
 
-export default function TasteFormCard({ vector, affinity, count, dishes, userId, persona, name }: {
+export default function TasteFormCard({ vector, affinity, count, dishes, userId, persona, name, onPersonaPersisted }: {
   vector: Record<string, number>;
   affinity: Record<string, number>;
   count: number;
@@ -38,6 +50,9 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
   userId: string;
   persona: Persona;
   name: string | null;
+  /** A successful copy persisted this persona server-side — lets the page's own
+   * persona state follow, so a later reopen starts the carousel there. */
+  onPersonaPersisted?: (p: Persona) => void;
 }) {
   const { t, lang } = useLang();
   const [state, setState] = useState<BuddyState | null>(null);
@@ -47,6 +62,74 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
   // the globe/notification icons (a scrim + an anchored paper sheet), applied to the
   // 4 stat boxes so each number can explain what it actually measures.
   const [openStat, setOpenStat] = useState<null | 'strength' | 'flicks' | 'cuisines' | 'senses'>(null);
+
+  // ── Install flow (owner spec 2026-07-23) ──────────────────────────────────────
+  // State B: this card morphed into the persona carousel. The carousel index is
+  // session-local until a COPY succeeds (the /api/taste/export POST persists it);
+  // swiping alone never persists, and the X restores State A with nothing saved.
+  const [expanded, setExpanded] = useState(false);
+  const storedIdx = Math.max(0, PERSONAS.indexOf(persona));
+  const [idx, setIdx] = useState(storedIdx);
+  const [installHost, setInstallHost] = useState<InstallHost | null>(null);
+  const [copying, setCopying] = useState(false);
+  const [copied, setCopied] = useState(false);
+  // Swipe: pointer-based so mouse drags work too. Vertical scrolling stays native
+  // (touch-action: pan-y on the viewport); a horizontal pull past the threshold
+  // advances the carousel on release.
+  const dragStartX = useRef<number | null>(null);
+  const [dragDelta, setDragDelta] = useState(0);
+
+  const openExpand = () => { setIdx(storedIdx); setExpanded(true); };
+  const closeExpand = () => { setExpanded(false); setInstallHost(null); setIdx(storedIdx); };
+  const endDrag = () => {
+    if (dragStartX.current == null) return;
+    if (dragDelta <= -48 && idx < PERSONAS.length - 1) setIdx(idx + 1);
+    else if (dragDelta >= 48 && idx > 0) setIdx(idx - 1);
+    dragStartX.current = null;
+    setDragDelta(0);
+  };
+
+  // One tap = generate + copy. The POST is the real export event (it persists the
+  // persona AND advances the delta baseline), so it fires ONLY here — never on
+  // open/prefetch. Clipboard: ClipboardItem with a promised payload where
+  // supported (Safari requires the write to start inside the gesture; the payload
+  // may resolve after), falling back to await-then-writeText elsewhere.
+  const copyDoc = async () => {
+    if (copying) return;
+    const sel = PERSONAS[idx];
+    setCopying(true);
+    const build = async () => {
+      let version: number | undefined;
+      let companions: ExportCompanions | undefined;
+      try {
+        const res = await fetch('/api/taste/export', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ persona: sel }),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (res.ok) { version = json.profile_version ?? undefined; companions = json.companions ?? undefined; }
+      } catch { /* version/companions are a bonus on top of the doc, not required for it */ }
+      const sections = extractTasteSections(
+        { vector, affinity, ratingCount: count, dishes },
+        dim => t(`dim.${dim}`),
+        c => cuisineLabel(c, lang),
+      );
+      return buildTastePrompt(sections, { persona: sel, version, name, companions });
+    };
+    try {
+      if (typeof ClipboardItem !== 'undefined') {
+        await navigator.clipboard.write([new ClipboardItem({
+          'text/plain': build().then(txt => new Blob([txt], { type: 'text/plain' })),
+        })]);
+      } else {
+        await navigator.clipboard.writeText(await build());
+      }
+      setCopied(true);
+      onPersonaPersisted?.(sel);
+      setTimeout(() => setCopied(false), 2500);
+    } catch { /* clipboard can be blocked; the quiet default beats a fake 已複製 */ }
+    setCopying(false);
+  };
 
   const load = useCallback(async () => {
     const res = await fetch('/api/buddy');
@@ -96,9 +179,20 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
     );
   }
 
+  const ci = confidenceInputsFrom(vector, affinity, count);
+  const ready = exportUnlocked(evidenceConfidence(ci));
+  const selName = VOICES[PERSONAS[idx]].displayName;
+
   return (
     <>
-    <div className="taste-form-card">
+    <div className={`taste-form-card ${expanded ? 'persona-expand' : ''}`}>
+      {/* State B's close — the same quiet top-right X the growth screen uses.
+          Cancel restores State A with nothing saved. */}
+      {expanded && (
+        <button className="grow-close" onClick={closeExpand} aria-label={t('home.cancel')}>
+          <CloseIcon size={18} />
+        </button>
+      )}
       {/* Per the design mock, the taste-form card shows: the blob, the 2-item
           dot legend, the XP/level line + progress bar, and the 4-stat grid.
           What was here beyond the mock — the buddy hint paragraph, the element
@@ -114,6 +208,7 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
         />
       </div>
 
+      {!expanded ? (<>
       {/* The version line: V{n} (the ratcheted dishi version) leads the 識咗/摸緊
           legend, and the bar below runs the FULL stat-line width toward V{n+1} at its
           right end — progress between version thresholds, not raw confidence. The
@@ -172,10 +267,101 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
           />
         )}
       </div>
+      </>) : (
+      /* ── State B: the persona carousel (owner spec 2026-07-23). Version line,
+         bar and stat boxes are hidden; the blob stays. Swipe left/right moves
+         Spoon → CK → Kiki; the dots only indicate. No per-persona blob art in
+         this pass, per the spec. */
+      <div className="persona-pick">
+        <div
+          className="persona-viewport"
+          onPointerDown={e => { dragStartX.current = e.clientX; }}
+          onPointerMove={e => { if (dragStartX.current != null) setDragDelta(e.clientX - dragStartX.current); }}
+          onPointerUp={endDrag}
+          onPointerCancel={endDrag}
+          onPointerLeave={endDrag}
+        >
+          <div
+            className="persona-track"
+            style={{
+              transform: `translateX(calc(${-idx * 100}% + ${dragDelta}px))`,
+              transition: dragStartX.current != null ? 'none' : undefined,
+            }}
+          >
+            {PERSONAS.map(p => (
+              <div className="persona-slide" key={p}>
+                <div className="persona-name">{VOICES[p].displayName}</div>
+                <p className="persona-blurb">{lang === 'zh' ? PERSONA_META[p].blurbZh : PERSONA_META[p].blurbEn}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="persona-dots" aria-hidden>
+          {PERSONAS.map((p, i) => <span key={p} className={`persona-dot ${i === idx ? 'on' : ''}`} />)}
+        </div>
+        <hr className="persona-divider" />
+        {/* Host logos as buttons — same marks/order as the resting row below,
+            now each in a thin rounded-square outline marking them tappable. */}
+        <div className="persona-hosts">
+          {INSTALL_HOSTS.map(h => (
+            <button key={h.id} type="button" className="persona-host-btn"
+              onClick={() => { setCopied(false); setInstallHost(h); }}
+              aria-label={h.label} title={h.label}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={h.logo} alt="" width={28} height={28} />
+            </button>
+          ))}
+        </div>
+      </div>
+      )}
     </div>
 
-    <TasteExport vector={vector} affinity={affinity} count={count} dishes={dishes}
-      persona={persona} name={name} version={state.version.v} />
+    {/* State A's resting CTA card — logos + the vermillion 植入 button (one of
+        vermillion's two sanctioned uses). Tapping it morphs the card above into
+        the persona carousel; below the unlock gate it stays an honest countdown. */}
+    {!expanded && (
+      <div className="ai-export-card">
+        <div className="ai-logo-row">
+          {INSTALL_HOSTS.map(h => (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img key={h.id} src={h.logo} alt={h.label} width={32} height={32} />
+          ))}
+        </div>
+        <button className={`btn export ${!ready ? 'is-locked' : ''}`} style={{ width: '100%' }}
+          onClick={openExpand} disabled={!ready}>
+          {ready
+            ? t('export.button', { v: Math.max(1, state.version.v) })
+            : <><LockIcon size={16} /> {t('export.locked', { n: ratingsToUnlock(ci) })}</>}
+        </button>
+      </div>
+    )}
+
+    {/* The install layer — the SAME centered layer as every ⓘ explainer (shared
+        ExplainModal), with the bottom circle repurposed as the copy action: one
+        tap generates the doc in the selected voice, copies it, and persists the
+        persona (the POST inside copyDoc is the real export event). Scrim tap
+        dismisses back to State B with the carousel where it was. */}
+    {installHost && (
+      <ExplainModal
+        title={t('install.title', { name: selName })}
+        onClose={() => { setInstallHost(null); setCopied(false); }}
+        extra={
+          <ol className="install-steps">
+            {(lang === 'zh' ? installHost.zh : installHost.en)(selName).map((s, i) => (
+              <li key={i}>{s}</li>
+            ))}
+          </ol>
+        }
+        footer={
+          <div className="install-copy-wrap">
+            <button className="ok-circle" onClick={copyDoc} disabled={copying} aria-label={t('export.copy')}>
+              {copied ? <CheckIcon size={26} /> : <CopyIcon size={24} />}
+            </button>
+            {copied && <p className="card-meta">{t('copied.short')}</p>}
+          </div>
+        }
+      />
+    )}
     </>
   );
 }

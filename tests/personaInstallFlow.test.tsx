@@ -1,0 +1,148 @@
+// @vitest-environment jsdom
+//
+// Install-flow UI, owner-specified interaction (2026-07-23): the taste-form card
+// morphs in place into the persona carousel (State B), host logos open the
+// install layer (the SHARED ExplainModal), and the layer's black circle is the
+// one-tap generate+copy action that also persists the persona. The old
+// pick-to-copy textarea UI was killed on this replacement — these tests assert
+// the new interaction AND that no textarea path survives.
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import TasteFormCard from '../src/components/TasteFormCard';
+import { LanguageProvider } from '../src/lib/i18n';
+
+afterEach(() => { cleanup(); vi.restoreAllMocks(); });
+
+const BUDDY = {
+  state: {
+    version: { v: 2, live: 2, progress: 0.4, nextAt: 0.8, justUnlockedTo: null },
+    strength: 91,
+    elements: [], hint: { key: 'buddy.hint.rate' },
+    knows: ['umami'], learning: [],
+    stats: { ratings: 30, cuisines: 5, dims_explored: 9, dims_total: 18 },
+    vector: { umami: 0.7 }, evidence: { umami: 1 }, profile_version: 2,
+  },
+  species: null,
+};
+
+// Solid, unlocked profile — the CTA must be tappable for the flow to open.
+const dims = Object.fromEntries([...Array(9)].map((_, i) => [`d${i}`, 0.5]));
+const cuisines = Object.fromEntries([...Array(5)].map((_, i) => [`c${i}`, 0.5]));
+
+function mockFetch(onExport?: (body: any) => void) {
+  return vi.fn(async (url: string, init?: RequestInit) => {
+    if (String(url).includes('/api/buddy')) return { ok: true, json: async () => BUDDY };
+    if (String(url).includes('/api/taste/export')) {
+      onExport?.(JSON.parse(String(init?.body ?? '{}')));
+      return { ok: true, json: async () => ({ profile_version: 2, delta: [], is_first_export: false, companions: { named: [], unnamedCount: 0 } }) };
+    }
+    return { ok: true, json: async () => ({}) };
+  }) as unknown as typeof fetch;
+}
+
+async function mount(onExport?: (body: any) => void, onPersisted?: (p: string) => void) {
+  global.fetch = mockFetch(onExport);
+  render(
+    <LanguageProvider>
+      <TasteFormCard vector={dims} affinity={cuisines} count={30} dishes={[]}
+        userId="u1" persona="spoon" name="Jerry" onPersonaPersisted={onPersisted as any} />
+    </LanguageProvider>,
+  );
+  // The card renders nothing until /api/buddy resolves.
+  await screen.findByRole('button', { name: /植入/ });
+}
+
+// jsdom has no PointerEvent constructor (clientX would arrive undefined), so
+// dispatch MouseEvents carrying the pointer event TYPES — React's onPointer*
+// handlers listen by type, and MouseEvent carries clientX fine.
+const swipeLeft = (el: Element) => {
+  fireEvent(el, new MouseEvent('pointerdown', { clientX: 200, bubbles: true }));
+  fireEvent(el, new MouseEvent('pointermove', { clientX: 120, bubbles: true }));
+  fireEvent(el, new MouseEvent('pointerup', { clientX: 120, bubbles: true }));
+};
+
+describe('State A → State B: the card morph', () => {
+  it('tapping 植入 swaps version/bar/stats for the carousel; X restores them, nothing saved', async () => {
+    await mount();
+    // State A baseline: version legend + stat boxes visible, no persona name.
+    expect(screen.getByText(/已識/)).toBeTruthy();
+    expect(screen.getByText('91%')).toBeTruthy();
+    expect(screen.queryByText('dishi.Spoon')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: /植入/ }));
+    // State B: carousel present (stored persona first), State A internals gone.
+    expect(screen.getByText('dishi.Spoon')).toBeTruthy();
+    expect(screen.queryByText(/已識/)).toBeNull();
+    expect(screen.queryByText('91%')).toBeNull();
+    expect(document.querySelectorAll('.persona-dot')).toHaveLength(3);
+    expect(document.querySelectorAll('.persona-host-btn')).toHaveLength(4);
+
+    fireEvent.click(screen.getByRole('button', { name: '取消' }));
+    expect(screen.getByText(/已識/)).toBeTruthy();
+    expect(screen.getByText('91%')).toBeTruthy();
+    expect(screen.queryByText('dishi.Spoon')).toBeNull();
+    // Cancel persisted nothing — no export POST ever fired.
+    const calls = (global.fetch as any).mock.calls.map((c: any[]) => String(c[0]));
+    expect(calls.some((u: string) => u.includes('/api/taste/export'))).toBe(false);
+  });
+
+  it('swiping left advances Spoon → CK → Kiki with the dots following', async () => {
+    await mount();
+    fireEvent.click(screen.getByRole('button', { name: /植入/ }));
+    const viewport = document.querySelector('.persona-viewport')!;
+    const activeIdx = () =>
+      Array.from(document.querySelectorAll('.persona-dot')).findIndex(d => d.classList.contains('on'));
+
+    expect(activeIdx()).toBe(0);
+    swipeLeft(viewport);
+    expect(activeIdx()).toBe(1);
+    swipeLeft(viewport);
+    expect(activeIdx()).toBe(2);
+    swipeLeft(viewport); // end of the rail — stays on Kiki
+    expect(activeIdx()).toBe(2);
+  });
+});
+
+describe('the install layer (shared ExplainModal)', () => {
+  it('a host logo opens the layer titled 植入 dishi.{selected}, with that host’s steps', async () => {
+    await mount();
+    fireEvent.click(screen.getByRole('button', { name: /植入/ }));
+    swipeLeft(document.querySelector('.persona-viewport')!); // → CK
+    fireEvent.click(screen.getByRole('button', { name: 'Claude' }));
+
+    const dialog = screen.getByRole('dialog');
+    expect(dialog.getAttribute('aria-label')).toBe('植入 dishi.CK');
+    expect(dialog.textContent).toContain('個名改做 dishi.CK');
+    expect(dialog.textContent).toContain('Projects');
+  });
+
+  it('the copy circle generates the doc in the SELECTED voice, copies it, persists the persona', async () => {
+    const exportBodies: any[] = [];
+    const persisted: string[] = [];
+    const written: string[] = [];
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText: async (s: string) => { written.push(s); } }, configurable: true,
+    });
+
+    await mount(b => exportBodies.push(b), p => persisted.push(p));
+    fireEvent.click(screen.getByRole('button', { name: /植入/ }));
+    swipeLeft(document.querySelector('.persona-viewport')!); // → CK
+    fireEvent.click(screen.getByRole('button', { name: 'Gemini' }));
+    fireEvent.click(screen.getByRole('button', { name: '複製' }));
+
+    await waitFor(() => expect(written).toHaveLength(1));
+    expect(exportBodies).toEqual([{ persona: 'ck' }]);   // swipe alone never persisted; copy did
+    expect(persisted).toEqual(['ck']);
+    expect(written[0]).toContain("# dishi — Jerry's AI palate");
+    expect(written[0]).toContain('testimony');            // CK's voice, not Spoon's
+    // Copied feedback appears (the minimal 已複製 swap, no celebration).
+    expect(await screen.findByText('已複製')).toBeTruthy();
+  });
+
+  it('no legacy pick-to-copy path: the layer has no textarea anywhere', async () => {
+    await mount();
+    fireEvent.click(screen.getByRole('button', { name: /植入/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'ChatGPT' }));
+    expect(document.querySelector('textarea')).toBeNull();
+  });
+});

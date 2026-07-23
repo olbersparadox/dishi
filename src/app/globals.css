@@ -1348,33 +1348,51 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 }
 .cart-total { font-weight: 650; }
 
-/* --- AI taste export: the payoff for training Dishi, so it gets real presence --- */
-.taste-export {
-  margin-top: 20px; padding: 20px; border-radius: 16px;
-  background: var(--glaze); border: 1px solid var(--line); text-align: center;
-}
-.taste-export-head { display: flex; gap: 10px; align-items: flex-start; text-align: left; margin-bottom: 14px; }
-.taste-export-spark { font-size: 18px; color: var(--jade); line-height: 1.2; }
-.taste-export-title { font-weight: 800; font-size: 15px; }
-.taste-export-blurb { font-size: 12.5px; color: var(--ink-soft); margin-top: 3px; line-height: 1.5; }
-.taste-export-note { font-size: 11.5px; color: var(--ink-soft); margin-top: 8px; text-align: left; line-height: 1.45; }
-/* Install layer (dishi.Persona): the lead is the character's brand-voice moment —
-   full ink, not footnote grey — and the steps are things the person must actually
-   DO in another app, so they get the app's 13px control size rather than note
-   size. The persona's name inside a step is the mechanic (the container must
-   carry it), hence the ink-weight <strong>. */
-.install-lead { font-size: 13px; color: var(--ink); margin-top: 4px; text-align: left; line-height: 1.55; }
+/* --- AI-palate install flow (owner spec 2026-07-23) --- */
+/* Steps inside the install layer: things the person must actually DO in another
+   app, so they get the app's 13px control size rather than note size. The
+   persona's name inside a step is the mechanic (the container must carry it),
+   hence the ink-weight <strong>. */
 .install-steps {
-  margin: 10px 0 2px; padding-left: 22px;
+  margin: 10px 0 2px; padding-left: 22px; text-align: left;
   display: flex; flex-direction: column; gap: 5px;
 }
 .install-steps li { font-size: 13px; color: var(--ink-soft); line-height: 1.5; }
 .install-steps li::marker { color: var(--ink-soft); font-size: 12px; }
 .install-steps li strong { color: var(--ink); font-weight: 600; }
-.taste-export-text {
-  min-height: 150px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 11.5px; line-height: 1.5; margin-top: 10px; white-space: pre-wrap;
+/* The layer's copy circle + its transient 已複製 caption — same black circle
+   as every explainer's dismiss (.ok-circle), repurposed as the one action. */
+.install-copy-wrap { display: flex; flex-direction: column; align-items: center; gap: 8px; margin: 20px 0 4px; }
+.install-copy-wrap .ok-circle:disabled { opacity: 0.6; }
+
+/* State B: the taste-form card morphed into the persona carousel. The card is
+   the SAME element (the blob stays put); only the block under the blob swaps,
+   easing in rather than popping. */
+.taste-form-card.persona-expand { position: relative; }
+.persona-pick { animation: personaIn 260ms ease both; }
+@keyframes personaIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .persona-pick { animation: none; } }
+/* Swipe viewport: horizontal pulls move the carousel, vertical stays native scroll. */
+.persona-viewport { overflow: hidden; touch-action: pan-y; cursor: grab; }
+.persona-track { display: flex; transition: transform 280ms ease; }
+.persona-slide { min-width: 100%; text-align: center; padding: 2px 12px 0; }
+/* The persona NAME is a name — the dish-name serif register (font-display,
+   heavy), not UI-label styling. */
+.persona-name { font-family: var(--font-display); font-size: 26px; font-weight: 800; color: var(--ink); }
+.persona-blurb { font-size: 13.5px; color: var(--ink-soft); line-height: 1.55; margin-top: 6px; }
+.persona-dots { display: flex; justify-content: center; gap: 7px; margin-top: 14px; }
+.persona-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--line); }
+.persona-dot.on { background: var(--ink); }
+.persona-divider { border: none; border-top: 1px solid var(--line); margin: 18px 24px; }
+/* Host logos as buttons: the same marks as the resting row, each in a thin
+   rounded-square outline marking them tappable. */
+.persona-hosts { display: flex; justify-content: center; gap: 12px; }
+.persona-host-btn {
+  display: grid; place-items: center; width: 54px; height: 54px;
+  border: 1px solid var(--line); border-radius: 14px; background: transparent; cursor: pointer;
 }
+.persona-host-btn:hover, .persona-host-btn:focus-visible { border-color: var(--ink); }
+.persona-host-btn img { object-fit: contain; }
 
 /* --- rated dish row: "more actions" kebab menu (edit/delete) --- */
 .row-menu-backdrop {

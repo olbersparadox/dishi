@@ -10,11 +10,17 @@
 import { useLang } from '@/lib/i18n';
 import { CheckIcon } from './icons';
 
-export default function ExplainModal({ title, body, extra, onClose }: {
+export default function ExplainModal({ title, body, extra, footer, onClose }: {
   title: string;
-  body: React.ReactNode;
+  /** Optional only for callers whose real content is block-level (lists) and
+   * lives in `extra` — a <p> may not contain an <ol>. */
+  body?: React.ReactNode;
   /** Optional content after the body (e.g. the 菜系 cuisine pills). */
   extra?: React.ReactNode;
+  /** Replaces the default dismiss circle with a caller-owned action (the persona
+   * install layer's copy circle). Scrim dismissal still applies — the layer's
+   * bottom circle can then DO something instead of only closing. */
+  footer?: React.ReactNode;
   onClose: () => void;
 }) {
   const { t } = useLang();
@@ -23,11 +29,13 @@ export default function ExplainModal({ title, body, extra, onClose }: {
       <div className="explain-scrim" onClick={onClose} />
       <div className="explain-modal" role="dialog" aria-label={title}>
         <p className="explain-modal-title">{title}</p>
-        <p className="explain-modal-body">{body}</p>
+        {body != null && <p className="explain-modal-body">{body}</p>}
         {extra}
-        <div className="ok-circle-wrap">
-          <button className="ok-circle" onClick={onClose} aria-label={t('duel.ok')}><CheckIcon size={26} /></button>
-        </div>
+        {footer ?? (
+          <div className="ok-circle-wrap">
+            <button className="ok-circle" onClick={onClose} aria-label={t('duel.ok')}><CheckIcon size={26} /></button>
+          </div>
+        )}
       </div>
     </>
   );

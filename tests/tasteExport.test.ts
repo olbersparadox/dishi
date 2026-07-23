@@ -361,8 +361,10 @@ describe('Phase 2: arrival handshake + house rules (voice-approval brief 2026-07
 });
 
 describe('install-host table (persona container install flow)', () => {
-  it('covers the three hosts the export card shows', () => {
-    expect(INSTALL_HOSTS.map(h => h.id).sort()).toEqual(['chatgpt', 'claude', 'gemini']);
+  it('covers all four hosts, in the export card logo row’s own order', () => {
+    // Order is load-bearing: the install layer opens FROM the row's logos, so the
+    // table and the row must agree (owner spec 2026-07-23 added Grok, the 4th mark).
+    expect(INSTALL_HOSTS.map(h => h.id)).toEqual(['claude', 'gemini', 'grok', 'chatgpt']);
   });
 
   it("names the container in the persona's exact display name, in both languages", () => {

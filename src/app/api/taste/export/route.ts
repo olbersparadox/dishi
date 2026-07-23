@@ -103,7 +103,7 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({
     profile_version: version, delta, is_first_export: !prior,
-    persona: persona ?? profile.persona ?? 'honest',
+    persona: persona ?? profile.persona ?? 'spoon',
     companions, new_companions: newCompanions,
   });
 }

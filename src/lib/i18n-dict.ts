@@ -404,28 +404,10 @@ export const dict: Record<string, { zh: string; en: string }> = {
   // wider gap the design asks for before 植入 would silently render as one space.
   'export.button': { zh: 'dishi v{v}  植入', en: 'Implant dishi v{v}' },
   'export.locked': { zh: '要評多 {n} 味菜', en: 'Rate {n} more dishes' },
-  'export.version': { zh: 'v{v} — 與上次相比變化不大。', en: 'v{v} \u2014 little has changed since last time.' },
-  'export.delta': { zh: 'v{v} \u2014 同上次比較：{dims}', en: 'v{v} \u2014 since last time: {dims}' },
-  'export.delta.companions': { zh: '新檯友：{names}', en: 'New table companions: {names}' },
   'export.copy': { zh: '複製', en: 'Copy' },
-  // Persona install flow — a deliberate brand-voice moment, kept 口語 (like the
-  // flick verdicts) rather than 書面: the character is "moving in", and the copy
-  // should sound like it. {name} is the persona's display name (dishi.Spoon…).
-  // The per-host walkthrough lines live in tasteExport.ts INSTALL_HOSTS.
-  'export.install.lead': {
-    zh: '幫 {name} 開返個專屬嘅家 — 貼一次，佢正式入伙，以後日日都喺度。',
-    en: 'Set {name} up with a home of their own — paste once, and they’ve officially moved in.',
-  },
-  'export.install.taster': { zh: '想先試吓 {name}？', en: 'Just want to try {name} first?' },
-  'export.taster.lead': {
-    zh: '試玩式：貼落是但一個對話都得 — 不過傾完呢一次，{name} 就散水㗎喇。',
-    en: 'One-conversation taster: paste into any chat — {name} lasts that conversation, then they’re gone.',
-  },
-  'export.taster.upsell': {
-    zh: '啱嘴形？想 {name} 留低 — 裝做 Gem / Project，唔使次次重新自我介紹。',
-    en: 'Like {name}? Make them stick around — install as a Gem / Project instead, no re-introductions every chat.',
-  },
-  'export.taster.install': { zh: '去安裝', en: 'Install instead' },
+  // Install layer title (owner spec 2026-07-23) — {name} is the persona's display
+  // name (dishi.Spoon…). The per-host steps live in tasteExport.ts INSTALL_HOSTS.
+  'install.title': { zh: '植入 {name}', en: 'Install {name}' },
   'form.migration.title': { zh: '你的夥伴進化了', en: 'Your companion evolved' },
   'form.migration.blurb': {
     zh: '現在它就是你的味覺本身 — 每次評分都會真實地改變它的模樣。',
