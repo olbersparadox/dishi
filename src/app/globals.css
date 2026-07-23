@@ -1038,7 +1038,7 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 
 /* The dishi version ladder line (replaced Levels): V{n} leads the legend; the bar
    below runs the full stat-line width with V{n+1} pinned at its right end. */
-.version-line { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 14px; }
+.version-line { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: -11px; }
 .version-now, .version-next {
   font-family: var(--font-display); font-weight: 800; font-size: 16px; color: var(--ink);
   letter-spacing: 0.02em; flex-shrink: 0;
