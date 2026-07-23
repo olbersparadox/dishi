@@ -62,6 +62,10 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
   // the globe/notification icons (a scrim + an anchored paper sheet), applied to the
   // 4 stat boxes so each number can explain what it actually measures.
   const [openStat, setOpenStat] = useState<null | 'strength' | 'flicks' | 'cuisines' | 'senses'>(null);
+  // Mirrors TasteFormReveal's internal blob/radar toggle (owned there, reported up
+  // via onToggle) so the version-line spacing below can differ per state: more air
+  // under the compact blob, tighter under the taller radar.
+  const [showRadar, setShowRadar] = useState(false);
 
   // ── Install flow (owner spec 2026-07-23) ──────────────────────────────────────
   // State B: this card morphed into the persona carousel. The carousel index is
@@ -205,6 +209,7 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
         <TasteFormReveal
           inputs={formInputs} size={190} glyph={glyph}
           vector={state.vector} labelFor={(dim) => t(`dim.${dim}`)}
+          onToggle={setShowRadar}
         />
       </div>
 
@@ -213,7 +218,7 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
           legend, and the bar below runs the FULL stat-line width toward V{n+1} at its
           right end — progress between version thresholds, not raw confidence. The
           ladder is unbounded (see version.ts); Levels and their animal names are gone. */}
-      <div className="version-line">
+      <div className="version-line" style={{ '--version-line-shift': showRadar ? '0px' : '20px' } as React.CSSProperties}>
         <span className="version-now">V{state.version.v}</span>
         <div className="taste-form-legend" style={{ marginTop: 0 }}>
           <span><span className="dot dot-knows" />{t('buddy.knows.count', { n: state.knows.length })}</span>
