@@ -236,7 +236,7 @@ export function buildTastePrompt(
   s: TasteExportSections,
   opts: { persona?: Persona; version?: number; name?: string | null; companions?: ExportCompanions } = {},
 ): string {
-  const { persona = 'honest', version, name, companions } = opts;
+  const { persona = 'spoon', version, name, companions } = opts;
   const v = VOICES[persona];
   const {
     loves, strongLoves, dislikes, strongDislikes,

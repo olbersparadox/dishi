@@ -82,7 +82,7 @@ function TasteProfile() {
   const [sealReveal, setSealReveal] = useState<SealResult | null>(null);
   const [justLearned, setJustLearned] = useState<{ dim: string; dir: number }[] | null>(null);
   const [sealedIds, setSealedIds] = useState<Set<string>>(new Set());
-  const [persona, setPersona] = useState<Persona>('honest');
+  const [persona, setPersona] = useState<Persona>('spoon');
   const [handle, setHandle] = useState<string | null>(null);
 
   useEffect(() => {
