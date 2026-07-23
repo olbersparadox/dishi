@@ -29,15 +29,37 @@ DECISIONS.md.)
 
 ## Needs an owner decision before any code
 
-- [ ] **[F] Persona rethink (老實派 / 食家腔 / 貪玩) — dedicated design session.**
-  The in-card picker was REMOVED from the export card (2026-07-21): as a row of
-  chips it wasn't doing anything a user could feel. Open design question: where
-  and how does a persona actually interact with the user? If the character is
-  only "alive" after export inside the user's own AI, the whole feature needs a
-  dedicated session to design and build (voice in the exported prompt is already
-  implemented — `persona.ts` voices + persistence are kept, default 'honest').
-  Also open: the 貪玩 blurb "鬼馬、生動、港式抵死" is defined by its Cantonese
-  cheek — 書面化 would be a rename/reframe, decide in the same session.
+- [ ] **[F] dishi.Persona — character persistence in foreign AIs.**
+  - **Phase 0 — R&D gate: ✅ CLEARED 2026-07-23.** Full results in
+    `docs/rnd/persona-phase0-results.md`. Headline: all in-session behaviors pass
+    on Gemini + Claude (chime, mirroring, scouts, link ritual, 收聲, anchor
+    reasoning); cross-session persistence is zero from paste AND from named
+    summon. Container install confirmed as the core mechanic.
+
+  - **Phase 2 — [F] export doc rewrite + install flow (amended per Phase 0):**
+    - **Install path is primary:** the pick-to-copy card leads to per-host
+      container instructions — "Create a Gem / Claude Project / custom GPT named
+      dishi.{X} → paste → 佢正式入伙" — with plain-paste offered as the
+      one-conversation taster that ends in the install upsell. Copy per host
+      (Gemini Gem / Claude Project / ChatGPT GPT or Project) maintained as a
+      small table in the doc-generation code, expect churn as host UIs change.
+    - **Summon-phrase fallback: struck** (name collision + memory compression,
+      see report).
+    - **Dismissal scoping (hard rule):** 收聲 = this conversation only; doc
+      explicitly forbids the host storing any dismissal as a standing
+      instruction.
+    - **Location conflict (hard rule):** network location vs receipt geography
+      disagree → Bo asks one line ("我啲 receipt 全部喺香港喎, 你而家真係喺 X?"),
+      never assumes either way.
+    - Everything else carries over unchanged: chime contract, language mirroring,
+      scout missions on weakest-evidence dims, intent-link ritual
+      (manifest-before-link, bare readable URL, `do=cook|trip|hunt|ate` grammar,
+      one offer per conversation, nothing commits on tap, manual path always
+      mentioned), version self-awareness with capped upgrade reminders, verbatim
+      EPISTEMIC_LINE + HARD_LIMITS in every persona.
+
+  - **Unblocked next:** persona NAMES (owner brand decision — the only item
+    standing before Phase 1 build).
 - [ ] **[F] 食記 ordering for album logs.** Old camera-roll photos have a fuzzy
   eaten-date; decide: order journal by when-eaten vs when-logged, and how to
   capture an approximate eaten-date at log time without adding friction.

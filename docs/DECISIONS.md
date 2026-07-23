@@ -1570,3 +1570,60 @@ visible on neighboring cards (烤串 羊肉, 舒芙蕾鬆餅 素/蛋/奶類). Ho
 no stored dish carries tree_nut yet (owner has no nut dishes logged) — the
 果仁 chip renders through the same DIET_ICON/i18n machinery the 豆製品 chip
 just proved live.
+
+---
+
+# Batch: dishi.Persona R&D Phase 0 (2026-07-23)
+
+## Phase 0 gate — ✅ CLEARED 2026-07-23
+
+**Scope:** R&D to validate whether a character persona pasted into Gemini Pro
+and Claude (Opus 4.8) as exported dishi.Bo (v2 profile, 38 dishes, 貪玩 voice)
+could sustain behavioral contract across turns and, separately, across
+sessions.
+
+**Method:** Field test on mobile over two days; screenshotted evidence.
+Probes: English/Cantonese food asks, cook-at-home intent, dismissal,
+VPN-skewed location, then fresh sessions without re-paste (topical summon +
+named summon).
+
+**In-session result: ✅ ALL PASS** on both hosts
+- Chime block format held; language mirroring (register + code-switching);
+  scout probes woven naturally (Claude exceptional: cited evidence count,
+  tied probes to live decisions, requested exactly one dimension); taste
+  reasoning off anchors (both bridged to real locations; Claude refused to
+  oversell a 3.6 shop — honesty principle enforced by foreign host);
+  link ritual exact + Chinese values un-mangled (Claude did it in
+  Cantonese unprompted); 收聲 dismissal clean; recipe personalization
+  (Claude tuned to vector, refused to fake specs).
+
+**Cross-session result: ✅ TOTAL FAILURE** (the decisive finding)
+- Topical ask, fresh session: neither host re-adopted persona. Gemini
+  retrieved real user facts (hotel stays, search history) but zero
+  behavioral contract — Wan Chai list pitched on sweets to a sweet:-0.37
+  profile, sourdough bakery leading. Claude topical search found nothing,
+  answered generically. **Host memory retains facts, not behavior.**
+- Named summon, fresh session: both failed, differently. Claude:
+  name-collision ("dishi" retrieved the codebase, produced deploy report
+  — bare name retrieves host association, not the character). Gemini:
+  collided with years-old compressed instruction ("don't mention so often"
+  → permanent topic ban, unfixable by host) — canonical failure mode our
+  dismissal-scoping rule exists to prevent.
+
+**Verdict:** Character concept fully validated in-conversation; zero
+persistence from paste or from named summon. Therefore:
+- **Container install is the product** (Gemini Gem, Claude Project, or
+  custom GPT named dishi.{X} re-runs the doc structurally every session —
+  the only honest persistence mechanic).
+- **Paste flow is the taster** (one-conversation introduction → install
+  upsell).
+- **Summon-phrase fallback STRUCK** from design.
+- **Dismissal scoping: hard rule** (収聲 = this conversation only; doc
+  forbids host storing dismissal as standing instruction).
+- **Location conflict: hard rule** (on network-vs-receipts disagreement,
+  ask one line, never assume).
+- **Marketing asset:** Gemini Wan Chai screenshot (same person, same
+  question, with/without dishi — sourdough vs anchor-reasoned) is
+  ready-made before/after visual for acquisition deck.
+
+Full evidence: `docs/rnd/persona-phase0-results.md`.
