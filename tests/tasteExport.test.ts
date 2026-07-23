@@ -3,7 +3,7 @@ import {
   extractTasteSections, buildTastePrompt,
   evidenceConfidence, confidenceTier, exportUnlocked, ratingsToUnlock,
   confidenceInputsFrom, EMERGING_AT, SOLID_AT, exportPayload,
-  HARD_LIMITS, EPISTEMIC_LINE,
+  HARD_LIMITS, EPISTEMIC_LINE, INSTALL_HOSTS,
 } from '../src/lib/tasteExport';
 import { PERSONAS, VOICES } from '../src/lib/persona';
 
@@ -357,5 +357,30 @@ describe('Phase 2: arrival handshake + house rules (voice-approval brief 2026-07
     expect(ck).toMatch(/wit lands on dishes and restaurants.*never meanly on me/);
     const kiki = buildTastePrompt(s, { persona: 'kiki' });
     expect(kiki).toMatch(/no hype without receipts backing it/);
+  });
+});
+
+describe('install-host table (persona container install flow)', () => {
+  it('covers the three hosts the export card shows', () => {
+    expect(INSTALL_HOSTS.map(h => h.id).sort()).toEqual(['chatgpt', 'claude', 'gemini']);
+  });
+
+  it("names the container in the persona's exact display name, in both languages", () => {
+    // The summon only feels real if the container carries the character's name —
+    // every host line must interpolate it, for every persona, in zh AND en.
+    for (const persona of PERSONAS) {
+      const name = VOICES[persona].displayName;
+      for (const h of INSTALL_HOSTS) {
+        expect(h.zh(name)).toContain(name);
+        expect(h.en(name)).toContain(name);
+      }
+    }
+  });
+
+  it('tells the user to paste the doc — instructions for a human, not an API call', () => {
+    for (const h of INSTALL_HOSTS) {
+      expect(h.en('dishi.Spoon')).toMatch(/paste/i);
+      expect(h.zh('dishi.Spoon')).toMatch(/貼/);
+    }
   });
 });

@@ -4,8 +4,9 @@ import { useLang, cuisineLabel } from '@/lib/i18n';
 import {
   extractTasteSections, buildTastePrompt, type ExportDish, type ExportCompanions,
   confidenceInputsFrom, evidenceConfidence, exportUnlocked, ratingsToUnlock,
+  INSTALL_HOSTS,
 } from '@/lib/tasteExport';
-import { type Persona } from '@/lib/persona';
+import { VOICES, type Persona } from '@/lib/persona';
 import { CopyIcon, CheckIcon, LockIcon } from './icons';
 
 /**
@@ -53,6 +54,14 @@ export default function TasteExport({
   const [isFirstExport, setIsFirstExport] = useState(true);
   const [generating, setGenerating] = useState(false);
 
+  // Install-first, taster-second (dishi.Persona install flow). Phase 0 R&D showed a
+  // pasted persona is gone by the next conversation on every host — the named
+  // container (Gem / Project / GPT) is what makes the character persist. So the
+  // card LEADS with container-install instructions; plain paste survives only as a
+  // clearly-labelled one-conversation taster that upsells the install at the end.
+  const [mode, setMode] = useState<'install' | 'taster'>('install');
+  const voiceName = VOICES[persona].displayName;
+
   const ci = confidenceInputsFrom(vector, affinity, count);
   const ready = exportUnlocked(evidenceConfidence(ci));
 
@@ -87,6 +96,7 @@ export default function TasteExport({
     // Rendered in the chosen persona voice, with the versioned header.
     setPrompt(buildTastePrompt(sections, { persona, version: exportVersion, name, companions }));
     setCopied(false);
+    setMode('install'); // every fresh generation leads with the install path again
     setGenerating(false);
   }
 
@@ -143,6 +153,26 @@ export default function TasteExport({
               {t('export.delta.companions', { names: newCompanions.join('、') })}
             </p>
           )}
+          {mode === 'install' ? (
+            <>
+              <p className="taste-export-note">{t('export.install.lead', { name: voiceName })}</p>
+              {/* Per-host walkthroughs come from the INSTALL_HOSTS table (tasteExport.ts)
+                  so a host-UI change is a one-row edit there, never a component edit. */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, margin: '8px 0 2px' }}>
+                {INSTALL_HOSTS.map(h => (
+                  <div key={h.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={h.logo} alt={h.alt} width={16} height={16} style={{ flex: 'none', marginTop: 2, objectFit: 'contain' }} />
+                    <span className="taste-export-note" style={{ marginTop: 0 }}>
+                      {(lang === 'zh' ? h.zh : h.en)(voiceName)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <p className="taste-export-note">{t('export.taster.lead', { name: voiceName })}</p>
+          )}
           <textarea
             className="field taste-export-text" readOnly value={prompt}
             onFocus={e => e.currentTarget.select()}
@@ -154,7 +184,24 @@ export default function TasteExport({
             </button>
             <button className="btn ghost" onClick={() => setPrompt(null)}>{t('home.cancel')}</button>
           </div>
-          <p className="taste-export-note">{t('export.paste')}</p>
+          {mode === 'install' ? (
+            <button
+              className="btn ghost" style={{ width: '100%', marginTop: 8 }}
+              onClick={() => setMode('taster')}
+            >
+              {t('export.install.taster', { name: voiceName })}
+            </button>
+          ) : (
+            <>
+              <p className="taste-export-note">{t('export.taster.upsell', { name: voiceName })}</p>
+              <button
+                className="btn ghost" style={{ width: '100%', marginTop: 8 }}
+                onClick={() => setMode('install')}
+              >
+                {t('export.taster.install')}
+              </button>
+            </>
+          )}
         </>
       )}
     </div>

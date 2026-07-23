@@ -424,3 +424,43 @@ export function computeExportDelta(
     .slice(0, 4)
     .map(x => ({ dim: x.dim, dir: Math.sign(x.diff) as 1 | -1 }));
 }
+
+// ── Install hosts — the container-install layer of the persona export.
+// Phase 0 R&D (docs/rnd/persona-phase0-results.md): a pasted persona evaporates
+// between conversations on every host tested — a NAMED container (Gemini Gem /
+// Claude Project / custom GPT) is the only mechanic that makes one persist. So
+// the export card leads with "create the container, in the character's name",
+// and plain paste is demoted to a one-conversation taster.
+//
+// This is copy shown to the USER — instructions for creating the container by
+// hand in each host's own UI, not anything Dishi calls. Host UIs churn, so it
+// is deliberately a tiny isolated table: editing a host's steps (or adding a
+// host) is one row here and nothing else. Bilingual-in-code like PERSONA_META
+// (persona.ts) because the copy interpolates the persona's exact display name —
+// the container must carry the character's name for the summon to feel real.
+export type InstallHost = {
+  id: 'gemini' | 'claude' | 'chatgpt';
+  /** /public path — same assets as the export card's logo row. */
+  logo: string;
+  alt: string;
+  /** One-line "create the container" walkthrough, in the persona's own name. */
+  zh: (name: string) => string;
+  en: (name: string) => string;
+};
+export const INSTALL_HOSTS: InstallHost[] = [
+  {
+    id: 'gemini', logo: '/ai-logos/logo-gemini.png', alt: 'Gemini',
+    zh: n => `Gemini → Gems → 整個新 Gem，改名做 ${n} → 成份文件貼落佢嘅 instructions 度 → 儲存`,
+    en: n => `Gemini → Gems → new Gem named ${n} → paste this whole doc as its instructions → save`,
+  },
+  {
+    id: 'claude', logo: '/ai-logos/logo-claude.webp', alt: 'Claude',
+    zh: n => `Claude → Projects → 開個新 Project，叫 ${n} → 成份文件貼落 project instructions 度`,
+    en: n => `Claude → Projects → new Project named ${n} → paste this whole doc into the project instructions`,
+  },
+  {
+    id: 'chatgpt', logo: '/ai-logos/logo-chatgpt.webp', alt: 'ChatGPT',
+    zh: n => `ChatGPT → GPTs → Create（或者開個新 Project）叫 ${n} → 成份文件貼落 instructions 度`,
+    en: n => `ChatGPT → GPTs → Create (or start a Project) named ${n} → paste this whole doc into its instructions`,
+  },
+];
