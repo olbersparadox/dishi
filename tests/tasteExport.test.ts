@@ -367,20 +367,32 @@ describe('install-host table (persona container install flow)', () => {
 
   it("names the container in the persona's exact display name, in both languages", () => {
     // The summon only feels real if the container carries the character's name —
-    // every host line must interpolate it, for every persona, in zh AND en.
+    // every host's steps must interpolate it, for every persona, in zh AND en.
     for (const persona of PERSONAS) {
       const name = VOICES[persona].displayName;
       for (const h of INSTALL_HOSTS) {
-        expect(h.zh(name)).toContain(name);
-        expect(h.en(name)).toContain(name);
+        expect(h.zh(name).join(' ')).toContain(name);
+        expect(h.en(name).join(' ')).toContain(name);
       }
+    }
+  });
+
+  it('gives the naming step its own line — the mechanic must not be buried mid-step', () => {
+    for (const h of INSTALL_HOSTS) {
+      const zhNaming = h.zh('dishi.Spoon').filter(s => s.includes('dishi.Spoon'));
+      const enNaming = h.en('dishi.Spoon').filter(s => s.includes('dishi.Spoon'));
+      expect(zhNaming).toHaveLength(1);
+      expect(enNaming).toHaveLength(1);
+      // A dedicated step is SHORT — a name plus a verb, not a full walkthrough line.
+      expect(zhNaming[0].length).toBeLessThan(30);
+      expect(enNaming[0].length).toBeLessThan(30);
     }
   });
 
   it('tells the user to paste the doc — instructions for a human, not an API call', () => {
     for (const h of INSTALL_HOSTS) {
-      expect(h.en('dishi.Spoon')).toMatch(/paste/i);
-      expect(h.zh('dishi.Spoon')).toMatch(/貼/);
+      expect(h.en('dishi.Spoon').join(' ')).toMatch(/paste/i);
+      expect(h.zh('dishi.Spoon').join(' ')).toMatch(/貼/);
     }
   });
 });

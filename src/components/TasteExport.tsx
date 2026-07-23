@@ -4,7 +4,7 @@ import { useLang, cuisineLabel } from '@/lib/i18n';
 import {
   extractTasteSections, buildTastePrompt, type ExportDish, type ExportCompanions,
   confidenceInputsFrom, evidenceConfidence, exportUnlocked, ratingsToUnlock,
-  INSTALL_HOSTS,
+  INSTALL_HOSTS, type InstallHost,
 } from '@/lib/tasteExport';
 import { VOICES, type Persona } from '@/lib/persona';
 import { CopyIcon, CheckIcon, LockIcon } from './icons';
@@ -59,8 +59,19 @@ export default function TasteExport({
   // container (Gem / Project / GPT) is what makes the character persist. So the
   // card LEADS with container-install instructions; plain paste survives only as a
   // clearly-labelled one-conversation taster that upsells the install at the end.
+  // One host's steps at a time behind a chip picker: the person has ONE daily AI,
+  // and three stacked walkthroughs read as a wall of fine print, not instructions.
   const [mode, setMode] = useState<'install' | 'taster'>('install');
+  const [hostId, setHostId] = useState<InstallHost['id']>(INSTALL_HOSTS[0].id);
+  const host = INSTALL_HOSTS.find(h => h.id === hostId) ?? INSTALL_HOSTS[0];
   const voiceName = VOICES[persona].displayName;
+
+  /** The persona's name inside a step is the mechanic (the container must carry it),
+   * so it renders in ink while the rest of the step stays quiet. */
+  function emphasizeName(step: string) {
+    return step.split(voiceName).flatMap((part, i) =>
+      i === 0 ? [part] : [<strong key={i}>{voiceName}</strong>, part]);
+  }
 
   const ci = confidenceInputsFrom(vector, affinity, count);
   const ready = exportUnlocked(evidenceConfidence(ci));
@@ -155,23 +166,32 @@ export default function TasteExport({
           )}
           {mode === 'install' ? (
             <>
-              <p className="taste-export-note">{t('export.install.lead', { name: voiceName })}</p>
-              {/* Per-host walkthroughs come from the INSTALL_HOSTS table (tasteExport.ts)
-                  so a host-UI change is a one-row edit there, never a component edit. */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, margin: '8px 0 2px' }}>
+              <p className="install-lead">{t('export.install.lead', { name: voiceName })}</p>
+              {/* Host picker, then that ONE host's steps. Walkthroughs come from the
+                  INSTALL_HOSTS table (tasteExport.ts) so a host-UI change is a
+                  one-row edit there, never a component edit. */}
+              <div className="chips" style={{ marginTop: 10 }}>
                 {INSTALL_HOSTS.map(h => (
-                  <div key={h.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                  <button
+                    key={h.id} type="button"
+                    className={`chip ${h.id === host.id ? 'on' : ''}`}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                    onClick={() => setHostId(h.id)}
+                  >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={h.logo} alt={h.alt} width={16} height={16} style={{ flex: 'none', marginTop: 2, objectFit: 'contain' }} />
-                    <span className="taste-export-note" style={{ marginTop: 0 }}>
-                      {(lang === 'zh' ? h.zh : h.en)(voiceName)}
-                    </span>
-                  </div>
+                    <img src={h.logo} alt="" width={14} height={14} style={{ objectFit: 'contain' }} />
+                    {h.label}
+                  </button>
                 ))}
               </div>
+              <ol className="install-steps">
+                {(lang === 'zh' ? host.zh : host.en)(voiceName).map((step, i) => (
+                  <li key={i}>{emphasizeName(step)}</li>
+                ))}
+              </ol>
             </>
           ) : (
-            <p className="taste-export-note">{t('export.taster.lead', { name: voiceName })}</p>
+            <p className="install-lead">{t('export.taster.lead', { name: voiceName })}</p>
           )}
           <textarea
             className="field taste-export-text" readOnly value={prompt}

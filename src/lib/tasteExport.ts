@@ -440,27 +440,30 @@ export function computeExportDelta(
 // the container must carry the character's name for the summon to feel real.
 export type InstallHost = {
   id: 'gemini' | 'claude' | 'chatgpt';
+  /** Brand name for the host-picker chip — a product name, so never translated. */
+  label: string;
   /** /public path — same assets as the export card's logo row. */
   logo: string;
-  alt: string;
-  /** One-line "create the container" walkthrough, in the persona's own name. */
-  zh: (name: string) => string;
-  en: (name: string) => string;
+  /** Discrete numbered steps, in the persona's own name. Kept as steps (not one
+   * arrow-chain line) so the UI can give the naming step — the mechanic the whole
+   * install flow exists for — its own line, with the name legible. */
+  zh: (name: string) => string[];
+  en: (name: string) => string[];
 };
 export const INSTALL_HOSTS: InstallHost[] = [
   {
-    id: 'gemini', logo: '/ai-logos/logo-gemini.png', alt: 'Gemini',
-    zh: n => `Gemini → Gems → 整個新 Gem，改名做 ${n} → 成份文件貼落佢嘅 instructions 度 → 儲存`,
-    en: n => `Gemini → Gems → new Gem named ${n} → paste this whole doc as its instructions → save`,
+    id: 'gemini', label: 'Gemini', logo: '/ai-logos/logo-gemini.png',
+    zh: n => ['開 Gemini，去 Gems，整個新 Gem', `個名改做 ${n}`, '成份文件貼落佢嘅 Instructions 度，儲存'],
+    en: n => ['Open Gemini → Gems → New Gem', `Name it ${n}`, 'Paste this whole doc into its Instructions, save'],
   },
   {
-    id: 'claude', logo: '/ai-logos/logo-claude.webp', alt: 'Claude',
-    zh: n => `Claude → Projects → 開個新 Project，叫 ${n} → 成份文件貼落 project instructions 度`,
-    en: n => `Claude → Projects → new Project named ${n} → paste this whole doc into the project instructions`,
+    id: 'claude', label: 'Claude', logo: '/ai-logos/logo-claude.webp',
+    zh: n => ['開 Claude，去 Projects，開個新 Project', `個名改做 ${n}`, '成份文件貼落 Project instructions 度'],
+    en: n => ['Open Claude → Projects → New Project', `Name it ${n}`, 'Paste this whole doc into the project instructions'],
   },
   {
-    id: 'chatgpt', logo: '/ai-logos/logo-chatgpt.webp', alt: 'ChatGPT',
-    zh: n => `ChatGPT → GPTs → Create（或者開個新 Project）叫 ${n} → 成份文件貼落 instructions 度`,
-    en: n => `ChatGPT → GPTs → Create (or start a Project) named ${n} → paste this whole doc into its instructions`,
+    id: 'chatgpt', label: 'ChatGPT', logo: '/ai-logos/logo-chatgpt.webp',
+    zh: n => ['開 ChatGPT，去 GPTs 撳 Create（或者開個新 Project）', `個名改做 ${n}`, '成份文件貼落 Instructions 度'],
+    en: n => ['Open ChatGPT → GPTs → Create (or start a new Project)', `Name it ${n}`, 'Paste this whole doc into its Instructions'],
   },
 ];
