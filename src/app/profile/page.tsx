@@ -11,6 +11,8 @@ import ExplainModal from '@/components/ExplainModal';
 import type { ExportDish } from '@/lib/tasteExport';
 import { isPersona, type Persona } from '@/lib/persona';
 import { RateIcon, TrashIcon, UtensilsIcon, HomeIcon, PhotoIcon } from '@/components/icons';
+import PickCardThumb from '@/components/PickCardThumb';
+import { normalizePhoto } from '@/lib/image';
 import RatingStack, { type ExistingPick } from '@/components/RatingStack';
 import { clearJournalCache } from '@/lib/journalCache';
 import { wordKeyFor } from '@/lib/flickWords';
@@ -194,6 +196,27 @@ function TasteProfile() {
     if (!res.ok) setToRate(prev);
   }
 
+  // Attach a photo to a 待評 pick that has none (a scan/table pick — the normal
+  // case) — the SAME endpoint + path MyDishes' 食記 edit uses for the identical
+  // gap, reused rather than reinvented. Which pick is uploading tracks separately
+  // so its badge can show a "saving" state instead of silently doing nothing.
+  const [photoUploadingId, setPhotoUploadingId] = useState<string | null>(null);
+  async function addPickPhoto(dishId: string, file: File | null) {
+    if (!file) return;
+    setPhotoUploadingId(dishId);
+    try {
+      const form = new FormData();
+      form.append('dish_id', dishId);
+      form.append('photo', await normalizePhoto(file, 1024));
+      const res = await fetch('/api/dishes/photo', { method: 'POST', body: form });
+      const json = await res.json();
+      if (res.ok) {
+        setToRate(cur => cur?.map(d => d.id === dishId ? { ...d, photo_url: json.dish.photo_url } : d) ?? null);
+      }
+    } catch { /* leave the placeholder; a failed upload just means "still no photo" */ }
+    finally { setPhotoUploadingId(null); }
+  }
+
   return (
     <div>
       {justRated && sealReveal && <SealReveal seal={sealReveal} />}
@@ -267,6 +290,8 @@ function TasteProfile() {
           <h3 style={{ marginBottom: 2 }}>{t('log.toRate')}</h3>
           {toRate.map(p => (
             <div key={p.id} className="pick-card">
+              <PickCardThumb photoUrl={p.photo_url} uploading={photoUploadingId === p.id}
+                onPick={file => addPickPhoto(p.id, file)} />
               <div style={{ minWidth: 0 }}>
                 <div className="pick-card-name">
                 <DishName id={p.id} name={p.name} name_zh={p.name_zh}

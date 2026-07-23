@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLang } from '@/lib/i18n';
 import { namesMatch } from '@/lib/restaurant';
+import { CheckIcon } from '@/components/icons';
 
 type Nearby = {
   source: 'dishi' | 'google';
@@ -285,8 +286,18 @@ export default function RestaurantPicker({ onChange, skipFirst = false, seedCoor
                 setSearchMatches([]);
               }}
             />
-            <button className="btn small" onClick={confirmNew} disabled={!newName.trim() || searching}>
-              {t('picker.confirm')}
+            {/* Icon-only, matching the identity-card answer convention (icon carries
+                the meaning, aria-label/title carry the a11y text) — idle (nothing
+                typed) reads as not-yet-actionable; filled the moment there's text,
+                since that's genuinely enough to attempt a submit. Never vermillion:
+                #c73e1d stays reserved for the seal glyph + AI-export CTA only. */}
+            <button
+              type="button"
+              className={`picker-confirm-circle ${newName.trim() ? 'filled' : ''}`}
+              onClick={confirmNew} disabled={!newName.trim() || searching}
+              aria-label={t('picker.confirm')} title={t('picker.confirm')}
+            >
+              <CheckIcon size={18} />
             </button>
           </div>
 

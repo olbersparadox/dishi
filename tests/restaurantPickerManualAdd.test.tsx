@@ -40,7 +40,7 @@ describe('RestaurantPicker — manual add produces a visible selected chip', () 
     fireEvent.click(screen.getByText('+ 加間舖'));
     const input = screen.getByPlaceholderText('餐廳名');
     fireEvent.change(input, { target: { value: '新容記' } });
-    fireEvent.click(screen.getByText('加入'));
+    fireEvent.click(screen.getByRole('button', { name: '加入' }));
 
     await waitFor(() => {
       expect(onChange).toHaveBeenCalledWith(
@@ -56,6 +56,32 @@ describe('RestaurantPicker — manual add produces a visible selected chip', () 
     fireEvent.click(chip);
     const reopened = screen.getByPlaceholderText('餐廳名') as HTMLInputElement;
     expect(reopened.value).toBe('新容記');
+  });
+
+  // Field-session fix 2026-07-23, item 1a: 加入 is now an icon-only circle —
+  // idle (nothing typed) = outlined/muted, .filled (any text) = solid ink —
+  // never vermillion (reserved for the seal glyph + AI-export CTA only).
+  it('the 加入 circle toggles idle ↔ filled as the name field is typed', async () => {
+    render(
+      <LanguageProvider>
+        <RestaurantPicker onChange={vi.fn()} seedCoords={{ lat: 22.28, lng: 114.15 }} />
+      </LanguageProvider>,
+    );
+    await waitFor(() => expect(global.fetch).toHaveBeenCalled());
+
+    fireEvent.click(screen.getByText('+ 加間舖'));
+    const confirmBtn = screen.getByRole('button', { name: '加入' }) as HTMLButtonElement;
+    expect(confirmBtn.className).toContain('picker-confirm-circle');
+    expect(confirmBtn.className).not.toContain('filled');
+    expect(confirmBtn.disabled).toBe(true);
+
+    fireEvent.change(screen.getByPlaceholderText('餐廳名'), { target: { value: '新' } });
+    expect(confirmBtn.className).toContain('filled');
+    expect(confirmBtn.disabled).toBe(false);
+
+    fireEvent.change(screen.getByPlaceholderText('餐廳名'), { target: { value: '' } });
+    expect(confirmBtn.className).not.toContain('filled');
+    expect(confirmBtn.disabled).toBe(true);
   });
 
   it('confirm with no coords flashes the needloc caption instead of silently failing', async () => {
@@ -74,7 +100,7 @@ describe('RestaurantPicker — manual add produces a visible selected chip', () 
     // with a 'new' choice while coords is missing.
     onChange.mockClear();
     fireEvent.change(screen.getByPlaceholderText('餐廳名'), { target: { value: '新容記' } });
-    fireEvent.click(screen.getByText('加入'));
+    fireEvent.click(screen.getByRole('button', { name: '加入' }));
 
     expect(onChange).not.toHaveBeenCalled();
     const caption = screen.getByText('新舖需要開定位，Dishi 先可以幫其他人釘住個位。');
@@ -109,7 +135,7 @@ describe('RestaurantPicker — search-on-add (Places Text Search)', () => {
 
     fireEvent.click(screen.getByText('+ 加間舖'));
     fireEvent.change(screen.getByPlaceholderText('餐廳名'), { target: { value: '新容記' } });
-    fireEvent.click(screen.getByText('加入'));
+    fireEvent.click(screen.getByRole('button', { name: '加入' }));
 
     // Search call fires with the typed query and the picker's coords.
     await waitFor(() => {
@@ -152,7 +178,7 @@ describe('RestaurantPicker — search-on-add (Places Text Search)', () => {
 
     fireEvent.click(screen.getByText('+ 加間舖'));
     fireEvent.change(screen.getByPlaceholderText('餐廳名'), { target: { value: '真.新開舖' } });
-    fireEvent.click(screen.getByText('加入'));
+    fireEvent.click(screen.getByRole('button', { name: '加入' }));
 
     await screen.findByRole('button', { name: 'Some Other Place' });
     fireEvent.click(screen.getByText('不是，是新的店'));

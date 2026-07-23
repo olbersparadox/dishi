@@ -906,11 +906,16 @@ function Scanner() {
                     {pickError && <p style={{ color: 'var(--lacquer)', marginTop: 8 }}>{pickError}</p>}
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button className="btn ghost" style={{ flex: 1 }} onClick={() => setConfirmingPick(false)} disabled={pickSaving}>
-                    {t('home.cancel')}
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  {/* Icon-only circle, matching the house close convention (icon
+                      carries the meaning; aria-label/title carry the a11y text) —
+                      same round .icon-btn treatment as the pick-card's own
+                      rate/delete pair, just larger to sit beside the primary CTA. */}
+                  <button className="icon-btn lg" onClick={() => setConfirmingPick(false)} disabled={pickSaving}
+                    aria-label={t('home.cancel')} title={t('home.cancel')}>
+                    <CloseIcon size={18} />
                   </button>
-                  <button className="btn primary cart-btn" style={{ flex: 2 }} onClick={confirmPicks} disabled={pickSaving}>
+                  <button className="btn primary cart-btn" style={{ flex: 1 }} onClick={confirmPicks} disabled={pickSaving}>
                     {pickSaving ? <span>{t('log.saving')}</span> : (
                       <>
                         <span>{countLabel}</span>
