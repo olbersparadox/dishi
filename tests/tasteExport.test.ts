@@ -109,7 +109,7 @@ describe('buildTastePrompt', () => {
 
   it('leads with provenance \u2014 that it was LEARNED, not self-reported', () => {
     const p = buildTastePrompt(full);
-    expect(p).toMatch(/NOT self-reported/i);
+    expect(p).toMatch(/actually tasted, not from words I typed/i);
     expect(p).toContain('30'); // the real evidence count
   });
 
@@ -124,16 +124,16 @@ describe('buildTastePrompt', () => {
   });
 
   it('scales its own authority to the evidence behind it', () => {
-    expect(buildTastePrompt({ ...full, ratingCount: 6, confidence: 'thin' })).toMatch(/weak prior/i);
-    expect(buildTastePrompt(full)).toMatch(/SOLID/);
+    expect(buildTastePrompt({ ...full, ratingCount: 6, confidence: 'thin' })).toMatch(/early.*do not lean your weight/i);
+    expect(buildTastePrompt(full)).toMatch(/is solid/i);
   });
 
   it('covers every co-use journey, not just restaurant picking', () => {
     const p = buildTastePrompt(full);
     expect(p).toMatch(/Travelling/i);
-    expect(p).toMatch(/Eating with other people/i);
-    expect(p).toMatch(/Health/i);
-    expect(p).toMatch(/Spend/i);
+    expect(p).toMatch(/Eating with others?/i);
+    expect(p).toMatch(/Health|Patterns/i);
+    expect(p).toMatch(/Spend|reckoning|damage/i);
   });
 
   it('bounds the reminder policy hard \u2014 this must never read like malware in someone\u2019s AI', () => {
@@ -237,7 +237,7 @@ describe('payload grows with the confidence band', () => {
   it('solid dates its anchors and shows the where-I-eat split', () => {
     const p = buildTastePrompt({ ...base, confidence: 'solid' as const });
     expect(p).toMatch(/Where I actually eat/i);
-    expect(p).toContain('27 eaten out');
+    expect(p).toContain('27 at another\'s table');
     expect(p).toContain('Apr 2026'); // eaten-date tag on the anchor
   });
 
@@ -288,14 +288,14 @@ describe('persona voices (spec §3/§4)', () => {
   });
 
   it('falls back to "my" when no name is given', () => {
-    expect(buildTastePrompt({ ...s, confidence: 'solid' as const }, { persona: 'honest' })
+    expect(buildTastePrompt({ ...s, confidence: 'solid' as const }, { persona: 'spoon' })
       .startsWith('# dishi — my AI palate')).toBe(true);
   });
 
   it('the three voices genuinely differ — not one doc with a relabel', () => {
     const docs = PERSONAS.map(persona => buildTastePrompt({ ...s, confidence: 'solid' as const }, { persona }));
     expect(new Set(docs).size).toBe(3);
-    expect(buildTastePrompt({ ...s, confidence: 'solid' as const }, { persona: 'playful' })).toMatch(/real deal/i);
-    expect(buildTastePrompt({ ...s, confidence: 'solid' as const }, { persona: 'connoisseur' })).toMatch(/testimony/i);
+    expect(buildTastePrompt({ ...s, confidence: 'solid' as const }, { persona: 'kiki' })).toMatch(/cooking/i);
+    expect(buildTastePrompt({ ...s, confidence: 'solid' as const }, { persona: 'ck' })).toMatch(/testimony/i);
   });
 });
