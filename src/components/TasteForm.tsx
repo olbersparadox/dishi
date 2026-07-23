@@ -183,7 +183,7 @@ export function TasteFormReveal({
       </div>
       <div style={{
         position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-        opacity: showRadar ? 1 : 0, transform: showRadar ? 'scale(1)' : 'scale(0.9)',
+        opacity: showRadar ? 1 : 0, transform: `translateY(-10px) scale(${showRadar ? 1 : 0.9})`,
         transition: 'opacity 220ms ease, transform 220ms ease',
         pointerEvents: 'none',
       }}>
