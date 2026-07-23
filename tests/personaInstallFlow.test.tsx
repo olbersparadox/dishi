@@ -101,6 +101,23 @@ describe('State A → State B: the card morph', () => {
     swipeLeft(viewport); // end of the rail — stays on Kiki
     expect(activeIdx()).toBe(2);
   });
+
+  it('tapping the dots as a group advances one step and LOOPS 3rd → 1st (unlike swipe, which clamps)', async () => {
+    await mount();
+    fireEvent.click(screen.getByRole('button', { name: /植入/ }));
+    const dots = screen.getByRole('button', { name: '下一個角色' });
+    const activeIdx = () =>
+      Array.from(document.querySelectorAll('.persona-dot')).findIndex(d => d.classList.contains('on'));
+
+    expect(activeIdx()).toBe(0); // Spoon
+    fireEvent.click(dots);
+    expect(activeIdx()).toBe(1); // CK
+    fireEvent.click(dots);
+    expect(activeIdx()).toBe(2); // Kiki
+    fireEvent.click(dots);
+    expect(activeIdx()).toBe(0); // loops back to Spoon, not clamped
+    expect(screen.getByText('dishi.Spoon')).toBeTruthy();
+  });
 });
 
 describe('the install layer (shared ExplainModal)', () => {

@@ -1380,9 +1380,17 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
    heavy), not UI-label styling. */
 .persona-name { font-family: var(--font-display); font-size: 26px; font-weight: 800; color: var(--ink); }
 .persona-blurb { font-size: 15.5px; color: var(--ink-soft); line-height: 1.55; margin-top: 1px; letter-spacing: 0.04em; }
-.persona-dots { display: flex; justify-content: center; gap: 7px; margin-top: 14px; }
+/* A real <button> (was a decorative span row) — tapping the dots as a group
+   advances the carousel one step, looping 3rd → 1st. Reset to a plain hit
+   area; padding widens the tap target beyond the tiny visible dots. */
+.persona-dots {
+  display: flex; justify-content: center; align-items: center; gap: 7px;
+  margin: 14px auto 0; padding: 8px 12px; border: none; background: none; cursor: pointer;
+}
 .persona-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--line); }
-.persona-dot.on { background: var(--ink); }
+/* The one deliberate 4th use of vermillion beyond the seal stamp / export CTA /
+   dish-edit dirty-save — owner call (2026-07-24): the active persona dot. */
+.persona-dot.on { background: var(--seal); }
 /* A real element wrapping the <hr>, not a ::after on it — Safari/WebKit doesn't
    reliably render generated content on <hr>, so the earlier pseudo-element
    triangle was invisible on-device even though it computed fine in Chromium. */
@@ -1394,7 +1402,7 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
   position: absolute; top: 0; left: 50%; transform: translate(-50%, 0);
   width: 0; height: 0;
   border-left: 5px solid transparent; border-right: 5px solid transparent;
-  border-top: 6px solid var(--ink-soft);
+  border-top: 6px solid var(--line);
 }
 /* Host logos as buttons: the same marks as the resting row, each in a thin
    rounded-square outline marking them tappable. */

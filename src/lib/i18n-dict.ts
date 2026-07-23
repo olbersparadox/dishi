@@ -408,6 +408,7 @@ export const dict: Record<string, { zh: string; en: string }> = {
   // Install layer title (owner spec 2026-07-23) — {name} is the persona's display
   // name (dishi.Spoon…). The per-host steps live in tasteExport.ts INSTALL_HOSTS.
   'install.title': { zh: '植入 {name}', en: 'Install {name}' },
+  'persona.next': { zh: '下一個角色', en: 'Next persona' },
   'form.migration.title': { zh: '你的夥伴進化了', en: 'Your companion evolved' },
   'form.migration.blurb': {
     zh: '現在它就是你的味覺本身 — 每次評分都會真實地改變它的模樣。',

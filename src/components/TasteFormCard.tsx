@@ -296,9 +296,12 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
             ))}
           </div>
         </div>
-        <div className="persona-dots" aria-hidden>
+        {/* Tap the dots AS A GROUP to advance — same forward-only cycle a swipe would
+            reach one step at a time, looping 3rd → 1st rather than dead-ending. */}
+        <button type="button" className="persona-dots" onClick={() => setIdx(i => (i + 1) % PERSONAS.length)}
+          aria-label={t('persona.next')}>
           {PERSONAS.map((p, i) => <span key={p} className={`persona-dot ${i === idx ? 'on' : ''}`} />)}
-        </div>
+        </button>
         <div className="persona-divider-wrap">
           <hr className="persona-divider" />
           <span className="persona-divider-arrow" aria-hidden />
