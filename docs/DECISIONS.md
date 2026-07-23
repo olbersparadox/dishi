@@ -1690,3 +1690,70 @@ Full backlog entry, verbatim, as it stood when the last open piece shipped:
   line. Same i18n keys, same isolated table. 536/536.
   **Remaining manual step (owner, not code):** Phase 0.5 persistence re-test —
   install a real Gem/Project once and confirm day-over-day retention.
+
+---
+
+# Batch: pick-flow field session fixes (2026-07-23)
+
+Context: real field session. Menu scanned at a restaurant, dish picked;
+add-restaurant input UX issues on the picker sheet; later, rating the queued
+no-photo pick surfaced missing restaurant context on the growth confirm card
+and a 某年某月某日 date in 食記. (Item 1 — picker + no-photo card UI polish,
+Sonnet — still open in BACKLOG.md.)
+
+## 2. Pick context integrity: restaurant + eaten-date must ride with the dish — *(Fable 5)* — ✅ SHIPPED `6ad7237` 2026-07-23
+
+Full backlog entry, verbatim:
+
+**Bug class:** context known at creation, dropped downstream — plus a live
+data-corruption path.
+
+**Observed:** a dish picked from a scanned menu at a known restaurant reached
+the growth confirm card with NO restaurant shown and the full picker chip row
+(加間舖/略過/住家菜) offered. In 食記 the restaurant appeared (so it WAS
+stored) but the date fell back to 某年某月某日.
+
+**Root causes (diagnosed against current repo):**
+1. `runPickPipeline` (RatingStack.tsx) patches only name/coords — never the
+   dish's existing restaurant_id — so TasteGrowth sees choice:null and
+   renders the orphan-dish picker.
+2. `runPickPipeline` then calls `loadNearby`, whose optimistic
+   `persistPlace(dishId, top)` can OVERWRITE the correct scan-time
+   restaurant with whatever is geographically nearest. Silent corruption;
+   the field session merely got lucky on ranking.
+3. `POST /api/dishes/pick` never writes eaten_at (only the photo path sets
+   it, from EXIF) — but pick time IS the eaten time, known precisely.
+
+**Fix:**
+- `?unrated=1` returns restaurant_id + display name (zh/en); `ExistingPick`
+  carries them; `runPickPipeline` patches the restaurant onto the card.
+- Growth card with a known restaurant: render it as a FIXED display line —
+  no picker chips, no 改 affordance (decided: correction lives in 食記's
+  轉餐廳; the confirm card stays a fast confirm, not an editor).
+- When restaurant is known, DO NOT call loadNearby at all — kills the
+  optimistic-persist overwrite at the root.
+- `POST /api/dishes/pick`: set eaten_at = now() on every created row.
+- Backfill migration (save to supabase/applied/ + apply live):
+  `update dishes set eaten_at = created_at where eaten_at is null and
+  source in ('scan','table');`
+
+**Tests:** pick-with-restaurant renders fixed context and no picker chips;
+loadNearby never fires for restaurant-bearing picks; restaurant-less picks
+(略過 at pick time) keep the current picker behavior unchanged; pick route
+writes eaten_at; backfill touches only null-eaten_at scan/table rows.
+
+**As shipped (`6ad7237`):** the decision point extracted pure —
+`src/lib/pickContext.ts` (`pickPlaceContext`: known restaurant → fixed label
+with zh→en fallback, picker suppressed, nearby NEVER runs; restaurant-less →
+unchanged) and `src/lib/pickRows.ts` (pick-route row builder, stamps
+eaten_at = now() on every row; the route rewired onto it). TasteGrowth's
+fixed state is a STATIC ink tile (`.learn-place-fixed` — .refine-place
+geometry, no breath, not a button). Backfill dry-run first (begin…returning…
+rollback): exactly 2 rows, both source='table', nothing outside scan/table;
+applied + recorded in `supabase/applied/dishes_pick_eaten_at_backfill.sql`.
++9 tests (pickContext.test.ts, growthPlaceFixed.test.tsx), 545/545, tsc
+clean. Verified live on the dev server with a REAL scan pick created at
+雀友茶樓: growth card showed the fixed 📍 tile with zero picker chips, zero
+/api/restaurants/nearby requests fired, restaurant_id intact after rating,
+eaten_at written by the route. Test dish deleted afterward (profile replay
+healed the test rating).

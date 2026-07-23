@@ -272,3 +272,40 @@ enforcement; no-badge assertion.
 Items 1 and 3 (Sonnet — the IA + the floor) shipped 2026-07-22, old chips
 removed in that PR — see DECISIONS.md. Remaining: 2 → 4 (Fable 5); each
 path's verification includes screenshots of the real flow before "done".
+
+---
+
+# Backlog additions — 2026-07-23 (pick-flow field session fixes)
+
+Context: real field session. Menu scanned at a restaurant, dish picked;
+add-restaurant input UX issues on the picker sheet; later, rating the queued
+no-photo pick surfaced missing restaurant context on the growth confirm card
+and a 某年某月某日 date in 食記.
+
+(Item 2 — pick context integrity: restaurant + eaten-date ride with the dish —
+SHIPPED `6ad7237` 2026-07-23, full entry moved to DECISIONS.md.)
+
+## 1. Picker + no-photo card UI polish — *(Sonnet)*
+
+**a. Add-restaurant commit button (加入):**
+- Replace the text "加入" circle with a check-icon circle (house CheckIcon,
+  house line weight).
+- Idle (input empty): outlined circle, muted icon (--ink-soft / --line) —
+  reads as not-yet-actionable.
+- Active (any text typed): solid ink-black circle (--ink), white check —
+  black is the app-wide primary-action signal (已選 pill, confirm button).
+- Explicitly NOT vermillion — #c73e1d stays reserved for the seal glyph and
+  AI-export CTA only (standing rule, reconfirmed 2026-07-23).
+
+**b. 取消 → circle X:** replace the text 取消 pill on the pick-confirm sheet
+with the house CloseIcon in a circle, matching the close convention used
+elsewhere (reveal sheet, TypedQuickAdd).
+
+**c. No-photo pending-rating card (待評 pick, Taste tab):** camera icon
+overlay, bottom-right corner of the card thumbnail slot — same treatment as
+the standing log-flow polish item. Tap opens photo input and attaches the
+photo to the existing dish (reuse the 加相 path from 食記 edit). Rendered
+ONLY when photo_url is null; photo-bearing cards unchanged.
+
+**Tests:** button state transitions (empty ↔ typed); camera overlay renders
+only for null photo_url; overlay tap wires to the add-photo path.
