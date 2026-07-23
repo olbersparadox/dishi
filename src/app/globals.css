@@ -1051,9 +1051,13 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
   margin-top: -11px;
   /* +5px beyond the shared shift, on this line only (the bar below still reads
      just --version-line-shift) — tightens the line-to-bar gap to 11px, in
-     both states, without moving the bar. */
+     both states, without moving the bar. No transition: this shift only ever
+     changes together with TasteFormReveal's own box-resize animation (a
+     separate component, width/height on a layout-driven timer), and a
+     transform-based transition here (compositor-driven) drifted out of sync
+     with it frame-to-frame — visible as a wobble. Snapping instantly reads
+     cleanly against the box's own smooth resize. */
   transform: translateY(calc(var(--version-line-shift, 20px) + 5px));
-  transition: transform 240ms ease;
 }
 .version-now, .version-next {
   font-family: var(--font-display); font-weight: 800; font-size: 16px; color: var(--ink);
@@ -1066,7 +1070,6 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 .version-bar-row {
   display: flex; align-items: center; gap: 10px;
   margin-top: calc(16px + var(--version-line-shift, 20px));
-  transition: margin-top 240ms ease;
 }
 /* This bar specifically (the taste-tab version-progress bar, not .grow2-top's growth-
    screen bar, which stays untouched): +5px height, and shortened 10px by giving the
