@@ -1039,9 +1039,13 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 /* The dishi version ladder line (replaced Levels): V{n} leads the legend; the bar
    below runs the full stat-line width with V{n+1} pinned at its right end. */
 /* --version-line-shift: 20px under the blob (+10px more air than the old
-   fixed 10px), 0px under the radar (-10px less) — set inline by
-   TasteFormCard per showRadar, since the radar is taller and already sits
-   closer to this line. */
+   fixed 10px), 0px under the radar (-10px less) — set inline by TasteFormCard
+   (on .taste-form-card, so both this line AND the bar row below can read it)
+   per showRadar, since the radar is taller and already sits closer to this
+   line. .version-bar-row's margin-top adds the SAME shift, so the line-to-bar
+   gap stays a constant 16px in both states instead of collapsing under the
+   blob (transform moves the line but not layout, so without this the bar
+   never followed it down). */
 .version-line {
   display: flex; align-items: center; justify-content: center; gap: 14px;
   margin-top: -11px; transform: translateY(var(--version-line-shift, 20px));
@@ -1055,7 +1059,11 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 /* Enlarged to match the version bar's own height (13px) below — was reading as a
    small caption next to the now-taller bar. */
 .version-next { font-size: 18px; color: var(--ink-soft); font-weight: 700; }
-.version-bar-row { display: flex; align-items: center; gap: 10px; margin-top: 16px; }
+.version-bar-row {
+  display: flex; align-items: center; gap: 10px;
+  margin-top: calc(16px + var(--version-line-shift, 20px));
+  transition: margin-top 240ms ease;
+}
 /* This bar specifically (the taste-tab version-progress bar, not .grow2-top's growth-
    screen bar, which stays untouched): +5px height, and shortened 10px by giving the
    flex:1 track a fixed margin instead of letting it fill the full row width. */

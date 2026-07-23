@@ -189,7 +189,8 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
 
   return (
     <>
-    <div className={`taste-form-card ${expanded ? 'persona-expand' : ''}`}>
+    <div className={`taste-form-card ${expanded ? 'persona-expand' : ''}`}
+      style={{ '--version-line-shift': showRadar ? '0px' : '20px' } as React.CSSProperties}>
       {/* State B's close — the same quiet top-right X the growth screen uses.
           Cancel restores State A with nothing saved. */}
       {expanded && (
@@ -218,7 +219,7 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
           legend, and the bar below runs the FULL stat-line width toward V{n+1} at its
           right end — progress between version thresholds, not raw confidence. The
           ladder is unbounded (see version.ts); Levels and their animal names are gone. */}
-      <div className="version-line" style={{ '--version-line-shift': showRadar ? '0px' : '20px' } as React.CSSProperties}>
+      <div className="version-line">
         <span className="version-now">V{state.version.v}</span>
         <div className="taste-form-legend" style={{ marginTop: 0 }}>
           <span><span className="dot dot-knows" />{t('buddy.knows.count', { n: state.knows.length })}</span>
