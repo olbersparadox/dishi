@@ -1698,8 +1698,7 @@ Full backlog entry, verbatim, as it stood when the last open piece shipped:
 Context: real field session. Menu scanned at a restaurant, dish picked;
 add-restaurant input UX issues on the picker sheet; later, rating the queued
 no-photo pick surfaced missing restaurant context on the growth confirm card
-and a 某年某月某日 date in 食記. (Item 1 — picker + no-photo card UI polish,
-Sonnet — still open in BACKLOG.md.)
+and a 某年某月某日 date in 食記. Both items now shipped.
 
 ## 2. Pick context integrity: restaurant + eaten-date must ride with the dish — *(Fable 5)* — ✅ SHIPPED `6ad7237` 2026-07-23
 
@@ -1757,3 +1756,51 @@ clean. Verified live on the dev server with a REAL scan pick created at
 /api/restaurants/nearby requests fired, restaurant_id intact after rating,
 eaten_at written by the route. Test dish deleted afterward (profile replay
 healed the test rating).
+
+## 1. Picker + no-photo card UI polish — *(Sonnet)* — ✅ SHIPPED `662358f` 2026-07-23
+
+Full backlog entry, verbatim:
+
+**a. Add-restaurant commit button (加入):**
+- Replace the text "加入" circle with a check-icon circle (house CheckIcon,
+  house line weight).
+- Idle (input empty): outlined circle, muted icon (--ink-soft / --line) —
+  reads as not-yet-actionable.
+- Active (any text typed): solid ink-black circle (--ink), white check —
+  black is the app-wide primary-action signal (已選 pill, confirm button).
+- Explicitly NOT vermillion — #c73e1d stays reserved for the seal glyph and
+  AI-export CTA only (standing rule, reconfirmed 2026-07-23).
+
+**b. 取消 → circle X:** replace the text 取消 pill on the pick-confirm sheet
+with the house CloseIcon in a circle, matching the close convention used
+elsewhere (reveal sheet, TypedQuickAdd).
+
+**c. No-photo pending-rating card (待評 pick, Taste tab):** camera icon
+overlay, bottom-right corner of the card thumbnail slot — same treatment as
+the standing log-flow polish item. Tap opens photo input and attaches the
+photo to the existing dish (reuse the 加相 path from 食記 edit). Rendered
+ONLY when photo_url is null; photo-bearing cards unchanged.
+
+**Tests:** button state transitions (empty ↔ typed); camera overlay renders
+only for null photo_url; overlay tap wires to the add-photo path.
+
+**As shipped (`662358f`):** (a) `RestaurantPicker`'s confirm button is now
+`.picker-confirm-circle` (idle outlined) / `.picker-confirm-circle.filled`
+(solid ink + glaze CheckIcon) — matches the identity-card answer-circle
+convention (icon carries the meaning, aria-label/title carry the a11y text).
+(b) The scan pick-confirm sheet's cancel reuses the existing `.icon-btn.lg`
+circle (the same treatment already on that page's own rate/delete pair) with
+CloseIcon. (c) New `PickCardThumb` component: a quiet paper-inset placeholder
+or the real photo, with the camera badge as the ONLY tap target (bottom-right
+corner, not the whole tile — this row already carries rate/delete actions),
+wired to the same `/api/dishes/photo` path MyDishes' 食記 edit uses. +9
+tests: confirm-circle idle↔filled transitions, PickCardThumb badge presence/
+absence + upload wiring + disabled-while-uploading, and the scan cancel
+button's wiring verified via source assertion (mounting the full scan page
+needs a real vision round-trip — same technique as
+`identityCardChassis.test.tsx`'s CARD_SRC/DUEL_SRC checks). tsc clean,
+552/552 passing. Verified live on real data: the confirm circle's idle→
+filled transition (via 食記's 轉餐廳 edit path) and PickCardThumb's camera
+badge (a real scan pick) alongside an existing photo-bearing pick showing no
+badge — both screenshotted in the actual app, side by side. Test picks
+deleted after (profile replay healed any test rating exposure).
