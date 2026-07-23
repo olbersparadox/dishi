@@ -59,8 +59,18 @@ async function main() {
     // enrichOneDish carries the tripwire re-ask internally, so the correction is
     // grounded the same way a fresh scan is — recipe first, flags derived from it.
     const enriched = await enrichOneDish({ name: seed, name_zh: r.name_zh, cuisine: r.cuisine || 'unknown' });
-    const before = (r.diet ?? []).join(',');
-    const after = enriched.diet.join(',');
+    // A flaked model call comes back as EMPTY_ENRICHMENT (enrichOneDish returns it
+    // when the response doesn't parse) — that is a FAILED CALL, not a verdict, and
+    // writing its empty diet would wipe real flags (observed live 2026-07-23: 腸粉
+    // [seafood,egg,dairy] -> [] on an "OpenRouter returned non-JSON" flake). A real
+    // enrichment essentially always carries a hook/method/ingredients; skip anything
+    // that looks like the empty shape rather than trusting it.
+    const looksFlaked = enriched.diet.length === 0 && !enriched.hook && !enriched.cooking_method && enriched.ingredients.length === 0;
+    if (looksFlaked) { console.log(`  SKIPPED (model call failed, not a verdict): ${seed}`); continue; }
+    // Order-insensitive: flags are a SET — [a,b] -> [b,a] is not a correction, and
+    // writing it just churns the row (observed on the 2026-07-23 second pass).
+    const before = [...(r.diet ?? [])].sort().join(',');
+    const after = [...enriched.diet].sort().join(',');
     if (before === after) continue;
     const { error: upErr } = await admin.from('dishes').update({ diet: enriched.diet }).eq('id', r.id);
     if (upErr) { console.error(`  FAILED ${r.id}: ${upErr.message}`); continue; }

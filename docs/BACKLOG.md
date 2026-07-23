@@ -42,10 +42,8 @@ DECISIONS.md.)
   eaten-date; decide: order journal by when-eaten vs when-logged, and how to
   capture an approximate eaten-date at log time without adding friction.
   Design conversation first — do not build straight from this line.
-- [ ] **[F] Diet taxonomy growth (gluten, soy, nuts-general).** The 雞扎 fix took
-  DIET_FLAGS from 7 → 13 (added poultry/lamb/egg/dairy/offal). Further allergen
-  axes are real but each needs its own recipe-grounding thought — do NOT bolt them
-  on ad hoc; keep the vocabulary closed and deliberate.
+(Diet taxonomy growth — DECIDED + SHIPPED 2026-07-23: tree_nut + structural-only
+soy added (13 → 15), gluten deliberately rejected. See DECISIONS.md.)
 
 ## Table Mode continuation — Fable-tier, in dependency order
 

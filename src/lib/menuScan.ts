@@ -24,7 +24,7 @@ import { ZH_FROM_MENU_GUIDANCE } from './nameTranslate';
  * feels like emitting. */
 export const DIET_FLAGS = [
   'veg', 'pork', 'beef', 'chicken', 'duck_goose', 'lamb',
-  'seafood', 'shellfish', 'egg', 'dairy', 'offal', 'peanut', 'spicy',
+  'seafood', 'shellfish', 'egg', 'dairy', 'offal', 'peanut', 'tree_nut', 'soy', 'spicy',
 ] as const;
 export type DietFlag = typeof DIET_FLAGS[number];
 
@@ -48,7 +48,13 @@ export const DIET_PROMPT_GUIDANCE =
   `  (2) Derive the diet flags ONLY from that ingredient list — NEVER from characters/words in the name.\n` +
   `Chinese names are often figurative: 菠蘿包 (pineapple bun) contains no pineapple; ` +
   `田雞 is frog, NOT chicken; 牛油 is butter, NOT beef; 魚香茄子 contains no fish. ` +
-  `Reason from the recipe, not the characters.`;
+  `Reason from the recipe, not the characters.\n` +
+  `tree_nut = tree nuts as a real ingredient: 腰果 cashew, 核桃/合桃 walnut, 杏仁 almond/apricot kernel, ` +
+  `開心果 pistachio, 松子 pine nut, 榛子 hazelnut. NOT chestnut (栗子), ginkgo (白果), lotus seed (蓮子), ` +
+  `or water chestnut (馬蹄) — those are allergen-distinct. Peanut (花生) stays its own flag, never tree_nut.\n` +
+  `soy = soy-BASED foods only: tofu 豆腐, tofu skin 腐皮/腐竹/枝竹, fermented tofu 腐乳, soy milk 豆漿, ` +
+  `soybeans/edamame 枝豆, fermented soybeans 豆豉, miso. Soy sauce or oyster sauce as a seasoning alone ` +
+  `NEVER fires this flag — nearly every dish would carry it and the flag would mean nothing.`;
 
 /** The one extra line appended on a tripwire re-ask (see dietSuspicion). */
 export const DIET_RECHECK_LINE =
@@ -479,6 +485,24 @@ const PROTEIN_TRIPWIRE: { morphemes: string[]; flag: DietFlag; ingredientKeys: s
   { morphemes: ['\u8766', 'shrimp', 'prawn'], flag: 'shellfish', ingredientKeys: ['shrimp', 'prawn'] },
   { morphemes: ['\u9b5a', 'fish'], flag: 'seafood', ingredientKeys: ['fish'] },
   { morphemes: ['\u86cb', 'egg'], flag: 'egg', ingredientKeys: ['egg'] },
+  // Tree nuts: full compounds only \u2014 bare \u4ec1 collides with \u8766\u4ec1 (shelled shrimp) and
+  // bare \u679c with every fruit. 'apricot kernel' backs \u674f\u4ec1 desserts (HK \u674f\u4ec1 is usually
+  // apricot kernel, not almond \u2014 related species, flagged either way).
+  {
+    morphemes: ['\u8170\u679c', '\u6838\u6843', '\u5408\u6843', '\u674f\u4ec1', '\u958b\u5fc3\u679c', '\u677e\u5b50', '\u699b\u5b50', '\u679c\u4ec1', 'cashew', 'walnut', 'pistachio', 'pine nut', 'hazelnut', 'almond', 'pecan', 'macadamia'],
+    flag: 'tree_nut',
+    ingredientKeys: ['cashew', 'walnut', 'almond', 'pistachio', 'pine nut', 'hazelnut', 'pecan', 'macadamia', 'apricot kernel'],
+  },
+  // Soy is STRUCTURAL-ONLY (\u8c46\u88fd\u54c1): morphemes are soy-food compounds, never bare \u8c46
+  // (\u7d05\u8c46/\u8377\u862d\u8c46/\u8c46\u89d2\u2026 are not soy) and never 'soy' in English (would fire on every
+  // "Soy Sauce X" name \u2014 seasoning-trace soy is deliberately outside this flag).
+  // ingredientKeys likewise exclude bare 'soy' so a soy-sauce-only recipe never
+  // SUPPORTS the flag \u2014 a trace-based soy flag should earn its one re-ask.
+  {
+    morphemes: ['\u8c46\u8150', '\u8c46\u6f3f', '\u8c46\u8c49', '\u8150\u76ae', '\u8150\u7af9', '\u8150\u4e73', '\u679d\u7af9', 'tofu', 'soy milk', 'soybean', 'edamame'],
+    flag: 'soy',
+    ingredientKeys: ['tofu', 'bean curd', 'soy milk', 'soybean', 'soy bean', 'edamame', 'miso', 'black bean'],
+  },
 ];
 
 // Figurative compounds where a protein character does NOT mean that protein. These
@@ -486,7 +510,12 @@ const PROTEIN_TRIPWIRE: { morphemes: string[]; flag: DietFlag; ingredientKeys: s
 // \u7530\u96de (frog) or beef of \u725b\u6cb9 (butter) \u2014 the key anti-regression cases. This is a
 // closed list of known traps, not a general parser; growing it is cheap and safe
 // because the worst case of a missing trap is one harmless re-ask, never a wrong flag.
-const DIET_NAME_TRAPS = ['\u7530\u96de', '\u725b\u6cb9\u679c', '\u725b\u6cb9', '\u9b5a\u9999', '\u9b5a\u9732', '\u9b5a\u86cb'];
+// \u674f\u4ec1\u8c46\u8150 / "almond tofu" (both name forms \u2014 traps strip zh AND en surfaces) is an
+// agar/milk dessert: apricot-kernel flavoured, zero soybean \u2014 stripped as a unit so
+// the \u8c46\u8150/tofu morpheme can't demand soy of it every single time. Its genuine
+// tree_nut flag stays supported through the 'apricot kernel'/'almond' ingredient
+// keys, so stripping costs nothing there.
+const DIET_NAME_TRAPS = ['\u7530\u96de', '\u725b\u6cb9\u679c', '\u725b\u6cb9', '\u9b5a\u9999', '\u9b5a\u9732', '\u9b5a\u86cb', '\u674f\u4ec1\u8c46\u8150', 'almond tofu'];
 
 /**
  * TRIPWIRE for diet-flag integrity \u2014 pure, exported, unit-tested. Returns true when

@@ -1463,3 +1463,110 @@ tsc clean; 515/515 tests (12 new: buildScoreUserText ×6 in
 `carbShorthand.test.ts`, canReauthorEnName ×7 in `dishIdentity.test.ts`,
 embed test extended in place).
 
+
+---
+
+# Batch: diet taxonomy growth — tree nuts + soy, gluten rejected (2026-07-23)
+
+Original backlog entry (verbatim): **[F] Diet taxonomy growth (gluten, soy,
+nuts-general).** The 雞扎 fix took DIET_FLAGS from 7 → 13 (added poultry/lamb/
+egg/dairy/offal). Further allergen axes are real but each needs its own
+recipe-grounding thought — do NOT bolt them on ad hoc; keep the vocabulary
+closed and deliberate.
+
+---
+
+## Diet taxonomy growth — *(Fable 5)* — ✅ DONE, 2026-07-23
+
+**Owner decisions (per-axis, 2026-07-23):**
+- **tree_nut: ADD.** Structural and visible in HK dishes (腰果雞丁, 核桃蝦,
+  合桃糊, 開心果, 松子炒飯); closed morpheme set; real allergen value.
+  Kept SEPARATE from `peanut` (medically correct — peanut is a legume,
+  tree-nut allergy is distinct). Label 果仁 / "Tree Nuts".
+- **soy: ADD as STRUCTURAL-ONLY.** The tension: soy sauce contains real soy
+  protein and is in essentially every Cantonese dish — an allergen-honest
+  soy flag would mark ~90%+ of dishes and carry zero information. The honest
+  version flags soy-BASED foods only (豆腐, 腐皮/腐竹/枝竹, 腐乳, 豆漿, 豆豉,
+  edamame, miso), labeled 豆製品 / "Soy-based" — deliberately NOT 大豆/"Soy" —
+  so it never reads as an allergen-safety claim. The guidance states
+  explicitly: soy sauce / oyster sauce as seasoning alone never fires it.
+- **gluten: REJECTED (do not ship).** Worst information-to-risk ratio: trace
+  gluten (soy sauce, oyster sauce, hoisin) is near-universal in Cantonese
+  food → honest flagging marks everything (noise); structural gluten
+  (noodles, bread, dumpling skins, batter) is already visible via the carb
+  and ingredient chips; and an absent chip misread as "gluten-free" is
+  exactly the false-safety harm the honesty principles exist to prevent
+  (蝦餃 skin is wheat starch — gluten-adjacent even looking rice-based).
+  Revisit only on a real user need. Pinned by test: `DIET_FLAGS` must NOT
+  contain 'gluten'.
+
+**Judgment calls baked into the guidance/tripwire (the recipe-grounding
+work that made this Fable-tier):**
+- tree_nut EXCLUDES 栗子 chestnut (allergen-distinct, and 栗子雞 is common),
+  白果 ginkgo, 蓮子 lotus seed, 馬蹄 water chestnut — named non-fires in
+  DIET_PROMPT_GUIDANCE.
+- 杏仁 trap: in HK desserts 杏仁 (杏仁茶/杏仁豆腐) is usually APRICOT KERNEL,
+  not almond — related Prunus species, flagged as tree_nut either way;
+  'apricot kernel' is a supporting ingredient key.
+- 杏仁豆腐/"almond tofu" added to DIET_NAME_TRAPS in BOTH name surfaces
+  (traps strip zh and en): it's an agar/milk dessert with zero soybean, and
+  without the trap the 豆腐/tofu morpheme would demand soy of a common
+  dessert on every single enrichment. Its genuine tree_nut flag stays
+  consistent through the ingredient keys, so stripping costs nothing there.
+  (The en-surface gap was caught during test-writing — traps only stripped
+  the zh compound, and the English "Almond tofu" kept firing rule 1.)
+- Tripwire morphemes are FULL COMPOUNDS only: bare 仁 collides with 蝦仁
+  (shelled shrimp), bare 果 with every fruit, bare 豆 with 紅豆/荷蘭豆/豆角,
+  and English 'soy' would fire on every "Soy Sauce X" name. Soy's ingredient
+  keys likewise exclude bare 'soy' so a soy-sauce-only recipe never SUPPORTS
+  the flag — a trace-based soy flag earns its one re-ask (pinned by test).
+
+**Mechanics (all auto-propagating — the 雞扎-era single-sourcing paid off):**
+- `DIET_FLAGS` 13 → 15; `DIET_FLAG_LIST` feeds every prompt site (both scan
+  prompts, ENRICH_SYSTEM, both vision prompts) with zero per-site edits.
+- `DIET_PROMPT_GUIDANCE` gained the two axis definitions with the named
+  non-fires above.
+- `PROTEIN_TRIPWIRE` gained tree_nut + soy rows (dietSuspicion covers the
+  new axes; same rules, same one-re-ask discipline).
+- UI: DIET_ICON tree_nut 🌰 (reads generically as "a nut" at chip size —
+  comment acknowledges the excluded-chestnut irony), soy 🫘; i18n
+  `scan.diet.tree_nut` 果仁/"Tree Nuts", `scan.diet.soy` 豆製品/"Soy-based"
+  (label comment records the framing rationale). `ingredientLabel.ts` gained
+  pistachio/pine nut/hazelnut/apricot kernel/tofu/soy milk/soybean/edamame
+  zh rows, ordered before the generic 'nut'/'bean' rows (first-match-wins).
+- DB: verified live via MCP — `dishes.diet` is a plain array with NO check
+  constraint; the closed vocabulary is enforced in code (sanitizeDietFlags),
+  so no migration.
+- Backfill: ZERO new script — `backfill-diet-flags.ts` selects via
+  `dietSuspicion`, so extending the tripwire extended the backfill for free.
+  Dry-run: 60 scanned, 38 fired — mostly the script's pre-existing
+  characteristic (dishes store no ingredients, so rule 2 fires on every
+  recipe-derived flag lacking name support), with the new axes selecting
+  correctly (麻婆豆腐 with empty diet, via the new 豆腐 morpheme). --apply
+  re-derived the suspicious set under the 15-flag vocabulary — bounded,
+  diet-column-only writes (display-only field, no engine impact), auditable
+  before→after log.
+
+tsc clean; 527/527 tests (12 new in dietFlags.test.ts: vocabulary pins incl.
+the gluten-stays-out test, tree_nut axis ×6, soy axis ×5).
+
+**Amendment (same session): backfill flake-wipe found and fixed.** The first
+--apply pass hit the known qwen flake ("OpenRouter returned non-JSON") three
+times; `enrichOneDish` returns EMPTY_ENRICHMENT on a parse failure, and the
+script treated that as a verdict — 腸粉 had its real flags wiped
+[seafood,egg,dairy] → [] by a flaked call (the vision-flake principle
+exactly: a failed call is NOT a verdict). Fixed in the script: results
+shaped like EMPTY_ENRICHMENT (no diet + no hook + no method + no
+ingredients) are SKIPPED and logged, never written. 腸粉 was restored and
+honestly re-derived ([pork]); the guard proved itself on the second pass
+(茶粒螺 + 大致壽司 flaked → SKIPPED, untouched). Also made the write
+comparison order-insensitive (flags are a set — [a,b] → [b,a] was being
+written as a "correction"). Second pass: 23 suspicious, 12 corrected,
+including the flagship 麻婆豆腐 [] → [pork, soy, spicy].
+
+**Verified live:** journal screenshot posted — 涮涮鍋 (owner's real rated
+dish) renders 🐄牛肉 + 🫘豆製品 chips in the 食記; backfill corrections
+visible on neighboring cards (烤串 羊肉, 舒芙蕾鬆餅 素/蛋/奶類). Honest gap:
+no stored dish carries tree_nut yet (owner has no nut dishes logged) — the
+果仁 chip renders through the same DIET_ICON/i18n machinery the 豆製品 chip
+just proved live.

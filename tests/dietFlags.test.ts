@@ -9,11 +9,19 @@ import { dict } from '../src/lib/i18n-dict';
 // which is the whole reason strings may never author a flag.
 
 describe('DIET_FLAGS taxonomy', () => {
-  it('carries the 6 new flags on top of the original 7', () => {
-    for (const f of ['chicken', 'duck_goose', 'lamb', 'egg', 'dairy', 'offal']) {
+  it('carries the 6 雞扎-era flags plus the two 2026-07 allergen axes', () => {
+    for (const f of ['chicken', 'duck_goose', 'lamb', 'egg', 'dairy', 'offal', 'tree_nut', 'soy']) {
       expect(DIET_FLAGS as readonly string[]).toContain(f);
     }
-    expect(DIET_FLAGS.length).toBe(13);
+    expect(DIET_FLAGS.length).toBe(15);
+  });
+
+  it('gluten stays deliberately OUT of the vocabulary', () => {
+    // Decided 2026-07-23: trace gluten (soy sauce, oyster sauce) is near-universal
+    // in Cantonese food, so an honest gluten flag would mark everything (noise) and
+    // an absent one would read as a safety claim (harm). Structural gluten is
+    // already visible via carb/ingredient chips. Revisit only on a real user need.
+    expect(DIET_FLAGS as readonly string[]).not.toContain('gluten');
   });
 
   it('every flag has a zh + en i18n label (parity)', () => {
@@ -79,5 +87,60 @@ describe('dietSuspicion — the tripwire', () => {
   it('accepts ingredient support even when the flag is absent (egg tart)', () => {
     // 蛋 named, no egg flag, but "egg" is in the ingredients — consistent, no re-ask.
     expect(dietSuspicion('Egg tart', '蛋撻', ['veg'], ['egg', 'butter', 'sugar'])).toBe(false);
+  });
+});
+
+describe('dietSuspicion — tree_nut axis (2026-07-23)', () => {
+  it('FIRES on 腰果雞丁 with no tree_nut flag or nut ingredient', () => {
+    expect(dietSuspicion('Cashew chicken', '腰果雞丁', ['chicken'], ['chicken', 'bell pepper'])).toBe(true);
+  });
+
+  it('does NOT fire on a correctly-tagged 腰果雞丁', () => {
+    expect(dietSuspicion('Cashew chicken', '腰果雞丁', ['chicken', 'tree_nut'], ['chicken', 'cashew'])).toBe(false);
+  });
+
+  it('does NOT demand tree_nut of 蝦仁 — 仁 alone is never a nut morpheme', () => {
+    expect(dietSuspicion('Shrimp fried rice', '蝦仁炒飯', ['shellfish', 'egg'], ['shrimp', 'rice', 'egg'])).toBe(false);
+  });
+
+  it('does NOT demand tree_nut of 栗子雞 — chestnut is excluded from the flag', () => {
+    expect(dietSuspicion('Chestnut chicken', '栗子炆雞', ['chicken'], ['chicken', 'chestnut'])).toBe(false);
+  });
+
+  it('杏仁豆腐: stripped as a trap, tree_nut flag supported by apricot kernel', () => {
+    // The dessert has no soybean (agar/milk) — the trap stops the 豆腐 morpheme from
+    // demanding soy on every enrichment, while its genuine tree_nut flag stays
+    // consistent through the ingredient keys.
+    expect(dietSuspicion('Almond tofu', '杏仁豆腐', ['tree_nut', 'dairy'], ['apricot kernel', 'milk', 'agar'])).toBe(false);
+  });
+
+  it('FIRES when tree_nut is flagged with nothing backing it', () => {
+    expect(dietSuspicion('Steamed fish', '清蒸魚', ['seafood', 'tree_nut'], ['fish', 'ginger', 'scallion'])).toBe(true);
+  });
+});
+
+describe('dietSuspicion — soy axis, structural-only (2026-07-23)', () => {
+  it('FIRES on 麻婆豆腐 with no soy flag or soy-food ingredient', () => {
+    expect(dietSuspicion('Mapo tofu', '麻婆豆腐', ['pork', 'spicy'], ['pork', 'chili', 'sichuan pepper'])).toBe(true);
+  });
+
+  it('does NOT fire on a correctly-tagged 麻婆豆腐', () => {
+    expect(dietSuspicion('Mapo tofu', '麻婆豆腐', ['soy', 'pork', 'spicy'], ['tofu', 'pork', 'chili'])).toBe(false);
+  });
+
+  it('does NOT demand soy of 豉油雞 — soy sauce as seasoning is outside the flag', () => {
+    // Neither 'soy' (EN) nor bare 豉油 is a morpheme: the structural framing means a
+    // soy-sauce dish name carries no soy expectation at all.
+    expect(dietSuspicion('Soy sauce chicken', '豉油雞', ['chicken'], ['chicken', 'soy sauce', 'ginger'])).toBe(false);
+  });
+
+  it('FIRES when soy is flagged on soy-sauce-trace evidence only', () => {
+    // 'soy sauce' deliberately does not satisfy the soy ingredient keys — a
+    // trace-based flag earns its one recipe re-check.
+    expect(dietSuspicion('Fried rice', '炒飯', ['soy', 'egg'], ['rice', 'egg', 'soy sauce'])).toBe(true);
+  });
+
+  it('does NOT demand soy of 紅豆沙 — bare 豆 is never a soy morpheme', () => {
+    expect(dietSuspicion('Red bean soup', '紅豆沙', ['veg'], ['red bean', 'sugar', 'dried tangerine peel'])).toBe(false);
   });
 });

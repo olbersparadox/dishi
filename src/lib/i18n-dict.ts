@@ -518,6 +518,10 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'scan.diet.dairy': { zh: '奶類', en: 'Dairy' },
   'scan.diet.offal': { zh: '內臟', en: 'Offal' },
   'scan.diet.peanut': { zh: '花生', en: 'Peanut' },
+  'scan.diet.tree_nut': { zh: '果仁', en: 'Tree Nuts' },
+  // 豆製品 (not 大豆) is deliberate: the flag covers soy-BASED foods only, never
+  // soy-sauce trace — the label must not read as an allergen-safety claim.
+  'scan.diet.soy': { zh: '豆製品', en: 'Soy-based' },
   'scan.diet.spicy': { zh: '辣', en: 'Spicy' },
   // Cooking method \u2014 only the two NOT already covered by dim.* (fried/steamed/
   // grilled/braised/baked/raw all reuse those existing labels for consistency).

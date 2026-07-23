@@ -16,7 +16,9 @@ const DIET_ICON: Record<string, string> = {
   egg: '\u{1F95A}', dairy: '\u{1F95B}',
   // offal: deliberately no emoji \u2014 nothing tasteful reads as "offal" at chip size,
   // and a wrong-but-cute icon is worse than the text label alone.
-  peanut: '\u{1F95C}', spicy: '\u{1F336}\uFE0F',
+  // tree_nut: \u{1F330} reads generically as "a nut" at chip size, which is the point \u2014
+  // even though chestnut itself is excluded from the flag (allergen-distinct).
+  peanut: '\u{1F95C}', tree_nut: '\u{1F330}', soy: '\u{1FAD8}', spicy: '\u{1F336}\uFE0F',
 };
 
 // Filled/hollow dots for the heaviness chip: 清淡●○○ / 適中●●○ / 濃郁●●●
