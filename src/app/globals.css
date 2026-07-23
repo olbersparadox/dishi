@@ -1038,27 +1038,7 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 
 /* The dishi version ladder line (replaced Levels): V{n} leads the legend; the bar
    below runs the full stat-line width with V{n+1} pinned at its right end. */
-/* --version-line-shift: 20px under the blob (+10px more air than the old
-   fixed 10px), 0px under the radar (-10px less) — set inline by TasteFormCard
-   (on .taste-form-card, so both this line AND the bar row below can read it)
-   per showRadar, since the radar is taller and already sits closer to this
-   line. .version-bar-row's margin-top adds the SAME shift, so the line-to-bar
-   gap stays a constant 16px in both states instead of collapsing under the
-   blob (transform moves the line but not layout, so without this the bar
-   never followed it down). */
-.version-line {
-  display: flex; align-items: center; justify-content: center; gap: 14px;
-  margin-top: -11px;
-  /* +5px beyond the shared shift, on this line only (the bar below still reads
-     just --version-line-shift) — tightens the line-to-bar gap to 11px, in
-     both states, without moving the bar. No transition: this shift only ever
-     changes together with TasteFormReveal's own box-resize animation (a
-     separate component, width/height on a layout-driven timer), and a
-     transform-based transition here (compositor-driven) drifted out of sync
-     with it frame-to-frame — visible as a wobble. Snapping instantly reads
-     cleanly against the box's own smooth resize. */
-  transform: translateY(calc(var(--version-line-shift, 20px) + 5px));
-}
+.version-line { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 14px; }
 .version-now, .version-next {
   font-family: var(--font-display); font-weight: 800; font-size: 16px; color: var(--ink);
   letter-spacing: 0.02em; flex-shrink: 0;
@@ -1067,10 +1047,7 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 /* Enlarged to match the version bar's own height (13px) below — was reading as a
    small caption next to the now-taller bar. */
 .version-next { font-size: 18px; color: var(--ink-soft); font-weight: 700; }
-.version-bar-row {
-  display: flex; align-items: center; gap: 10px;
-  margin-top: calc(16px + var(--version-line-shift, 20px));
-}
+.version-bar-row { display: flex; align-items: center; gap: 10px; margin-top: 16px; }
 /* This bar specifically (the taste-tab version-progress bar, not .grow2-top's growth-
    screen bar, which stays untouched): +5px height, and shortened 10px by giving the
    flex:1 track a fixed margin instead of letting it fill the full row width. */
@@ -1392,7 +1369,7 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
    the SAME element (the blob stays put); only the block under the blob swaps,
    easing in rather than popping. */
 .taste-form-card.persona-expand { position: relative; }
-.persona-pick { margin-top: 10px; animation: personaIn 260ms ease both; }
+.persona-pick { animation: personaIn 260ms ease both; }
 @keyframes personaIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .persona-pick { animation: none; } }
 /* Swipe viewport: horizontal pulls move the carousel, vertical stays native scroll. */

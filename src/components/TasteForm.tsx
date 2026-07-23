@@ -147,29 +147,17 @@ export function TasteFormLive({
  * back. No new data, just a second way to read the same profile.
  */
 export function TasteFormReveal({
-  inputs, size = 190, glyph, vector, labelFor, onToggle,
+  inputs, size = 190, glyph, vector, labelFor,
 }: {
   inputs: FormInputs; size?: number; glyph?: string;
   vector: Record<string, number>; labelFor: (dim: string) => string;
-  /** Fires with the new state right when the blob/radar toggle happens — lets a
-   * parent (the spacing below, which lives outside this component) react to
-   * which one is currently showing. */
-  onToggle?: (showRadar: boolean) => void;
 }) {
-  const [showRadar, setShowRadarState] = useState(false);
-  const setShowRadar = (next: boolean | ((v: boolean) => boolean)) => {
-    setShowRadarState(prev => {
-      const v = typeof next === 'function' ? next(prev) : next;
-      onToggle?.(v);
-      return v;
-    });
-  };
+  const [showRadar, setShowRadar] = useState(false);
 
   // Radar renders larger than the blob so the 18 labels have room to breathe;
   // the wrapper grows to fit it and stays centered, so the card expands
-  // smoothly rather than the radar overflowing its box. Kept modest (was 1.55)
-  // so the reveal reads as a swap, not the card ballooning.
-  const radarSize = Math.round(size * 1.3);
+  // smoothly rather than the radar overflowing its box.
+  const radarSize = Math.round(size * 1.55);
   const boxSize = showRadar ? radarSize : size;
 
   return (
@@ -195,7 +183,7 @@ export function TasteFormReveal({
       </div>
       <div style={{
         position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-        opacity: showRadar ? 1 : 0, transform: `translateY(-12px) scale(${showRadar ? 1 : 0.9})`,
+        opacity: showRadar ? 1 : 0, transform: showRadar ? 'scale(1)' : 'scale(0.9)',
         transition: 'opacity 220ms ease, transform 220ms ease',
         pointerEvents: 'none',
       }}>

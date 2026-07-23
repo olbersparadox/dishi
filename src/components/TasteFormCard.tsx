@@ -62,10 +62,6 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
   // the globe/notification icons (a scrim + an anchored paper sheet), applied to the
   // 4 stat boxes so each number can explain what it actually measures.
   const [openStat, setOpenStat] = useState<null | 'strength' | 'flicks' | 'cuisines' | 'senses'>(null);
-  // Mirrors TasteFormReveal's internal blob/radar toggle (owned there, reported up
-  // via onToggle) so the version-line spacing below can differ per state: more air
-  // under the compact blob, tighter under the taller radar.
-  const [showRadar, setShowRadar] = useState(false);
 
   // ── Install flow (owner spec 2026-07-23) ──────────────────────────────────────
   // State B: this card morphed into the persona carousel. The carousel index is
@@ -189,8 +185,7 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
 
   return (
     <>
-    <div className={`taste-form-card ${expanded ? 'persona-expand' : ''}`}
-      style={{ '--version-line-shift': showRadar ? '0px' : '20px' } as React.CSSProperties}>
+    <div className={`taste-form-card ${expanded ? 'persona-expand' : ''}`}>
       {/* State B's close — the same quiet top-right X the growth screen uses.
           Cancel restores State A with nothing saved. */}
       {expanded && (
@@ -210,7 +205,6 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
         <TasteFormReveal
           inputs={formInputs} size={190} glyph={glyph}
           vector={state.vector} labelFor={(dim) => t(`dim.${dim}`)}
-          onToggle={setShowRadar}
         />
       </div>
 
