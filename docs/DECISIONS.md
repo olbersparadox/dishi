@@ -1678,5 +1678,15 @@ Full backlog entry, verbatim, as it stood when the last open piece shipped:
   去安裝). Generate/copy mechanic and `buildTastePrompt` untouched. Brand-
   voice copy kept 口語 per the register-shift exceptions. +3 tests, 535/535
   passing, verified in-browser on real data (39 ratings, both states).
+  **Amendment — Fable polish pass `c89c576` 2026-07-23:** the first pass ran
+  on Sonnet despite the Fable request and showed exactly the drift the new
+  CLAUDE.md new-surface rule names — three arrow-chain walkthroughs stacked
+  at 11.5px note-grey, brand-voice lead styled as a footnote, the naming
+  step buried mid-chain. Redone as: one host at a time behind a `.chips`
+  picker (existing pattern), `INSTALL_HOSTS` rows restructured to discrete
+  step arrays so 「個名改做 dishi.{X}」 is its own line with the name in
+  ink-weight strong, leads promoted to `.install-lead` (13px full ink),
+  steps at 13px (`.install-steps`). +1 test guarding the naming step's own
+  line. Same i18n keys, same isolated table. 536/536.
   **Remaining manual step (owner, not code):** Phase 0.5 persistence re-test —
   install a real Gem/Project once and confirm day-over-day retention.
