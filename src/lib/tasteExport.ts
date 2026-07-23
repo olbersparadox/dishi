@@ -452,25 +452,29 @@ export type InstallHost = {
 };
 // Row order matches the export card's live logo row (Claude · Gemini · Grok ·
 // ChatGPT) — the install layer opens FROM those logos, so the two must agree.
+// zh register: 書面 (owner revision 2026-07-24, part of the app-wide 書面化 —
+// the earlier 口語 walkthroughs are gone), kept SHORT: verb + where, name it,
+// paste. Host-product nouns (Project / Gem / GPT) stay in English — they're
+// the host's own UI labels, translating them would hurt findability.
 export const INSTALL_HOSTS: InstallHost[] = [
   {
     id: 'claude', label: 'Claude', logo: '/ai-logos/logo-claude.webp',
-    zh: n => ['開 Claude，去 Projects，開個新 Project', `個名改做 ${n}`, '成份文件貼落 Project instructions 度'],
-    en: n => ['Open Claude → Projects → New Project', `Name it ${n}`, 'Paste this whole doc into the project instructions'],
+    zh: n => ['開啟 Claude，建立新 Project', `命名為 ${n}`, '將整份文件貼入 Project instructions'],
+    en: n => ['Open Claude → new Project', `Name it ${n}`, 'Paste the whole doc into the project instructions'],
   },
   {
     id: 'gemini', label: 'Gemini', logo: '/ai-logos/logo-gemini.png',
-    zh: n => ['開 Gemini，去 Gems，整個新 Gem', `個名改做 ${n}`, '成份文件貼落佢嘅 Instructions 度，儲存'],
-    en: n => ['Open Gemini → Gems → New Gem', `Name it ${n}`, 'Paste this whole doc into its Instructions, save'],
+    zh: n => ['開啟 Gemini，在 Gems 建立新 Gem', `命名為 ${n}`, '將整份文件貼入 Instructions，儲存'],
+    en: n => ['Open Gemini → Gems → new Gem', `Name it ${n}`, 'Paste the whole doc into its Instructions, save'],
   },
   {
     id: 'grok', label: 'Grok', logo: '/ai-logos/logo-grok.webp',
-    zh: n => ['開 Grok，開個新 Project／Workspace', `個名改做 ${n}`, '成份文件貼落佢嘅 instructions 度'],
-    en: n => ['Open Grok → new Project / Workspace', `Name it ${n}`, 'Paste this whole doc into its instructions'],
+    zh: n => ['開啟 Grok，建立新 Project／Workspace', `命名為 ${n}`, '將整份文件貼入 instructions'],
+    en: n => ['Open Grok → new Project / Workspace', `Name it ${n}`, 'Paste the whole doc into its instructions'],
   },
   {
     id: 'chatgpt', label: 'ChatGPT', logo: '/ai-logos/logo-chatgpt.webp',
-    zh: n => ['開 ChatGPT，去 GPTs 撳 Create（或者開個新 Project）', `個名改做 ${n}`, '成份文件貼落 Instructions 度'],
-    en: n => ['Open ChatGPT → GPTs → Create (or start a new Project)', `Name it ${n}`, 'Paste this whole doc into its Instructions'],
+    zh: n => ['開啟 ChatGPT，建立新 GPT（或 Project）', `命名為 ${n}`, '將整份文件貼入 Instructions'],
+    en: n => ['Open ChatGPT → new GPT (or Project)', `Name it ${n}`, 'Paste the whole doc into its Instructions'],
   },
 ];

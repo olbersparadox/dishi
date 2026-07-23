@@ -360,11 +360,11 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
         ariaLabel={`${t('install.title', { name: selName })} → ${installHost.label}`}
         onClose={() => { setInstallHost(null); setCopied(false); }}
         // Instructions reuse .explain-modal-body verbatim (the SAME typography as
-        // every stat explainer) rather than a bespoke numbered-list style — a
-        // plain-text "1. …" line per step, joined on the body's own
+        // every stat explainer) rather than a bespoke numbered-list style — one
+        // circled-number line per step, joined on the body's own
         // white-space:pre-line.
         body={(lang === 'zh' ? installHost.zh : installHost.en)(selName)
-          .map((s, i) => `${i + 1}. ${s}`).join('\n')}
+          .map((s, i) => `${'①②③④⑤'[i] ?? `${i + 1}.`} ${s}`).join('\n')}
         footer={
           <div className="install-copy-wrap">
             <button className="ok-circle" onClick={copyDoc} disabled={copying} aria-label={t('export.copy')}>

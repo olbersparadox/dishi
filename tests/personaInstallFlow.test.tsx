@@ -133,10 +133,11 @@ describe('the install layer (shared ExplainModal)', () => {
     expect(dialog.getAttribute('aria-label')).toBe('植入 dishi.CK → Claude');
     expect(dialog.querySelector('.install-title-row')?.textContent).toContain('dishi.CK');
     // Instructions now render through .explain-modal-body (reusing the SAME
-    // typography as every stat explainer), not a bespoke list.
+    // typography as every stat explainer), not a bespoke list — 書面 register,
+    // steps numbered with circled digits.
     expect(dialog.querySelector('.explain-modal-body')).toBeTruthy();
-    expect(dialog.textContent).toContain('個名改做 dishi.CK');
-    expect(dialog.textContent).toContain('Projects');
+    expect(dialog.textContent).toContain('② 命名為 dishi.CK');
+    expect(dialog.textContent).toContain('Project');
   });
 
   it('the copy circle generates the doc in the SELECTED voice, copies it, persists the persona', async () => {
