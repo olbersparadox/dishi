@@ -1804,3 +1804,40 @@ filled transition (via 食記's 轉餐廳 edit path) and PickCardThumb's camera
 badge (a real scan pick) alongside an existing photo-bearing pick showing no
 badge — both screenshotted in the actual app, side by side. Test picks
 deleted after (profile replay healed any test rating exposure).
+
+---
+
+# Owner-specified install-flow UI (2026-07-23 spec, shipped 2026-07-24)
+
+**Supersedes** the pick-to-copy install layer from `1f5198c`/`c89c576` (the
+dishi.Persona batch above): the owner specified the exact interaction against
+the live 味AI screen — card morph, not a textarea flow. Shipped `64c4ccc`,
+built to spec without redesign ([F] first pass per the new-surface rule).
+
+- **State A → B:** the ink-blob card morphs in place on the 植入 CTA —
+  version line/bar/stat boxes hide, blob stays; persona name (serif dish-name
+  register) + PERSONA_META blurb + 3 pagination dots (swipe Spoon → CK →
+  Kiki) + --line divider + the four host logos as rounded-outline buttons;
+  quiet X (`.grow-close`) top-right restores State A, nothing saved.
+- **Install layer:** host logo → the SHARED ExplainModal (gained optional
+  `footer`/`body` seams rather than a lookalike), titled 植入 dishi.{X}, that
+  host's short 口語 steps from INSTALL_HOSTS; the black `.ok-circle` with a
+  copy icon is the one action — POST + build in the selected voice + copy
+  (ClipboardItem promised-payload, writeText fallback), feedback = check +
+  已複製. Persona persists ONLY on successful copy.
+- INSTALL_HOSTS gained **Grok** (4th logo) and reordered to the live row
+  (Claude · Gemini · Grok · ChatGPT); Grok's container steps are best-effort
+  phrasing, expect churn.
+- **Killed:** TasteExport.tsx + its keys + dead .taste-export* CSS. The
+  delta/version lines died with it — no home in the specced layer; the
+  "keep versioning deltas visible" open thread should get a new surface
+  decision if the owner still wants it.
+- **Live-DB fix found during verification:** `taste_profiles_persona_check`
+  still allowed only honest/connoisseur/playful (default 'honest') — the
+  persona rename never migrated the DB, so persisting 'spoon' 500'd.
+  Migration applied + recorded (`taste_profiles_persona_spoon_ck_kiki.sql`),
+  old values mapped by lineage, default now 'spoon'.
+- +6 component tests (personaInstallFlow.test.tsx), 557/557, tsc clean.
+  Verified live on real data: all 5 owner-required screenshot sets (State A /
+  three personas / two host layers / copied feedback / X-restore), DB
+  confirmed persona + last_export_at after the copy.
