@@ -105,6 +105,21 @@ consumer-side dish-level demand data.
   heavy verification, anything touching the authority ladder or seal contract.
 - **Sonnet tier:** well-specified implementation, UI polish, copy changes,
   straightforward builds from a spec.
+- **New UI surfaces default to Fable, even when the spec is fully decided.**
+  A well-specified logic/behavior spec does not make a UI task Sonnet-tier.
+  Matching an existing design system on the FIRST pass is a taste-and-pattern-
+  recognition problem, not a logic problem — Sonnet's first-round visuals/copy
+  reliably drift from the app's actual tokens/components even when the
+  behavior is correct. Any task that introduces a NEW visible surface (a card,
+  a flow, a screen state nobody has built yet) goes to Fable for at least the
+  first pass, regardless of how decided the spec is. Reserve Sonnet-tier for
+  edits to EXISTING surfaces (copy tweaks, wiring an already-designed
+  component to new data, bugfixes) where there's a working reference already
+  on screen to match against.
+  - Fable's first move on any new-surface task: find and reuse the actual
+    components/CSS custom properties/classes already used elsewhere in the
+    app (per the existing "Reuse, don't imitate" rule above) rather than
+    inventing new markup that happens to look similar.
 - The owner sets an explicit go/no-go probability bar (~50%) before committing
   to R&D directions — surface success-probability estimates early.
 
