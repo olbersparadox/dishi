@@ -1379,7 +1379,7 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 /* The persona NAME is a name — the dish-name serif register (font-display,
    heavy), not UI-label styling. */
 .persona-name { font-family: var(--font-display); font-size: 26px; font-weight: 800; color: var(--ink); }
-.persona-blurb { font-size: 15.5px; color: var(--ink-soft); line-height: 1.55; margin-top: 4px; letter-spacing: 0.04em; }
+.persona-blurb { font-size: 15.5px; color: var(--ink-soft); line-height: 1.55; margin-top: 1px; letter-spacing: 0.04em; }
 .persona-dots { display: flex; justify-content: center; gap: 7px; margin-top: 14px; }
 .persona-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--line); }
 .persona-dot.on { background: var(--ink); }
@@ -1389,7 +1389,9 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 .persona-divider-wrap { position: relative; margin: 18px 24px; }
 .persona-divider { border: none; border-top: 1px solid var(--line); margin: 0; }
 .persona-divider-arrow {
-  position: absolute; top: 0; left: 50%; transform: translate(-50%, -50%);
+  /* Bottom-aligned to the line: the triangle hangs entirely BELOW it (top edge
+     flush with the line), not straddling it. */
+  position: absolute; top: 0; left: 50%; transform: translate(-50%, 0);
   width: 0; height: 0;
   border-left: 5px solid transparent; border-right: 5px solid transparent;
   border-top: 6px solid var(--ink-soft);
