@@ -167,8 +167,9 @@ export function TasteFormReveal({
 
   // Radar renders larger than the blob so the 18 labels have room to breathe;
   // the wrapper grows to fit it and stays centered, so the card expands
-  // smoothly rather than the radar overflowing its box.
-  const radarSize = Math.round(size * 1.55);
+  // smoothly rather than the radar overflowing its box. Kept modest (was 1.55)
+  // so the reveal reads as a swap, not the card ballooning.
+  const radarSize = Math.round(size * 1.3);
   const boxSize = showRadar ? radarSize : size;
 
   return (
