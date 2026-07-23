@@ -1348,18 +1348,15 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 }
 .cart-total { font-weight: 650; }
 
-/* --- AI-palate install flow (owner spec 2026-07-23) --- */
-/* Steps inside the install layer: things the person must actually DO in another
-   app, so they get the app's 13px control size rather than note size. The
-   persona's name inside a step is the mechanic (the container must carry it),
-   hence the ink-weight <strong>. */
-.install-steps {
-  margin: 10px 0 2px; padding-left: 22px; text-align: left;
-  display: flex; flex-direction: column; gap: 5px;
-}
-.install-steps li { font-size: 13px; color: var(--ink-soft); line-height: 1.5; }
-.install-steps li::marker { color: var(--ink-soft); font-size: 12px; }
-.install-steps li strong { color: var(--ink); font-weight: 600; }
+/* --- AI-palate install flow (owner spec 2026-07-23, title/body reuse 2026-07-24) --- */
+/* Title row: "dishi.Spoon → [host logo]" — the persona name in the shared
+   .explain-modal-title styling (untouched), an arrow, and the tapped host's
+   own mark, so the layer confirms WHICH voice and WHICH host without a
+   second sentence. Instructions below reuse .explain-modal-body verbatim
+   (the SAME typography as every stat explainer, not a bespoke list). */
+.install-title-row { display: inline-flex; align-items: center; gap: 8px; vertical-align: middle; }
+.install-title-arrow { color: var(--ink-soft); font-weight: 400; }
+.install-title-row img { object-fit: contain; flex-shrink: 0; }
 /* The layer's copy circle + its transient 已複製 caption — same black circle
    as every explainer's dismiss (.ok-circle), repurposed as the one action. */
 .install-copy-wrap { display: flex; flex-direction: column; align-items: center; gap: 8px; margin: 20px 0 4px; }

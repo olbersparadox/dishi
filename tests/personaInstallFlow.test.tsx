@@ -121,14 +121,20 @@ describe('State A → State B: the card morph', () => {
 });
 
 describe('the install layer (shared ExplainModal)', () => {
-  it('a host logo opens the layer titled 植入 dishi.{selected}, with that host’s steps', async () => {
+  it('a host logo opens the layer titled dishi.{selected} → {host}, with that host’s steps', async () => {
     await mount();
     fireEvent.click(screen.getByRole('button', { name: /植入/ }));
     swipeLeft(document.querySelector('.persona-viewport')!); // → CK
     fireEvent.click(screen.getByRole('button', { name: 'Claude' }));
 
     const dialog = screen.getByRole('dialog');
-    expect(dialog.getAttribute('aria-label')).toBe('植入 dishi.CK');
+    // Accessible name carries persona + host even though the visible title is
+    // composed (name, arrow, host logo image — no plain-text host name on screen).
+    expect(dialog.getAttribute('aria-label')).toBe('植入 dishi.CK → Claude');
+    expect(dialog.querySelector('.install-title-row')?.textContent).toContain('dishi.CK');
+    // Instructions now render through .explain-modal-body (reusing the SAME
+    // typography as every stat explainer), not a bespoke list.
+    expect(dialog.querySelector('.explain-modal-body')).toBeTruthy();
     expect(dialog.textContent).toContain('個名改做 dishi.CK');
     expect(dialog.textContent).toContain('Projects');
   });

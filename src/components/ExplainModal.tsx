@@ -10,8 +10,13 @@
 import { useLang } from '@/lib/i18n';
 import { CheckIcon } from './icons';
 
-export default function ExplainModal({ title, body, extra, footer, onClose }: {
-  title: string;
+export default function ExplainModal({ title, ariaLabel, body, extra, footer, onClose }: {
+  /** Usually plain text; may be a composed node (e.g. the install layer's
+   * "dishi.Spoon → [host logo]") — pass `ariaLabel` too when it isn't a string,
+   * since the dialog's accessible name still needs one. */
+  title: React.ReactNode;
+  /** Accessible name for the dialog when `title` isn't a plain string. */
+  ariaLabel?: string;
   /** Optional only for callers whose real content is block-level (lists) and
    * lives in `extra` — a <p> may not contain an <ol>. */
   body?: React.ReactNode;
@@ -27,7 +32,7 @@ export default function ExplainModal({ title, body, extra, footer, onClose }: {
   return (
     <>
       <div className="explain-scrim" onClick={onClose} />
-      <div className="explain-modal" role="dialog" aria-label={title}>
+      <div className="explain-modal" role="dialog" aria-label={ariaLabel ?? (typeof title === 'string' ? title : undefined)}>
         <p className="explain-modal-title">{title}</p>
         {body != null && <p className="explain-modal-body">{body}</p>}
         {extra}

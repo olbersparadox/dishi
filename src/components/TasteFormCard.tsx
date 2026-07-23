@@ -349,15 +349,22 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
         dismisses back to State B with the carousel where it was. */}
     {installHost && (
       <ExplainModal
-        title={t('install.title', { name: selName })}
-        onClose={() => { setInstallHost(null); setCopied(false); }}
-        extra={
-          <ol className="install-steps">
-            {(lang === 'zh' ? installHost.zh : installHost.en)(selName).map((s, i) => (
-              <li key={i}>{s}</li>
-            ))}
-          </ol>
+        title={
+          <span className="install-title-row">
+            {selName}
+            <span className="install-title-arrow" aria-hidden>→</span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={installHost.logo} alt="" width={22} height={22} />
+          </span>
         }
+        ariaLabel={`${t('install.title', { name: selName })} → ${installHost.label}`}
+        onClose={() => { setInstallHost(null); setCopied(false); }}
+        // Instructions reuse .explain-modal-body verbatim (the SAME typography as
+        // every stat explainer) rather than a bespoke numbered-list style — a
+        // plain-text "1. …" line per step, joined on the body's own
+        // white-space:pre-line.
+        body={(lang === 'zh' ? installHost.zh : installHost.en)(selName)
+          .map((s, i) => `${i + 1}. ${s}`).join('\n')}
         footer={
           <div className="install-copy-wrap">
             <button className="ok-circle" onClick={copyDoc} disabled={copying} aria-label={t('export.copy')}>
