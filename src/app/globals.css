@@ -1376,6 +1376,12 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 .install-step { display: flex; gap: 8px; }
 .install-step-num { flex-shrink: 0; width: 1.4em; }
 .install-step-text { flex: 1; }
+/* Selective keyword bolding (owner spec 2026-07-24): product/target nouns —
+   Claude, Project, the persona name, the exact paste field — in bold black,
+   against the step's own --ink-soft. A step's "don't do this" noun (Knowledge,
+   a rejected Project) is never in its bold list (see boldZh/boldEn in
+   tasteExport.ts), so it stays unbolded without any inline exception here. */
+.install-step-text b { color: var(--ink); font-weight: 700; }
 /* The layer's copy circle + its transient 已複製 caption — same black circle
    as every explainer's dismiss (.ok-circle), repurposed as the one action. */
 .install-copy-wrap { display: flex; flex-direction: column; align-items: center; gap: 8px; margin: 20px 0 4px; }

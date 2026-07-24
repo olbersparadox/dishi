@@ -23,6 +23,7 @@ import {
   type ExportCompanions,
 } from '@/lib/tasteExport';
 import { PERSONAS, PERSONA_META, VOICES, type Persona } from '@/lib/persona';
+import { splitBoldKeywords } from '@/lib/textBold';
 import { CloseIcon, CopyIcon, CheckIcon } from './icons';
 
 type BuddyState = {
@@ -417,12 +418,19 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
         // wraps to a second line hangs under its own text, not the circled number.
         extra={
           <div className="install-steps">
-            {(lang === 'zh' ? installHost.zh : installHost.en)(selName).map((s, i) => (
-              <div className="install-step" key={i}>
-                <span className="install-step-num" aria-hidden>{'①②③④⑤'[i] ?? `${i + 1}.`}</span>
-                <span className="install-step-text">{s}</span>
-              </div>
-            ))}
+            {(lang === 'zh' ? installHost.zh : installHost.en)(selName).map((s, i) => {
+              const bold = (lang === 'zh' ? installHost.boldZh : installHost.boldEn)?.(selName)[i] ?? [];
+              return (
+                <div className="install-step" key={i}>
+                  <span className="install-step-num" aria-hidden>{'①②③④⑤'[i] ?? `${i + 1}.`}</span>
+                  <span className="install-step-text">
+                    {splitBoldKeywords(s, bold).map((seg, si) => seg.bold
+                      ? <b key={si}>{seg.text}</b>
+                      : <span key={si}>{seg.text}</span>)}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         }
         footer={

@@ -469,6 +469,16 @@ export type InstallHost = {
    * install flow exists for — its own line, with the name legible. */
   zh: (name: string) => string[];
   en: (name: string) => string[];
+  /** Per-step keyword lists (index-aligned with zh/en's own step arrays) for
+   * selective bold-in-black highlighting in the install layer — product/
+   * target nouns (Claude, Project, the persona name, the exact paste field)
+   * get bolded; a step's "don't do this" noun (Knowledge, the rejected
+   * Project in ChatGPT's GPT-not-Project line) is simply left out of that
+   * step's list rather than bolded and un-bolded by some clause-parsing rule.
+   * Optional so a future host can add steps before wiring bolding for them —
+   * splitBoldKeywords no-ops on an empty/missing list. */
+  boldZh?: (name: string) => string[][];
+  boldEn?: (name: string) => string[][];
 };
 // Row order matches the export card's live logo row (Claude · Gemini · Grok ·
 // ChatGPT) — the install layer opens FROM those logos, so the two must agree.
@@ -498,16 +508,22 @@ export const INSTALL_HOSTS: InstallHost[] = [
       'Paste the whole doc into the project "instructions" field, not knowledge/files, or the character won\'t take',
       'Pick a Sonnet-class model or above; smaller models remember the doc but can\'t carry the character',
     ],
+    boldZh: n => [['Claude', 'Project'], [n], ['Project', '「instructions」'], ['Sonnet']],
+    boldEn: n => [['Claude', 'Project'], [n], ['project', '"instructions"'], ['Sonnet']],
   },
   {
     id: 'gemini', label: 'Gemini', logo: '/ai-logos/logo-gemini.png',
     zh: n => ['開啟 Gemini，在 Gems 建立新 Gem', `命名為 ${n}`, '將整份文件貼入 Gem 的「instructions」欄，儲存'],
     en: n => ['Open Gemini → Gems → new Gem', `Name it ${n}`, 'Paste the whole doc into the Gem\'s "instructions" box, save'],
+    boldZh: n => [['Gemini', 'Gems', 'Gem'], [n], ['Gem', '「instructions」']],
+    boldEn: n => [['Gemini', 'Gems', 'Gem'], [n], ['Gem', '"instructions"']],
   },
   {
     id: 'grok', label: 'Grok', logo: '/ai-logos/logo-grok.webp',
     zh: n => ['開啟 Grok，建立新 Project／Workspace', `命名為 ${n}`, '將整份文件貼入「instructions」欄，不要上載做檔案'],
     en: n => ['Open Grok → new Project / Workspace', `Name it ${n}`, 'Paste the whole doc into its "instructions" field, don\'t upload it as a file'],
+    boldZh: n => [['Grok', 'Project／Workspace'], [n], ['「instructions」']],
+    boldEn: n => [['Grok', 'Project / Workspace'], [n], ['"instructions"']],
   },
   {
     id: 'chatgpt', label: 'ChatGPT', logo: '/ai-logos/logo-chatgpt.webp',
@@ -519,5 +535,10 @@ export const INSTALL_HOSTS: InstallHost[] = [
       'Open ChatGPT → GPTs → create a custom GPT (recommended over a Project)', `Name it ${n}`,
       'Paste the whole doc into the "Instructions" field, not the Knowledge upload, or it will remember facts without becoming the character',
     ],
+    // 'Project' deliberately absent from step 1's list both languages — it's
+    // the REJECTED option (不是 Project / recommended over a Project), same
+    // rule as leaving 'Knowledge' off step 3.
+    boldZh: n => [['ChatGPT', 'GPTs', 'GPT'], [n], ['「Instructions」']],
+    boldEn: n => [['ChatGPT', 'GPTs', 'GPT'], [n], ['"Instructions"']],
   },
 ];
