@@ -7,10 +7,11 @@ import { chopColor } from '@/lib/chop';
 import DishListRow from '@/components/DishListRow';
 import TableBar from '@/components/TableBar';
 import { LeaveIcon } from '@/components/icons';
-import { useLang } from '@/lib/i18n';
+import { useLang, hasNonChineseScript } from '@/lib/i18n';
 import { sumPrices } from '@/lib/price';
 import { normalizePhoto } from '@/lib/image';
 import { mapWithConcurrency } from '@/lib/concurrency';
+import { mergeFinalScanItems } from '@/lib/tableMenuItems';
 import { supabaseBrowser } from '@/lib/supabase/client';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { stampsFromPicks, pickMatchesItem, mergeStamps, applyStampEvent, type StampOverlay, type StampEvent } from '@/lib/tableStamps';
@@ -348,19 +349,23 @@ function Session({ code, onLeave }: { code: string; onLeave: () => void }) {
           ).catch(() => null)
         : Promise.resolve(null);
 
-      const [enriched, scored] = await Promise.all([enrichPromise, scorePromise]);
+      // Kana/hangul tripwire — the SAME namefix pass scan/page.tsx runs on its
+      // own pages. This path skipped it entirely, so a Japanese page appended
+      // from HERE landed on the shared menu untranslated, permanently (the
+      // shared session is what everyone reads; there's no later local pass to
+      // paper over it). Best-effort like everything else in this pipeline.
+      const tripped = items.filter(it => hasNonChineseScript(it.name_zh));
+      const namefixPromise: Promise<Record<string, string>> = (meta.mock || tripped.length === 0) ? Promise.resolve({}) : fetch('/api/menu-scan/fix-names', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: tripped.map(it => ({ key: it.name_original, name: it.name, name_zh: it.name_zh })) }),
+      })
+        .then(r => r.ok ? r.json() : { names: {} })
+        .then((j: { names?: Record<string, string> }) => j.names ?? {})
+        .catch(() => ({}));
 
-      const forTable = items.map((item, i) => {
-        const e = enriched?.[i];
-        const s = scored?.[i];
-        return {
-          name: item.name, name_zh: item.name_zh, name_original: item.name_original, price: item.price,
-          hook: e?.hook ?? item.hook, cuisine: item.cuisine,
-          attributes: s?.attributes ?? item.attributes ?? {},
-          diet: e?.diet ?? item.diet, cooking_method: e?.cooking_method ?? item.cooking_method,
-          heaviness: e?.heaviness ?? item.heaviness, ingredients: e?.ingredients ?? item.ingredients,
-        };
-      });
+      const [enriched, scored, nameFixes] = await Promise.all([enrichPromise, scorePromise, namefixPromise]);
+
+      const forTable = mergeFinalScanItems(items, enriched, scored, nameFixes);
 
       const patchRes = await fetch(`/api/table/${code}`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: forTable }),

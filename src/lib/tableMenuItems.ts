@@ -45,3 +45,56 @@ export function shapeTableMenuItems(raw: unknown[], cap = 40): TableMenuItem[] {
     .filter((x): x is TableMenuItem => x !== null)
     .slice(0, cap);
 }
+
+/** The stage results a scan's post-creation passes produce, positionally
+ * aligned with the scanned items (mapWithConcurrency preserves order; a null
+ * slot is that item's failed call). */
+type StageResults<T> = (T | null)[] | null;
+
+/** Fold a scan's finished stages into the shape the shared table session
+ * stores — ONE builder for every sync path (scan's fresh-scan re-author sync,
+ * scan's append, /table's own add-a-page), so they can't drift on which stage
+ * owns which field. `nameFixes` is the kana/hangul namefix result keyed by
+ * name_original; folding it here (rather than reading item.name_zh) is what
+ * fixes the stale-closure leak where the namefix only ever patched setResult
+ * and the sync paths shipped the UNTRANSLATED snapshot to the whole table.
+ * name_original passes through verbatim always (standing rule). */
+export function mergeFinalScanItems<T extends {
+  name: string; name_zh?: string | null; name_original: string; price?: string | null;
+  hook?: string | null; cuisine?: string | null; attributes?: Record<string, number> | null;
+  diet?: string[] | null; cooking_method?: string | null; heaviness?: string | null;
+  ingredients?: string[] | null;
+}>(
+  items: T[],
+  enriched: StageResults<T>,
+  scored: StageResults<T>,
+  nameFixes: Record<string, string> = {},
+) {
+  return items.map((item, i) => {
+    const e = enriched?.[i];
+    const s = scored?.[i];
+    return {
+      name: item.name,
+      name_zh: nameFixes[item.name_original] ?? item.name_zh ?? null,
+      name_original: item.name_original, price: item.price ?? null,
+      hook: e?.hook ?? item.hook, cuisine: item.cuisine,
+      attributes: s?.attributes ?? item.attributes ?? {},
+      diet: e?.diet ?? item.diet, cooking_method: e?.cooking_method ?? item.cooking_method,
+      heaviness: e?.heaviness ?? item.heaviness, ingredients: e?.ingredients ?? item.ingredients,
+    };
+  });
+}
+
+/** The candidate key GET /api/table/[code] hands out for a scan-shared
+ * session's menu_items — and therefore the table_item_key a /table pick
+ * stores. name_original, NOT the array index: the scan screen's own picks
+ * already key on name_original (scan/page.tsx), and pickMatchesItem is an
+ * exact key comparison, so index-keys on this side made every cross-view
+ * stamp invisible in BOTH directions (two-account field test, 2026-07-24 —
+ * "fixed" only by the scanner rejoining as a plain member). name_original is
+ * also the one field re-authoring never touches, so the key survives the
+ * namefix/enrich passes that now update the shared items mid-session. The
+ * index fallback covers only degenerate stored items with no name at all. */
+export function scanCandidateKey(m: { name_original?: string | null; name?: string | null }, index: number): string {
+  return m.name_original || m.name || `menu-${index}`;
+}

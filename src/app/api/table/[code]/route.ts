@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseServer, supabaseAdmin } from '@/lib/supabase/server';
 import { rankForGroup, GroupMember } from '@/lib/group';
 import { DishVector } from '@/lib/taste';
-import { shapeTableMenuItems } from '@/lib/tableMenuItems';
+import { shapeTableMenuItems, scanCandidateKey } from '@/lib/tableMenuItems';
 
 // Total menu_items a session can ever hold — matches the cap POST /api/table's
 // own initial create already uses, so appending pages can't grow a session
@@ -98,8 +98,10 @@ export async function GET(_req: NextRequest, { params }: { params: { code: strin
       restaurant_name: (tableRow as any).restaurants?.name ?? 'this restaurant',
     } : null;
   } else if (session.menu_items) {
+    // Keyed by name_original (scanCandidateKey), matching the scan screen's own
+    // pick keys — index keys here made cross-view stamps invisible both ways.
     candidates = (session.menu_items as any[]).map((m, i) => ({
-      key: `menu-${i}`, name: m.name, name_zh: m.name_zh ?? null, name_original: m.name_original, price: m.price,
+      key: scanCandidateKey(m, i), name: m.name, name_zh: m.name_zh ?? null, name_original: m.name_original, price: m.price,
       hook: m.hook, cuisine: m.cuisine, attributes: m.attributes, photo_url: null,
       diet: m.diet ?? [], cooking_method: m.cooking_method ?? null, heaviness: m.heaviness ?? null,
       ingredients: m.ingredients ?? [],
@@ -187,6 +189,13 @@ export async function GET(_req: NextRequest, { params }: { params: { code: strin
  * appended page only ever extended the SCANNER's own local view, never the
  * group's shared table (see docs/BACKLOG.md) — this is the write path that
  * closes that gap.
+ * body: { reauthor: [...] } — the same item shape, but updating dishes the
+ * session ALREADY holds: the scanner's post-creation passes (kana/hangul
+ * namefix translation, enrichment, scoring) re-author their local items, and
+ * without this the shared session kept the raw creation-time snapshot forever
+ * — a joiner at a Japanese restaurant saw untranslated Japanese all meal
+ * (two-account field test, 2026-07-24). Joiners seeing names update
+ * mid-session as these passes land is the accepted, desired behavior.
  *
  * Any member, not just the host (Table Mode item 6, 2026-07-22, owner
  * decision): someone else at the table is often the one holding the drinks
@@ -196,14 +205,14 @@ export async function GET(_req: NextRequest, { params }: { params: { code: strin
  * dedupes an incoming item against what's already on the shared menu, so an
  * overlapping photo from a second contributor can't duplicate a dish.
  *
- * Appends via a Postgres function (append_table_menu_items, see its migration
- * comment), never a client read-modify-write: the row is locked for the
- * duration of the append, so two overlapping appends to the same session
- * serialize instead of one silently clobbering the other, and it's the ONLY
- * thing this function can do — there is no update/replace path here, by
- * construction, so an existing pick's table_item_key (an array index into
- * menu_items) can never be invalidated by something reordering or replacing
- * entries out from under it.
+ * Both verbs run via Postgres functions (append_table_menu_items /
+ * reauthor_table_menu_items — see their migration comments), never a client
+ * read-modify-write: the row is locked for the duration, so overlapping
+ * writes to the same session serialize instead of silently clobbering each
+ * other. Append can only add; reauthor can only update derived fields on
+ * existing entries matched by name_original — neither can remove or reorder,
+ * by construction, so an existing pick's table_item_key (name_original — see
+ * scanCandidateKey) can never be invalidated out from under it.
  */
 export async function PATCH(req: NextRequest, { params }: { params: { code: string } }) {
   const supabase = supabaseServer();
@@ -224,12 +233,26 @@ export async function PATCH(req: NextRequest, { params }: { params: { code: stri
   }
   if (!session.menu_items) {
     // A QR/restaurant session or the bare community-pool fallback has no scanned
-    // menu_items array to append to — appending is only meaningful for a
-    // scan-shared session.
+    // menu_items array to append to (or re-author) — both verbs are only
+    // meaningful for a scan-shared session.
     return NextResponse.json({ error: 'This table has no scanned menu to add pages to.' }, { status: 400 });
   }
 
   const body = await req.json().catch(() => null);
+
+  const reauthor = Array.isArray(body?.reauthor) ? body.reauthor : null;
+  if (reauthor) {
+    const shaped = shapeTableMenuItems(reauthor, reauthor.length); // update-only: the RPC ignores anything not already on the menu
+    if (shaped.length === 0) {
+      return NextResponse.json({ error: 'No dishes to update.' }, { status: 400 });
+    }
+    const { data: menuItems, error } = await admin.rpc('reauthor_table_menu_items', {
+      p_session_id: session.id, p_items: shaped,
+    });
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ menu_item_count: Array.isArray(menuItems) ? menuItems.length : null });
+  }
+
   const items = Array.isArray(body?.items) ? body.items : [];
   const shaped = shapeTableMenuItems(items, items.length); // no local cap here — the RPC enforces the TOTAL cap atomically
   if (shaped.length === 0) {

@@ -179,3 +179,47 @@ describe('applyStampEvent — overlay reducer', () => {
     expect(mergeStamps([], overlay)).toEqual([{ user_id: 'u2', name: 'b' }]);
   });
 });
+
+describe('cross-view stamps: scan glance ↔ /table (two-account field test, 2026-07-24)', () => {
+  // The two views used to key picks DIFFERENTLY — the scan screen by
+  // name_original, /table by array index (`menu-${i}`) — and pickMatchesItem is
+  // an exact key comparison when a key exists, so a pick made on either screen
+  // was invisible on the other, in both directions, until the scanner rejoined
+  // as a plain member. Both sides now key by name_original (scanCandidateKey),
+  // which re-authoring (namefix translation, enrichment) never touches.
+  const KEY = '天日干しアジの開き定食'; // verbatim printed name — the stable shared key
+
+  it("a joiner's /table pick stamps the scanner's scan-glance card (key = name_original)", () => {
+    // Joiner picked on /table where the candidate key is now name_original; the
+    // scan glance matches picks against item.name_original — same value.
+    const joinerPick = {
+      user_id: 'u-joiner', name: 'Mackerel Set', name_zh: '天日干竹筴魚一夜乾定食',
+      display_name: 'Peter', handle: 'peter', table_item_key: KEY,
+    };
+    const scanItem = { key: KEY, name: 'Sun-dried Horse Mackerel Set', name_zh: '天日干しアジの開き定食' };
+    expect(stampsFromPicks(scanItem, [joinerPick])).toEqual([{ user_id: 'u-joiner', name: 'Peter' }]);
+  });
+
+  it("the scanner's scan-glance pick stamps the /table card, even after the item was re-authored", () => {
+    // Scanner picked BEFORE the namefix pass; the shared item's name_zh has since
+    // been translated. The key (name_original) is untouched by re-authoring, so
+    // the exact-key match still holds despite the two views disagreeing on names.
+    const scannerPick = {
+      user_id: 'u-scanner', name: 'Sun-dried Horse Mackerel Set', name_zh: '天日干しアジの開き定食',
+      display_name: 'Jerry', handle: 'jerry', table_item_key: KEY,
+    };
+    const reauthoredTableItem = { key: KEY, name: 'Sun-dried Horse Mackerel Set', name_zh: '天日干竹筴魚一夜乾定食' };
+    expect(pickMatchesItem(scannerPick, reauthoredTableItem)).toBe(true);
+    expect(stampsFromPicks(reauthoredTableItem, [scannerPick])).toEqual([{ user_id: 'u-scanner', name: 'Jerry' }]);
+  });
+
+  it('an index-keyed legacy pick from before the fix matches nothing rather than the wrong dish', () => {
+    // Live sessions from before the deploy stored `menu-${i}` keys; those stamps
+    // go quiet (sessions are ephemeral) instead of cross-stamping by name.
+    const legacyPick = {
+      user_id: 'u-old', name: 'Mackerel Set', name_zh: null,
+      display_name: null, handle: 'old', table_item_key: 'menu-3',
+    };
+    expect(pickMatchesItem(legacyPick, { key: KEY, name: 'Mackerel Set', name_zh: null })).toBe(false);
+  });
+});

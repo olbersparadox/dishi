@@ -9,6 +9,7 @@ import ScanBenefitDemo from '@/components/ScanBenefitDemo';
 import ExplainModal from '@/components/ExplainModal';
 import RestaurantPicker, { RestaurantChoice } from '@/components/RestaurantPicker';
 import { mapWithConcurrency } from '@/lib/concurrency';
+import { mergeFinalScanItems } from '@/lib/tableMenuItems';
 import DishInfoDisplay from '@/components/DishInfoDisplay';
 import DishListRow from '@/components/DishListRow';
 import TableBar from '@/components/TableBar';
@@ -135,7 +136,7 @@ function Scanner() {
    * watching `result` — result.items grows during streaming, and a session created
    * mid-stream would snapshot a half-read menu for everyone who joined.
    */
-  async function createTableSession(items: ScannedItem[]) {
+  async function createTableSession(items: ScannedItem[]): Promise<{ code: string; session_id: string } | null> {
     try {
       const res = await fetch('/api/table', {
         method: 'POST',
@@ -144,10 +145,15 @@ function Scanner() {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Could not create a table code.');
-      setTableSession({ code: json.code, session_id: json.session_id });
+      const session = { code: json.code, session_id: json.session_id };
+      setTableSession(session);
+      // Returned as well as set: the post-stage re-author sync below runs in the
+      // same performScan call, where the closure's tableSession is still null.
+      return session;
     } catch {
       /* A missing table code must never break a scan that otherwise worked. The
          dishes are the point; sharing is a bonus. Silently absent is correct. */
+      return null;
     }
   }
 
@@ -429,6 +435,10 @@ function Scanner() {
 
       const offset = baseItems.length; // where this page's new dishes sit in the combined list (0 when fresh)
 
+      // Only the FIRST scan creates the session; captured as a promise (not just
+      // state) so the post-stage re-author sync at the bottom of this same call
+      // can reach the session the closure's tableSession doesn't know about yet.
+      let sessionPromise: Promise<{ code: string; session_id: string } | null> = Promise.resolve(null);
       if (append) {
         // Page-1's restaurant wins for the session. If the new page guessed a
         // strongly-different place, note it quietly (likely a wrong-menu scan) —
@@ -441,10 +451,8 @@ function Scanner() {
         if (items.length === 0) { setSettled(true); return; } // nothing new to score
       } else {
         // Fire-and-forget: the table code appears when it appears, and never
-        // blocks scoring or the dishes already on screen. Only the FIRST scan
-        // creates the session — an appended page extends this person's local menu,
-        // not the shared session (per-person menu, pooled picks).
-        void createTableSession(items);
+        // blocks scoring or the dishes already on screen.
+        sessionPromise = createTableSession(items);
         setResult(prev => prev ? { ...prev, items, menu_language: done?.menu_language ?? 'unknown', restaurant_guess: done?.restaurant_guess ?? null } : prev);
       }
       if (meta.phase !== 'needs_scoring') setSettled(true); // already complete (mock / under threshold)
@@ -495,7 +503,10 @@ function Scanner() {
       // zero cost on Chinese/English menus — and patches only name_zh (matched by
       // name_original), so it can never clobber the other stages' fields.
       const tripped = items.filter(it => hasNonChineseScript(it.name_zh));
-      const namefixPromise = (meta.mock || tripped.length === 0) ? Promise.resolve() : fetch('/api/menu-scan/fix-names', {
+      // Resolves to the fixed-names map (not void): the shared-session sync below
+      // folds it in itself — reading item.name_zh there would ship the STALE
+      // pre-fix snapshot, since this handler only ever patched setResult.
+      const namefixPromise: Promise<Record<string, string>> = (meta.mock || tripped.length === 0) ? Promise.resolve({}) : fetch('/api/menu-scan/fix-names', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ items: tripped.map(it => ({ key: it.name_original, name: it.name, name_zh: it.name_zh })) }),
@@ -503,10 +514,12 @@ function Scanner() {
         .then(r => r.ok ? r.json() : { names: {} })
         .then((j: { names?: Record<string, string> }) => {
           const names = j.names ?? {};
-          if (!Object.keys(names).length) return;
-          setResult(prev => prev ? { ...prev, items: prev.items.map(it => names[it.name_original] ? { ...it, name_zh: names[it.name_original] } : it) } : prev);
+          if (Object.keys(names).length) {
+            setResult(prev => prev ? { ...prev, items: prev.items.map(it => names[it.name_original] ? { ...it, name_zh: names[it.name_original] } : it) } : prev);
+          }
+          return names;
         })
-        .catch(() => {}); // best-effort: a failed re-author leaves the printed name, never blocks
+        .catch(() => ({})); // best-effort: a failed re-author leaves the printed name, never blocks
 
       // Phase 2 (scoring): one small call PER DISH, several in parallel (capped).
       // Each ring lights up the moment ITS call finishes — no waiting for the
@@ -544,31 +557,34 @@ function Scanner() {
       const scoreResults = await scorePromise;
       setSettled(true);
       const enrichResults = await enrichPromise; // usually already resolved by now; awaited so this function doesn't return early
-      await namefixPromise; // same: a re-author still in flight shouldn't be dropped on return
+      const nameFixes = await namefixPromise; // same: a re-author still in flight shouldn't be dropped on return
 
-      // Grow the SHARED table session too, not just this scanner's own local view
-      // (owner request, 2026-07-21 — previously an appended page only ever
-      // extended the local menu, never the group's). Waits for both stages so the
-      // dishes land in the shared list already carrying real ranking attributes
-      // and chips, not a bare name — best-effort: a failed sync here must never
-      // surface as a scan error, since the scanner's own view already has the
-      // dishes regardless of whether the table picked them up.
-      if (append && tableSession) {
-        const forTable = items.map((item, i) => {
-          const enriched = enrichResults?.[i];
-          const scored = scoreResults?.[i];
-          return {
-            name: item.name, name_zh: item.name_zh, name_original: item.name_original, price: item.price,
-            hook: enriched?.hook ?? item.hook, cuisine: item.cuisine,
-            attributes: scored?.attributes ?? item.attributes ?? {},
-            diet: enriched?.diet ?? item.diet, cooking_method: enriched?.cooking_method ?? item.cooking_method,
-            heaviness: enriched?.heaviness ?? item.heaviness, ingredients: enriched?.ingredients ?? item.ingredients,
-          };
-        });
-        fetch(`/api/table/${tableSession.code}`, {
-          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ items: forTable }),
-        }).catch(() => {});
+      // Keep the SHARED table session in step with this scanner's finished view,
+      // not just their local state — the shared session otherwise holds whatever
+      // snapshot it was created/appended with forever, which is exactly how a
+      // joiner at a Japanese restaurant saw untranslated names all meal
+      // (two-account field test, 2026-07-24). Append grows it with the new
+      // page's final items; a fresh scan RE-AUTHORS the creation-time snapshot
+      // (which predates every stage) in place, keyed on name_original so
+      // existing picks/stamps re-point instead of duplicating. Best-effort: a
+      // failed sync must never surface as a scan error, since the scanner's own
+      // view already has everything regardless.
+      if (!meta.mock) {
+        const forTable = mergeFinalScanItems(items, enrichResults, scoreResults, nameFixes);
+        if (append && tableSession) {
+          fetch(`/api/table/${tableSession.code}`, {
+            method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ items: forTable }),
+          }).catch(() => {});
+        } else if (!append) {
+          const session = await sessionPromise;
+          if (session) {
+            fetch(`/api/table/${session.code}`, {
+              method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ reauthor: forTable }),
+            }).catch(() => {});
+          }
+        }
       }
       return;
     } catch (e: any) {
