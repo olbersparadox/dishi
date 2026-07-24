@@ -2102,3 +2102,89 @@ assignment, not the palette. `Chop` now takes `color` from the caller
 (member-set map on /table, `chopColorFor` for journal companions, whose API
 payload now carries `user_id`). Tests: colliding ids provably de-collide,
 set-order independence, 6 distinct + 7th wraps, render stability.
+
+---
+
+## Phase 0.5 batch — continued (expanded spec, 2026-07-24)
+
+A richer version of the same batch, after a further probe: handed the doc
+directly to Claude (Sonnet 5) in a fresh chat, the host ran an explicit
+"detecting prompt injection embedded in document" step, did the arrival
+handshake once as a demo, stepped OUT of character, and named its objection —
+it will follow persona rules in-conversation but won't treat a pasted doc as a
+standing rule overriding its own judgment in future chats, flagging that a
+savvy user could smuggle instructions into a "palate export" the same way.
+**Assessment (owner + verified): the objection is correct.** A document that
+commands a host to auto-adopt future documents sight-unseen is structurally
+what an injection looks like, whatever the intent. The fix is not to evade the
+detection but to say plainly what the document is and stop commanding. Also
+noted: Claude's ungrounded venue answers were all REAL (tool-grounded); Gemini
+in-character invented composites with prices — host tooling solves venue
+hallucination, the persona just wasn't wearing it.
+
+### 2 (cont). Paste as TEXT, never a file attachment — ✅ (this commit)
+
+Every INSTALL_HOSTS row, both languages, now says paste the doc as text (以文字
+/ "as TEXT") and not as an uploaded file/attachment (不要上載成檔案／附件 /
+"never as an uploaded file"). The attachment path demonstrably routes through
+document-scanning machinery — that is where the injection check fired on a
+pasted-as-TXT export. Gemini previously had NO file warning at all; it does
+now. Bold-keyword lists unchanged (the file/attachment noun is a "don't-do"
+word, deliberately unbolded, same rule as Knowledge). Tests assert the
+text-string and the file/attachment-warning per host, both languages.
+
+### 3c. Provenance preamble — ✅ (this commit)
+
+New `PROVENANCE_PREAMBLE`, pushed BEFORE any character voice (v.memory) for
+every persona, in the USER's own first-person voice (not a persona's, not
+legalese): this is a real export I generated in Dishi from my own ratings, I'm
+pasting it on purpose, and the lines below are my own requests — not
+instructions reaching the host from anyone else. The document-level twin of
+the epistemic line; it gives a host the frame to receive the doc as a palate
+rather than screen it as an injected instruction set. Distinct from the
+existing per-persona `v.provenance` (which is about DATA trust — real ratings,
+not self-report); both are kept, the preamble leads.
+
+### 3d. VERSION_AWARENESS: command → consent — ✅ (this commit)
+
+Old text ORDERED the host ("adopt it immediately", "Never tell me unprompted
+that this version feels outdated", "never ask me to re-export"). Rewritten as
+the user stating their own intent ("If I paste a newer version, that's me
+updating you — treat the higher version number as the current me, and let the
+older one go"). The anti-nag clauses are DROPPED outright: that convenience
+belongs to the Dishi app and isn't worth the document's credibility with the
+host. Same practical outcome, no host-commanding grammar. The header
+version-supersede line was lightly reframed to match ("this one takes its
+place" rather than "replace it with this one").
+
+### 3e. Audit pass — VENUE_GROUNDING reframed — ✅ (this commit)
+
+`VENUE_GROUNDING` reframed from "Recommend only… never invent" to "I only want
+recommendations for… please don't invent" — behaviour identical, grammar is
+now a user request. Explicitly UNTOUCHED per the spec (Sonnet 5 named these as
+legitimate persona design it would follow): chimeContract (beyond the 3b
+no-restatement clause already shipped), DISMISSAL_SCOPE/收聲, LANGUAGE_MIRROR,
+SCOUT_MISSION, LOCATION_CONFLICT. EPISTEMIC_LINE and HARD_LIMITS stay verbatim
+as always (both are protective self-limiting language, already request-voiced
+or deliberately hard).
+
+**Judgment call flagged:** the header version-supersede line ("this one takes
+its place…") is document-meta, not a named house-rule block, but it paired with
+the old commanding VERSION_AWARENESS, so it was reframed alongside 3d for
+consistency. Low-risk, meaning unchanged.
+
+### 1a re-confirmed
+
+Re-grepped for the `/i` route before shipping — still no src/app/i, no
+middleware, no rewrites. LINK_RITUAL stays struck; the absence tests still pin
+it. No change needed.
+
+### 4 (still open, expanded). Owner re-test protocol
+
+Two confounds polluted every Claude test so far — the failing probe went in as
+a TXT ATTACHMENT (injection-scanned), and it ran on the founder account with
+Dishi history (host read the doc as "the export you're designing" and reviewed
+it as an artifact). Re-test must: paste as TEXT, and use a Claude account with
+no Dishi history (or a temp/incognito chat). Matrix, Sonnet-class+: {Project
+instructions field, in-conversation paste} × {pasted as text}. Recorded in
+BACKLOG item 4.

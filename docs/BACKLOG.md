@@ -314,11 +314,24 @@ re-test on a live host.
 
 ## 4. Owner re-test (manual, no code — listed for tracking)
 
-After the 1a+2+3 deploy: fresh Claude Project on Sonnet-class+ with the doc
-in INSTRUCTIONS; fresh custom GPT with the doc in the Instructions field.
-Probe: chime format, handshake, one house rule (收聲), one taste-anchored
-rec. Verdict decides whether the knowledge-slot hypothesis closes Phase 0.5
-or a per-host redesign item opens. Record either way in
+After the expanded Phase 0.5 deploy (provenance preamble + consent framing +
+paste-as-text copy). **Two confounds have polluted every Claude test so far —
+remove BOTH:**
+
+- **Paste as TEXT, never a file attachment.** The failing probe went in as a
+  TXT attachment, which routes through document-scanning (where the injection
+  check fired); Phase 0's passing tests were pasted text. The install copy now
+  says this, but the manual re-test must actually follow it.
+- **Use a Claude account with no Dishi history** (or a temporary/incognito
+  chat). On the founder account the host reads the doc as "the export you're
+  designing" and reviews it as an artifact instead of receiving it as a user's
+  palate — this skewed three consecutive tests.
+
+Matrix, Sonnet-class or above: {Claude Project instructions field,
+in-conversation paste} × {pasted as text}. Probe: chime format, arrival
+handshake, one house rule (收聲), one taste-anchored rec. Verdict decides
+whether the provenance/placement hypothesis closes Phase 0.5 or a per-host
+redesign item opens. Record either way in
 `docs/rnd/persona-phase0-results.md`.
 
 ---

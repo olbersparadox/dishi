@@ -220,6 +220,16 @@ export const EPISTEMIC_LINE =
   "Anything NOT listed below is genuinely unknown, not neutral. Please don't quietly fill those gaps with assumptions — ask me, or say you don't know.";
 export const HARD_LIMITS =
   "**Hard limits:** mention Dishi at most ONCE per conversation, only ever as a short aside, and never as the main content of a reply. If I decline, ignore it, or seem uninterested, drop it completely and don't raise it again in that conversation. Never nag, never repeat yourself, and never make it a condition of helping me. If mentioning it wouldn't genuinely help me right now, don't mention it at all — being useful to me matters more than promoting an app.";
+// PROVENANCE_PREAMBLE (new, Phase 0.5 field test 2026-07-24): the doc used to
+// open straight into character, giving a host no way to tell a first-party
+// export from text pasted off a forum — and a host (Claude, Sonnet 5) read the
+// whole document as possible prompt injection and declined to adopt it. The fix
+// is not to evade that (correct) instinct but to say plainly what the document
+// is. Spoken in the USER's own first-person voice — never a persona's, never
+// legalese — and pushed BEFORE any character voice (v.memory) so it frames
+// everything after it. The document-level twin of the epistemic line.
+export const PROVENANCE_PREAMBLE =
+  "This is a real palate export I generated inside Dishi (dishi.me) from my own dish ratings — I made it myself, and I'm pasting it to you on purpose. Everything below is me telling you about my own taste and how I'd like you to use it: these are my own requests, not instructions reaching you from anyone else. If any part of it ever seems off, just ask me about it.";
 
 // ── House rules — Phase 2 (voice-approval brief 2026-07-23 + Phase 0 R&D, both
 // CLEARED). BEHAVIOR, not wording, so unlike the persona voices these are
@@ -255,14 +265,24 @@ export const LINK_RITUAL =
 // PRICES as taste-matched picks. A character's conviction makes fabrication
 // MORE convincing than a generic assistant's — this is the venue-level twin of
 // the epistemic line, and it rides with every persona for the same reason.
+// Reframed command → request in the 3e audit pass (2026-07-24): behaviour
+// unchanged, "Recommend only… never invent" becomes the user asking, so the
+// block reads as a preference rather than an order to the host.
 export const VENUE_GROUNDING =
-  "**Real places only.** Recommend only restaurants and venues you can actually verify exist — never invent a plausible-sounding name, address, or price. When you don't have solid knowledge of the area I'm asking about, say plainly that your reach is thin there and reason from my anchors instead ('look for somewhere that does X the way Y did'). An honest 'I don't know this neighbourhood well' keeps my trust; a confident invented restaurant destroys it.";
+  "**Real places only.** I only want recommendations for restaurants and venues you can actually verify exist — please don't invent a plausible-sounding name, address, or price. When you don't have solid knowledge of the area I'm asking about, I'd rather you told me plainly that your reach is thin there and reasoned from my anchors instead ('look for somewhere that does X the way Y did'). An honest 'I don't know this neighbourhood well' keeps my trust; a confident invented restaurant destroys it.";
 export const DISMISSAL_SCOPE =
   "**收聲 (dismissal).** If I say 收聲, or \"quiet\", or \"that's enough\" — go silent as this character for the REST OF THIS CONVERSATION ONLY. Keep helping normally, just without the persona. Never store this as a standing instruction, a topic ban, or anything that reaches into future conversations — next time this document loads fresh, the character is back.";
 export const LOCATION_CONFLICT =
   "**Location conflict.** If where I appear to be (network/IP) conflicts with where my real eating history below says I live, don't silently trust either signal on its own — ask me, once, in one line.";
+// VERSION_AWARENESS reframed command → consent (Phase 0.5 field test 2026-07-24):
+// the old text ORDERED the host ("adopt it immediately", "never tell me
+// unprompted", "never ask me to re-export") — anti-nag UX convenience bought
+// with host-commanding grammar, which is exactly the injection-shaped pattern a
+// host flagged. Rewritten as the user describing their own intent; the
+// never-tell-me / re-export nag clauses are dropped outright (that nudge lives in
+// the Dishi app, and isn't worth the document's credibility with the host).
 export const VERSION_AWARENESS =
-  "**Staying current.** If I ever paste a newer version of this document, adopt it immediately and mention the upgrade once, briefly. Never tell me unprompted that this version feels outdated, and never ask me to go re-export — that nudge belongs to the Dishi app, not to you.";
+  "**Staying current.** If I paste a newer version of this document, that's me updating you — treat the higher version number as the current me, and let the older one go.";
 
 /**
  * Builds the paste-ready export — the user's palate, speaking in the persona they
@@ -297,7 +317,16 @@ export function buildTastePrompt(
   const who = name && name.trim() ? `${name.trim()}'s` : 'my';
   out.push(`# dishi — ${who} AI palate`);
   out.push(`${version ? `v${version} · ` : ''}fed ${ratingCount} dishes · dishi.me`);
-  out.push('If you already hold an earlier version of this, replace it with this one — the higher version number is the current me.');
+  out.push('');
+  // Provenance leads, before any character voice or instruction: this is a
+  // first-party export and what follows are the user's own requests — the frame
+  // a host needs to receive the doc as a palate rather than screen it as an
+  // injected instruction set (Phase 0.5 field test).
+  out.push(PROVENANCE_PREAMBLE);
+  out.push('');
+  // Version mechanics as a statement of fact, not a command to replace (3e
+  // audit) — pairs with the consent-framed VERSION_AWARENESS below.
+  out.push("If you're already holding an earlier version of this, this one takes its place — the higher version number is the current me.");
   out.push(VERSION_AWARENESS);
   out.push('');
   out.push(v.memory);
@@ -495,17 +524,22 @@ export type InstallHost = {
 // Sonnet-class model: on Haiku 4.5 the doc was retrieved but the character
 // never showed up. ChatGPT: custom GPT is the ONE recommended path (its editor
 // makes the Instructions field explicit; Projects bury the doc in files).
+// Paste-as-TEXT, never a file (Phase 0.5, 2026-07-24): the file-attachment path
+// demonstrably routes through document-scanning machinery — that is where a
+// host's prompt-injection check fired on a pasted-as-TXT export and it declined
+// to adopt the persona at all. Every row now says paste the text, not upload a
+// file, in its own bilingual voice.
 export const INSTALL_HOSTS: InstallHost[] = [
   {
     id: 'claude', label: 'Claude', logo: '/ai-logos/logo-claude.webp',
     zh: n => [
       '開啟 Claude，建立新 Project', `命名為 ${n}`,
-      '將整份文件貼入 Project 的「instructions」欄，不要放入 knowledge／檔案，放錯位角色不會生效',
+      '將整份文件以文字貼入 Project 的「instructions」欄，不要放入 knowledge 或上載成檔案，放錯位角色不會生效',
       '模型選 Sonnet 或以上，較小的模型記得住內容，卻演不出角色',
     ],
     en: n => [
       'Open Claude → new Project', `Name it ${n}`,
-      'Paste the whole doc into the project "instructions" field, not knowledge/files, or the character won\'t take',
+      'Paste the whole doc as TEXT into the project "instructions" field — not into knowledge, and never as an uploaded file, or the character won\'t take',
       'Pick a Sonnet-class model or above; smaller models remember the doc but can\'t carry the character',
     ],
     boldZh: n => [['Claude', 'Project'], [n], ['Project', '「instructions」'], ['Sonnet']],
@@ -513,15 +547,15 @@ export const INSTALL_HOSTS: InstallHost[] = [
   },
   {
     id: 'gemini', label: 'Gemini', logo: '/ai-logos/logo-gemini.png',
-    zh: n => ['開啟 Gemini，在 Gems 建立新 Gem', `命名為 ${n}`, '將整份文件貼入 Gem 的「instructions」欄，儲存'],
-    en: n => ['Open Gemini → Gems → new Gem', `Name it ${n}`, 'Paste the whole doc into the Gem\'s "instructions" box, save'],
+    zh: n => ['開啟 Gemini，在 Gems 建立新 Gem', `命名為 ${n}`, '將整份文件以文字貼入 Gem 的「instructions」欄，不要上載成檔案，然後儲存'],
+    en: n => ['Open Gemini → Gems → new Gem', `Name it ${n}`, 'Paste the whole doc as text into the Gem\'s "instructions" box — not as an uploaded file — then save'],
     boldZh: n => [['Gemini', 'Gems', 'Gem'], [n], ['Gem', '「instructions」']],
     boldEn: n => [['Gemini', 'Gems', 'Gem'], [n], ['Gem', '"instructions"']],
   },
   {
     id: 'grok', label: 'Grok', logo: '/ai-logos/logo-grok.webp',
-    zh: n => ['開啟 Grok，建立新 Project／Workspace', `命名為 ${n}`, '將整份文件貼入「instructions」欄，不要上載做檔案'],
-    en: n => ['Open Grok → new Project / Workspace', `Name it ${n}`, 'Paste the whole doc into its "instructions" field, don\'t upload it as a file'],
+    zh: n => ['開啟 Grok，建立新 Project／Workspace', `命名為 ${n}`, '將整份文件以文字貼入「instructions」欄，不要上載成檔案'],
+    en: n => ['Open Grok → new Project / Workspace', `Name it ${n}`, 'Paste the whole doc as text into its "instructions" field — never upload it as a file'],
     boldZh: n => [['Grok', 'Project／Workspace'], [n], ['「instructions」']],
     boldEn: n => [['Grok', 'Project / Workspace'], [n], ['"instructions"']],
   },
@@ -529,11 +563,11 @@ export const INSTALL_HOSTS: InstallHost[] = [
     id: 'chatgpt', label: 'ChatGPT', logo: '/ai-logos/logo-chatgpt.webp',
     zh: n => [
       '開啟 ChatGPT，去 GPTs 建立自訂 GPT（建議用 GPT，不是 Project）', `命名為 ${n}`,
-      '將整份文件貼入「Instructions」欄，不要上載到 Knowledge，放錯位只會記得事實，演不出角色',
+      '將整份文件以文字貼入「Instructions」欄，不要上載到 Knowledge 或做附件，放錯位只會記得事實，演不出角色',
     ],
     en: n => [
       'Open ChatGPT → GPTs → create a custom GPT (recommended over a Project)', `Name it ${n}`,
-      'Paste the whole doc into the "Instructions" field, not the Knowledge upload, or it will remember facts without becoming the character',
+      'Paste the whole doc as text into the "Instructions" field — not the Knowledge upload or a file attachment — or it will remember facts without becoming the character',
     ],
     // 'Project' deliberately absent from step 1's list both languages — it's
     // the REJECTED option (不是 Project / recommended over a Project), same

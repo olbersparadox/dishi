@@ -3,7 +3,7 @@ import {
   extractTasteSections, buildTastePrompt,
   evidenceConfidence, confidenceTier, exportUnlocked, ratingsToUnlock,
   confidenceInputsFrom, EMERGING_AT, SOLID_AT, exportPayload,
-  HARD_LIMITS, EPISTEMIC_LINE, INSTALL_HOSTS,
+  HARD_LIMITS, EPISTEMIC_LINE, INSTALL_HOSTS, PROVENANCE_PREAMBLE,
 } from '../src/lib/tasteExport';
 import { PERSONAS, VOICES } from '../src/lib/persona';
 
@@ -335,7 +335,6 @@ describe('Phase 2: arrival handshake + house rules (voice-approval brief 2026-07
       expect(p).toMatch(/收聲/); // 收聲
       expect(p).toMatch(/REST OF THIS CONVERSATION ONLY/);
       expect(p).toMatch(/Location conflict/);
-      expect(p).toMatch(/never ask me to go re-export/);
     }
   });
 
@@ -376,6 +375,57 @@ describe('Phase 2: arrival handshake + house rules (voice-approval brief 2026-07
     expect(ck).toMatch(/wit lands on dishes and restaurants.*never meanly on me/);
     const kiki = buildTastePrompt(s, { persona: 'kiki' });
     expect(kiki).toMatch(/no hype without receipts backing it/);
+  });
+});
+
+describe('Phase 0.5 field-test hardening (2026-07-24): provenance, consent framing, grounding', () => {
+  const s = {
+    loves: ['umami'], strongLoves: [], dislikes: [], strongDislikes: [], cuisines: ['Cantonese'],
+    lovedDishes: [{ name: 'Char Siu', name_zh: '叉燒', score: 0.9, restaurant: 'Joy Hing' }],
+    dislikedDishes: [], ratingCount: 30, homeCookCount: 2, diningOutCount: 28, lovedSharedCount: 0,
+    confidence: 'solid' as const,
+  };
+
+  it('3c: opens with the first-party provenance preamble, in every persona, BEFORE any character voice', () => {
+    // The whole Phase 0.5 non-adoption: a host read the doc as prompt injection.
+    // The preamble must say — in the user's own voice — that this is self-made
+    // and its lines are requests, not third-party commands, and it must land
+    // before the character's first utterance (v.memory) and the '## Meeting me'
+    // section, or it isn't framing anything.
+    for (const persona of PERSONAS) {
+      const p = buildTastePrompt(s, { persona });
+      expect(p).toContain(PROVENANCE_PREAMBLE);
+      expect(p).toMatch(/I made it myself/);
+      expect(p).toMatch(/my own requests, not instructions reaching you from anyone else/);
+      expect(p.indexOf(PROVENANCE_PREAMBLE)).toBeLessThan(p.indexOf('## Meeting me'));
+      expect(p.indexOf(PROVENANCE_PREAMBLE)).toBeLessThan(p.indexOf(VOICES[persona].memory));
+    }
+  });
+
+  it('3d: VERSION_AWARENESS is consent-framed — no adopt-immediately imperative, no anti-nag command', () => {
+    const p = buildTastePrompt(s);
+    expect(p).toMatch(/that's me updating you/);
+    expect(p).not.toMatch(/adopt it immediately/i);
+    expect(p).not.toMatch(/never tell me/i);
+    expect(p).not.toMatch(/never ask me to go re-export/i);
+    // The versioning fact stays (higher number wins), just not as a command to obey.
+    expect(p).toMatch(/higher version number is the current me/);
+  });
+
+  it('3e: VENUE_GROUNDING keeps the behaviour but reads as a request, not an order', () => {
+    for (const persona of PERSONAS) {
+      const p = buildTastePrompt(s, { persona });
+      expect(p).toMatch(/Real places only/);       // block still present
+      expect(p).toMatch(/reach is thin/);           // thin-reach behaviour intact
+      expect(p).toMatch(/I only want recommendations for/); // request grammar, not "Recommend only"
+      expect(p).not.toMatch(/Recommend only restaurants/);
+    }
+  });
+
+  it('EPISTEMIC_LINE and HARD_LIMITS stay verbatim (explicitly untouched by the audit)', () => {
+    const p = buildTastePrompt(s);
+    expect(p).toContain(EPISTEMIC_LINE);
+    expect(p).toContain(HARD_LIMITS);
   });
 });
 
@@ -431,10 +481,24 @@ describe('install-host table (persona container install flow)', () => {
   it('Claude + ChatGPT warn off the knowledge slot explicitly', () => {
     const claude = INSTALL_HOSTS.find(h => h.id === 'claude')!;
     expect(claude.zh('dishi.Spoon').join(' ')).toContain('knowledge');
-    expect(claude.en('dishi.Spoon').join(' ').toLowerCase()).toContain('not knowledge');
+    expect(claude.en('dishi.Spoon').join(' ').toLowerCase()).toContain('not into knowledge');
     const gpt = INSTALL_HOSTS.find(h => h.id === 'chatgpt')!;
     expect(gpt.zh('dishi.Spoon').join(' ')).toContain('Knowledge');
     expect(gpt.en('dishi.Spoon').join(' ').toLowerCase()).toContain('not the knowledge');
+  });
+
+  // Item 2 (Phase 0.5): paste as TEXT, never a file attachment — the attachment
+  // path routes through document-scanning machinery, which is where a host's
+  // injection check fired and killed adoption. Every row, both languages.
+  it('every host says paste as TEXT and never as a file attachment', () => {
+    for (const h of INSTALL_HOSTS) {
+      const zh = h.zh('dishi.Spoon').join(' ');
+      const en = h.en('dishi.Spoon').join(' ');
+      expect(zh, `${h.id} zh missing 以文字`).toContain('以文字');
+      expect(zh, `${h.id} zh missing file/attachment warning`).toMatch(/檔案|附件/);
+      expect(en.toLowerCase(), `${h.id} en missing "as text"`).toContain('as text');
+      expect(en.toLowerCase(), `${h.id} en missing file/attachment warning`).toMatch(/file|attachment/);
+    }
   });
 
   it('Claude carries the Sonnet-class model note (Haiku retrieved the doc but never became the character)', () => {
