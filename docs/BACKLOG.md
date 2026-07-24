@@ -320,3 +320,33 @@ Probe: chime format, handshake, one house rule (收聲), one taste-anchored
 rec. Verdict decides whether the knowledge-slot hypothesis closes Phase 0.5
 or a per-host redesign item opens. Record either way in
 `docs/rnd/persona-phase0-results.md`.
+
+---
+
+# Batch: Table Mode two-account field-test fixes (2026-07-24)
+
+(Items 1-minimum, 2, 3 — shared-session re-author sync + namefix on /table's
+addPage, name_original pick keys both views, chop color = f(user_id) with
+per-set de-collision — SHIPPED `ab99aff` + `a0c517c` 2026-07-24, full entries
+in DECISIONS.md. Open below: the item-1 root fix.)
+
+## 1-root. Shared session as single source of truth for a scan-shared menu — *(Fable)*
+
+Design intent from the batch spec: once a tableSession exists, the shared
+session's items ARE the menu, and the scanner's local view READS from it
+(the 5s glance poll already fetches the full state) instead of holding a
+divergent copy that has to be re-synced after every re-author pass. Deferred
+because the divergence is structural, not cosmetic: the scanner's local
+items carry per-scanner personal fields (match/reason/fire/raw_score — the
+whole incremental streaming/scoring render) that the shared items
+deliberately never store (shapeTableMenuItems strips them as misleading for
+the group), so "read from shared" means splitting every scan item into a
+shared-truth half (names/chips/attributes, owned by the session) and a
+personal half (scoring, owned by the scanner) and merging them per render —
+a real refactor of scan/page.tsx's result state, not a data swap. The
+shipped minimum fix (reauthor PATCH after the stages settle, one shared
+mergeFinalScanItems builder for all three sync paths) makes divergence
+self-healing rather than permanent; this item removes the copy entirely so
+nothing CAN diverge between passes. When it lands, the reauthor sync in
+scan/page.tsx's performScan shrinks to the append case (or goes entirely,
+if append also reads back from the session).
