@@ -412,12 +412,19 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
         }
         ariaLabel={`${t('install.title', { name: selName })} → ${installHost.label}`}
         onClose={() => { setInstallHost(null); setCopied(false); }}
-        // Instructions reuse .explain-modal-body verbatim (the SAME typography as
-        // every stat explainer) rather than a bespoke numbered-list style — one
-        // circled-number line per step, joined on the body's own
-        // white-space:pre-line.
-        body={(lang === 'zh' ? installHost.zh : installHost.en)(selName)
-          .map((s, i) => `${'①②③④⑤'[i] ?? `${i + 1}.`} ${s}`).join('\n')}
+        // Instructions match .explain-modal-body's typography exactly, but live in
+        // `extra` as real rows (not one joined pre-line string) so a step that
+        // wraps to a second line hangs under its own text, not the circled number.
+        extra={
+          <div className="install-steps">
+            {(lang === 'zh' ? installHost.zh : installHost.en)(selName).map((s, i) => (
+              <div className="install-step" key={i}>
+                <span className="install-step-num" aria-hidden>{'①②③④⑤'[i] ?? `${i + 1}.`}</span>
+                <span className="install-step-text">{s}</span>
+              </div>
+            ))}
+          </div>
+        }
         footer={
           <div className="install-copy-wrap">
             <button className="ok-circle" onClick={copyDoc} disabled={copying} aria-label={t('export.copy')}>

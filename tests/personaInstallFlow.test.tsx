@@ -141,12 +141,15 @@ describe('the install layer (shared ExplainModal)', () => {
     // composed (name, arrow, host logo image — no plain-text host name on screen).
     expect(dialog.getAttribute('aria-label')).toBe('植入 dishi.CK → Claude');
     expect(dialog.querySelector('.install-title-row')?.textContent).toContain('dishi.CK');
-    // Instructions now render through .explain-modal-body (reusing the SAME
-    // typography as every stat explainer), not a bespoke list — 書面 register,
+    // Instructions render as real rows (.install-steps), not one joined
+    // .explain-modal-body string, so a wrapped step hangs under its own text
+    // rather than the paragraph's left edge — same typography, 書面 register,
     // steps numbered with circled digits.
-    expect(dialog.querySelector('.explain-modal-body')).toBeTruthy();
-    expect(dialog.textContent).toContain('② 命名為 dishi.CK');
-    expect(dialog.textContent).toContain('Project');
+    expect(dialog.querySelector('.install-steps')).toBeTruthy();
+    const steps = Array.from(dialog.querySelectorAll('.install-step-text')).map(el => el.textContent);
+    expect(dialog.querySelector('.install-step-num')?.textContent).toBe('①');
+    expect(steps[1]).toBe('命名為 dishi.CK');
+    expect(steps.join(' ')).toContain('Project');
   });
 
   it('the copy circle generates the doc in the SELECTED voice, copies it, persists the persona', async () => {
