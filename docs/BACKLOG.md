@@ -282,3 +282,41 @@ Full entries moved to DECISIONS.md.)
 # Backlog additions — 2026-07-24 (field session fixes)
 
 (Item 1d shipped `46e4d4f`, 2026-07-24. Full entry moved to DECISIONS.md.)
+
+---
+
+# Batch: dishi.Persona Phase 0.5 field-test fixes (2026-07-24)
+
+Context: owner installed Spoon on all three hosts per the app's own install
+instructions, fresh containers. Gemini Gem: full character adoption, all house
+rules held (handshake w/ real anchor, location-conflict one-line ask, link
+ritual grammar, 收聲 scoping, same-session restore). Claude Project (Haiku
+4.5): no adoption. Custom GPT: taste FACTS retrieved, zero behavior — the
+knowledge-slot signature. Working hypothesis: Gems have one paste target
+(instructions); Claude Projects and GPTs split instructions vs knowledge, and
+the doc landed in knowledge, which RAGs facts but doesn't steer behavior.
+
+(Items 1a, 2, 3 — LINK_RITUAL strike, INSTALL_HOSTS paste-target precision,
+VENUE_GROUNDING + chime no-restatement — SHIPPED `fc4c454` 2026-07-24, full
+entries in DECISIONS.md. Open below: the `/i` route + the owner re-test.)
+
+## 1b. `/i` intent-landing route — *(Fable — new surface, first pass)*
+
+Receives `do=cook|trip|hunt|ate&dish=<n>` from persona-issued links. v1
+minimal: authenticated landing, shows what the persona wants to record
+("Spoon 想幫你記低：{dish} — 加入去搵清單？"), explicit confirm creates the
+entry, nothing commits on tap (contract already promised in the struck
+LINK_RITUAL text). Unauth → login → return with intent preserved. When it
+ships, re-add LINK_RITUAL to the house-rules assembly in
+`src/lib/tasteExport.ts` (the strike comment marks the exact spot; the
+house-rules test pins the absence and will fail until inverted back) and
+re-test on a live host.
+
+## 4. Owner re-test (manual, no code — listed for tracking)
+
+After the 1a+2+3 deploy: fresh Claude Project on Sonnet-class+ with the doc
+in INSTRUCTIONS; fresh custom GPT with the doc in the Instructions field.
+Probe: chime format, handshake, one house rule (收聲), one taste-anchored
+rec. Verdict decides whether the knowledge-slot hypothesis closes Phase 0.5
+or a per-host redesign item opens. Record either way in
+`docs/rnd/persona-phase0-results.md`.

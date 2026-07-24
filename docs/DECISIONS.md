@@ -1951,3 +1951,54 @@ genuinely unlocked; force reverted before commit).
 
 **Still open, outside code:** owner review of the whole shipped palate-export
 feature — deferred ("later").
+
+---
+
+# Batch: dishi.Persona Phase 0.5 field-test fixes (2026-07-24)
+
+Owner's live install test, fresh containers on all three hosts, per the app's
+own install instructions. Results: Gemini Gem = full character adoption, every
+house rule held (handshake with a real anchor, location-conflict one-line ask,
+link-ritual grammar, 收聲 scoping, same-session restore). Claude Project on
+Haiku 4.5 = no adoption. Custom GPT = taste facts retrieved, zero behavior —
+the knowledge-slot signature. Hypothesis: Gems have ONE paste target;
+Claude Projects and GPTs split instructions vs knowledge, and a doc in
+knowledge gets RAG'd for facts without steering behavior. Items 1a + 2 + 3
+shipped `fc4c454`; the `/i` route (1b) and the owner re-test (4) remain open
+in BACKLOG.md.
+
+## 1a. LINK_RITUAL struck from the export — ✅ `fc4c454`
+
+The doc instructed hosts to hand out `dishi.me/i?do=cook|trip|hunt|ate&dish=…`
+and Gemini was doing so verbatim — but no `/i` route exists (verified by grep
+before striking: no src/app/i, no middleware, no rewrites). Every install was
+distributing live 404s. Removed from the house-rules assembly in
+buildTastePrompt; const kept with a strike comment marking the re-add spot;
+tests/tasteExport.test.ts now asserts the ABSENCE of manifest-before-link and
+the /i URL so a premature re-add fails loudly. Re-add when 1b ships, then
+re-test on a live host.
+
+## 2. INSTALL_HOSTS paste-target precision — ✅ `fc4c454`
+
+Every host row now names the EXACT paste field ("instructions", quoted, both
+languages). Claude + ChatGPT explicitly warn off knowledge/files in the row's
+own bilingual voice (放錯位角色不會生效 / "or the character won't take" —
+warm one-liner, not a warning box). Claude row gains the model note: Sonnet-
+class or above; smaller models remember the doc but can't carry the character
+(observed live on Haiku 4.5). ChatGPT row picks ONE recommended path: custom
+GPT, explicitly not a Project. +5 tests pin the field names, the not-knowledge
+warnings, the Sonnet note, and the GPT-over-Project pick.
+
+## 3. Export doc hardening — ✅ `fc4c454`
+
+- **VENUE_GROUNDING (new house rule, every persona):** recommend only venues
+  the host can verify exist; when reach is thin, SAY it's thin and reason from
+  the user's anchors instead. Observed live: Gemini-as-Spoon presented
+  invented-composite venues (滿福樓, 中華小館, 豪隍點心茶居) WITH prices as
+  taste-matched picks — a character's conviction makes fabrication MORE
+  convincing than a generic assistant's, which is exactly the trust the
+  epistemic line exists to protect.
+- **chimeContract amended:** "two speakers, one reply" stands for mixed-topic
+  messages, but on an all-food message the marked block IS the reply — the
+  host voice must never restate or re-ask what the character just said
+  (observed live: Spoon asks which city, host voice immediately asks again).
