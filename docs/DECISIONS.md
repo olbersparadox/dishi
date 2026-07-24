@@ -1841,3 +1841,60 @@ built to spec without redesign ([F] first pass per the new-surface rule).
   Verified live on real data: all 5 owner-required screenshot sets (State A /
   three personas / two host layers / copied feedback / X-restore), DB
   confirmed persona + last_export_at after the copy.
+
+---
+
+# Batch: field session fixes (2026-07-24)
+
+## 1d. Taste-tab rated-dish list stale after in-flow rename — *(Sonnet)* — ✅ SHIPPED `46e4d4f` 2026-07-24
+
+Full backlog entry, verbatim:
+
+**Bug:** renaming a dish on the growth screen (post-rating confirm) persists
+correctly server-side (confirmed via refresh), but the Taste tab's 已評菜式
+list keeps showing the pre-rename AI-suggested name until a manual page
+reload. Root cause: the list is fetched once and nothing invalidates it when
+the rating flow closes — same class of issue anywhere else the flow mutates
+a dish (restaurant, re-derived diet chips) that the list doesn't re-read.
+
+**Fix:** refetch the Taste tab's rated-dish list once when the rating flow
+(RatingStack/TasteGrowth) exits — same non-blocking, background-refresh
+discipline already used for refreshBuddy() after each rating. One refetch
+per session close, not per dish rated. Guard: only fire if the Taste tab is
+actually mounted/visible, so flows that exit elsewhere don't do wasted work.
+
+**Tests:** rename during a rating session → Taste tab list reflects it
+without reload; multi-dish session → exactly one refetch, not one per dish;
+refetch guarded against firing when Taste tab isn't mounted.
+
+**Diagnosis found the stated root cause already fixed:** `profile/page.tsx`
+already refetches `ratedRows` exactly once per session close — `closeRating`
+(wired as `onExit` for both the album-batch and queued-pick `RatingStack`
+mounts) bumps a `refreshKey` that the fetch effect depends on, and a prior
+fix (`discardAndExit`, see the 2026-07-21 rating-stack batch) already awaits
+session-created deletes before calling `onExit` for exactly this reason. So
+"refetch once on exit" was not the missing piece.
+
+**Actual root cause:** `onEditName` (RatingStack.tsx) fires the rename PATCH
+detached — `renamePatch(dishId, e).then(...)`, never awaited — because the
+user has already moved on to the next card. But on the growth screen's ✓
+(and, in picksMode, its ✕ fallback), `onExit` was wired directly to the raw
+prop with no wait on that in-flight request. A rename immediately followed
+by exit could have its PATCH still in flight when the parent's refetch
+fired, losing the race — exactly reproducing "correct after a later manual
+reload, stale on the immediate refetch."
+
+**As shipped (`46e4d4f`):** added `pendingRenames` (a ref array of in-flight
+rename promises, pushed to from `onEditName`) and a `finishExit` choke point
+that awaits them (`Promise.allSettled`) before calling the real `onExit` —
+same discipline as `discardAndExit`'s awaited deletes. `TasteGrowth`'s
+`onExit` prop now points at `finishExit` (covers both the ✓ button and
+picksMode's ✕-falls-back-to-onExit path); `discardAndExit` and
+`cancelSession`'s picksMode branch route through it too, so a rename
+followed immediately by a discard-exit is covered as well. Scope: only the
+rename path, which is what was reported and reproduced; restaurant/diet
+mutations (`onPickPlace`/`onAddPlace`/`reDerive`) are the "same class of
+issue" the original bug flagged as a risk but weren't independently
+reported — left alone for now, worth revisiting if they're seen stale in
+the field. 558/558, tsc clean (pre-existing i18n.test.ts downlevelIteration
+error under bare tsc only, per CLAUDE.md).

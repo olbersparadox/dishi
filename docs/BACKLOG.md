@@ -279,3 +279,9 @@ path's verification includes screenshots of the real flow before "done".
 
 (Both items shipped — item 2 `6ad7237`, item 1 `662358f`, both 2026-07-23.
 Full entries moved to DECISIONS.md.)
+
+---
+
+# Backlog additions — 2026-07-24 (field session fixes)
+
+(Item 1d shipped `46e4d4f`, 2026-07-24. Full entry moved to DECISIONS.md.)
