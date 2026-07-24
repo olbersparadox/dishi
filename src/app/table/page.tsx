@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AuthGate from '@/components/AuthGate';
 import Chop from '@/components/Chop';
-import { chopColor } from '@/lib/chop';
+import { chopColorMap, chopColorFor } from '@/lib/chop';
 import DishListRow from '@/components/DishListRow';
 import TableBar from '@/components/TableBar';
 import { LeaveIcon } from '@/components/icons';
@@ -458,6 +458,11 @@ function Session({ code, onLeave }: { code: string; onLeave: () => void }) {
   // same bar `unanimous` already uses, not a new threshold invented for display.
   const FIRE_MATCH_FLOOR = 55;
   const FIRE_CAP_PER_MEMBER = 2;
+  // ONE color assignment for the whole session, from the member set alone —
+  // identical on every member's screen, collision-free up to the palette size
+  // (chopColorMap's contract). Stamps and fire dots both draw from it, and the
+  // chopColorFor fallback only covers a realtime stamp racing the members poll.
+  const colorById = chopColorMap(state.members.map(m => m.user_id));
   const fireByKey = new Map<string, { userId: string; color: string }[]>();
   for (const member of state.members) {
     if (!member.has_profile) continue;
@@ -466,7 +471,7 @@ function Session({ code, onLeave }: { code: string; onLeave: () => void }) {
       .filter(x => x.match >= FIRE_MATCH_FLOOR)
       .sort((a, b) => b.match - a.match)
       .slice(0, FIRE_CAP_PER_MEMBER);
-    const color = chopColor(member.display_name ?? member.handle);
+    const color = colorById.get(member.user_id) ?? chopColorFor(member.user_id);
     for (const t of top) {
       const arr = fireByKey.get(t.key) ?? [];
       arr.push({ userId: member.user_id, color });
@@ -596,7 +601,7 @@ function Session({ code, onLeave }: { code: string; onLeave: () => void }) {
                 <div className="chop-stamp-row" style={{ marginTop: 5 }} aria-label={t('table.stampedby', { n: stamps.length })}>
                   {stamps.slice(0, STAMP_CAP).map(s => (
                     <span className="chop-stamp-pop" key={`${item.key}:${s.user_id}`}>
-                      <Chop name={s.name} size={26} />
+                      <Chop name={s.name} color={colorById.get(s.user_id) ?? chopColorFor(s.user_id)} size={26} />
                     </span>
                   ))}
                   {stamps.length > STAMP_CAP && <span className="chop-stamp-overflow">+{stamps.length - STAMP_CAP}</span>}

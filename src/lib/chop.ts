@@ -28,12 +28,43 @@ const CHOP_COLORS = [
   '#EC4899', // pink
 ] as const;
 
-/** Deterministic solid color for a user, seeded off a stable identity (their
- * user id if available, else the display name/handle) — same person always
- * gets the same color across renders and devices. */
-export function chopColor(seed: string): string {
-  const idx = Math.floor(seededRandom(seed)() * CHOP_COLORS.length);
-  return CHOP_COLORS[idx];
+/** A user's preferred palette slot — an internal detail of the two functions
+ * below, which are the only assignment rules. */
+function chopSlot(userId: string): number {
+  return Math.floor(seededRandom(userId)() * CHOP_COLORS.length);
+}
+
+/** Deterministic solid color for a user_id alone, with no member set to
+ * de-collide against — the fallback for contexts that render one chop outside
+ * a known group (e.g. a realtime stamp racing ahead of the members poll).
+ * Two-account field test (2026-07-24): both members rendered the SAME green on
+ * every screen, because the seed was the display NAME (renaming changed your
+ * color; two names could collide) and nothing guarded the 1-in-6 hash
+ * collision. user_id is the stable identity; collisions are handled by
+ * chopColorMap wherever the member set is known. */
+export function chopColorFor(userId: string): string {
+  return CHOP_COLORS[chopSlot(userId)];
+}
+
+/** Color assignment for a whole member set: each member keeps their own
+ * hash-preferred slot when free, and colliding members probe to the next free
+ * slot in sorted-user_id order — so any two members of a ≤6-person table are
+ * GUARANTEED different colors, and the assignment is identical on every
+ * client/screen because it depends only on the set of ids (sorted internally),
+ * never on render or join order. Past 6 members the palette must repeat
+ * (slots reset), keeping each consecutive group of 6 internally distinct. */
+export function chopColorMap(userIds: string[]): Map<string, string> {
+  const sorted = Array.from(new Set(userIds)).sort();
+  const taken = new Set<number>();
+  const map = new Map<string, string>();
+  for (const id of sorted) {
+    if (taken.size >= CHOP_COLORS.length) taken.clear();
+    let slot = chopSlot(id);
+    while (taken.has(slot)) slot = (slot + 1) % CHOP_COLORS.length;
+    taken.add(slot);
+    map.set(id, CHOP_COLORS[slot]);
+  }
+  return map;
 }
 
 /** The glyph a chop bears. Latin name with 2+ words (e.g. "Jerry Chu") -> both

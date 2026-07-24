@@ -107,7 +107,7 @@ export async function GET(req: NextRequest) {
   // this dish was picked. display_name-first with the handle fallback — the
   // SAME identity chain the table's own chop stamps rendered live, so a
   // person doesn't change name between the meal and the diary of it.
-  let companions = new Map<string, { name: string }[]>();
+  let companions = new Map<string, { user_id: string; name: string }[]>();
 
   if (ids.length) {
     // locked_dish_ids batches what used to be one is_dish_locked RPC PER dish (the
@@ -140,7 +140,9 @@ export async function GET(req: NextRequest) {
       for (const e of edges) {
         const other = e.user_a === user.id ? e.user_b : e.user_a;
         const list = companions.get(e.dish_id) ?? [];
-        list.push({ name: nameById.get(other) ?? 'someone' });
+        // user_id rides along for the chop's color seed — color is f(user_id),
+        // never f(name), so the same companion stays the same color everywhere.
+        list.push({ user_id: other, name: nameById.get(other) ?? 'someone' });
         companions.set(e.dish_id, list);
       }
     }

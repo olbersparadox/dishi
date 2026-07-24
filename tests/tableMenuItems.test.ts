@@ -67,7 +67,7 @@ describe('mergeFinalScanItems', () => {
     name: 'Sun-dried Horse Mackerel Set', name_zh: '天日干しアジの開き定食',
     name_original: '天日干しアジの開き定食', price: '¥1200', hook: '', cuisine: 'japanese',
     attributes: {} as Record<string, number>, diet: [] as string[],
-    cooking_method: null, heaviness: null, ingredients: [] as string[],
+    cooking_method: null as string | null, heaviness: null as string | null, ingredients: [] as string[],
   };
 
   it('folds the namefix map into name_zh — the stale-closure leak that shipped untranslated names', () => {

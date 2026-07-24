@@ -12,6 +12,7 @@ import { normalizePhoto } from '@/lib/image';
 import { getJournalCache, setJournalCache } from '@/lib/journalCache';
 import { pickDistrict, type DistrictMap } from '@/lib/district';
 import Chop from './Chop';
+import { chopColorFor } from '@/lib/chop';
 import IdentityConfirmCard from './IdentityConfirmCard';
 import type { DuelDish } from './DuelSide';
 import { identityRecheckDue } from '@/lib/dishIdentity';
@@ -29,8 +30,9 @@ export type MyDish = {
   cooking_method?: string | null; heaviness?: string | null; diet?: string[] | null;
   /** 同檯 companions (Table Mode item 4): who shared the table when this dish
    * was picked — same chop identity (display_name, else handle) the table's
-   * own live stamps used. Empty/absent for solo dishes. */
-  companions?: { name: string }[];
+   * own live stamps used. user_id seeds the chop color (color is f(user_id),
+   * never f(name)). Empty/absent for solo dishes. */
+  companions?: { user_id?: string; name: string }[];
 };
 
 /** Rated-on label for a journal row: date + weekday (7月11日 星期六 / Sat, Jul 11). */
@@ -572,7 +574,10 @@ export default function MyDishes({ t, lang }: { t: (k: string, p?: Record<string
                       aria-label={t('journal.companions')} title={t('journal.companions')}>
                       <span className="card-meta" style={{ marginRight: 2 }}>{t('journal.companions')}</span>
                       {d.companions!.slice(0, 5).map(c => (
-                        <Chop key={c.name} name={c.name} size={22} />
+                        // Color from user_id (name only as a legacy fallback seed
+                        // for rows cached before user_id rode along) — same
+                        // companion, same color, here and at the live table.
+                        <Chop key={c.user_id ?? c.name} name={c.name} color={chopColorFor(c.user_id ?? c.name)} size={22} />
                       ))}
                       {d.companions!.length > 5 && (
                         <span className="chop-stamp-overflow">+{d.companions!.length - 5}</span>

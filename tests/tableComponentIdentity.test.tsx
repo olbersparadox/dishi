@@ -72,7 +72,7 @@ describe('Table Mode item 1 — host and joiner render the SAME list component',
       <LanguageProvider>
         <DishListRow item={sessionItem} rank={3} picked={false} onSelect={() => {}}
           pickedBy={['mosuko']}
-          stamps={<span className="chop-stamp-row"><Chop name="mosuko" size={22} /></span>} />
+          stamps={<span className="chop-stamp-row"><Chop name="mosuko" color="#3B82F6" size={22} /></span>} />
       </LanguageProvider>,
     );
   }

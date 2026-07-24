@@ -218,8 +218,9 @@ button { font: inherit; cursor: pointer; }
    same clean look as the rest of the app (matching scan's settled-list aesthetic),
    not the app's separate 印 ink-seal motif. Solid color per user (2026-07-21,
    direct owner request — supersedes the earlier ink-only decision) is set
-   per-instance inline (see Chop.tsx / chopColor); this class only owns the
-   shared shape/type. Vermillion stays off-limits regardless — see
+   per-instance inline (see Chop.tsx / chopColorMap — color is f(user_id),
+   de-collided per member set); this class only owns the shared shape/type.
+   Vermillion stays off-limits regardless — see
    src/lib/chop.ts's CHOP_COLORS comment; that's the one non-negotiable. Sans,
    not the app's display serif — initials read as a UI label, not a headline. */
 .chop {

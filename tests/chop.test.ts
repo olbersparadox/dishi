@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { chopGlyph, chopColor } from '../src/lib/chop';
+import { chopGlyph, chopColorFor, chopColorMap } from '../src/lib/chop';
 
 describe('chopGlyph', () => {
   it('uppercases a Latin first letter for a single word', () => {
@@ -37,18 +37,64 @@ describe('chopGlyph', () => {
   });
 });
 
-describe('chopColor', () => {
-  it('is deterministic for the same name', () => {
-    expect(chopColor('mosuko')).toBe(chopColor('mosuko'));
+describe('chop color = f(user_id) — 2026-07-24 field-test fix', () => {
+  // Two members at a real table both rendered the SAME green on every screen:
+  // the seed was the display NAME (two names can collide; renaming changed your
+  // color) and nothing guarded the 1-in-6 hash collision. Color now derives
+  // from user_id, and within a known member set collisions are resolved.
+  const A = '4d1c3ae0-47d9-4cba-b35e-179c134271bf';
+  const B = 'b7e2f9d1-1234-4abc-9def-0123456789ab';
+
+  it('chopColorFor is deterministic for the same user_id', () => {
+    expect(chopColorFor(A)).toBe(chopColorFor(A));
   });
 
   it('never lands in the seal/vermillion hue (never returns the seal hex)', () => {
-    for (const name of ['mosuko', 'wool.hk', 'Jerry Chu', '陳大文', 'a', 'b', 'c', 'd', 'e', 'f']) {
-      expect(chopColor(name)).not.toBe('#c73e1d');
+    for (const id of [A, B, 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']) {
+      expect(chopColorFor(id)).not.toBe('#c73e1d');
+      expect(chopColorFor(id)).toMatch(/^#[0-9a-fA-F]{6}$/);
     }
   });
 
-  it('returns a valid hex color', () => {
-    expect(chopColor('anyone')).toMatch(/^#[0-9a-fA-F]{6}$/);
+  it('chopColorMap gives ANY two members of a set different colors, even hash-colliding ids', () => {
+    // Find two ids whose solo colors collide, to prove the map de-collides them.
+    let collider = '';
+    for (let i = 0; i < 500; i++) {
+      const cand = `probe-${i}`;
+      if (cand !== A && chopColorFor(cand) === chopColorFor(A)) { collider = cand; break; }
+    }
+    expect(collider).not.toBe(''); // 6 colors — a collision must exist in 500 probes
+    const map = chopColorMap([A, collider]);
+    expect(map.get(A)).not.toBe(map.get(collider));
+  });
+
+  it('the assignment depends only on the id SET, not order — same colors on every client', () => {
+    const forward = chopColorMap([A, B, 'u-third']);
+    const shuffled = chopColorMap(['u-third', A, B]);
+    expect(Object.fromEntries(forward)).toEqual(Object.fromEntries(shuffled));
+  });
+
+  it('a non-colliding member keeps their own solo color inside a set (same color on every screen)', () => {
+    const map = chopColorMap([A, B]);
+    // At least one of the two must hold their solo color; when they do not
+    // collide, BOTH do.
+    if (chopColorFor(A) !== chopColorFor(B)) {
+      expect(map.get(A)).toBe(chopColorFor(A));
+      expect(map.get(B)).toBe(chopColorFor(B));
+    }
+  });
+
+  it('a 6-member table is fully distinct; a 7th wraps rather than throwing', () => {
+    const six = Array.from({ length: 6 }, (_, i) => `member-${i}`);
+    const sixColors = new Set(chopColorMap(six).values());
+    expect(sixColors.size).toBe(6);
+    const seven = chopColorMap([...six, 'member-6']);
+    expect(seven.size).toBe(7); // everyone still gets a color
+  });
+
+  it('is stable across repeated calls (stable across renders)', () => {
+    const a = chopColorMap([A, B]);
+    const b = chopColorMap([A, B]);
+    expect(Object.fromEntries(a)).toEqual(Object.fromEntries(b));
   });
 });
