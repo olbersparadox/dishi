@@ -1898,3 +1898,56 @@ issue" the original bug flagged as a risk but weren't independently
 reported — left alone for now, worth revisiting if they're seen stale in
 the field. 558/558, tsc clean (pre-existing i18n.test.ts downlevelIteration
 error under bare tsc only, per CLAUDE.md).
+
+---
+
+# dishi — your AI palate (export redesign) — §5 remainder — ✅ SHIPPED `18761d7` 2026-07-24
+
+Full backlog entry, as revised by the owner 2026-07-24, verbatim:
+
+- [ ] **[F] dishi — your AI palate (export redesign) — §5 remainder.**
+  §3/§4 SHIPPED `a3517b1` (persona persistence, `persona.ts`,
+  `taste_profiles_persona.sql`); engine + payload work landed earlier.
+  Voice-approval step CLOSED 2026-07-23 — the three voices are
+  dishi.Spoon (慾望食桌) / dishi.CK (老饕) / dishi.Kiki (潮食 OL), briefs in
+  `dishi-persona-briefs-spoon-ck-kiki.md`; the old 老實派/食家腔/貪玩 were
+  placeholders and are gone from code, DB constraint, and default
+  (verified live 2026-07-24: constraint = spoon|ck|kiki, default 'spoon').
+  Export doc rewrite SHIPPED `80a3440`; install-path flow SHIPPED `1f5198c`
+  + Fable polish `c89c576`. REMAINING: whatever of §5 UI those two commits
+  didn't cover — re-scope against the current Taste tab before building.
+  Review of the shipped portion still deferred by owner ("later").
+  Full spec: `docs/specs/dishi-palate-export.md`.
+
+**Re-scope result (2026-07-24):** most of §5 was already covered by the
+owner-specced install flow (`64c4ccc` et seq): persona picker = the State B
+carousel; send/copy = the install layer's copy circle; next-version progress
+= the V{n}→V{n+1} bar; the unlock EVENT = the version ladder's 「dishi v{n}
+已經解鎖」 moment in the growth bar; no stale "export prompt" strings
+remained; blob participation explicitly deferred. Two genuine gaps shipped
+as `18761d7`:
+
+1. **Locked state (§1/§5):** the disabled 「要評多 {n} 味菜」 pill (a dead
+   button, which the spec forbids) replaced by the anticipation line
+   你的味蕾尚未成形 — 再評 {n} 味，dishi 就可以搬進你的 AI (書面 register per
+   the app-wide shift; honest `ratingsToUnlock` count inline) + the
+   由相簿舊菜開始 → fast track, wired via ref to the entry pill's own album
+   input (ONE picker — merged-pill rule). `export.locked` key, LockIcon
+   usage, and `.is-locked` CSS killed with it.
+2. **Recurring "what's new in v{N}" line (§5 + the versioning-deltas open
+   thread, orphaned when the install flow replaced the old textarea UI):**
+   new read-only GET on `/api/taste/export` (companions aggregation
+   extracted to `companionsView()`, version stamp to `versionFor()`, shared
+   with POST; GET never touches the delta baseline or stored persona —
+   those remain POST's, the real export event). Under the CTA from the
+   second export on: 「v{N} · 與上次相比：{dims ↑/↓}」 or an honest
+   變化不大, plus 「新檯友：{names}」 when real.
+
++3 tests, 561/561, tsc clean. Verified live on real data (「v2 ·
+與上次相比變化不大」 — the morning's 土魷蒸肉餅 rating moved no dim past the
+0.15 threshold; DB confirmed GET left last_export_at untouched). Locked
+layout screenshotted via a temporarily forced branch (owner account is
+genuinely unlocked; force reverted before commit).
+
+**Still open, outside code:** owner review of the whole shipped palate-export
+feature — deferred ("later").

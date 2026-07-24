@@ -15,12 +15,9 @@ bilingual ingredients — see DECISIONS.md).
 
 ## Now — in progress
 
-- [ ] **[F] dishi — your AI palate (export redesign) — §5 remainder.**
-  §3/§4 SHIPPED `a3517b1` (persona voices 老實派/食家腔/貪玩 + persistence,
-  `persona.ts`, `taste_profiles_persona.sql`); engine + payload work landed
-  earlier. REMAINING: §5 UI + the voice-approval step. Review of the shipped
-  portion deferred by owner ("later"). Engine-adjacent — use Opus/Fable.
-  Full spec: `docs/specs/dishi-palate-export.md`.
+(dishi — your AI palate (export redesign): §5 remainder SHIPPED `18761d7`
+2026-07-24, closing the item — full entry moved to DECISIONS.md. Owner review
+of the whole shipped feature is still deferred ("later"), outside code.)
 
 ## Ready to build — specs are decided, no open questions
 
