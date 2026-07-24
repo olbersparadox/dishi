@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AuthGate from '@/components/AuthGate';
 import { supabaseBrowser } from '@/lib/supabase/client';
@@ -89,6 +89,9 @@ function TasteProfile() {
   const [sealedIds, setSealedIds] = useState<Set<string>>(new Set());
   const [persona, setPersona] = useState<Persona>('spoon');
   const [handle, setHandle] = useState<string | null>(null);
+  // The entry pill's album file input — ref'd so the locked export card can open
+  // the SAME picker as its 相簿舊菜 fast track (one entry point, merged pill).
+  const albumInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     // The rating flow lands here (not Home) the moment a rating is saved — this
@@ -263,11 +266,16 @@ function TasteProfile() {
         ] as const).map(seg => (
           <label key={seg.id} className="log-src-seg">
             {seg.icon}<span>+{t(seg.key)}</span>
-            <input type="file" accept="image/*" multiple hidden onChange={e => {
-              const fs = Array.from(e.target.files ?? []);
-              e.target.value = ''; // allow re-picking the same files next time
-              if (fs.length) setRatePhotos(fs); // open the rating overlay in place
-            }} />
+            {/* The album segment's input is ref'd so the locked export card's
+                相簿舊菜 fast track (TasteFormCard's onAlbumPath) can open this
+                SAME picker — one entry point, per the merged-pill rule. */}
+            <input type="file" accept="image/*" multiple hidden
+              ref={seg.id === 'album' ? albumInputRef : undefined}
+              onChange={e => {
+                const fs = Array.from(e.target.files ?? []);
+                e.target.value = ''; // allow re-picking the same files next time
+                if (fs.length) setRatePhotos(fs); // open the rating overlay in place
+              }} />
           </label>
         ))}
       </div>
@@ -328,7 +336,8 @@ function TasteProfile() {
       )}
 
       {userId && <TasteFormCard key={refreshKey} vector={vector} affinity={affinity} count={count} dishes={exportDishes} userId={userId}
-        persona={persona} name={handle} onPersonaPersisted={setPersona} />}
+        persona={persona} name={handle} onPersonaPersisted={setPersona}
+        onAlbumPath={() => albumInputRef.current?.click()} />}
 
       {/* 已評嘅菜 — flat, no-photo reference list below the AI export card per the
           design. Identity-grouped: a dish rated twice under linked names shows

@@ -29,19 +29,26 @@ const BUDDY = {
 const dims = Object.fromEntries([...Array(9)].map((_, i) => [`d${i}`, 0.5]));
 const cuisines = Object.fromEntries([...Array(5)].map((_, i) => [`c${i}`, 0.5]));
 
-function mockFetch(onExport?: (body: any) => void) {
+function mockFetch(onExport?: (body: any) => void, preview?: object) {
   return vi.fn(async (url: string, init?: RequestInit) => {
     if (String(url).includes('/api/buddy')) return { ok: true, json: async () => BUDDY };
     if (String(url).includes('/api/taste/export')) {
-      onExport?.(JSON.parse(String(init?.body ?? '{}')));
-      return { ok: true, json: async () => ({ profile_version: 2, delta: [], is_first_export: false, companions: { named: [], unnamedCount: 0 } }) };
+      // GET = the read-only "what's new" preview; POST = the real export event.
+      if ((init?.method ?? 'GET') === 'POST') {
+        onExport?.(JSON.parse(String(init?.body ?? '{}')));
+        return { ok: true, json: async () => ({ profile_version: 2, delta: [], is_first_export: false, companions: { named: [], unnamedCount: 0 } }) };
+      }
+      return {
+        ok: true,
+        json: async () => preview ?? { profile_version: 2, delta: [], is_first_export: true, new_companions: [] },
+      };
     }
     return { ok: true, json: async () => ({}) };
   }) as unknown as typeof fetch;
 }
 
-async function mount(onExport?: (body: any) => void, onPersisted?: (p: string) => void) {
-  global.fetch = mockFetch(onExport);
+async function mount(onExport?: (body: any) => void, onPersisted?: (p: string) => void, preview?: object) {
+  global.fetch = mockFetch(onExport, preview);
   render(
     <LanguageProvider>
       <TasteFormCard vector={dims} affinity={cuisines} count={30} dishes={[]}
@@ -81,9 +88,11 @@ describe('State A → State B: the card morph', () => {
     expect(screen.getByText(/已識/)).toBeTruthy();
     expect(screen.getByText('91%')).toBeTruthy();
     expect(screen.queryByText('dishi.Spoon')).toBeNull();
-    // Cancel persisted nothing — no export POST ever fired.
-    const calls = (global.fetch as any).mock.calls.map((c: any[]) => String(c[0]));
-    expect(calls.some((u: string) => u.includes('/api/taste/export'))).toBe(false);
+    // Cancel persisted nothing — no export POST ever fired (the read-only GET
+    // preview on mount is fine; only POST is the real export event).
+    const posts = (global.fetch as any).mock.calls.filter(
+      (c: any[]) => String(c[0]).includes('/api/taste/export') && c[1]?.method === 'POST');
+    expect(posts).toHaveLength(0);
   });
 
   it('swiping left advances Spoon → CK → Kiki with the dots following', async () => {
@@ -168,5 +177,47 @@ describe('the install layer (shared ExplainModal)', () => {
     fireEvent.click(screen.getByRole('button', { name: /植入/ }));
     fireEvent.click(screen.getByRole('button', { name: 'ChatGPT' }));
     expect(document.querySelector('textarea')).toBeNull();
+  });
+});
+
+describe('§5 remainder: locked anticipation + the recurring delta line', () => {
+  it('locked profile: anticipation copy + album fast track, NO dead disabled button', async () => {
+    const onAlbum = vi.fn();
+    global.fetch = mockFetch();
+    render(
+      <LanguageProvider>
+        <TasteFormCard vector={{ umami: 0.5 }} affinity={{}} count={3} dishes={[]}
+          userId="u1" persona="spoon" name="Jerry" onAlbumPath={onAlbum} />
+      </LanguageProvider>,
+    );
+    const antic = await screen.findByText(/你的味蕾尚未成形/);
+    expect(antic.textContent).toMatch(/再評 \d+ 味/); // the honest countdown, in the line itself
+    // No export button exists at all in the locked state — not even disabled.
+    expect(screen.queryByRole('button', { name: /植入/ })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: '由相簿舊菜開始 →' }));
+    expect(onAlbum).toHaveBeenCalled();
+    // And the locked state never fires the read-only preview (nothing to say yet).
+    const calls = (global.fetch as any).mock.calls.map((c: any[]) => String(c[0]));
+    expect(calls.some((u: string) => u.includes('/api/taste/export'))).toBe(false);
+  });
+
+  it('unlocked with a prior export: shows the v{N} delta line + new-companions line, read-only', async () => {
+    await mount(undefined, undefined, {
+      profile_version: 3,
+      delta: [{ dim: 'umami', dir: 1 }, { dim: 'sweet', dir: -1 }],
+      is_first_export: false,
+      new_companions: ['Ka Yan'],
+    });
+    expect(await screen.findByText(/v3 · 與上次相比：鮮味 ↑ · 甜 ↓/)).toBeTruthy();
+    expect(screen.getByText('新檯友：Ka Yan')).toBeTruthy();
+    // The preview must have come from GET — no POST (the real export event) fired.
+    const posts = (global.fetch as any).mock.calls.filter(
+      (c: any[]) => String(c[0]).includes('/api/taste/export') && c[1]?.method === 'POST');
+    expect(posts).toHaveLength(0);
+  });
+
+  it('first export (no prior baseline): no delta line — there is nothing to compare against', async () => {
+    await mount(); // default preview: is_first_export true
+    expect(screen.queryByText(/與上次相比/)).toBeNull();
   });
 });

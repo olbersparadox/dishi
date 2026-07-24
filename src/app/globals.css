@@ -152,11 +152,10 @@ button { font: inherit; cursor: pointer; }
      more comfortably in the pill without shouting. */
   font-weight: 750; font-size: 17px; position: relative; top: 1px;
 }
-/* Locked export: keep the full vermillion (don't dim like a normal :disabled) — it
-   reads as "coming, keep rating" not "unavailable". Still non-interactive (disabled),
-   and the lock icon carries the locked meaning. The icon + count sit centred inline. */
-.btn.export.is-locked { display: inline-flex; align-items: center; justify-content: center; gap: 7px; }
-.btn.export.is-locked:disabled { opacity: 1; }
+/* Locked state (§1/§5): no button at all — the anticipation line + album fast
+   track replace it (a disabled pill is a dead button, which the spec forbids).
+   Full ink, not footnote grey: the locked card is a promise, not an apology. */
+.export-antic { font-size: 14px; color: var(--ink); line-height: 1.6; text-align: center; margin: 2px 4px 0; }
 /* Small icon-only actions (edit/delete on a rated dish) — a quiet round tap
    target rather than a bordered .btn, since a row of these next to a dish's
    metadata is scanned visually, not read as buttons with labels. */

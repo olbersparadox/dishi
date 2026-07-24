@@ -403,7 +403,20 @@ export const dict: Record<string, { zh: string; en: string }> = {
   // NBSPs, not plain spaces: HTML collapses runs of ordinary whitespace, so the
   // wider gap the design asks for before 植入 would silently render as one space.
   'export.button': { zh: 'dishi v{v}  植入', en: 'Implant dishi v{v}' },
-  'export.locked': { zh: '要評多 {n} 味菜', en: 'Rate {n} more dishes' },
+  // Locked state (§5): anticipation, not apology — names what unlocks and the
+  // honest count left, with the 相簿舊菜 path as the designed fast track.
+  // Deliberately NOT a disabled button (spec: "never a dead button").
+  'export.antic': {
+    zh: '你的味蕾尚未成形 — 再評 {n} 味，dishi 就可以搬進你的 AI。',
+    en: 'Your palate is still taking shape — rate {n} more dishes and dishi can move into your AI.',
+  },
+  'export.antic.album': { zh: '由相簿舊菜開始 →', en: 'Start with old food photos →' },
+  // The recurring "what's new in v{N}" line under the CTA (§5 + the
+  // versioning-deltas open thread) — read-only preview, shown from the second
+  // export onward.
+  'export.delta': { zh: 'v{v} · 與上次相比：{dims}', en: 'v{v} · since last export: {dims}' },
+  'export.version': { zh: 'v{v} · 與上次相比變化不大', en: 'v{v} · little has changed since last export' },
+  'export.delta.companions': { zh: '新檯友：{names}', en: 'New table companions: {names}' },
   'export.copy': { zh: '複製', en: 'Copy' },
   // Install layer title (owner spec 2026-07-23) — {name} is the persona's display
   // name (dishi.Spoon…). The per-host steps live in tasteExport.ts INSTALL_HOSTS.

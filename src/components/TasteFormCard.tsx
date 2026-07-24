@@ -23,7 +23,7 @@ import {
   type ExportCompanions,
 } from '@/lib/tasteExport';
 import { PERSONAS, PERSONA_META, VOICES, type Persona } from '@/lib/persona';
-import { LockIcon, CloseIcon, CopyIcon, CheckIcon } from './icons';
+import { CloseIcon, CopyIcon, CheckIcon } from './icons';
 
 type BuddyState = {
   // The dishi version ladder (replaced Levels): v = ratcheted unlock history (what
@@ -42,7 +42,7 @@ type BuddyState = {
 
 const MIGRATION_SEEN_KEY = 'dishi_form_migration_seen';
 
-export default function TasteFormCard({ vector, affinity, count, dishes, userId, persona, name, onPersonaPersisted }: {
+export default function TasteFormCard({ vector, affinity, count, dishes, userId, persona, name, onPersonaPersisted, onAlbumPath }: {
   vector: Record<string, number>;
   affinity: Record<string, number>;
   count: number;
@@ -53,6 +53,9 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
   /** A successful copy persisted this persona server-side — lets the page's own
    * persona state follow, so a later reopen starts the carousel there. */
   onPersonaPersisted?: (p: Persona) => void;
+  /** Opens the 相簿舊菜 photo picker (the entry pill's own album input) — the
+   * locked state's designed fast track to a first unlock (§1/§5). */
+  onAlbumPath?: () => void;
 }) {
   const { t, lang } = useLang();
   const [state, setState] = useState<BuddyState | null>(null);
@@ -141,6 +144,31 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
 
   useEffect(() => { load(); }, [load]);
 
+  // Derived from props alone (not buddy state), so it's safe above the early
+  // returns — and the preview effect below needs it.
+  const ci = confidenceInputsFrom(vector, affinity, count);
+  const ready = exportUnlocked(evidenceConfidence(ci));
+
+  // The recurring "what's new in v{N}" line (§5 + the versioning-deltas open
+  // thread): a READ-ONLY preview of what the next export would report — the GET
+  // never touches the delta baseline or the stored persona (those move only on
+  // a real copy, via POST inside copyDoc). Quiet on failure: the line is a
+  // bonus over the CTA, never a blocker.
+  const [preview, setPreview] = useState<{
+    profile_version: number; delta: { dim: string; dir: 1 | -1 }[];
+    is_first_export: boolean; new_companions: string[];
+  } | null>(null);
+  useEffect(() => {
+    if (!ready) return;
+    let alive = true;
+    fetch('/api/taste/export')
+      .then(r => (r.ok ? r.json() : null))
+      .then(j => { if (alive && j) setPreview(j); })
+      .catch(() => {});
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready]);
+
   useEffect(() => {
     if (hadSpecies === 'loading') return;
     const seen = typeof window !== 'undefined' && localStorage.getItem(MIGRATION_SEEN_KEY);
@@ -179,8 +207,6 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
     );
   }
 
-  const ci = confidenceInputsFrom(vector, affinity, count);
-  const ready = exportUnlocked(evidenceConfidence(ci));
   const selName = VOICES[PERSONAS[idx]].displayName;
 
   return (
@@ -333,12 +359,39 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
             <img key={h.id} src={h.logo} alt={h.label} width={32} height={32} />
           ))}
         </div>
-        <button className={`btn export ${!ready ? 'is-locked' : ''}`} style={{ width: '100%' }}
-          onClick={openExpand} disabled={!ready}>
-          {ready
-            ? t('export.button', { v: Math.max(1, state.version.v) })
-            : <><LockIcon size={16} /> {t('export.locked', { n: ratingsToUnlock(ci) })}</>}
-        </button>
+        {ready ? (<>
+          <button className="btn export" style={{ width: '100%' }} onClick={openExpand}>
+            {t('export.button', { v: Math.max(1, state.version.v) })}
+          </button>
+          {/* "What's new in v{N}" — recurring and read-only (§5 + the
+              versioning-deltas open thread). From the second export on: the dims
+              that moved since the last send, or an honest 變化不大; plus any new
+              table companions the palate now knows about. */}
+          {preview && !preview.is_first_export && (
+            <p className="card-meta" style={{ marginTop: 10, textAlign: 'center' }}>
+              {preview.delta.length > 0
+                ? t('export.delta', {
+                    v: preview.profile_version,
+                    dims: preview.delta.map(x => `${t(`dim.${x.dim}`)} ${x.dir > 0 ? '↑' : '↓'}`).join(' · '),
+                  })
+                : t('export.version', { v: preview.profile_version })}
+            </p>
+          )}
+          {preview && !preview.is_first_export && (preview.new_companions ?? []).length > 0 && (
+            <p className="card-meta" style={{ marginTop: 4, textAlign: 'center' }}>
+              {t('export.delta.companions', { names: preview.new_companions.join('、') })}
+            </p>
+          )}
+        </>) : (<>
+          {/* Locked (§1/§5): anticipation register, the honest count left, and
+              the 相簿舊菜 fast track — deliberately NO dead disabled button. */}
+          <p className="export-antic">{t('export.antic', { n: ratingsToUnlock(ci) })}</p>
+          {onAlbumPath && (
+            <button type="button" className="btn ghost small" style={{ marginTop: 10 }} onClick={onAlbumPath}>
+              {t('export.antic.album')}
+            </button>
+          )}
+        </>)}
       </div>
     )}
 
