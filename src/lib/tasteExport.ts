@@ -229,16 +229,34 @@ export const HARD_LIMITS =
 // zero cross-session persistence from paste, which is why the doc must be
 // self-contained and re-establish all of this every time it's loaded fresh.
 /** Names the character into the marked-block format so the host can hold "two
- * speakers, one reply" across turns. Takes the persona's displayName. */
+ * speakers, one reply" across turns. Takes the persona's displayName.
+ * No-restatement clause (Phase 0.5 field test, 2026-07-24): on all-food
+ * messages Gemini-as-Spoon would ask a question in the chime, then the host
+ * voice would immediately ask the SAME question again — the character block
+ * must be allowed to BE the whole reply. */
 export function chimeContract(name: string): string {
-  return `**Chime contract.** When food, a restaurant, a recipe, or a meal comes up in our conversation, drop in ONE clearly marked block in character — \`**${name}:** …\` — then continue in your own voice. Two speakers, one reply. Don't chime on topics that have nothing to do with food.`;
+  return `**Chime contract.** When food, a restaurant, a recipe, or a meal comes up in our conversation, drop in ONE clearly marked block in character — \`**${name}:** …\` — then continue in your own voice. Two speakers, one reply. But when my message is entirely about food, the marked block IS the reply — end there; never restate or re-ask what the character just said in your own voice. Don't chime on topics that have nothing to do with food.`;
 }
 export const LANGUAGE_MIRROR =
   "**Language mirroring.** Reply in whatever language I write in — Cantonese to Cantonese, English to English — including inside the chime. The language I answer with at the arrival handshake becomes the standing default; if I switch mid-conversation, mirror the switch, but never ask the language question again.";
 export const SCOUT_MISSION =
   "**Scout missions.** If a natural moment allows it, you may ask ONE light question aimed at the weakest-evidence part of the record below — a thin dimension, or a dish worth rating — woven into the conversation, never a survey. At most one such question per reply, and only when it genuinely fits.";
+// STRUCK from the doc assembly 2026-07-24 (owner call, Phase 0.5 field test):
+// the `/i` intent-landing route does not exist yet — verified by grep, no
+// src/app/i, no middleware, no rewrites — so installed personas (Gemini was
+// doing it verbatim) were distributing live 404s. Const kept so the exact
+// promised contract survives; re-add to the house-rules assembly in
+// buildTastePrompt when the `/i` route ships (see docs/BACKLOG.md, "`/i`
+// intent-landing route"), and re-test on a live host.
 export const LINK_RITUAL =
   "**Link ritual.** When a real dish or plan is worth sending back to Dishi — a recipe worth cooking, a dish worth hunting down, a trip-worthy pick, or something I just ate — you may offer ONE link per conversation. Name what it does BEFORE showing it (manifest-before-link), then give the bare readable URL: `dishi.me/i?do=cook&dish=<name>` to cook it, `do=trip` to plan travel around it, `do=hunt` to go find it, `do=ate` to log it. Tapping the link never commits anything by itself, and always mention that I can do the same thing manually inside the Dishi app.";
+// VENUE_GROUNDING (new, Phase 0.5 field test 2026-07-24): Gemini-as-Spoon
+// presented invented-composite venues (滿福樓, 中華小館, 豪隍點心茶居) WITH
+// PRICES as taste-matched picks. A character's conviction makes fabrication
+// MORE convincing than a generic assistant's — this is the venue-level twin of
+// the epistemic line, and it rides with every persona for the same reason.
+export const VENUE_GROUNDING =
+  "**Real places only.** Recommend only restaurants and venues you can actually verify exist — never invent a plausible-sounding name, address, or price. When you don't have solid knowledge of the area I'm asking about, say plainly that your reach is thin there and reason from my anchors instead ('look for somewhere that does X the way Y did'). An honest 'I don't know this neighbourhood well' keeps my trust; a confident invented restaurant destroys it.";
 export const DISMISSAL_SCOPE =
   "**收聲 (dismissal).** If I say 收聲, or \"quiet\", or \"that's enough\" — go silent as this character for the REST OF THIS CONVERSATION ONLY. Keep helping normally, just without the persona. Never store this as a standing instruction, a topic ban, or anything that reaches into future conversations — next time this document loads fresh, the character is back.";
 export const LOCATION_CONFLICT =
@@ -318,7 +336,9 @@ export function buildTastePrompt(
   out.push(chimeContract(v.displayName));
   out.push(LANGUAGE_MIRROR);
   out.push(SCOUT_MISSION);
-  out.push(LINK_RITUAL);
+  // LINK_RITUAL deliberately absent: struck 2026-07-24 until the `/i` route
+  // exists (see the const's comment + docs/BACKLOG.md). Re-add HERE.
+  out.push(VENUE_GROUNDING);
   out.push(DISMISSAL_SCOPE);
   out.push(LOCATION_CONFLICT);
   out.push('');
@@ -456,25 +476,48 @@ export type InstallHost = {
 // the earlier 口語 walkthroughs are gone), kept SHORT: verb + where, name it,
 // paste. Host-product nouns (Project / Gem / GPT) stay in English — they're
 // the host's own UI labels, translating them would hurt findability.
+// Paste-target precision (Phase 0.5 field test, 2026-07-24): Gemini Gems have
+// ONE paste target and adopted the character fully; Claude Projects and custom
+// GPTs split "instructions" from "knowledge/files", and a doc landed in
+// knowledge gets RAG'd for facts without ever steering behavior — the owner hit
+// exactly this on both hosts, so every row now names the EXACT field and the
+// split-target hosts say where NOT to put it. Claude additionally needs a
+// Sonnet-class model: on Haiku 4.5 the doc was retrieved but the character
+// never showed up. ChatGPT: custom GPT is the ONE recommended path (its editor
+// makes the Instructions field explicit; Projects bury the doc in files).
 export const INSTALL_HOSTS: InstallHost[] = [
   {
     id: 'claude', label: 'Claude', logo: '/ai-logos/logo-claude.webp',
-    zh: n => ['開啟 Claude，建立新 Project', `命名為 ${n}`, '將整份文件貼入 Project instructions'],
-    en: n => ['Open Claude → new Project', `Name it ${n}`, 'Paste the whole doc into the project instructions'],
+    zh: n => [
+      '開啟 Claude，建立新 Project', `命名為 ${n}`,
+      '將整份文件貼入 Project 的「instructions」欄，不要放入 knowledge／檔案，放錯位角色不會生效',
+      '模型選 Sonnet 或以上，較小的模型記得住內容，卻演不出角色',
+    ],
+    en: n => [
+      'Open Claude → new Project', `Name it ${n}`,
+      'Paste the whole doc into the project "instructions" field, not knowledge/files, or the character won\'t take',
+      'Pick a Sonnet-class model or above; smaller models remember the doc but can\'t carry the character',
+    ],
   },
   {
     id: 'gemini', label: 'Gemini', logo: '/ai-logos/logo-gemini.png',
-    zh: n => ['開啟 Gemini，在 Gems 建立新 Gem', `命名為 ${n}`, '將整份文件貼入 Instructions，儲存'],
-    en: n => ['Open Gemini → Gems → new Gem', `Name it ${n}`, 'Paste the whole doc into its Instructions, save'],
+    zh: n => ['開啟 Gemini，在 Gems 建立新 Gem', `命名為 ${n}`, '將整份文件貼入 Gem 的「instructions」欄，儲存'],
+    en: n => ['Open Gemini → Gems → new Gem', `Name it ${n}`, 'Paste the whole doc into the Gem\'s "instructions" box, save'],
   },
   {
     id: 'grok', label: 'Grok', logo: '/ai-logos/logo-grok.webp',
-    zh: n => ['開啟 Grok，建立新 Project／Workspace', `命名為 ${n}`, '將整份文件貼入 instructions'],
-    en: n => ['Open Grok → new Project / Workspace', `Name it ${n}`, 'Paste the whole doc into its instructions'],
+    zh: n => ['開啟 Grok，建立新 Project／Workspace', `命名為 ${n}`, '將整份文件貼入「instructions」欄，不要上載做檔案'],
+    en: n => ['Open Grok → new Project / Workspace', `Name it ${n}`, 'Paste the whole doc into its "instructions" field, don\'t upload it as a file'],
   },
   {
     id: 'chatgpt', label: 'ChatGPT', logo: '/ai-logos/logo-chatgpt.webp',
-    zh: n => ['開啟 ChatGPT，建立新 GPT（或 Project）', `命名為 ${n}`, '將整份文件貼入 Instructions'],
-    en: n => ['Open ChatGPT → new GPT (or Project)', `Name it ${n}`, 'Paste the whole doc into its Instructions'],
+    zh: n => [
+      '開啟 ChatGPT，去 GPTs 建立自訂 GPT（建議用 GPT，不是 Project）', `命名為 ${n}`,
+      '將整份文件貼入「Instructions」欄，不要上載到 Knowledge，放錯位只會記得事實，演不出角色',
+    ],
+    en: n => [
+      'Open ChatGPT → GPTs → create a custom GPT (recommended over a Project)', `Name it ${n}`,
+      'Paste the whole doc into the "Instructions" field, not the Knowledge upload, or it will remember facts without becoming the character',
+    ],
   },
 ];

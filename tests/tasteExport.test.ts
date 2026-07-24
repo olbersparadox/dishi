@@ -321,12 +321,31 @@ describe('Phase 2: arrival handshake + house rules (voice-approval brief 2026-07
       const p = buildTastePrompt(s, { persona });
       expect(p).toMatch(/Language mirroring/);
       expect(p).toMatch(/Scout missions/);
-      expect(p).toMatch(/manifest-before-link/);
-      expect(p).toMatch(/dishi\.me\/i\?do=cook/);
+      // LINK_RITUAL is STRUCK (2026-07-24, Phase 0.5): the `/i` route doesn't
+      // exist, and installed personas were handing out live 404s verbatim. The
+      // doc must NOT contain the ritual until the route ships — these two
+      // absences are the strike decision, pinned. Re-adding LINK_RITUAL to the
+      // assembly without the route will fail here, on purpose.
+      expect(p).not.toMatch(/manifest-before-link/);
+      expect(p).not.toMatch(/dishi\.me\/i\?do=cook/);
+      // VENUE_GROUNDING (new, Phase 0.5): the character may never invent a
+      // venue — thin reach must be said plainly, anchors used instead.
+      expect(p).toMatch(/Real places only/);
+      expect(p).toMatch(/reach is thin/);
       expect(p).toMatch(/收聲/); // 收聲
       expect(p).toMatch(/REST OF THIS CONVERSATION ONLY/);
       expect(p).toMatch(/Location conflict/);
       expect(p).toMatch(/never ask me to go re-export/);
+    }
+  });
+
+  it('chime contract lets the character block BE the reply on all-food messages', () => {
+    // Phase 0.5: the host voice was re-asking whatever the chime just asked —
+    // the no-restatement clause must ride in every persona's contract.
+    for (const persona of PERSONAS) {
+      const p = buildTastePrompt(s, { persona });
+      expect(p).toMatch(/the marked block IS the reply/);
+      expect(p).toMatch(/never restate or re-ask/);
     }
   });
 
@@ -396,5 +415,37 @@ describe('install-host table (persona container install flow)', () => {
       expect(h.en('dishi.Spoon').join(' ')).toMatch(/paste/i);
       expect(h.zh('dishi.Spoon').join(' ')).toMatch(/貼/);
     }
+  });
+
+  // Paste-target precision (Phase 0.5 field test): split-target hosts must name
+  // the exact field AND where NOT to put the doc — a doc in knowledge gets
+  // RAG'd for facts without steering behavior (observed live on both Claude
+  // Projects and a custom GPT). Gemini adopted fully via its single target.
+  it('every host names the exact instructions field, in both languages', () => {
+    for (const h of INSTALL_HOSTS) {
+      expect(h.zh('dishi.Spoon').join(' ').toLowerCase()).toContain('instructions');
+      expect(h.en('dishi.Spoon').join(' ').toLowerCase()).toContain('instructions');
+    }
+  });
+
+  it('Claude + ChatGPT warn off the knowledge slot explicitly', () => {
+    const claude = INSTALL_HOSTS.find(h => h.id === 'claude')!;
+    expect(claude.zh('dishi.Spoon').join(' ')).toContain('knowledge');
+    expect(claude.en('dishi.Spoon').join(' ').toLowerCase()).toContain('not knowledge');
+    const gpt = INSTALL_HOSTS.find(h => h.id === 'chatgpt')!;
+    expect(gpt.zh('dishi.Spoon').join(' ')).toContain('Knowledge');
+    expect(gpt.en('dishi.Spoon').join(' ').toLowerCase()).toContain('not the knowledge');
+  });
+
+  it('Claude carries the Sonnet-class model note (Haiku retrieved the doc but never became the character)', () => {
+    const claude = INSTALL_HOSTS.find(h => h.id === 'claude')!;
+    expect(claude.zh('dishi.Spoon').join(' ')).toContain('Sonnet');
+    expect(claude.en('dishi.Spoon').join(' ')).toContain('Sonnet');
+  });
+
+  it('ChatGPT picks ONE recommended path: custom GPT, not a Project', () => {
+    const gpt = INSTALL_HOSTS.find(h => h.id === 'chatgpt')!;
+    expect(gpt.zh('dishi.Spoon').join(' ')).toContain('不是 Project');
+    expect(gpt.en('dishi.Spoon').join(' ').toLowerCase()).toContain('recommended over a project');
   });
 });
