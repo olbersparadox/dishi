@@ -144,3 +144,29 @@ describe('dietSuspicion — soy axis, structural-only (2026-07-23)', () => {
     expect(dietSuspicion('Red bean soup', '紅豆沙', ['veg'], ['red bean', 'sugar', 'dried tangerine peel'])).toBe(false);
   });
 });
+
+describe('dietSuspicion — broad seafood beyond 魚/蝦 (2026-07-24)', () => {
+  // The tripwire's seafood/shellfish vocabulary was Cantonese-tuned (fish + shrimp)
+  // and blind to the mollusc/crustacean/echinoderm repertoire a Japanese menu is
+  // full of — a CORRECTLY-tagged scallop/crab/oyster/uni dish tripped Rule 2 and
+  // burned a wasted second enrichment call. These pin that it no longer does, while
+  // the genuine-error protection stays intact.
+  it('does NOT fire on correctly-tagged non-fish seafood (scallop / crab / oyster / uni / clam)', () => {
+    expect(dietSuspicion('Scallop nigiri', '帶子壽司', ['seafood', 'shellfish'], ['scallop', 'rice'])).toBe(false);
+    expect(dietSuspicion('Grilled crab', '燒蟹', ['shellfish'], ['crab', 'butter'])).toBe(false);
+    expect(dietSuspicion('Oyster tempura', '炸生蠔', ['seafood', 'shellfish'], ['oyster', 'flour'])).toBe(false);
+    expect(dietSuspicion('Uni don', '海膽丼', ['seafood'], ['sea urchin', 'rice'])).toBe(false);
+    expect(dietSuspicion('Clam miso soup', '蜆味噌湯', ['soy', 'shellfish'], ['clam', 'miso'])).toBe(false);
+  });
+
+  it('supports the flag by INGREDIENT alone even when the name has no seafood morpheme', () => {
+    // English-forward name ("Grilled Scallops"), no 帶子 in the zh — the 'scallop'
+    // ingredient key must carry the support so no re-ask fires.
+    expect(dietSuspicion('Grilled scallops', 'グリル帆立', ['shellfish'], ['scallop', 'garlic', 'butter'])).toBe(false);
+  });
+
+  it('STILL fires when a seafood/shellfish flag has zero seafood support (genuine error)', () => {
+    expect(dietSuspicion('Stir-fried greens', '炒時菜', ['seafood'], ['bok choy', 'garlic'])).toBe(true);
+    expect(dietSuspicion('Steamed rice', '白飯', ['shellfish'], ['rice'])).toBe(true);
+  });
+});

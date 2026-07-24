@@ -470,6 +470,39 @@ export async function enrichOneDish(item: { name: string; name_zh?: string | nul
   return first;
 }
 
+// Broad seafood vocabulary BEYOND \u9b5a (fish) and \u8766 (shrimp) \u2014 molluscs,
+// crustaceans, cephalopods, echinoderms, roe. Shared by BOTH the seafood and
+// shellfish tripwire entries below.
+//
+// WHY (2026-07-24): the seafood/shellfish tripwire was tuned on Cantonese menus,
+// where fish (\u9b5a) and shrimp (\u8766) cover most of the repertoire. A Japanese (or any
+// seafood-forward) menu is full of scallop / crab / oyster / clam / uni / squid \u2014
+// which legitimately carries a seafood or shellfish flag, but whose name has no
+// \u9b5a/\u8766 morpheme and whose ingredient ('scallop','crab'\u2026) matched neither key. So
+// a CORRECTLY-enriched dish tripped Rule 2 ("flag present, nothing backs it") and
+// burned a wasted second knowledge call \u2014 measured firing on ~\u2153 of a seafood-heavy
+// Japanese menu, roughly doubling those dishes' enrichment latency for a re-ask
+// that just returns the same answer. Widening the recognition vocabulary lets a
+// real seafood ingredient count as support and skip the pointless retry; it can
+// never author or change a flag (the tripwire is advisory), and the genuine-error
+// protection is intact \u2014 a seafood flag with NO seafood ingredient still fires.
+// Shared across both flags because the model may tag any of these as seafood OR
+// shellfish, and the tripwire only decides whether to spend a recheck \u2014 policing
+// the fish-vs-shellfish line is not its job.
+const SEAFOOD_MORPHEMES = [
+  '\u5e36\u5b50', '\u7464\u67f1', '\u5143\u8c9d', '\u6247\u8c9d', '\u8c9d', '\u87f9', '\u8814', '\u7261\u8823', '\u8706', '\u868c', '\u87f6',
+  '\u9752\u53e3', '\u8cbd\u8c9d', '\u82b1\u679d', '\u6d77\u81bd', '\u87ba', '\u8707', '\u9b91',
+  'scallop', 'crab', 'lobster', 'oyster', 'clam', 'mussel', 'squid', 'calamari',
+  'cuttlefish', 'octopus', 'uni', 'sea urchin', 'abalone', 'whelk', 'roe',
+  'ikura', 'tobiko', 'crayfish', 'scampi',
+];
+const SEAFOOD_INGREDIENT_KEYS = [
+  'scallop', 'crab', 'lobster', 'oyster', 'clam', 'mussel', 'squid', 'calamari',
+  'cuttlefish', 'octopus', 'sea urchin', 'abalone', 'whelk', 'roe', 'ikura',
+  'tobiko', 'caviar', 'crayfish', 'scampi', 'cockle', 'langoustine', 'conch',
+  'sea cucumber',
+];
+
 // Protein morphemes and the ONE flag each implies, paired with the lowercase
 // English ingredient substrings that count as real recipe support. This is the
 // tripwire's whole vocabulary: it is deliberately small and closed. It NEVER
@@ -482,8 +515,11 @@ const PROTEIN_TRIPWIRE: { morphemes: string[]; flag: DietFlag; ingredientKeys: s
   { morphemes: ['\u9d28', 'duck'], flag: 'duck_goose', ingredientKeys: ['duck'] },
   { morphemes: ['\u9d5d', 'goose'], flag: 'duck_goose', ingredientKeys: ['goose'] },
   { morphemes: ['\u7f8a', 'lamb', 'mutton'], flag: 'lamb', ingredientKeys: ['lamb', 'mutton'] },
-  { morphemes: ['\u8766', 'shrimp', 'prawn'], flag: 'shellfish', ingredientKeys: ['shrimp', 'prawn'] },
-  { morphemes: ['\u9b5a', 'fish'], flag: 'seafood', ingredientKeys: ['fish'] },
+  // shellfish = crustaceans + molluscs (\u8766 leads; the shared list adds crab,
+  // scallop, oyster, clam, squid, octopus\u2026).
+  { morphemes: ['\u8766', 'shrimp', 'prawn', ...SEAFOOD_MORPHEMES], flag: 'shellfish', ingredientKeys: ['shrimp', 'prawn', ...SEAFOOD_INGREDIENT_KEYS] },
+  // seafood = the umbrella (\u9b5a leads; the shared list adds everything shellfish too).
+  { morphemes: ['\u9b5a', 'fish', ...SEAFOOD_MORPHEMES], flag: 'seafood', ingredientKeys: ['fish', ...SEAFOOD_INGREDIENT_KEYS] },
   { morphemes: ['\u86cb', 'egg'], flag: 'egg', ingredientKeys: ['egg'] },
   // Tree nuts: full compounds only \u2014 bare \u4ec1 collides with \u8766\u4ec1 (shelled shrimp) and
   // bare \u679c with every fruit. 'apricot kernel' backs \u674f\u4ec1 desserts (HK \u674f\u4ec1 is usually
