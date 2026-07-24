@@ -182,8 +182,8 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'identity.same': { zh: '係同一味', en: 'Same dish' },
   'identity.notsame': { zh: '唔同嘅', en: 'Different' },
   'identity.unsure': { zh: '唔肯定', en: 'Not sure' },
-  'identity.merged': { zh: '已合併——依家兩個名都指住同一味菜', en: 'Merged — both names now point to the same dish.' },
-  'identity.kept': { zh: '收到——兩味分開記', en: 'Got it — kept as two dishes.' },
+  'identity.merged': { zh: '已合併，依家兩個名都指住同一味菜', en: 'Merged, both names now point to the same dish.' },
+  'identity.kept': { zh: '收到，兩味分開記', en: 'Got it, kept as two dishes.' },
   // 語言對 globe picker (dish-name languages only — chrome stays zh/en)
   'lang.title': { zh: '掃任何語言餐牌', en: 'Scan Any Menu' },
   'lang.subtitle': { zh: '自動翻譯2種語言', en: 'Choose 2 languages to translate into' },
@@ -313,8 +313,8 @@ export const dict: Record<string, { zh: string; en: string }> = {
   },
   'table.help.title': { zh: '同朋友一齊點', en: 'Order Together' },
   'table.help.body': {
-    zh: '一枱人可以共用同一次掃描結果。第一個人掃完餐牌會有一個枱號，其他人輸入呢個枱號就可以加入同一枱，喺自己部電話睇到同一份餐牌。大家揀菜會即時睇到——邊味畀邊個揀咗，餐牌上會有記認顯示——揀嘅仍然係自己想食嘅嗰份，唔使夾單。',
-    en: 'Everyone at the table can share one menu scan. Whoever scans first gets a table code; everyone else enters it to join the same table and see the same menu on their own phone. Picks show up in real time — you can see who picked what on the menu — but each person still picks their own dishes, not a shared order.',
+    zh: '一枱人可以共用同一次掃描結果。第一個人掃完餐牌會有一個枱號，其他人輸入呢個枱號就可以加入同一枱，喺自己部電話睇到同一份餐牌。大家揀菜會即時睇到，邊味畀邊個揀咗，餐牌上都有記認顯示，但揀嘅仍然係自己想食嘅嗰份，唔使夾單。',
+    en: 'Everyone at the table can share one menu scan. Whoever scans first gets a table code; everyone else enters it to join the same table and see the same menu on their own phone. Picks show up in real time, so you can see who picked what on the menu, but each person still picks their own dishes, not a shared order.',
   },
   'table.joining': { zh: '入緊…', en: 'Joining…' },
   'table.joinbtn': { zh: '加入', en: 'Join' },
@@ -368,8 +368,8 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'logsrc.album': { zh: '相簿舊菜', en: 'Old photos' },
   'logsrc.help.title': { zh: '食物相食評', en: 'Rating food photos' },
   'logsrc.help.body': {
-    zh: '可以逐張評分，也可以一次揀一疊相片批量評。你的食物相裡，藏著許多關於你口味的理解——好好利用它們，訓練專屬於你的 AI 口味引擎：評得越多、越多元，dishi 就越懂你，推薦越貼近你的口味。',
-    en: 'Rate one at a time, or pick a whole stack of photos and rate in a batch. Hidden inside your food shots is a wealth of understanding about your taste — put them to good use and train an AI taste engine that belongs to you: the more you rate, and the more varied, the better dishi knows you.',
+    zh: '可以逐張評分，也可以一次揀一疊相片批量評。你的食物相裡，藏著許多關於你口味的理解，好好利用它們，訓練專屬於你的 AI 口味引擎：評得越多、越多元，dishi 就越懂你，推薦越貼近你的口味。',
+    en: 'Rate one at a time, or pick a whole stack of photos and rate in a batch. Hidden inside your food shots is a wealth of understanding about your taste, so put them to good use and train an AI taste engine that belongs to you: the more you rate, and the more varied, the better dishi knows you.',
   },
   // 打字 typed quick-add (backlog 2026-07-22, item 3) — name first, then
   // restaurant, then the same blank-card rating moment as the photo path.
@@ -436,8 +436,8 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'seal.stamp.title': { zh: 'Dishi 封存了一個預測', en: 'Dishi sealed a prediction' },
   'seal.explain.title': { zh: '「印」是什麼？', en: 'What’s the 印 stamp?' },
   'seal.explain.body': {
-    zh: 'Dishi 在你選擇之前就秘密寫下對你會選哪樣的預測——封存的內容無人能看見，連你自己也不例外。選擇之後才揭開，看預測是否準確。',
-    en: 'Dishi writes down its guess before you pick — sealed, so nobody, not even you, can peek. It only opens after you choose.',
+    zh: 'Dishi 在你選擇之前就秘密寫下對你會選哪樣的預測，封存的內容無人能看見，連你自己也不例外。選擇之後才揭開，看預測是否準確。',
+    en: 'Dishi writes down its guess before you pick, sealed, so nobody, not even you, can peek. It only opens after you choose.',
   },
   'seal.reveal.hit': { zh: '揭開封印 — 預測命中', en: 'Broke the seal \u2014 nailed it' },
   'seal.reveal.near': { zh: '拆開個印 \u2014 幾接近', en: 'Broke the seal \u2014 close' },
@@ -471,20 +471,20 @@ export const dict: Record<string, { zh: string; en: string }> = {
   // interactive voice. Grounded in the real /api/buddy computation (buddy.ts /
   // tasteExport.ts); no number is hardcoded that isn't also interpolated live.
   'buddy.explain.strength': {
-    zh: '這個數字反映你的口味引擎建立在多少真實訊號之上：評分數量、已探索的口味維度、嘗試過的菜系種類，三者合計。多元的選擇遠比重複評同一類菜式更能訓練引擎——此數字不會誇大引擎實際掌握的程度。',
-    en: 'How much real signal your taste engine is built on: rating volume, explored flavour dimensions, and cuisine variety, combined. Trying something new teaches it far more than rating the same dish again — this number never overstates what the engine actually knows.',
+    zh: '這個數字反映你的口味引擎建立在多少真實訊號之上：評分數量、已探索的口味維度、嘗試過的菜系種類，三者合計。多元的選擇遠比重複評同一類菜式更能訓練引擎，此數字不會誇大引擎實際掌握的程度。',
+    en: 'How much real signal your taste engine is built on: rating volume, explored flavour dimensions, and cuisine variety, combined. Trying something new teaches it far more than rating the same dish again, and this number never overstates what the engine actually knows.',
   },
   'buddy.explain.flicks': {
-    zh: '你至今作出的食評總數，也是口味引擎唯一的學習來源。每一次評分都是一個真實的數據點——評得越多、越多元，引擎對你口味的理解越深、預測越準。起步階段的頭幾十次教得最多，其後每一次都在微調；持續評分，正是讓推薦保持準確的關鍵。',
-    en: 'The total number of dishes you’ve reviewed — and the engine’s only source of signal. Every rating is a real data point: the more you rate, and the more varied, the deeper and sharper its read on your taste. The first few dozen teach it most, and every one after keeps it tuned — rating more is what keeps its recommendations accurate.',
+    zh: '你至今作出的食評總數，也是口味引擎唯一的學習來源。每一次評分都是一個真實的數據點，評得越多、越多元，引擎對你口味的理解越深、預測越準。起步階段的頭幾十次教得最多，其後每一次都在微調；持續評分，正是讓推薦保持準確的關鍵。',
+    en: 'The total number of dishes you’ve reviewed, and the engine’s only source of signal. Every rating is a real data point: the more you rate, and the more varied, the deeper and sharper its read on your taste. The first few dozen teach it most, and every one after keeps it tuned, since rating more is what keeps its recommendations accurate.',
   },
   'buddy.explain.cuisines': {
-    zh: '你曾實際評分的不同菜系數目。菜系越多元，引擎學得越快——一個全新菜系帶來的訊號，往往抵得上多次重複評分。',
-    en: 'The number of distinct cuisines you’ve actually rated dishes from. The more varied, the faster the engine learns — a genuinely new cuisine is often worth several repeat ratings.',
+    zh: '你曾實際評分的不同菜系數目。菜系越多元，引擎學得越快，一個全新菜系帶來的訊號，往往抵得上多次重複評分。',
+    en: 'The number of distinct cuisines you’ve actually rated dishes from. The more varied, the faster the engine learns, since a genuinely new cuisine is often worth several repeat ratings.',
   },
   'buddy.explain.senses': {
-    zh: '在 {total} 種追蹤中的口味維度裡，有多少已經沉澱成明確的偏好，而非雜訊。這個門檻比上方的「已識」更嚴格——「已識」只需足夠證據去信任該讀數，而這裡要求讀到一個清晰、確立的偏好。',
-    en: 'Of {total} tracked flavour dimensions, how many have crystallized into an actual preference, clear of noise. Stricter than “knows” above, which only needs enough evidence to trust a reading — this one needs a genuinely clear signal.',
+    zh: '在 {total} 種追蹤中的口味維度裡，有多少已經沉澱成明確的偏好，而非雜訊。這個門檻比上方的「已識」更嚴格，「已識」只需足夠證據去信任該讀數，而這裡要求讀到一個清晰、確立的偏好。',
+    en: 'Of {total} tracked flavour dimensions, how many have crystallized into an actual preference, clear of noise. Stricter than “knows” above, which only needs enough evidence to trust a reading, since this one needs a genuinely clear signal.',
   },
   'buddy.hint.first': { zh: '評你第一道菜我就會孵化。', en: 'Rate your first dish and I hatch.' },
   'buddy.hint.early': { zh: '再評 {n} 道菜 — 頭幾下教我最多。', en: 'Rate {n} more — early flicks teach me most.' },
