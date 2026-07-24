@@ -171,6 +171,12 @@ export default function RatingStack({ photos, picks, typed, userId, onExit }: {
   // quick renames — only the latest response may land) and lets TasteGrowth know when
   // a REAL post-rename derivation arrived (GrowDish.enrichGen).
   const renameGen = useRef<Record<number, number>>({});
+  // A growth-screen rename fires its PATCH detached (the user has already moved on)
+  // — but the Taste tab refetches its 已評菜式 list the instant exit fires, so an
+  // in-flight rename can lose that race and the tab shows the pre-rename name until a
+  // manual reload (backlog 1d). Track it here and drain before actually exiting —
+  // same discipline as sessionDishIds/discardAndExit uses for deletes.
+  const pendingRenames = useRef<Promise<unknown>[]>([]);
 
   const patch = (i: number, upd: Partial<GrowDish>) =>
     setDishes(prev => prev.map((d, j) => (j === i ? { ...d, ...upd } : d)));
@@ -200,15 +206,22 @@ export default function RatingStack({ photos, picks, typed, userId, onExit }: {
       await Promise.allSettled(ids.map(id =>
         fetch('/api/my/dishes', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dish_id: id }) })));
     }
-    onExit();
+    await finishExit();
   };
   const cancelSession = async () => {
     // picksMode NEVER deletes: those dishes existed before this screen opened (a
     // menu-scan pick, already sealed) and discarding them would destroy something the
     // person deliberately queued. Their ✕ is a plain close — a flicked rating stands,
     // correctable through 重新評分 in 食記, which replays the whole history honestly.
-    if (picksMode) { onExit(); return; }
+    if (picksMode) { await finishExit(); return; }
     await discardAndExit();
+  };
+  // Single choke point for actually leaving the sheet: drain any in-flight rename
+  // before letting the parent (RatingStack's onExit) refetch the Taste tab's list —
+  // see pendingRenames above.
+  const finishExit = async () => {
+    if (pendingRenames.current.length) await Promise.allSettled(pendingRenames.current);
+    onExit();
   };
 
   // 係咪同一味？ — the log-time identity trigger (backlog 2026-07-22). Once a
@@ -474,10 +487,11 @@ export default function RatingStack({ photos, picks, typed, userId, onExit }: {
     if (!gd?.dishId) return;
     const dishId = gd.dishId;
     patch(i, { name: e.en || gd.name, name_zh: e.zh || gd.name_zh }); // optimistic
-    renamePatch(dishId, e).then(j => {
+    const renamed = renamePatch(dishId, e).then(j => {
       if (j?.dish) patch(i, { name: j.dish.name, name_zh: j.dish.name_zh ?? gd.name_zh, diet: j.dish.diet ?? gd.diet });
       reDerive(i, dishId); // the identity changed → re-derive from the NEW name
     });
+    pendingRenames.current.push(renamed); // drained by finishExit — see pendingRenames above
   };
 
   // "It IS food" on a mis-flagged non-dish → name it, then run the REAL pipeline (now it
@@ -595,7 +609,7 @@ export default function RatingStack({ photos, picks, typed, userId, onExit }: {
         {/* No onCancel in picksMode: TasteGrowth falls back to onExit, so its ✕ is a
             plain close-and-keep rather than a discard that would delete dishes we
             never created. */}
-        <TasteGrowth live={dishes} engine={engine} blobInputs={blobInputs} onExit={onExit} onCancel={picksMode ? undefined : cancelSession} onPickPlace={onPickPlace} onAddPlace={onAddPlace} onEditName={onEditName} onReclassify={onReclassify} onRetry={onRetry}
+        <TasteGrowth live={dishes} engine={engine} blobInputs={blobInputs} onExit={finishExit} onCancel={picksMode ? undefined : cancelSession} onPickPlace={onPickPlace} onAddPlace={onAddPlace} onEditName={onEditName} onReclassify={onReclassify} onRetry={onRetry}
           identitySlot={identityAsk ? (
             <IdentityConfirmCard
               mine={identityAsk.mine}
