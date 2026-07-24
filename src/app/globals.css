@@ -1301,6 +1301,18 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
   margin-top: 26px; padding-top: 20px; border-top: 1px solid var(--line);
 }
 .join-table-title { font-family: var(--font-display); font-size: 18px; font-weight: 1000; letter-spacing: 0.04em; margin-bottom: 6px; }
+/* Inline ⓘ — the .card-info-badge circle-glyph, adapted for a LIGHT paper
+   context (that one is corner-pinned on a dark card) and sat inline right
+   after a heading's own text instead. Sized to the title's cap-height, a few
+   px of margin standing in for "with a few spaces". */
+.info-inline-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 16px; height: 16px; margin-left: 7px; vertical-align: middle;
+  border-radius: 50%; border: 1.3px solid var(--ink-soft); background: transparent;
+  color: var(--ink-soft); cursor: pointer; padding: 0;
+  font-family: system-ui, -apple-system, sans-serif; font-size: 10px; font-weight: 600; line-height: 1;
+}
+.info-inline-badge:active { background: var(--paper-inset); }
 .join-table-blurb { font-size: 13px; color: var(--ink-soft); margin-bottom: 14px; line-height: 1.5; letter-spacing: 0.02em; }
 .lang-en .join-table-blurb { letter-spacing: normal; }
 .join-row { display: flex; align-items: center; gap: 12px; }

@@ -86,6 +86,7 @@ function Scanner() {
   const [preview, setPreview] = useState<string | null>(null);
   const [scanning, setScanning] = useState(false);
   const [scanHelp, setScanHelp] = useState(false); // tap the ⓘ on the banner → what a scan returns
+  const [tableHelp, setTableHelp] = useState(false); // tap the ⓘ by 同朋友一齊點 → what table ordering is
   // Appending a second page ("加掃一版"): the existing results stay on screen with a
   // small inline indicator, rather than the full capture screen taking over.
   const [appending, setAppending] = useState(false);
@@ -663,8 +664,15 @@ function Scanner() {
             code input + a single round arrow submit button. */}
         {!preview && !scanning && (
           <div className="join-table">
-            <h3 className="join-table-title">{t('table.join')}</h3>
+            <h3 className="join-table-title">
+              {t('table.join')}
+              <button type="button" className="info-inline-badge" aria-label={t('table.help.title')}
+                onClick={() => setTableHelp(true)}>i</button>
+            </h3>
             <p className="join-table-blurb">{t('table.join.blurb')}</p>
+            {tableHelp && (
+              <ExplainModal title={t('table.help.title')} body={t('table.help.body')} onClose={() => setTableHelp(false)} />
+            )}
             <div className="join-row">
               <input
                 className="field join-code-input" placeholder="ABCDE" maxLength={5}

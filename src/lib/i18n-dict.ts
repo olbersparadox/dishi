@@ -311,6 +311,11 @@ export const dict: Record<string, { zh: string; en: string }> = {
     zh: '一個先掃餐牌出 [枱號]，其他人跟住入',
     en: 'Already scanned by a friend? Ask them for the table code and enter it below to pick together.',
   },
+  'table.help.title': { zh: '同朋友一齊點', en: 'Order Together' },
+  'table.help.body': {
+    zh: '一枱人可以共用同一次掃描結果。第一個人掃完餐牌會有一個枱號，其他人輸入呢個枱號就可以加入同一枱，喺自己部電話睇到同一份餐牌。大家揀菜會即時睇到——邊味畀邊個揀咗，餐牌上會有記認顯示——揀嘅仍然係自己想食嘅嗰份，唔使夾單。',
+    en: 'Everyone at the table can share one menu scan. Whoever scans first gets a table code; everyone else enters it to join the same table and see the same menu on their own phone. Picks show up in real time — you can see who picked what on the menu — but each person still picks their own dishes, not a shared order.',
+  },
   'table.joining': { zh: '入緊…', en: 'Joining…' },
   'table.joinbtn': { zh: '加入', en: 'Join' },
   'table.leave': { zh: '離開', en: 'Leave' },
