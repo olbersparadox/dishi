@@ -2002,3 +2002,103 @@ warnings, the Sonnet note, and the GPT-over-Project pick.
   messages, but on an all-food message the marked block IS the reply — the
   host voice must never restate or re-ask what the character just said
   (observed live: Spoon asks which city, host voice immediately asks again).
+
+---
+
+# Batch: Table Mode two-account field-test fixes (2026-07-24)
+
+Context (owner spec, verbatim intent): real two-account field session at a
+Japanese restaurant. Account 1 scanned + translated; account 2 joined by code
+and saw untranslated Japanese. Picks were invisible across the scan-glance ↔
+/table boundary in BOTH directions until account 1 left and rejoined via
+code, after which sync worked both ways. Both members' chop stamps rendered
+the same green on every screen.
+
+Diagnosis (grounded in repo): the shared session receives items ONCE at
+creation. Post-creation re-authoring (namefix/translation) updated only the
+scanner's local state — the append path PATCHed `/api/table/{code}` with new
+items, the translation path never did. Downstream, stamp matching failed
+because the two views held different KEYS for the same physical dish: scan
+picks keyed `table_item_key` by `name_original`, /table candidates and picks
+by array index (`menu-${i}`) — and `pickMatchesItem` is an exact key
+comparison when a key exists, so cross-view stamps could never match even
+before names diverged. Rejoining "fixed" it because the scanner started
+operating on /table's own keys. Same-dish-two-names — the entity-resolution
+lesson, self-inflicted inside one session by the missing sync.
+
+## 1. Shared-session item authority (minimum fix) — ✅ `ab99aff`
+
+New row-locked `reauthor_table_menu_items` RPC (applied live 2026-07-24,
+recorded in `supabase/applied/reauthor_table_menu_items.sql`): updates
+derived fields (name, name_zh, hook, attributes, diet, cooking_method,
+heaviness, ingredients) on EXISTING entries matched by the stable
+`name_original` key — never adds/removes/reorders, never touches
+`name_original` (verbatim always — standing rule) or `price`, and
+empty/blank incoming values never clobber real existing ones (a failed
+client stage re-sends the item's own empty fields; best-effort sync only
+ever adds information). `PATCH /api/table/[code]` gains a `{reauthor}` verb
+beside `{items}` (append). Client wiring:
+
+- **Fresh scan** now re-author-syncs the shared session after its stages
+  settle (the session was created with the RAW pre-stage snapshot). The
+  session handle is captured as a promise inside performScan — the closure's
+  `tableSession` state is still null there.
+- **Scan append** was silently shipping PRE-namefix names: the namefix
+  handler only patched `setResult`, and the PATCH read `item.name_zh` from
+  the stale closure. The namefix promise now resolves its names map and the
+  sync folds it in.
+- **/table's addPage** had NO namefix pass at all — a Japanese page appended
+  from /table landed on the shared menu untranslated, permanently. It now
+  runs the same tripwire + fix-names call scan does.
+- ONE shared builder (`mergeFinalScanItems` in `src/lib/tableMenuItems.ts`)
+  for all three sync paths, so they can't drift on which stage owns which
+  field. Tests pin the namefix fold, positional stage merge, failed-stage
+  fallback, and name_original passthrough.
+
+**Accepted behavior change (owner sign-off 2026-07-24):** joiners see dish
+names update mid-session as the scanner's translation/enrich passes land
+(Japanese → translated). Correct and desirable — do not debounce it away.
+
+**Root fix deferred** (owner spec allowed it if the refactor ballooned — it
+does: the scanner's local items carry per-scanner personal fields the shared
+items deliberately strip, so read-from-shared means splitting every scan
+item into shared-truth + personal halves). Filed as BACKLOG "1-root. Shared
+session as single source of truth" with the divergence note.
+
+Verified live against prod (2026-07-24): synthetic owner-hosted session
+created via POST with untranslated Japanese items, `{reauthor}` PATCH landed
+translated names + chips, GET returned them, /table rendered the translated
+list (screenshot in session). Test session fully removed afterward.
+
+## 2. Cross-view pick visibility — ✅ `ab99aff` (dissolved into 1, as predicted)
+
+/table's scan-session candidates are now keyed by `name_original`
+(`scanCandidateKey`) — the same key the scan screen has always picked with,
+and the ONE field re-authoring never touches, so stamps survive mid-session
+translation. `pickMatchesItem` itself unchanged (exact-key rule stands).
+Regression tests cover both directions with a re-authored item (joiner's
+/table pick → scan glance; scanner's glance pick → re-authored /table card)
+plus the legacy-key case: pre-deploy picks stored `menu-${i}` keys and now
+match NOTHING rather than the wrong dish (sessions are ephemeral; quiet
+stamps beat cross-stamps). Live-verified: a /table pick stored
+`table_item_key = トロホッケ炭火燒定食` on an item whose display name had
+been re-authored to 肥壕炭火燒定食.
+
+## 3. Chop color = f(user_id) — ✅ `a0c517c`
+
+The seed was the display NAME (`Chop.tsx: chopColor(name)`), so renaming
+changed your color and two names could hash-collide into the same slot —
+nothing guarded the 1-in-6 collision, which is exactly the both-green field
+result. Replaced by `chopColorFor(user_id)` (deterministic hash → palette
+slot) plus `chopColorMap(memberIds)`: each member keeps their hash-preferred
+slot when free; colliding members probe to the next free slot in
+sorted-user_id order — any two members of a ≤6-person table are GUARANTEED
+different colors, identically on every client/screen, because the assignment
+depends only on the id set. Past 6 the palette repeats per group of 6.
+Palette itself unchanged: the spec's "existing tones, no new colors" is read
+as the owner-vetted CHOP_COLORS already in chop.ts (twice owner-tuned,
+2026-07-21, hues 190-330°, nothing near vermillion) — the defect was the
+assignment, not the palette. `Chop` now takes `color` from the caller
+(member-set map on /table, `chopColorFor` for journal companions, whose API
+payload now carries `user_id`). Tests: colliding ids provably de-collide,
+set-order independence, 6 distinct + 7th wraps, render stability.
