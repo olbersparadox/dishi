@@ -313,8 +313,8 @@ export const dict: Record<string, { zh: string; en: string }> = {
   },
   'table.help.title': { zh: '同朋友一齊點', en: 'Order Together' },
   'table.help.body': {
-    zh: '一枱人可以共用同一次掃描結果。第一個人掃完餐牌會有一個枱號，其他人輸入呢個枱號就可以加入同一枱，喺自己部電話睇到同一份餐牌。大家揀菜會即時睇到，邊味畀邊個揀咗，餐牌上都有記認顯示，但揀嘅仍然係自己想食嘅嗰份，唔使夾單。',
-    en: 'Everyone at the table can share one menu scan. Whoever scans first gets a table code; everyone else enters it to join the same table and see the same menu on their own phone. Picks show up in real time, so you can see who picked what on the menu, but each person still picks their own dishes, not a shared order.',
+    zh: '一枱人可以共用同一次掃描結果。第一個掃描餐牌的人會獲得一個枱號，其他人輸入此枱號即可加入同一枱，在自己的手機上看到同一份餐牌。所有人的選擇會即時顯示，餐牌上會標示每道菜是由誰揀選的。',
+    en: 'Everyone at the table can share one menu scan. Whoever scans first gets a table code; everyone else enters it to join the same table and see the same menu on their own phone. Picks show up in real time, so you can see who picked what on the menu.',
   },
   'table.joining': { zh: '入緊…', en: 'Joining…' },
   'table.joinbtn': { zh: '加入', en: 'Join' },
