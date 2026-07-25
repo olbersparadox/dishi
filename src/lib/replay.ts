@@ -3,6 +3,7 @@ import { supabaseAdmin } from './supabase/server';
 import {
   emptyTaste, updateTaste, updateCuisineAffinity, bumpEvidence,
   updateTasteFromDuel, updateTasteFromDuelTie, bumpEvidenceFromDuel,
+  calibratedScore,
   type TasteVector, type EvidenceMap,
 } from './taste';
 
@@ -33,6 +34,10 @@ import {
  * - dish_duels is RLS-locked (a pending prediction must be invisible), so its rows
  *   are read via the admin client, scoped to this userId — never the user client,
  *   which no policy would let through.
+ * - Each rating learns from its distance to the person's neutral point AS IT STOOD
+ *   at that moment (see calibratedScore), rebuilt here from the scores of the
+ *   ratings that preceded it. Duels don't move the centre — only flicks do — so
+ *   they're skipped when accumulating it.
  *
  * At personal scale (tens to hundreds of events) this is a handful of milliseconds
  * of pure computation; there is no approximation involved.
@@ -40,11 +45,16 @@ import {
 export async function replayProfile(
   supabase: SupabaseClient,
   userId: string,
-): Promise<{ vector: TasteVector; evidence: EvidenceMap; cuisine_affinity: Record<string, number>; replayed: number } | null> {
+): Promise<{
+  vector: TasteVector; evidence: EvidenceMap; cuisine_affinity: Record<string, number>;
+  replayed: number;
+  /** Per dish_id, the neutral point that dish's rating was scored against. */
+  centers: Record<string, number>;
+} | null> {
   const [{ data: rows, error }, { data: duelRows }] = await Promise.all([
     supabase
       .from('ratings')
-      .select('score, voice_attributes, created_at, dishes(attributes, cuisine)')
+      .select('dish_id, score, voice_attributes, created_at, dishes(attributes, cuisine)')
       .eq('user_id', userId)
       .order('created_at', { ascending: true }),
     supabaseAdmin()
@@ -59,7 +69,7 @@ export async function replayProfile(
   // learns in the position it actually happened — the vector's evidence-decayed
   // learning rate is order-sensitive, so interleaving must be faithful.
   type Event =
-    | { t: number; kind: 'rating'; attrs: Record<string, number>; cuisine: string | null; score: number; voice: Record<string, number> | null }
+    | { t: number; kind: 'rating'; dishId: string; attrs: Record<string, number>; cuisine: string | null; score: number; voice: Record<string, number> | null }
     | { t: number; kind: 'duel'; winner: Record<string, number>; loser: Record<string, number> }
     | { t: number; kind: 'tie'; a: Record<string, number>; b: Record<string, number> };
 
@@ -69,7 +79,7 @@ export async function replayProfile(
     const dish = r.dishes;
     if (!dish) continue; // defensive: rating without a joinable dish teaches nothing
     const voice = r.voice_attributes && Object.keys(r.voice_attributes).length ? r.voice_attributes : null;
-    events.push({ t: new Date(r.created_at).getTime(), kind: 'rating', attrs: dish.attributes ?? {}, cuisine: dish.cuisine, score: r.score, voice });
+    events.push({ t: new Date(r.created_at).getTime(), kind: 'rating', dishId: r.dish_id, attrs: dish.attributes ?? {}, cuisine: dish.cuisine, score: r.score, voice });
   }
 
   for (const d of (duelRows ?? []) as any[]) {
@@ -92,12 +102,19 @@ export async function replayProfile(
   let evidence: EvidenceMap = {};
   let affinity: Record<string, number> = {};
   let replayed = 0; // ratings only — preserves rating_count-mirroring semantics
+  const priorScores: number[] = []; // raw scores of ratings already applied
+  // The centre each dish's rating actually learned from, so a caller can report
+  // what a rating taught without re-deriving (and possibly disagreeing with) it.
+  const centers: Record<string, number> = {};
 
   for (const e of events) {
     if (e.kind === 'rating') {
-      vector = updateTaste(vector, evidence, e.attrs, e.score, e.voice);
+      const learned = calibratedScore(e.score, priorScores);
+      centers[e.dishId] = e.score - learned;
+      vector = updateTaste(vector, evidence, e.attrs, learned, e.voice);
       evidence = bumpEvidence(evidence, e.attrs, e.voice);
-      affinity = updateCuisineAffinity(affinity, e.cuisine, e.score);
+      affinity = updateCuisineAffinity(affinity, e.cuisine, learned);
+      priorScores.push(e.score);
       replayed++;
     } else if (e.kind === 'duel') {
       vector = updateTasteFromDuel(vector, evidence, e.winner, e.loser);
@@ -108,5 +125,5 @@ export async function replayProfile(
     }
   }
 
-  return { vector, evidence, cuisine_affinity: affinity, replayed };
+  return { vector, evidence, cuisine_affinity: affinity, replayed, centers };
 }

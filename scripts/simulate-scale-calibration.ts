@@ -24,23 +24,25 @@
 //   npx tsx scripts/simulate-scale-calibration.ts
 import {
   DIMS, emptyTaste, updateTaste, bumpEvidence, updateCuisineAffinity, contentScore,
+  neutralCenter,
   type TasteVector, type EvidenceMap, type DishVector,
 } from '../src/lib/taste';
+import { directionOf, outcomeOf } from '../src/lib/seal';
+import {
+  confidenceInputsFrom, evidenceConfidence, confidenceTier, exportUnlocked,
+} from '../src/lib/tasteExport';
 import history from './rating-history.json';
+import sealRows from './seal-rows.json';
 
 type Row = { s: number; c: string | null; a: DishVector };
 const H = history as unknown as Row[];
 
-/** The person's own neutral point, shrunk toward a prior so a brand-new profile
- * behaves exactly as today and calibration only kicks in as evidence arrives.
- * Median, not mean: one furious −0.9 shouldn't move where "ordinary" sits. */
-const PRIOR_CENTER = 0;
-function centerAfter(scores: number[], k = 5): number {
-  if (!scores.length) return PRIOR_CENTER;
-  const s = [...scores].sort((a, b) => a - b);
-  const mid = s.length % 2 ? s[(s.length - 1) / 2] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2;
-  return (k * PRIOR_CENTER + s.length * mid) / (k + s.length);
-}
+type SealRow = { actual_score: number; cuisine: string | null; attributes: DishVector };
+const SEALS = (sealRows as unknown as SealRow[]).filter(s => typeof s.actual_score === 'number');
+
+// neutralCenter is imported from the SHIPPED engine, not reimplemented here — a
+// simulation that tunes a private copy of the formula proves nothing about what
+// actually runs in production.
 
 /** Replay the whole history. `centred` switches between the shipped behaviour
  * (raw score) and scoring relative to the person's running neutral point. */
@@ -52,7 +54,7 @@ function replay(centred: boolean) {
   const centersUsed: number[] = [];
   for (const r of H) {
     // Centre from history BEFORE this rating — no peeking at the value being learned.
-    const centre = centred ? centerAfter(seen) : 0;
+    const centre = centred ? neutralCenter(seen) : 0;
     centersUsed.push(centre);
     const effective = r.s - centre;
     taste = updateTaste(taste, evidence, r.a, effective);
@@ -112,5 +114,65 @@ for (const [label, within] of [['ALL pairs', false], ['WITHIN-CUISINE', true]] a
   const b = pairwiseAccuracy(cal.taste, cal.affinity, within);
   const d = b.acc - a.acc;
   console.log(`   ${label.padEnd(15)} (n=${String(a.n).padStart(3)})  current ${a.acc.toFixed(1)}%  ->  calibrated ${b.acc.toFixed(1)}%   (${d >= 0 ? '+' : ''}${d.toFixed(1)}pp)`);
+}
+
+// ── Blast radius ──────────────────────────────────────────────────────────────
+// Centring shrinks BOTH the vector and cuisine affinity toward zero, and both
+// feed contentScore — which is what the seal bands and the export gate read. The
+// divisor fix in this same batch was wrong as first specified and only the
+// blast-radius check caught it, so anything downstream of contentScore gets
+// checked here before shipping, not after.
+
+console.log(`\nSEAL BANDS — does centring re-close the band the divisor fix just opened?`);
+// Same honest limit as scripts/simulate-seal-bands.ts: the seal-time profile was
+// never stored, so both columns score all 36 seals against one END-STATE profile.
+// That makes this a faithful profile-vs-profile comparison, NOT a replay of what
+// would have been predicted at the time.
+// The third column is the candidate FIX, not a variant of the engine: a vector
+// trained on centred scores predicts how far from YOUR OWN NORMAL a dish lands,
+// so mapping it back onto the flick scale the seal is judged against means adding
+// your normal back. That is the exact inverse of the learning transform — not a
+// refitted band edge, which on 36 seals from one palate would be overfitting.
+const CENTRE = cal.centersUsed[cal.centersUsed.length - 1];
+for (const [label, r, offset] of [
+  ['current', now, 0], ['calibrated', cal, 0], ['calibrated+centre', cal, CENTRE],
+] as const) {
+  const calls: Record<string, number> = { love: 0, like: 0, meh: 0, dislike: 0 };
+  const reachable: Record<string, { called: number; real: number }> = {};
+  let hit = 0, near = 0, miss = 0;
+  for (const s of SEALS) {
+    const raw = contentScore(r.taste, s.attributes, r.affinity, s.cuisine) + offset;
+    const predicted = directionOf(raw);
+    const actual = directionOf(s.actual_score); // RAW flick — the seal judges the flick
+    calls[predicted]++;
+    reachable[actual] ??= { called: 0, real: 0 };
+    reachable[actual].real++;
+    if (predicted === actual) reachable[actual].called++;
+    const o = outcomeOf(predicted, actual);
+    if (o === 'hit') hit++; else if (o === 'near') near++; else miss++;
+  }
+  console.log(`   ${label.padEnd(11)} hit ${String(hit).padStart(2)}  near ${String(near).padStart(2)}  miss ${String(miss).padStart(2)}   ` +
+    `calls: ${(['love', 'like', 'meh', 'dislike'] as const).map(d => `${d} ${calls[d]}`).join(' · ')}`);
+  console.log(`   ${' '.repeat(11)} correctly called, by real band: ` +
+    (['love', 'like', 'meh', 'dislike'] as const)
+      .filter(d => reachable[d]).map(d => `${d} ${reachable[d].called}/${reachable[d].real}`).join(' · '));
+  // The band edges sit at -0.15 / 0.15 / 0.5. If the whole predicted distribution
+  // is narrower than one band, NO offset can fix the banding — it just slides a
+  // constant from one band to another, and a constant is not a prediction.
+  const raws = SEALS.map(s => contentScore(r.taste, s.attributes, r.affinity, s.cuisine) + offset).sort((a, b) => a - b);
+  console.log(`   ${' '.repeat(11)} predicted_raw spread: min ${raws[0].toFixed(3)}  ` +
+    `median ${raws[Math.floor(raws.length / 2)].toFixed(3)}  max ${raws[raws.length - 1].toFixed(3)}  ` +
+    `(width ${(raws[raws.length - 1] - raws[0]).toFixed(3)} vs band width 0.35)`);
+}
+
+console.log(`\nEXPORT GATE — centring pulls affinity toward 0, and the export counts`);
+console.log(`cuisines with affinity > 0. Does anyone lose ground they already had?`);
+for (const [label, r] of [['current', now], ['calibrated', cal]] as const) {
+  const ci = confidenceInputsFrom(r.taste, r.affinity, H.length);
+  const conf = evidenceConfidence(ci);
+  const cuisines = Object.entries(r.affinity).filter(([, v]) => v > 0).map(([c]) => c);
+  console.log(`   ${label.padEnd(11)} dims ${String(ci.exploredDimCount).padStart(2)}/18  cuisines>0 ${String(ci.distinctCuisines).padStart(2)}/${Object.keys(r.affinity).length}  ` +
+    `confidence ${conf.toFixed(3)} (${confidenceTier(conf)})  unlocked ${exportUnlocked(conf) ? 'YES' : 'no'}`);
+  console.log(`   ${' '.repeat(11)} exported cuisines: ${cuisines.join(', ') || '(none)'}`);
 }
 console.log();

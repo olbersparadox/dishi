@@ -486,3 +486,62 @@ this repo is public. Rebuild locally with `scripts/build-rating-fixture.ts`.
 considered; it holds scores/cuisines/attribute vectors with no names,
 restaurants, dates or user ids, but it is still a real person's meals and the
 owner may want it removed.
+
+---
+
+# 11. Blast radius of the calibrated scale — the seal cannot band it (2026-07-25)
+
+Implementing §10 surfaced a problem that the ranking metric alone hides, found by
+the blast-radius check this batch made mandatory.
+
+The calibrated vector ranks better (+4.8pp, §10) but is SMALLER: mean |strength|
+per taught dim 0.308 → 0.204, and cuisine affinity now converges on ~0 because it
+is an EMA toward a centred score. Both feed `contentScore`, which is exactly what
+`sealStake.ts` bands into love/like/meh/dislike via `directionOf`. Measured on the
+36 real seals (`scripts/simulate-scale-calibration.ts`):
+
+| profile | hit | near | miss | calls | predicted_raw spread |
+|---|---|---|---|---|---|
+| current | 17 | 18 | 1 | like 28 · meh 8 | 0.006 → 0.378 (width 0.372) |
+| calibrated | **5** | 23 | **8** | like 5 · meh 31 | −0.085 → 0.177 (width 0.262) |
+| calibrated + centre restored | 20 | 14 | 2 | **like 36** | 0.226 → 0.489 (width 0.262) |
+
+Read the `calls` column before the `hit` column. Calibration alone collapses
+almost every prediction into `meh` — hits fall 17 → 5. Adding the person's centre
+back (the exact inverse of the learning transform, so a relative prediction maps
+onto the flick scale the seal is judged against) scores 20 hits, MORE than today —
+but it calls `like` for all 36 seals. That is a constant, not a prediction; it
+"wins" only because 20 of 36 real outcomes happen to be `like`. By the same
+principle that governs recommendations, a predictor that cannot discriminate is
+credibility theater, and its hit count is not evidence.
+
+**The real finding is in the last column.** The band edges sit at −0.15 / 0.15 /
+0.5, so a band is 0.35 wide. `contentScore`'s ENTIRE spread across 36 seals is
+0.372 today and 0.262 once calibrated — comparable to, or narrower than, a single
+band. Fixed four-band thresholds cannot express a distribution that thin. Today's
+seal only varies at all because its range happens to straddle the 0.15 edge; and
+this run independently reproduces the two known-open defects (`love` 0/11,
+`dislike` 0/2 — both unreachable, max predicted 0.378 against a 0.5 edge).
+
+So calibration does not break the seal so much as make an already-structural
+problem undeniable: **the seal's absolute bands and `contentScore`'s dynamic range
+were never compatible.** An offset only chooses which single band to be constant
+in. Re-fitting the edges to these 36 rows is the overfitting §9c already ruled
+out.
+
+The honest direction — not costed, not simulated, deliberately not chosen here —
+is per-user bands derived from the person's own predicted-score distribution
+(§5c), which is the same self-calibrating principle the owner endorsed for the
+rating scale, applied one layer up. That needs its own evidence run.
+
+**Export gate — checked, and it is fine.** Centring pulls affinity toward 0 and
+`tasteExport.ts` counts cuisines with affinity > 0, so this could have pushed the
+export unlock backwards. Measured: confidence 0.883 → 0.842, still `solid`, still
+unlocked; the exported cuisine list drops from 6 to 5 (loses `chinese`, the one
+this palate feels most averagely about). Real but small, and arguably more honest.
+
+**Limit:** the seal table above scores all 36 seals against one END-STATE profile,
+because the seal-time vector was never stored — the same limit §5(d) declares.
+It is a faithful profile-vs-profile comparison, not a replay of history. The
+`current` column therefore differs from `simulate-seal-bands.ts`, which uses the
+live profile snapshot instead of one replayed from `rating-history.json`.

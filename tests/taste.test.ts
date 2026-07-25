@@ -3,7 +3,7 @@ import {
   DIMS, emptyTaste, updateTaste, updateCuisineAffinity, bumpEvidence,
   thresholdVisionAttrs, LEARN_CUTOFF,
   similarity, contentScore, blendScores, toMatchPercent, toRelativeMatchPercent,
-  MIN_SCORED_DIMS,
+  MIN_SCORED_DIMS, neutralCenter, calibratedScore, PRIOR_CENTER, CENTER_PRIOR_K,
 } from '../src/lib/taste';
 
 describe('updateTaste', () => {
@@ -464,5 +464,127 @@ describe('contentScore divisor — the seal-band root cause (2026-07-24)', () =>
     // out-signal the cuisine bonus on its own.
     const dish = { umami: 0.9, tender: 0.9, salty: 0.9, rich: 0.9, fresh: 0.9, steamed: 0.9 };
     expect(contentScore(taste, dish, {})).toBeGreaterThan(0.3);
+  });
+});
+
+/**
+ * Self-calibrating rating scale (2026-07-25). The engine scores each flick
+ * relative to the person's OWN neutral point instead of taking the raw value, so
+ * "一般般" is negative for someone whose normal is 幾好食 without anyone hardcoding
+ * what 一般般 is worth. Evidence: docs/rnd/seal-band-calibration.md §10.
+ */
+describe('neutralCenter — the learned neutral point', () => {
+  it('is the prior when the person has told us nothing', () => {
+    // Cold start must behave EXACTLY as the engine did before calibration existed.
+    expect(neutralCenter([])).toBe(PRIOR_CENTER);
+    expect(calibratedScore(0.35, [])).toBe(0.35);
+  });
+
+  it('uses the MEDIAN, so one furious rating cannot move where "ordinary" sits', () => {
+    // The whole point of median-not-mean: this person's every meal was 0.35 except
+    // one disaster. Their normal is still 0.35.
+    const steady = [0.35, 0.35, 0.35, 0.35, 0.35, 0.35, 0.35, 0.35, 0.35];
+    const withDisaster = [...steady, -0.9];
+    // Compare like with like: the same shrinkage applied to a MEAN instead of the
+    // median. The single -0.9 drags a mean-based centre down by ~0.08; the real
+    // (median) centre barely notices it.
+    const raw = withDisaster.reduce((a, b) => a + b, 0) / withDisaster.length;
+    const meanBased = (CENTER_PRIOR_K * PRIOR_CENTER + withDisaster.length * raw) / (CENTER_PRIOR_K + withDisaster.length);
+    expect(neutralCenter(withDisaster)).toBeGreaterThan(meanBased + 0.05);
+    expect(neutralCenter(withDisaster)).toBeCloseTo(neutralCenter(steady), 1);
+  });
+
+  it('shrinks toward the prior, so a thin history earns only a weak centre', () => {
+    const one = neutralCenter([0.35]);
+    const many = neutralCenter(Array(50).fill(0.35));
+    expect(Math.abs(one - PRIOR_CENTER)).toBeLessThan(Math.abs(many - PRIOR_CENTER));
+    // Exact shrinkage: k prior-weights against n observations.
+    expect(one).toBeCloseTo((CENTER_PRIOR_K * PRIOR_CENTER + 1 * 0.35) / (CENTER_PRIOR_K + 1), 10);
+    expect(many).toBeCloseTo(0.35 * (50 / (CENTER_PRIOR_K + 50)), 10);
+  });
+
+  it('makes 一般般 teach NEGATIVELY for someone whose normal is 幾好食', () => {
+    // The behaviour the owner asked for, and the one the raw-score engine got
+    // wrong: pre-change this was +0.1 and taught "you like this dish's attributes".
+    const historyOf幾好食 = Array(20).fill(0.35);
+    expect(calibratedScore(0.1, historyOf幾好食)).toBeLessThan(0);
+    // ...while their normal flick teaches ~nothing, being exactly normal.
+    expect(Math.abs(calibratedScore(0.35, historyOf幾好食))).toBeLessThan(0.1);
+    // ...and a rave still teaches strongly positive.
+    expect(calibratedScore(1.0, historyOf幾好食)).toBeGreaterThan(0.5);
+  });
+
+  it('adapts to a HARSH rater the opposite way — nothing here is hardcoded', () => {
+    // Someone whose normal flick is 一般般: for them 幾好食 is genuinely a good meal.
+    const harsh = Array(20).fill(0.1);
+    expect(calibratedScore(0.35, harsh)).toBeGreaterThan(0);
+    expect(calibratedScore(0.1, harsh)).toBeLessThan(0.05); // their normal teaches ~nothing
+  });
+
+  it('never lets a flick help set the centre it is then measured against', () => {
+    // Order matters: the centre is derived from PRIOR scores only. If the rating
+    // being learned were included, a lone first rating would self-cancel to ~0.
+    const first = calibratedScore(0.9, []);
+    expect(first).toBe(0.9);
+    expect(first).not.toBeCloseTo(0, 1);
+  });
+});
+
+describe('calibration: the incremental path and replay must not diverge', () => {
+  // The failure this guards is the seal-bug class: /api/ratings updates the
+  // profile incrementally, replay.ts rebuilds it from full history, and if the two
+  // derive the centre differently then re-rating a dish silently produces a
+  // different profile than rating it first time. Both must consume prior scores
+  // from the same table through this same function.
+  const dishA = { umami: 0.9 }, dishB = { sweet: 0.8 }, dishC = { crispy: 0.7 };
+  const history: { dish: Record<string, number>; score: number }[] = [
+    { dish: dishA, score: 0.35 }, { dish: dishB, score: 0.35 },
+    { dish: dishC, score: 0.1 }, { dish: dishA, score: 0.6 },
+  ];
+
+  it('produces an identical vector whether applied one-by-one or replayed', () => {
+    // Incremental: each rating centred on the scores that preceded it, exactly as
+    // the route does with its `.neq(dish_id)` query over prior rows.
+    let inc = emptyTaste(); let incEv = {}; const seen: number[] = [];
+    for (const r of history) {
+      inc = updateTaste(inc, incEv, r.dish, calibratedScore(r.score, seen), null);
+      incEv = bumpEvidence(incEv, r.dish, null);
+      seen.push(r.score);
+    }
+    // Replay: same stream rebuilt from scratch, accumulating its own prior scores.
+    let rep = emptyTaste(); let repEv = {}; const prior: number[] = [];
+    for (const r of history) {
+      rep = updateTaste(rep, repEv, r.dish, calibratedScore(r.score, prior), null);
+      repEv = bumpEvidence(repEv, r.dish, null);
+      prior.push(r.score);
+    }
+    for (const d of DIMS) expect(rep[d]).toBeCloseTo(inc[d], 10);
+  });
+
+  it('a lagged centre would NOT match — the agreement above is a real constraint', () => {
+    // Proves the test above can fail: option (c) from the backlog (let the
+    // incremental path lag by one rating) is detected, not tolerated.
+    let lagged = emptyTaste(); let ev = {}; const seen: number[] = [];
+    for (const r of history) {
+      const stale = seen.slice(0, -1); // one rating behind
+      lagged = updateTaste(lagged, ev, r.dish, calibratedScore(r.score, stale), null);
+      ev = bumpEvidence(ev, r.dish, null);
+      seen.push(r.score);
+    }
+    let rep = emptyTaste(); let repEv = {}; const prior: number[] = [];
+    for (const r of history) {
+      rep = updateTaste(rep, repEv, r.dish, calibratedScore(r.score, prior), null);
+      repEv = bumpEvidence(repEv, r.dish, null);
+      prior.push(r.score);
+    }
+    expect(DIMS.some(d => Math.abs(rep[d] - lagged[d]) > 1e-9)).toBe(true);
+  });
+
+  it('centres cuisine affinity too, so it means "versus your own average"', () => {
+    // Affinity is an EMA toward the score; feeding it the raw score is what made
+    // every regularly-eaten cuisine drift positive regardless of relative feeling.
+    const normal = Array(20).fill(0.35);
+    const meh = updateCuisineAffinity({}, 'cantonese', calibratedScore(0.1, normal));
+    expect(meh.cantonese).toBeLessThan(0);
   });
 });

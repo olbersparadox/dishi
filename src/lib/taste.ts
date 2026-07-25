@@ -67,6 +67,73 @@ export function taughtDims(dish: DishVector, voiceAttrs?: DishVector | null): { 
   return out;
 }
 
+// ── Self-calibrating rating scale ─────────────────────────────────────────────
+// Everyone's scale is different. To one person 一般般 means "fine, nothing to
+// complain about"; to another it means "I regret this meal." Hardcoding what a
+// flick is worth bakes one person's scale into every palate, so instead the
+// engine learns where each person's OWN neutral sits and scores each rating
+// relative to that.
+//
+// Why it matters, from live data: 56% of the first real palate's 41 ratings are
+// the SAME value (0.35 幾好食) and 95% are positive. updateTaste multiplies by
+// the score, so nearly every dim a dish taught drifted positive — the engine
+// learned "you like everything," the opposite of a discriminating palate.
+// Measured on that history through this real code (scripts/simulate-scale-
+// calibration.ts): pairwise ranking accuracy 76.1% → 80.8% overall, 72.7% →
+// 75.8% within-cuisine. See docs/rnd/seal-band-calibration.md §10.
+
+/** What a rating is worth before the person has told us anything. Zero means a
+ * brand-new profile behaves EXACTLY as it did before calibration existed —
+ * calibration only emerges once there is evidence to calibrate from. */
+export const PRIOR_CENTER = 0;
+
+/** Shrinkage strength toward PRIOR_CENTER, in units of "ratings' worth of prior."
+ * At k=5 a person's first handful of flicks barely move their centre, and it
+ * takes real history to earn a strong one. */
+export const CENTER_PRIOR_K = 5;
+
+/**
+ * The person's own neutral point, derived from the scores they have ALREADY
+ * given. MEDIAN, not mean: one furious −0.9 must not move where "ordinary" sits
+ * for someone whose every other meal was fine.
+ *
+ * Callers must pass only scores from BEFORE the rating being learned, so the
+ * centre can never peek at the value it is about to transform. Both learning
+ * paths derive it from the same place — the `ratings` table — rather than
+ * caching it anywhere: a median has no running-scalar form, so a stored centre
+ * would mean storing a second copy of every score, and a second source of truth
+ * for the same data is exactly how the two paths silently diverge.
+ */
+export function neutralCenter(priorScores: number[]): number {
+  if (!priorScores.length) return PRIOR_CENTER;
+  const s = [...priorScores].sort((a, b) => a - b);
+  const mid = s.length % 2
+    ? s[(s.length - 1) / 2]
+    : (s[s.length / 2 - 1] + s[s.length / 2]) / 2;
+  return (CENTER_PRIOR_K * PRIOR_CENTER + s.length * mid) / (CENTER_PRIOR_K + s.length);
+}
+
+/**
+ * What a flick actually TEACHES: its distance from this person's neutral point.
+ * The single transform both learning paths apply, so /api/ratings' incremental
+ * update and replay.ts's full rebuild can never disagree about what a rating
+ * meant.
+ *
+ * Deliberately NOT clamped to ±1. For a palate centred at 0.311 a 唔會再食
+ * teaches −1.211 — a rating that far below your own normal genuinely is stronger
+ * evidence than the scale's nominal floor, and both consumers clamp their own
+ * output anyway (updateTaste and updateCuisineAffinity clamp to ±1). This is
+ * also the unclamped form the +4.8pp was measured with.
+ *
+ * The RAW score is what gets stored in `ratings.score` and what the sealed
+ * prediction is judged against — the seal is a claim about the flick the person
+ * made, and its bands were calibrated on raw flicks. Centring is a learning-time
+ * transform only, which is also what keeps the centre re-derivable from history.
+ */
+export function calibratedScore(rawScore: number, priorScores: number[]): number {
+  return rawScore - neutralCenter(priorScores);
+}
+
 /**
  * Update a user's taste vector after a rating.
  * EMA with a PER-DIMENSION learning rate that decays as that dimension accumulates

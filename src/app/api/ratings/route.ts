@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseServer, supabaseAdmin } from '@/lib/supabase/server';
 import { extractVoiceSignal } from '@/lib/voice';
-import { updateTaste, updateCuisineAffinity, bumpEvidence, emptyTaste, taughtDims, type TasteVector } from '@/lib/taste';
+import { updateTaste, updateCuisineAffinity, bumpEvidence, emptyTaste, taughtDims, calibratedScore, type TasteVector } from '@/lib/taste';
 import { replayProfile } from '@/lib/replay';
 import { directionOf, outcomeOf } from '@/lib/seal';
 
@@ -67,6 +67,10 @@ export async function POST(req: NextRequest) {
   let nextAffinity: Record<string, number>;
   let nextEvidence = evidence;
   const nextCount = isRerate ? count : count + 1;
+  // What this flick actually taught, after centring on the person's own neutral
+  // point. Set by whichever branch runs; the "you just taught me" feedback below
+  // reads it, so the arrows can never disagree with the learning that happened.
+  let learnedScore: number;
 
   if (isRerate) {
     // A RE-RATE cannot be an incremental update. updateTaste is an EMA nudge applied
@@ -86,9 +90,28 @@ export async function POST(req: NextRequest) {
     nextVector = rebuilt.vector;
     nextAffinity = rebuilt.cuisine_affinity;
     nextEvidence = rebuilt.evidence;
+    // Replay scored this dish against the centre AS IT STOOD at the dish's own
+    // position in history — not at the end of it, which is where a re-rate sits
+    // in wall-clock time but not in the event stream. Taking the centre replay
+    // actually used is the only way the feedback below matches the learning.
+    learnedScore = effectiveScore - (rebuilt.centers[dish_id] ?? 0);
   } else {
-    nextVector = updateTaste(currentVector, evidence, dish.attributes, effectiveScore, voiceAttrs);
-    nextAffinity = updateCuisineAffinity(profile?.cuisine_affinity ?? {}, dish.cuisine, effectiveScore);
+    // The person's neutral point from every rating that came BEFORE this one.
+    // The row above was already upserted, so it must be excluded — with it in,
+    // a flick would help set the centre it is then measured against.
+    //
+    // Derived by query rather than cached: replay.ts rebuilds this same centre
+    // from the same table, and the two paths MUST agree exactly or re-rating a
+    // dish would silently produce a different profile than rating it first time.
+    // A stored running value can't be made provably equal (a median has no
+    // running-scalar form), and this is strictly cheaper than the full replay
+    // the re-rate branch above already runs.
+    const { data: priorRows } = await supabase
+      .from('ratings').select('score').eq('user_id', user.id).neq('dish_id', dish_id);
+    learnedScore = calibratedScore(effectiveScore, (priorRows ?? []).map(r => r.score as number));
+
+    nextVector = updateTaste(currentVector, evidence, dish.attributes, learnedScore, voiceAttrs);
+    nextAffinity = updateCuisineAffinity(profile?.cuisine_affinity ?? {}, dish.cuisine, learnedScore);
     // Evidence bumps mirror rating_count semantics exactly: a re-rate corrects the
     // vector but must not age the per-dim learning rate.
     nextEvidence = bumpEvidence(evidence, dish.attributes, voiceAttrs);
@@ -106,11 +129,14 @@ export async function POST(req: NextRequest) {
 
   // What this specific rating actually taught — from the same taughtDims source of
   // truth the learning itself uses, so the feedback can never claim learning that
-  // didn't happen. dir is the direction the preference moved: the rating's sign
-  // times the attribute's centered presence.
+  // didn't happen. dir is the direction the preference moved: the CENTRED score's
+  // sign times the attribute's centered presence. It must be the centred score,
+  // not the raw flick: for someone whose normal is 幾好食, a 一般般 moves their
+  // preferences DOWN, and showing ↑ because the raw value is positive would be
+  // the feedback lying about the learning.
   const taught = taughtDims(dish.attributes, voiceAttrs).map(({ dim, presence }) => ({
     dim,
-    dir: Math.sign(effectiveScore * (presence - 0.5)) as -1 | 0 | 1,
+    dir: Math.sign(learnedScore * (presence - 0.5)) as -1 | 0 | 1,
   })).filter(x => x.dir !== 0);
 
   // 封印預測 reveal: if a seal exists and hasn't been broken yet, break it now
@@ -129,6 +155,10 @@ export async function POST(req: NextRequest) {
     .from('sealed_predictions').select('id, predicted_direction, predicted_reason_zh, predicted_reason_en')
     .eq('user_id', user.id).eq('dish_id', dish_id).is('revealed_at', null).maybeSingle();
   if (pending) {
+    // RAW score, deliberately — not the centred one the vector learned from. The
+    // seal is a claim about the flick the person actually made, and its bands were
+    // calibrated against raw flicks (docs/rnd/seal-band-calibration.md); centring
+    // here would silently redefine all four band edges.
     const actualDirection = directionOf(effectiveScore);
     const outcome = outcomeOf(pending.predicted_direction as any, actualDirection);
     await sealDb.from('sealed_predictions').update({
