@@ -2318,3 +2318,46 @@ reveal now names its dish (燒鵝 / Roast Goose) and carries the taught line; an
 a three-card stack — this session's 豉汁蒸排骨 first, then recovered 雲吞麵 and
 燒鵝 — rendered in deterministic order, each correctly attributed, with the
 streak correctly absent because the 近 broke the run.
+
+## 2a/2b. Seal band calibration — ✅ (this commit)
+
+Owner decided (d) fix the root cause everywhere + recompute history. Both
+answers met evidence that changed the work; full write-up with all numbers in
+`docs/rnd/seal-band-calibration.md` §8-9, simulation in
+`scripts/simulate-seal-bands.ts` (fixture `scripts/seal-rows.json`).
+
+**Root cause was arithmetic, not taste.** `contentScore` summed over only the
+dims a dish reports (mean 8.7) but always divided by `DIMS.length` = 18,
+crushing the taste term so `predicted_raw ≈ 0.3 × cuisineAffinity`. Consequence:
+`love` (≥ 0.5) and `dislike` (< −0.15) were structurally unreachable — **0 of 11
+genuinely loved dishes were ever called**, and 24 of 36 outcomes were a lukewarm
+`near`. Verified exactly against a live seal: 82% of that score was the cuisine
+bonus; all eighteen taste dimensions contributed 0.068.
+
+**The recommendation as first specified was wrong, and the owed blast-radius
+check caught it.** §5 proposed flooring the divisor at 4; simulating ranking
+impact showed that costs ~3pp of pairwise accuracy on really-rated dishes. The
+floor was the whole ballgame — dividing by a raw count over-amplifies sparse
+dishes (attribute counts span 6–12). `MIN_SCORED_DIMS = 10` is the only value in
+a 1..18 sweep that regresses neither ranking metric while unlocking `love`.
+Lower floors call more loves but cost ranking accuracy; the conservative end was
+taken deliberately, because recommendation quality gates everything and a better
+seal is worth less than recommendations that are no worse.
+
+Shipped: ranking all-pairs 76.1% → 76.1% (unchanged), within-cuisine 68.1% →
+69.9%; seal hit rate 33.3% → 52.8%, `like` recall 50% → 75%, `love` recall 0% →
+27%. Verified live end-to-end: the same dish scoring 0.3680 before now scores
+exactly 0.4225. Tests pin the divisor and provably fail against the old `/18`.
+
+**"Recompute history" was impossible** — recomputing `predicted_raw` needs the
+seal-time taste vector, and only the resulting value was ever stored. Doing it
+against today's profile would fabricate predictions the engine never made, which
+for a "written in advance, never altered" mechanic is worse than an honest gap.
+Historical outcomes left as computed (a v1 hit WAS a real correct prediction);
+`sealed_predictions.scoring_version` added instead so v1 and v2 can never be
+silently averaged. Streak still counts across both — each hit is genuine
+regardless of formula.
+
+**Open remainder:** `dislike` is still unreachable (0/2). Two real dislikes in
+the whole dataset is not enough to tune against; fitting an edge to two points
+would be overfitting, not calibration.

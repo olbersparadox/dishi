@@ -3,6 +3,7 @@ import {
   DIMS, emptyTaste, updateTaste, updateCuisineAffinity, bumpEvidence,
   thresholdVisionAttrs, LEARN_CUTOFF,
   similarity, contentScore, blendScores, toMatchPercent, toRelativeMatchPercent,
+  MIN_SCORED_DIMS,
 } from '../src/lib/taste';
 
 describe('updateTaste', () => {
@@ -389,5 +390,51 @@ describe('re-rating: incremental re-application is wrong; replay is correct', ()
     rep = updateTaste(rep, rev, dishB, -0.5, null);
 
     for (const d of DIMS) expect(rep[d]).toBeCloseTo(inc[d], 10);
+  });
+});
+
+describe('contentScore divisor — the seal-band root cause (2026-07-24)', () => {
+  // The bug: the loop summed over only the dims a dish REPORTS (~8.7 on real
+  // data) but always divided by DIMS.length = 18, scaling the taste term down
+  // ~2x more than the evidence supports. Live consequence: predicted_raw
+  // collapsed to roughly 0.3 * cuisineAffinity, and the seal's `love` band
+  // (>= 0.5) became unreachable — 0 of 11 genuinely loved dishes ever called.
+  // See docs/rnd/seal-band-calibration.md + scripts/simulate-seal-bands.ts.
+  const taste = { umami: 0.9, tender: 0.9, salty: 0.8, rich: 0.6, fresh: 0.5, steamed: 0.7 };
+
+  it('divides by the dims actually scored, not by all 18', () => {
+    // Six well-matched dims. Under the old /18 the taste term was ~1/3 of what
+    // the evidence supports; MIN_SCORED_DIMS is the floor it divides by instead.
+    const dish = { umami: 0.9, tender: 0.9, salty: 0.9, rich: 0.9, fresh: 0.9, steamed: 0.9 };
+    let sum = 0;
+    for (const [d, v] of Object.entries(dish)) sum += (taste as Record<string, number>)[d] * (v - 0.5) * 2;
+    expect(contentScore(taste, dish, {})).toBeCloseTo(sum / Math.max(MIN_SCORED_DIMS, 6), 10);
+    // ...and strictly bigger than the old formula would have produced.
+    expect(contentScore(taste, dish, {})).toBeGreaterThan(sum / 18);
+  });
+
+  it('floors the divisor so a SPARSE dish cannot be amplified into false confidence', () => {
+    // One perfectly-matched attribute must not outscore a dish that matches the
+    // same way across many — dividing by a raw count (1) would invert exactly that.
+    const sparse = { umami: 1 };
+    const broad = { umami: 1, tender: 1, salty: 1, rich: 1, fresh: 1, steamed: 1 };
+    expect(contentScore(taste, broad, {})).toBeGreaterThan(contentScore(taste, sparse, {}));
+  });
+
+  it('a dish matching MORE dims than the floor is not penalised for it', () => {
+    // Guards the other direction: past the floor the divisor tracks the real
+    // count, so breadth of match neither inflates nor deflates the score.
+    const dish: Record<string, number> = {};
+    for (const d of DIMS) dish[d] = 1;
+    const all = contentScore({ ...Object.fromEntries(DIMS.map(d => [d, 1])) }, dish, {});
+    expect(all).toBeCloseTo(1, 10); // perfect match on every dim = 1.0, not 18/18-scaled noise
+  });
+
+  it('the cuisine bonus no longer dwarfs the taste term', () => {
+    // The live failure: 0.3 * affinity decided almost every verdict because the
+    // taste term averaged 0.068. A strongly-matched dish must now be able to
+    // out-signal the cuisine bonus on its own.
+    const dish = { umami: 0.9, tender: 0.9, salty: 0.9, rich: 0.9, fresh: 0.9, steamed: 0.9 };
+    expect(contentScore(taste, dish, {})).toBeGreaterThan(0.3);
   });
 });

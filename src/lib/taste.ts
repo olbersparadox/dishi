@@ -142,9 +142,27 @@ export function similarity(a: TasteVector, b: TasteVector): number {
   return dot / (Math.sqrt(na) * Math.sqrt(nb));
 }
 
+/** Which contentScore formula is in force, stamped onto every seal
+ * (sealed_predictions.scoring_version) so two engines are never silently
+ * averaged in an aggregate. v1 divided by all 18 dims regardless of how many a
+ * dish reported, which made the seal's `love` band unreachable. **Bump this
+ * whenever contentScore's shape changes** — historical rows cannot be
+ * recomputed (the seal-time taste vector was never stored), so the version
+ * marker is the only thing keeping old and new predictions comparable-aware.
+ * See supabase/applied/sealed_predictions_scoring_version.sql. */
+export const SCORING_VERSION = 2;
+
+/** Floor on contentScore's divisor — see the note inside contentScore. A dish
+ * reporting fewer attributes than this is scored as if it had this many, so a
+ * sparse dish can't be amplified into a confident verdict off thin evidence.
+ * Fitted (conservatively) to the only real seal data that exists; provisional
+ * until more than one palate has sealed predictions. */
+export const MIN_SCORED_DIMS = 10;
+
 /** Content-based score: how well a dish's attributes align with a user's preferences. */
 export function contentScore(taste: TasteVector, dish: DishVector, cuisineAffinity: Record<string, number>, cuisine?: string | null): number {
   let s = 0;
+  let scored = 0;
   for (const dim of DIMS) {
     // Only score dims the dish ACTUALLY reports. scoreOneDish/sanitizeItem only ever
     // add a key when a dim was detected with real positive presence (see
@@ -157,8 +175,28 @@ export function contentScore(taste: TasteVector, dish: DishVector, cuisineAffini
     // which was scoring a "perfect" 100% match before this fix.
     if (!(dim in dish)) continue;
     s += (taste[dim] ?? 0) * (dish[dim] - 0.5) * 2;
+    scored++;
   }
-  s /= DIMS.length;
+  // Divide by the dims actually SCORED, not by all 18 (2026-07-24). The old
+  // `s /= DIMS.length` summed over the ~8.7 dims a dish reports and then divided
+  // by 18, scaling the whole taste term down by ~2x more than the evidence
+  // supports — so `predicted_raw` collapsed to roughly `0.3 * cuisineAffinity`
+  // and the cuisine bonus decided almost every verdict. Measured on the only real
+  // data that exists: the taste term's mean was 0.068 against a cuisine term of
+  // up to 0.3, and the seal's `love` band (>= 0.5) was unreachable — 0 of 11
+  // genuinely loved dishes were ever called (docs/rnd/seal-band-calibration.md).
+  //
+  // MIN_SCORED_DIMS is a floor, not just a count: dividing by a raw count would
+  // amplify a dish that happens to list few attributes into false confidence.
+  // It is the one parameter here fitted to data, and the data is thin (36 seals,
+  // ONE user), so it was chosen conservatively rather than optimally — 10 is the
+  // only value in a 1..18 sweep that regresses NEITHER ranking metric against
+  // the pre-fix formula (pairwise ordering of really-rated dishes: 76.1% overall
+  // unchanged, within-cuisine 68.1% -> 69.9%) while still unlocking `love`.
+  // Lower floors score better on the seal (a floor of 4 calls 6 of 11 loves) but
+  // cost ~3pp of ranking accuracy, and recommendation quality gates everything.
+  // Revisit once seal data exists for more than one palate.
+  s /= Math.max(MIN_SCORED_DIMS, scored);
   if (cuisine) s += 0.3 * (cuisineAffinity[cuisine.toLowerCase()] ?? 0);
   return s;
 }

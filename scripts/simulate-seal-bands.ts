@@ -37,22 +37,22 @@ type Row = {
   predicted_direction: string; engine_rating_count: number;
   cuisine: string | null; attributes: DishVector;
 };
-const DATA = rows as Row[];
+const DATA = rows as unknown as Row[];
 
-/** contentScore with the divisor fixed: divide by the dims the dish ACTUALLY
- * reports, not by all 18. Floor of 4 so a 1-attribute dish can't be amplified
- * into a confident verdict off almost no evidence. */
-function contentScoreFixed(taste: TasteVector, dish: DishVector, aff: Record<string, number>, cuisine?: string | null): number {
-  let s = 0, present = 0;
+/** The PRE-fix formula, kept here only so the simulation can show what changed.
+ * The fixed one is the real shipped `contentScore` (imported above) — the sim
+ * must never re-implement the thing it is validating. */
+function contentScoreOld(taste: TasteVector, dish: DishVector, aff: Record<string, number>, cuisine?: string | null): number {
+  let s = 0;
   for (const dim of DIMS) {
     if (!(dim in dish)) continue;
     s += (taste[dim] ?? 0) * (dish[dim] - 0.5) * 2;
-    present++;
   }
-  s /= Math.max(4, present);
+  s /= DIMS.length;
   if (cuisine) s += 0.3 * (aff[cuisine.toLowerCase()] ?? 0);
   return s;
 }
+const contentScoreFixed = contentScore;   // what ships today
 
 const pct = (n: number, d: number) => `${((100 * n) / d).toFixed(1)}%`;
 const q = (xs: number[], p: number) => {
@@ -85,14 +85,14 @@ console.log(`   ${(['love', 'like', 'meh', 'dislike'] as Direction[])
   .map(b => `${b} ${actualBands.filter(x => x === b).length}`).join(' · ')}`);
 
 // ── Reconstruction check — how much can we trust option (d)'s recompute? ──
-const recomputed = DATA.map(r => contentScore(VECTOR, r.attributes, AFFINITY, r.cuisine));
+const recomputed = DATA.map(r => contentScoreOld(VECTOR, r.attributes, AFFINITY, r.cuisine));
 const drift = recomputed.map((v, i) => Math.abs(v - DATA[i].predicted_raw));
 console.log(`\nReconstruction drift (current formula, current profile vs stored predicted_raw):`);
 console.log(`   median ${q(drift, 0.5).toFixed(4)} · p90 ${q(drift, 0.9).toFixed(4)} · max ${Math.max(...drift).toFixed(4)}`);
 console.log(`   (drift is the cost of the profile having moved since each seal was written)`);
 
 // ── Current behaviour ──
-report('CURRENT (live today)', DATA.map(r => directionOf(r.predicted_raw)));
+report('BEFORE THE FIX (as the 36 seals were actually written)', DATA.map(r => directionOf(r.predicted_raw)));
 
 // ── (a) Fitted quantile edges on predicted_raw ──
 const raws = DATA.map(r => r.predicted_raw);
@@ -119,13 +119,13 @@ report('(c) PER-USER quantile bands',
 
 // ── (d) Fix the divisor, keep existing edges ──
 const fixed = DATA.map(r => contentScoreFixed(VECTOR, r.attributes, AFFINITY, r.cuisine));
-report('(d) FIXED DIVISOR (÷ present dims, floor 4), existing edges',
+report('(d) SHIPPED: ÷ max(MIN_SCORED_DIMS, scored), existing edges',
   fixed.map(directionOf),
   `\n   range: ${Math.min(...fixed).toFixed(4)} … ${Math.max(...fixed).toFixed(4)}` +
   `  (was ${Math.min(...raws).toFixed(4)} … ${maxRaw.toFixed(4)})`);
 
 // ── Where the dimension term actually sits under each formula ──
-const dimNow = DATA.map(r => contentScore(VECTOR, r.attributes, {}, null));
+const dimNow = DATA.map(r => contentScoreOld(VECTOR, r.attributes, {}, null));
 const dimFixed = DATA.map(r => contentScoreFixed(VECTOR, r.attributes, {}, null));
 console.log(`\n── Dimension term alone (cuisine bonus excluded)`);
 console.log(`   current : ${Math.min(...dimNow).toFixed(4)} … ${Math.max(...dimNow).toFixed(4)}  mean ${(dimNow.reduce((a, b) => a + b, 0) / dimNow.length).toFixed(4)}`);
@@ -150,3 +150,61 @@ recall('CURRENT', DATA.map(r => directionOf(r.predicted_raw)));
 recall('(a)/(c) fitted edges', raws.map(bandA));
 recall('(b) normalized', raws.map(v => directionOf(v / maxRaw)));
 recall('(d) fixed divisor', fixed.map(directionOf));
+
+// ══════════════════════════════════════════════════════════════════════════
+// RANKING IMPACT — the blast-radius check owed before (d) can ship.
+// contentScore ranks every menu, so "the seal numbers improve" is not a
+// licence to change it. Ground truth = the 36 dishes the person really rated;
+// the question is whether the score ORDERS them the way they actually did.
+// Same shape as scripts/simulate-duels.ts's pairwise accuracy.
+//
+// WITHIN-CUISINE is the metric that matters most: a real menu is one
+// restaurant, i.e. almost always one cuisine, so the 0.3*affinity term is a
+// constant offset that cancels out and 100% of the ranking signal comes from
+// the dimension term — the very term the ÷18 bug crushes.
+function pairwiseAccuracy(score: (i: number) => number, sameCuisineOnly: boolean) {
+  let correct = 0, total = 0;
+  for (let i = 0; i < DATA.length; i++) {
+    for (let j = i + 1; j < DATA.length; j++) {
+      if (DATA[i].actual_score === DATA[j].actual_score) continue;      // no ground-truth order
+      if (sameCuisineOnly && DATA[i].cuisine !== DATA[j].cuisine) continue;
+      const predOrder = Math.sign(score(i) - score(j));
+      const realOrder = Math.sign(DATA[i].actual_score - DATA[j].actual_score);
+      if (predOrder === realOrder) correct++;
+      total++;
+    }
+  }
+  return { acc: total ? (100 * correct) / total : 0, n: total };
+}
+
+const scoreNow = (i: number) => contentScoreOld(VECTOR, DATA[i].attributes, AFFINITY, DATA[i].cuisine);
+const scoreFix = (i: number) => contentScoreFixed(VECTOR, DATA[i].attributes, AFFINITY, DATA[i].cuisine);
+
+console.log('\n' + '='.repeat(64));
+console.log('RANKING IMPACT — does the fix order real dishes better or worse?');
+console.log('='.repeat(64));
+for (const [label, within] of [['ALL pairs', false], ['WITHIN-CUISINE pairs (what a menu actually is)', true]] as const) {
+  const a = pairwiseAccuracy(scoreNow, within);
+  const b = pairwiseAccuracy(scoreFix, within);
+  const d = b.acc - a.acc;
+  console.log(`\n   ${label}  (n=${a.n} pairs)`);
+  console.log(`     current ${a.acc.toFixed(1)}%  ->  fixed ${b.acc.toFixed(1)}%   (${d >= 0 ? '+' : ''}${d.toFixed(1)}pp)`);
+}
+
+// The attribute-count bias the current divisor creates: summing over `present`
+// dims but dividing by a constant 18 means a dish that happens to LIST more
+// attributes accumulates more terms and drifts to a larger |score| regardless
+// of how well it matches. Correlation of |score| with attribute count exposes it.
+const corr = (xs: number[], ys: number[]) => {
+  const mx = xs.reduce((a, b) => a + b, 0) / xs.length, my = ys.reduce((a, b) => a + b, 0) / ys.length;
+  const num = xs.reduce((a, x, i) => a + (x - mx) * (ys[i] - my), 0);
+  const den = Math.sqrt(xs.reduce((a, x) => a + (x - mx) ** 2, 0) * ys.reduce((a, y) => a + (y - my) ** 2, 0));
+  return den ? num / den : 0;
+};
+const attrCount = DATA.map(r => DIMS.filter(d => d in r.attributes).length);
+const dimNowAbs = DATA.map((r, i) => Math.abs(contentScoreOld(VECTOR, r.attributes, {}, null)));
+const dimFixAbs = DATA.map((r, i) => Math.abs(contentScoreFixed(VECTOR, r.attributes, {}, null)));
+console.log(`\n   Attribute-count bias  (corr of |dimension term| with how many attrs a dish lists)`);
+console.log(`     current ${corr(attrCount, dimNowAbs).toFixed(3)}  ->  fixed ${corr(attrCount, dimFixAbs).toFixed(3)}`);
+console.log(`     (current divides a variable-length sum by a constant 18, so listing MORE`);
+console.log(`      attributes inflates the score on its own; the fix normalises that away)\n`);

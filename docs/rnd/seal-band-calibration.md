@@ -329,3 +329,86 @@ scan ordering, duels. This simulation says nothing about that blast radius; it
 only shows the seal-side effect. Shipping (d) means treating it as a
 recommendation-quality change and simulating THAT too (`scripts/simulate-duels.ts`
 is the precedent), not just flipping the divisor because the seal numbers improve.
+
+---
+
+# 9. DECISION + OUTCOME (2026-07-24) — shipped
+
+Owner chose **(d) fix it everywhere** and **recompute history**. Both answers
+ran into evidence that changed the shape of the work; recorded here because the
+corrections matter more than the plan did.
+
+## 9a. The blast-radius check invalidated the recommendation as specified
+
+§5 recommended (d) with the divisor floored at 4. Simulating the RANKING impact
+first — the check that was owed before touching `contentScore` — showed that
+form **degrades recommendations**:
+
+| divisor | all-pairs | within-cuisine | love recall |
+|---|---|---|---|
+| `/max(4, scored)` ← as recommended | 73.2% | 67.3% | 6/11 |
+| `/max(8, scored)` | 75.1% | 69.0% | 6/11 |
+| **`/max(10, scored)` ← shipped** | **76.1%** | **69.9%** | 3/11 |
+| `/18` (before) | 76.1% | 68.1% | **0/11** |
+
+Ground truth is pairwise ordering of the 36 really-rated dishes (same metric as
+`scripts/simulate-duels.ts`). **Within-cuisine is the one that matters** — a real
+menu is one restaurant, so the `0.3 * affinity` term is a constant offset that
+cancels and 100% of the ranking signal is the dimension term.
+
+The floor turned out to be the whole ballgame, and 4 was a guess. Dividing by a
+raw count over-amplifies sparse dishes: with attribute counts spanning 6–12, a
+6-attribute dish got a 3x boost relative to an 18-divisor while a 12-attribute
+one got 1.5x, which scrambles ordering. **10 is the only value in a 1..18 sweep
+that regresses neither ranking metric while still unlocking `love`.**
+
+Lower floors call more loves (6/11 at floor 4-8 vs 3/11 at 10) but cost ~1-3pp
+of ranking accuracy. Recommendation quality gates everything, so the
+conservative end was taken deliberately: **a seal that is merely better is worth
+less than recommendations that are no worse.**
+
+Shipped result, measured through the real `contentScore`:
+
+- ranking: all-pairs **76.1% → 76.1%** (unchanged), within-cuisine **68.1% → 69.9%** (+1.8pp)
+- seal: hit rate **33.3% → 52.8%**, `like` recall **50% → 75%**, `love` recall **0% → 27%**
+- taste term mean **0.068 → 0.122**, against a cuisine bonus of up to 0.3 — no
+  longer dwarfed, though the cuisine term still carries real weight
+- verified end-to-end on a live seal: the same dish that scored **0.3680**
+  (1.225/18 + 0.3) before now scores exactly **0.4225** (1.225/10 + 0.3)
+
+`MIN_SCORED_DIMS` is the one fitted constant here, fitted to 36 rows from ONE
+palate. It is provisional and marked as such in the code. Revisit when seal data
+exists for more than one person.
+
+## 9b. "Recompute history" turned out to be impossible
+
+The owner asked for the 36 historical outcomes to be recomputed under the new
+formula. It cannot be done, and the reason is worth recording: recomputing
+`predicted_raw` requires the taste vector and cuisine affinity **as they were at
+each seal**, and only the *resulting* `predicted_raw` was ever stored (plus
+`engine_rating_count` / `profile_version` counters). §8's reconstruction drift
+(median 0.045, p90 0.272) is exactly the size of that gap.
+
+Recomputing against today's profile would not restore history — it would
+**fabricate predictions the engine never made**, and attribute them to a moment
+when it would have said something else. For a mechanic whose whole claim is
+"written down in advance, never altered," that is worse than an honest gap.
+
+So historical outcomes are **left exactly as computed**. They are true records:
+a v1 `hit` was a real prediction that really matched. What they are *not* is
+comparable to v2, because v1 could never say `love` — its band shares are
+structurally biased toward like/meh.
+
+The honest substitute for the owner's actual intent (consistent aggregates) is
+`sealed_predictions.scoring_version`
+(`supabase/applied/sealed_predictions_scoring_version.sql`): 36 existing rows
+marked v1, everything new stamped v2 from `SCORING_VERSION` in taste.ts. Any
+aggregate that mixes them is now visibly mixing two engines rather than silently
+averaging them. The streak deliberately still counts across both — each `hit` is
+a genuine correct call regardless of which formula produced it.
+
+## 9c. Still open
+
+`dislike` remains unreachable (0/2 called). With only two real dislikes in the
+entire dataset there is nothing honest to tune against — fitting an edge to two
+points is overfitting, not calibration. Genuinely open, not fixed.

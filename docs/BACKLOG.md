@@ -19,6 +19,10 @@ bilingual ingredients — see DECISIONS.md).
 2026-07-24, closing the item — full entry moved to DECISIONS.md. Owner review
 of the whole shipped feature is still deferred ("later"), outside code.)
 
+(dishi — your AI palate (export redesign): §5 remainder SHIPPED `18761d7`
+2026-07-24, closing the item — full entry moved to DECISIONS.md. Owner review
+of the whole shipped feature is still deferred ("later"), outside code.)
+
 ## 2b. Seal band calibration — BLOCKED on owner decision — *(Fable/Opus)* [F]
 
 Diagnosis complete, **no code changed**: `docs/rnd/seal-band-calibration.md`.

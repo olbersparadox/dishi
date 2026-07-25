@@ -7,7 +7,7 @@
 // being invisible IS the seal), and the caller only ever learns that a seal exists.
 
 import type { supabaseAdmin } from './supabase/server';
-import { contentScore, emptyTaste, type TasteVector } from './taste';
+import { contentScore, emptyTaste, type TasteVector, SCORING_VERSION } from './taste';
 import { directionOf, SEAL_GATE } from './seal';
 import { composeReason } from './menuScoring';
 
@@ -59,6 +59,10 @@ export async function stakeSeal(
     predicted_reason_en: reasonEn,
     engine_rating_count: ratingCount,
     profile_version: profile?.profile_version ?? 1,
+    // Explicit rather than leaning on the column default: which formula produced
+    // `predicted_raw` is part of what the seal is claiming, and a future change
+    // to contentScore must be forced to think about it.
+    scoring_version: SCORING_VERSION,
   });
   if (error) {
     // Unique(user_id, dish_id) racing a concurrent request — already sealed, not an error.
