@@ -92,6 +92,82 @@ contentScore divisor fix `e8ccb4e`. One remainder is OPEN, below.)
 (Carb-tripwire follow-up: honest vector re-score — SHIPPED 2026-07-22, see
 DECISIONS.md.)
 
+- [ ] **[F for the UI card / Opus for the learning path] "係唔啱我，定係佢哋整得
+  唔好？" — separating a bad dish from a badly-cooked one.** Owner-raised
+  2026-07-26; rationale and the business argument are in the owner-decision
+  section above. All four design questions are now answered — build from this.
+
+  **DEPENDS ON** the self-calibrating scale (`neutralCenter` in
+  `src/lib/taste.ts`, commit `d8115f5`), which is committed but deliberately
+  UNPUSHED pending the seal-band fix. Same branch, so build on top; ship order
+  is seal-bands → this → calibration together, or whatever the owner decides.
+
+  **1. When to ask.** When the flick lands **clearly below the person's own
+  neutral point** — `calibratedScore(score, priorScores) <= -0.20` — and only
+  after a warm-up of **10 ratings**, so the centre is earned before it gates
+  anything. Nothing here is an absolute score: a generous rater gets asked at
+  一般般, a rater whose normal IS 一般般 doesn't get asked until lower.
+
+  Both constants measured on the real 48-rating history, not chosen by feel.
+  At warm-up ≥10, threshold 0.20 is the widest bar that triggers on
+  唔會再食 / 唔啱我 / 一般般 while NEVER triggering on 幾好食 — the owner's most
+  common flick (56% of ratings) and by definition their ordinary meal. Below a
+  warm-up of 10 the centre is still shrunk toward the prior, and 幾好食 starts
+  firing (14 false asks). Re-measure both if the flick values ever change.
+
+  **2. NEGATIVE DIRECTION ONLY (owner reversed an earlier "both", knowing the
+  cost).** The mirrored case is real — "this place makes it exceptionally well"
+  is arguably the more valuable restaurant signal — but symmetric asking fires
+  on 45% of this palate's ratings, and negatives are where the damage is: with
+  calibration a 唔會再食 teaches −1.21 against a 幾好食's +0.04, and this profile
+  has only 4 negatives total. One mis-attributed negative distorts the vector
+  more than ten mis-attributed positives. Expect this to fire ~4 times on the
+  owner's existing history — that is understood and accepted; it is a v1 testing
+  whether people answer the question at all. Positive direction is a fast-follow,
+  not a cancelled idea.
+
+  **3. What an "execution" answer teaches: NOTHING.** The score stays in
+  `ratings` (the history must not be falsified — the engine replays from it), but
+  the rating leaves the taste-learning stream entirely: no `updateTaste`, no
+  `bumpEvidence`, no `updateCuisineAffinity`, AND no contribution to
+  `neutralCenter`'s prior scores. One rule, no exceptions: a flick that isn't
+  about taste must not calibrate how taste flicks are read either. It still
+  counts toward `rating_count` / `replayed` — the person did rate the dish, so
+  the seal gate and export confidence should still see it.
+
+  **4. No restaurant required.** The motivating row (通心粉配火腿煎蛋, −0.9,
+  `source=album`) has NO `restaurant_id`, and 29% of this user's logs don't —
+  so gating on one would have skipped the very case that prompted this. The two
+  benefits decouple: palate protection needs no restaurant, the demand-data
+  signal does. When the answer is "the place" and no restaurant is attached,
+  reuse the growth screen's EXISTING place picker (`onPickPlace` / `onAddPlace`
+  on `TasteGrowth`) — do not build a second one.
+
+  **Implementation notes.**
+  - Migration: `ratings.attribution text check (attribution in ('dish','execution'))`,
+    null = unasked/ignored. Apply live, then record in `supabase/applied/`.
+  - The question is asked AFTER the rating has already been learned, so an
+    "execution" answer must UN-teach it: set the column, then `replayProfile` —
+    the same proven path a re-rate uses. A "dish" answer or an ignore needs no
+    replay.
+  - `/api/ratings` returns whether to ask; the client must never compute the
+    threshold itself, or the two would drift.
+  - **Both learning paths must agree exactly**, exactly as with the centre:
+    `replay.ts` and the `/api/ratings` incremental branch must apply the same
+    skip rule, and a test must detect divergence rather than tolerate it.
+  - Seal: an execution-flagged rating must NOT break the streak. The engine's
+    claim was about the dish and may have been right; punishing it for a chef is
+    dishonest. Streak is computed in `/api/ratings` from revealed history — it
+    needs to exclude seals whose rating is execution-flagged.
+  - Restaurant owners see NOTHING of this in v1. If it ever becomes
+    owner-visible it must be un-editable and must never touch ranking, or it
+    becomes the placement-selling that is permanently ruled out.
+
+  **Verification bar** (batch precedent): tests must provably fail against
+  pre-change behaviour; screenshot the new growth-screen state before "done".
+  The card is a NEW visible surface → Fable for the first pass, per the
+  model-selection rule; the learning-path and seal changes are Opus-tier.
+
 ## Needs an owner decision before any code
 
 (dishi.Persona — character persistence in foreign AIs: install flow SHIPPED
@@ -120,17 +196,7 @@ soy added (13 → 15), gluten deliberately rejected. See DECISIONS.md.)
   exact consumer-side signal the business model is built on, and it is currently
   being discarded at the moment it's generated.
 
-  Open design questions, all owner's: does the flick gain a second axis, or does
-  execution get captured some other way (a follow-up tap, voice, restaurant-level
-  rating)? Does an execution-flagged rating teach the palate at all, teach it at
-  reduced weight, or only attach to the restaurant? How does this interact with
-  the never-sell-placement rule if it becomes owner-visible? Design conversation
-  first — do not build straight from this line.
-
-  Known-confounded row meanwhile: the 火腿通粉 rating is excluded from the
-  scale-calibration and seal-band analysis rather than re-rated — asking the
-  owner to restate a real bad meal as a good one would falsify the history the
-  whole engine replays from.
+  **DESIGN DECIDED 2026-07-26 — spec moved to "Ready to build" below.**
 
 ## Table Mode continuation — Fable-tier, in dependency order
 
