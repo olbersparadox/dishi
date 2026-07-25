@@ -19,3 +19,8 @@ Thumbs.db
 
 # Private Claude Code context (repo is public)
 CLAUDE.local.md
+
+# Simulation fixtures built from REAL user rating history (scripts/build-rating-fixture.ts).
+# Kept out of git: this repo is public, and these are a real person's meals even
+# though no names/restaurants/dates are included. Rebuild locally when needed.
+scripts/rating-history.json

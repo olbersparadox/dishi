@@ -412,3 +412,77 @@ a genuine correct call regardless of which formula produced it.
 `dislike` remains unreachable (0/2 called). With only two real dislikes in the
 entire dataset there is nothing honest to tune against — fitting an edge to two
 points is overfitting, not calibration. Genuinely open, not fixed.
+
+---
+
+# 10. Self-calibrating rating scale — evidence (2026-07-24)
+
+Owner's framing, which replaced my proposal:
+
+> "Everyone's scale is different. To me 一般般 is nothing to remember about.
+> For daily meal consumption, nothing to complain about. But when you want to
+> ENJOY a meal for pleasure, it's negative. I think the key problem could be the
+> perception of rating label, and the math or algorithm should be smart enough
+> to tune itself according to user rating behaviour."
+
+I had proposed hardcoding 一般般 to a negative value. That is wrong for the
+reason given: it bakes one person's scale into every palate. The engine should
+learn where each person's neutral sits.
+
+**Why it matters, from live data:** 56% of this palate's 41 ratings are the SAME
+value (0.35 幾好食) and 95% are positive. `updateTaste` multiplies by the raw
+score, so nearly every dim a dish teaches drifts positive — the engine learns
+"you like everything", the opposite of a discriminating palate.
+
+**Method** (`scripts/simulate-scale-calibration.ts`): replay the real 41-rating
+history through the REAL shipped `updateTaste` twice — raw score vs score minus
+the person's own running neutral point — then score both vectors on pairwise
+ranking accuracy against what they actually rated. The centre is a **median**
+(one furious −0.9 shouldn't move where "ordinary" sits), shrunk toward a prior
+of 0 by k=5, and computed from history BEFORE each rating so it never peeks at
+the value being learned. Prior 0 means a brand-new profile behaves exactly as
+today and calibration only emerges with evidence.
+
+**Result:**
+
+| metric | current | calibrated | Δ |
+|---|---|---|---|
+| all pairs (n=522) | 76.1% | **80.8%** | **+4.8pp** |
+| within-cuisine (n=161) | 72.7% | **75.8%** | **+3.1pp** |
+
+Larger than the divisor fix, on the same metric. And it produces exactly the
+behaviour the owner described, without anyone hardcoding a value — this palate's
+learned centre is **0.311**, so:
+
+| flick | raw | teaches |
+|---|---|---|
+| 掃晒 | 1.0 | +0.689 |
+| 好鍾意 | 0.6 | +0.289 |
+| 幾好食 | 0.35 | +0.039 (their normal — teaches almost nothing) |
+| 一般般 | 0.1 | **−0.211 (negative)** |
+| 唔啱我 | −0.5 | −0.811 |
+| 唔會再食 | −0.9 | −1.211 |
+
+The learned palate also becomes less lopsided: clear dislikes 2 → 3, clear likes
+9 → 7, mean strength 0.308 → 0.204. Less extreme, better ordered — the positive
+drift removed.
+
+**Not yet shipped.** Implementation needs a decision on where the centre lives:
+`replay.ts` can derive it from full history for free, but `/api/ratings` updates
+incrementally and would need either an extra query over the user's scores or a
+stored running value on `taste_profiles`. Both paths must agree exactly, or a
+re-rate would silently produce a different profile than the incremental path.
+
+**Caveat, same as everywhere else in this doc:** one palate, 41 ratings. The
+direction is strong and the mechanism is principled (it removes a known
+systematic bias rather than fitting a constant), but the magnitude is measured
+on a single person.
+
+## Fixture privacy note
+
+`scripts/rating-history.json` is real user eating data and is **gitignored** —
+this repo is public. Rebuild locally with `scripts/build-rating-fixture.ts`.
+`scripts/seal-rows.json` was committed earlier (`0d851e0`) before this was
+considered; it holds scores/cuisines/attribute vectors with no names,
+restaurants, dates or user ids, but it is still a real person's meals and the
+owner may want it removed.
