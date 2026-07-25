@@ -19,94 +19,24 @@ bilingual ingredients — see DECISIONS.md).
 2026-07-24, closing the item — full entry moved to DECISIONS.md. Owner review
 of the whole shipped feature is still deferred ("later"), outside code.)
 
-(dishi — your AI palate (export redesign): §5 remainder SHIPPED `18761d7`
-2026-07-24, closing the item — full entry moved to DECISIONS.md. Owner review
-of the whole shipped feature is still deferred ("later"), outside code.)
 
-## 2b. Seal band calibration — BLOCKED on owner decision — *(Fable/Opus)* [F]
+(Seal reveal + band calibration batch, 2026-07-24 — ALL items shipped, full
+entries in DECISIONS.md: reveal render fix `a2cbc9e`, every-seal-preserved +
+`displayed_at` safety net `4a2ab8f`, band diagnosis `e79c822`/`0d851e0`,
+contentScore divisor fix `e8ccb4e`. One remainder is OPEN, below.)
 
-Diagnosis complete, **no code changed**: `docs/rnd/seal-band-calibration.md`.
-
-Headline: two of the four seal bands (`love`, `dislike`) are structurally
-unreachable — 36/36 predictions landed in `like`/`meh`, 0 hits possible on the
-36% of ratings that were actually love/dislike, outcomes 12 hit / 24 near / 0
-miss. Cause is arithmetic, not taste: `contentScore` divides the dimension sum
-by all 18 dims while summing over only the ~8.7 a dish reports, crushing that
-term so `predicted_raw ≈ 0.3 × cuisineAffinity` (verified exactly against a
-live seal: 82% of the score was the cuisine bonus).
-
-Two findings that constrain the answer: predicted_raw **drifts upward with
-profile maturity** (mean roughly triples from thin to mature), so fixed edges
-fitted today decay; and `sealed_predictions` has **exactly one distinct user**,
-so there is no cross-user data to fit to at all.
-
-Four options with tradeoffs in the doc — (a) separate PREDICTED_BANDS, (b)
-normalize before banding, (c) per-user adaptive, (d) fix the divisor in
-contentScore. (d) treats the cause but changes recommendations app-wide and
-needs simulation first. Also open in the doc: whether to backfill the 36
-revealed rows (possible — both raw and actual are stored), and the note that
-the clean window for doing so exists only because the render bug meant none of
-those outcomes were ever displayed.
-
-**Owner decides the approach before any code lands.** This changes what the
-seal means.
-
-## 2b. Seal band calibration — BLOCKED on owner decision — *(Fable/Opus)* [F]
-
-Diagnosis complete, **no code changed**: `docs/rnd/seal-band-calibration.md`.
-
-Headline: two of the four seal bands (`love`, `dislike`) are structurally
-unreachable — 36/36 predictions landed in `like`/`meh`, 0 hits possible on the
-36% of ratings that were actually love/dislike, outcomes 12 hit / 24 near / 0
-miss. Cause is arithmetic, not taste: `contentScore` divides the dimension sum
-by all 18 dims while summing over only the ~8.7 a dish reports, crushing that
-term so `predicted_raw ≈ 0.3 × cuisineAffinity` (verified exactly against a
-live seal: 82% of the score was the cuisine bonus).
-
-Two findings that constrain the answer: predicted_raw **drifts upward with
-profile maturity** (mean roughly triples from thin to mature), so fixed edges
-fitted today decay; and `sealed_predictions` has **exactly one distinct user**,
-so there is no cross-user data to fit to at all.
-
-Four options with tradeoffs in the doc — (a) separate PREDICTED_BANDS, (b)
-normalize before banding, (c) per-user adaptive, (d) fix the divisor in
-contentScore. (d) treats the cause but changes recommendations app-wide and
-needs simulation first. Also open in the doc: whether to backfill the 36
-revealed rows (possible — both raw and actual are stored), and the note that
-the clean window for doing so exists only because the render bug meant none of
-those outcomes were ever displayed.
-
-**Owner decides the approach before any code lands.** This changes what the
-seal means.
-
-## Seal reveal: `displayed_at` safety net — *(Fable/Opus — contract change)* [F]
-
-**Decision needed from owner — deliberately NOT chosen while fixing the render
-bug (2026-07-24).** `revealed_at` currently means two things at once: "the
-outcome was computed" AND "the person saw it". The render regression (fixed
-this session) proved how bad that conflation is — 36 seals were computed and
-consumed, none displayed, and none recoverable, because the one-way
-`revealed_at` was already stamped.
-
-Proposal: split them. `revealed_at` keeps meaning "outcome computed server-side";
-a new `displayed_at` (nullable) marks "actually shown once". An undisplayed
-reveal could then be re-shown on the next visit instead of being lost.
-
-**Tradeoff, stated honestly:**
-- FOR: no future render break can silently destroy content; the mechanic
-  becomes crash-safe. Cheap: one nullable column + one write.
-- AGAINST: it weakens the seal's "shown exactly once, in the moment" quality —
-  a reveal could surface days later, detached from the rating that earned it,
-  which reads as stale rather than as a payoff. It also adds a second write
-  path on a table that is deliberately RLS-locked and admin-only, and the
-  client would need an "unshown reveals" fetch that does NOT leak pending
-  seals (the honesty contract's hard line).
-- MIDDLE OPTION: keep one column but only stamp it from the client's
-  acknowledged render, not from the server compute. Simpler, but a client that
-  dies mid-render still loses the seal, and it moves a trust-critical write to
-  the least trustworthy place.
-
-Not started. Needs an owner call on whether a late reveal is better than none.
+- [ ] **[F] Seal `dislike` band is still unreachable.** The divisor fix
+  unlocked `love` (0/11 → 3/11 called) but `dislike` remains 0/2. There are
+  only TWO real dislikes in the entire dataset, so there is nothing honest to
+  tune against — fitting a band edge to two points is overfitting, not
+  calibration. Needs more negative ratings before it can be worked on; do not
+  "fix" it by fitting. See docs/rnd/seal-band-calibration.md §9c.
+- [ ] **[F] `MIN_SCORED_DIMS = 10` is provisional.** The one fitted constant
+  in contentScore, chosen on 36 seals from ONE palate; floors 8/9/10 differ by
+  1-2pp on 113 within-cuisine pairs, which is within noise. Re-run
+  `scripts/simulate-seal-bands.ts` once more than one person has sealed
+  predictions and re-pick. Conservative today by design (no ranking
+  regression), so this is a refinement, not a defect.
 
 ## Ready to build — specs are decided, no open questions
 

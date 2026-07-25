@@ -2122,7 +2122,7 @@ noted: Claude's ungrounded venue answers were all REAL (tool-grounded); Gemini
 in-character invented composites with prices — host tooling solves venue
 hallucination, the persona just wasn't wearing it.
 
-### 2 (cont). Paste as TEXT, never a file attachment — ✅ (this commit)
+### 2 (cont). Paste as TEXT, never a file attachment — ✅ `4540c60`
 
 Every INSTALL_HOSTS row, both languages, now says paste the doc as text (以文字
 / "as TEXT") and not as an uploaded file/attachment (不要上載成檔案／附件 /
@@ -2133,7 +2133,7 @@ now. Bold-keyword lists unchanged (the file/attachment noun is a "don't-do"
 word, deliberately unbolded, same rule as Knowledge). Tests assert the
 text-string and the file/attachment-warning per host, both languages.
 
-### 3c. Provenance preamble — ✅ (this commit)
+### 3c. Provenance preamble — ✅ `4540c60`
 
 New `PROVENANCE_PREAMBLE`, pushed BEFORE any character voice (v.memory) for
 every persona, in the USER's own first-person voice (not a persona's, not
@@ -2145,7 +2145,7 @@ rather than screen it as an injected instruction set. Distinct from the
 existing per-persona `v.provenance` (which is about DATA trust — real ratings,
 not self-report); both are kept, the preamble leads.
 
-### 3d. VERSION_AWARENESS: command → consent — ✅ (this commit)
+### 3d. VERSION_AWARENESS: command → consent — ✅ `4540c60`
 
 Old text ORDERED the host ("adopt it immediately", "Never tell me unprompted
 that this version feels outdated", "never ask me to re-export"). Rewritten as
@@ -2157,7 +2157,7 @@ host. Same practical outcome, no host-commanding grammar. The header
 version-supersede line was lightly reframed to match ("this one takes its
 place" rather than "replace it with this one").
 
-### 3e. Audit pass — VENUE_GROUNDING reframed — ✅ (this commit)
+### 3e. Audit pass — VENUE_GROUNDING reframed — ✅ `4540c60`
 
 `VENUE_GROUNDING` reframed from "Recommend only… never invent" to "I only want
 recommendations for… please don't invent" — behaviour identical, grammar is
@@ -2193,7 +2193,7 @@ BACKLOG item 4.
 
 # Batch: seal reveal + band calibration (2026-07-24)
 
-## 1. Seal reveal fired server-side but never rendered — ✅ (this commit)
+## 1. Seal reveal fired server-side but never rendered — ✅ `a2cbc9e`
 
 **Symptom (owner, live):** 36 seals, 0 pending, 36 revealed, outcomes computed
 correctly — and the owner saw nothing on screen, twice. `revealed_at` is
@@ -2248,14 +2248,41 @@ and the reveal rendered — 中 stamp, 揭開封印 — 預測命中, the sealed
 `taste_profiles` vector/affinity/evidence/rating_count written back from a
 pre-test snapshot (41 ratings, 36 seals, v2 — confirmed by query).
 
-## Follow-up: clearing every remaining way a seal could be lost — ✅ (this commit)
+## Follow-up: clearing every remaining way a seal could be lost — ✅ `4a2ab8f`
 
 Owner call: "do it all now and i finetune later. i don't want something like
 this forgotten in the backlog." So the `displayed_at` decision was taken rather
 than parked, and the three residual gaps found while auditing the first fix
 were closed with it. The BACKLOG entry as it stood at decision time:
 
-
+> ## Seal reveal: `displayed_at` safety net — *(Fable/Opus — contract change)* [F]
+>
+> **Decision needed from owner — deliberately NOT chosen while fixing the render
+> bug (2026-07-24).** `revealed_at` currently means two things at once: "the
+> outcome was computed" AND "the person saw it". The render regression (fixed
+> this session) proved how bad that conflation is — 36 seals were computed and
+> consumed, none displayed, and none recoverable, because the one-way
+> `revealed_at` was already stamped.
+>
+> Proposal: split them. `revealed_at` keeps meaning "outcome computed server-side";
+> a new `displayed_at` (nullable) marks "actually shown once". An undisplayed
+> reveal could then be re-shown on the next visit instead of being lost.
+>
+> **Tradeoff, stated honestly:**
+> - FOR: no future render break can silently destroy content; the mechanic
+>   becomes crash-safe. Cheap: one nullable column + one write.
+> - AGAINST: it weakens the seal's "shown exactly once, in the moment" quality —
+>   a reveal could surface days later, detached from the rating that earned it,
+>   which reads as stale rather than as a payoff. It also adds a second write
+>   path on a table that is deliberately RLS-locked and admin-only, and the
+>   client would need an "unshown reveals" fetch that does NOT leak pending
+>   seals (the honesty contract's hard line).
+> - MIDDLE OPTION: keep one column but only stamp it from the client's
+>   acknowledged render, not from the server compute. Simpler, but a client that
+>   dies mid-render still loses the seal, and it moves a trust-critical write to
+>   the least trustworthy place.
+>
+> Not started. Needs an owner call on whether a late reveal is better than none.
 
 **Decision taken: the full split, with the "late reveal" objection answered by
 placement rather than by dropping the feature.** A recovered reveal surfaces on
@@ -2319,7 +2346,64 @@ a three-card stack — this session's 豉汁蒸排骨 first, then recovered 雲�
 燒鵝 — rendered in deterministic order, each correctly attributed, with the
 streak correctly absent because the 近 broke the run.
 
-## 2a/2b. Seal band calibration — ✅ (this commit)
+## 2a/2b. Seal band calibration — ✅ `e8ccb4e` (diagnosis `e79c822`, simulation `0d851e0`)
+
+The BACKLOG entry as it stood at decision time:
+
+> ## 2b. Seal band calibration — BLOCKED on owner decision — *(Fable/Opus)* [F]
+>
+> Diagnosis complete, **no code changed**: `docs/rnd/seal-band-calibration.md`.
+>
+> Headline: two of the four seal bands (`love`, `dislike`) are structurally
+> unreachable — 36/36 predictions landed in `like`/`meh`, 0 hits possible on the
+> 36% of ratings that were actually love/dislike, outcomes 12 hit / 24 near / 0
+> miss. Cause is arithmetic, not taste: `contentScore` divides the dimension sum
+> by all 18 dims while summing over only the ~8.7 a dish reports, crushing that
+> term so `predicted_raw ≈ 0.3 × cuisineAffinity` (verified exactly against a
+> live seal: 82% of the score was the cuisine bonus).
+>
+> Two findings that constrain the answer: predicted_raw **drifts upward with
+> profile maturity** (mean roughly triples from thin to mature), so fixed edges
+> fitted today decay; and `sealed_predictions` has **exactly one distinct user**,
+> so there is no cross-user data to fit to at all.
+>
+> Four options with tradeoffs in the doc — (a) separate PREDICTED_BANDS, (b)
+> normalize before banding, (c) per-user adaptive, (d) fix the divisor in
+> contentScore. (d) treats the cause but changes recommendations app-wide and
+> needs simulation first. Also open in the doc: whether to backfill the 36
+> revealed rows (possible — both raw and actual are stored), and the note that
+> the clean window for doing so exists only because the render bug meant none of
+> those outcomes were ever displayed.
+>
+> **Owner decides the approach before any code lands.** This changes what the
+> seal means.
+> ## 2b. Seal band calibration — BLOCKED on owner decision — *(Fable/Opus)* [F]
+>
+> Diagnosis complete, **no code changed**: `docs/rnd/seal-band-calibration.md`.
+>
+> Headline: two of the four seal bands (`love`, `dislike`) are structurally
+> unreachable — 36/36 predictions landed in `like`/`meh`, 0 hits possible on the
+> 36% of ratings that were actually love/dislike, outcomes 12 hit / 24 near / 0
+> miss. Cause is arithmetic, not taste: `contentScore` divides the dimension sum
+> by all 18 dims while summing over only the ~8.7 a dish reports, crushing that
+> term so `predicted_raw ≈ 0.3 × cuisineAffinity` (verified exactly against a
+> live seal: 82% of the score was the cuisine bonus).
+>
+> Two findings that constrain the answer: predicted_raw **drifts upward with
+> profile maturity** (mean roughly triples from thin to mature), so fixed edges
+> fitted today decay; and `sealed_predictions` has **exactly one distinct user**,
+> so there is no cross-user data to fit to at all.
+>
+> Four options with tradeoffs in the doc — (a) separate PREDICTED_BANDS, (b)
+> normalize before banding, (c) per-user adaptive, (d) fix the divisor in
+> contentScore. (d) treats the cause but changes recommendations app-wide and
+> needs simulation first. Also open in the doc: whether to backfill the 36
+> revealed rows (possible — both raw and actual are stored), and the note that
+> the clean window for doing so exists only because the render bug meant none of
+> those outcomes were ever displayed.
+>
+> **Owner decides the approach before any code lands.** This changes what the
+> seal means.
 
 Owner decided (d) fix the root cause everywhere + recompute history. Both
 answers met evidence that changed the work; full write-up with all numbers in
