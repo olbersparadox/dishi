@@ -47,6 +47,34 @@ those outcomes were ever displayed.
 **Owner decides the approach before any code lands.** This changes what the
 seal means.
 
+## 2b. Seal band calibration — BLOCKED on owner decision — *(Fable/Opus)* [F]
+
+Diagnosis complete, **no code changed**: `docs/rnd/seal-band-calibration.md`.
+
+Headline: two of the four seal bands (`love`, `dislike`) are structurally
+unreachable — 36/36 predictions landed in `like`/`meh`, 0 hits possible on the
+36% of ratings that were actually love/dislike, outcomes 12 hit / 24 near / 0
+miss. Cause is arithmetic, not taste: `contentScore` divides the dimension sum
+by all 18 dims while summing over only the ~8.7 a dish reports, crushing that
+term so `predicted_raw ≈ 0.3 × cuisineAffinity` (verified exactly against a
+live seal: 82% of the score was the cuisine bonus).
+
+Two findings that constrain the answer: predicted_raw **drifts upward with
+profile maturity** (mean roughly triples from thin to mature), so fixed edges
+fitted today decay; and `sealed_predictions` has **exactly one distinct user**,
+so there is no cross-user data to fit to at all.
+
+Four options with tradeoffs in the doc — (a) separate PREDICTED_BANDS, (b)
+normalize before banding, (c) per-user adaptive, (d) fix the divisor in
+contentScore. (d) treats the cause but changes recommendations app-wide and
+needs simulation first. Also open in the doc: whether to backfill the 36
+revealed rows (possible — both raw and actual are stored), and the note that
+the clean window for doing so exists only because the render bug meant none of
+those outcomes were ever displayed.
+
+**Owner decides the approach before any code lands.** This changes what the
+seal means.
+
 ## Seal reveal: `displayed_at` safety net — *(Fable/Opus — contract change)* [F]
 
 **Decision needed from owner — deliberately NOT chosen while fixing the render

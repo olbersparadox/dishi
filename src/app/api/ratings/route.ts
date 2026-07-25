@@ -121,6 +121,7 @@ export async function POST(req: NextRequest) {
   // exactly as the seal-creation route does.
   const sealDb = supabaseAdmin();
   let seal: {
+    id: string;
     predicted_direction: string; actual_direction: string; outcome: string;
     reason_zh: string | null; reason_en: string | null; streak: number; revealed: true;
   } | null = null;
@@ -147,7 +148,11 @@ export async function POST(req: NextRequest) {
       else break;
     }
 
+    // `id` rides along so the client can ACKNOWLEDGE the render (POST
+    // /api/seals/displayed). Until that ack lands the row stays recoverable —
+    // revealed_at alone no longer means "the person saw it".
     seal = {
+      id: pending.id,
       predicted_direction: pending.predicted_direction, actual_direction: actualDirection, outcome,
       reason_zh: pending.predicted_reason_zh ?? null, reason_en: pending.predicted_reason_en ?? null,
       streak, revealed: true,

@@ -111,12 +111,70 @@ export default function RatingStack({ photos, picks, typed, userId, onExit }: {
   const [idx, setIdx] = useState(0);
   const [dishes, setDishes] = useState<GrowDish[]>([]); // one per RATED card (skips omitted)
   const [phase, setPhase] = useState<Phase>('flick');
-  // The broken seal, lifted off the /api/ratings response (see `rate` below) and
-  // shown on the growth screen — the session's own end-state, which is where the
-  // person actually is when it lands. It deliberately does NOT live on the profile
-  // page any more: rating no longer navigates anywhere (RatingStack is an overlay),
-  // so the old sessionStorage + ?rated=1 handoff had nothing left to hand off to.
-  const [sealReveal, setSealReveal] = useState<SealResult | null>(null);
+  // EVERY seal this session broke, lifted off the /api/ratings responses (see
+  // `rate` below) and shown on the growth screen — the session's own end-state,
+  // which is where the person actually is when they land. It deliberately does
+  // NOT live on the profile page any more: rating no longer navigates anywhere
+  // (RatingStack is an overlay), so the old sessionStorage + ?rated=1 handoff had
+  // nothing left to hand off to.
+  //
+  // ALL of them, not just the first: `revealed_at` is one-way, so a batch that
+  // breaks five seals and renders one has destroyed four. Each card names its own
+  // dish (SealReveal.dish) — that attribution is what makes showing several
+  // legible rather than a stack of anonymous verdicts.
+  const [sealReveals, setSealReveals] = useState<SealResult[]>([]);
+  // Recovered reveals are held SEPARATELY from this session's own, so the render
+  // order is deterministic rather than a race between the rating POST and the
+  // recovery GET: this session's verdict leads (it's about the dish just rated),
+  // older recovered ones follow. One combined list would order by whichever
+  // request resolved first, which differs run to run.
+  const [recoveredReveals, setRecoveredReveals] = useState<SealResult[]>([]);
+  // What the session's ratings actually TAUGHT the engine — dims that moved, and
+  // which way. /api/ratings has always computed this from the same taughtDims
+  // source of truth the learning itself uses (so it can never claim learning that
+  // didn't happen), but it lost its last consumer when /log was killed and went
+  // unrendered for three days alongside the seal. Merged across the session's
+  // dishes: the same dim taught twice is one line, not two.
+  const [taught, setTaught] = useState<{ dim: string; dir: number }[]>([]);
+  // Acknowledge that a reveal actually reached the screen. Until this lands the
+  // row stays recoverable, so a crash between the rating and the render no
+  // longer destroys the verdict (see /api/seals/displayed). Fire-and-forget is
+  // correct HERE and only here: a failed ack costs a duplicate reveal later,
+  // which is the safe direction to fail in.
+  const markSealDisplayed = (id?: string) => {
+    if (!id) return;
+    fetch('/api/seals/displayed', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: [id] }),
+    }).catch(() => {});
+  };
+  // Reveals a PREVIOUS session computed but never showed (browser closed mid-flow,
+  // crash, the render bug's failure mode). Picked up when this session reaches the
+  // growth screen so they land in context — a rating screen — rather than ambushing
+  // the person on an unrelated page. Only ever decided verdicts: the endpoint is
+  // hard-filtered on revealed_at, so no pending seal can leak through here.
+  useEffect(() => {
+    if (phase !== 'grow') return;
+    let alive = true;
+    fetch('/api/seals/displayed')
+      .then(r => (r.ok ? r.json() : null))
+      .then(j => {
+        const missed: SealResult[] = j?.seals ?? [];
+        if (!alive || !missed.length) return;
+        setRecoveredReveals(missed);
+        markSealDisplayedMany(missed.map(m => m.id).filter(Boolean) as string[]);
+      })
+      .catch(() => {});
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase]);
+  const markSealDisplayedMany = (ids: string[]) => {
+    if (!ids.length) return;
+    fetch('/api/seals/displayed', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids }),
+    }).catch(() => {});
+  };
   // The REAL engine state (from /api/buddy) that drives the growth bar — the dishi
   // version ladder: progress toward the NEXT version (toward v1 while locked), and
   // the ratcheted version number for the unlocked line. Refreshed as ratings +
@@ -282,7 +340,10 @@ export default function RatingStack({ photos, picks, typed, userId, onExit }: {
   // navigated to /profile?rated=1; when /log was killed 2026-07-22 the reveal
   // lost its only producer and every rating since has silently burned its seal.)
   // So this must stay await-and-parse, never fire-and-forget.
-  const rate = async (dishId: string, score: number): Promise<void> => {
+  const rate = async (
+    dishId: string, score: number,
+    dish?: { name: string; name_zh?: string | null },
+  ): Promise<void> => {
     try {
       const res = await fetch('/api/ratings', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -290,11 +351,24 @@ export default function RatingStack({ photos, picks, typed, userId, onExit }: {
       });
       if (!res.ok) return;
       const json = await res.json().catch(() => null);
-      // First revealed seal of the session wins the card: SealReveal carries no
-      // dish name, so stacking several anonymous verdicts would read as noise.
-      // A batch that breaks more than one is why the reveal is also recorded
-      // server-side — see the displayed_at note in docs/BACKLOG.md.
-      if (json?.seal) setSealReveal(cur => cur ?? json.seal);
+      // Keep EVERY seal the session breaks, tagged with the dish it belongs to.
+      // Dropping any of them would silently consume a one-way `revealed_at`.
+      if (Array.isArray(json?.taught) && json.taught.length) {
+        setTaught(cur => {
+          const have = new Set(cur.map(x => x.dim));
+          const added = (json.taught as { dim: string; dir: number }[])
+            .filter(x => !have.has(x.dim));
+          return [...cur, ...added].slice(0, 6);
+        });
+      }
+      if (json?.seal) {
+        const withDish: SealResult = {
+          ...json.seal,
+          dish: dish ? { id: dishId, name: dish.name, name_zh: dish.name_zh ?? null } : null,
+        };
+        setSealReveals(cur => [...cur, withDish]);
+        markSealDisplayed(json.seal.id);
+      }
     } catch { /* a lost rating already shows as a failed card; don't mask it here */ }
   };
   const enrich = (i: number, dishId: string) =>
@@ -408,7 +482,7 @@ export default function RatingStack({ photos, picks, typed, userId, onExit }: {
       if (!isDish) return;
 
       await seal(d.id);   // seal BEFORE the rating (honesty contract), awaited for ordering
-      await rate(d.id, score); // the held flick score becomes the rating (reveals any seal)
+      await rate(d.id, score, { name: d.name, name_zh: d.name_zh }); // held flick score becomes the rating (reveals any seal)
       refreshBuddy();     // real engine confidence just moved → update the bar
       enrich(i, d.id);    // background: ingredients / diet / cooking / heaviness
       // EXIF coords win (they say where it was actually eaten). Failing that, a photo
@@ -439,7 +513,7 @@ export default function RatingStack({ photos, picks, typed, userId, onExit }: {
         ...(place.fixed ? { choice: place.choice, placeFixed: true, hasLocation: true } : {}),
       });
       await seal(pick.dishId);
-      await rate(pick.dishId, score);
+      await rate(pick.dishId, score, { name: pick.name, name_zh: pick.name_zh });
       refreshBuddy();
       enrich(i, pick.dishId);   // fills in ingredients/diet chips if it never got them
       if (place.loadNearby && pick.coords) loadNearby(i, pick.dishId, pick.coords);
@@ -463,7 +537,7 @@ export default function RatingStack({ photos, picks, typed, userId, onExit }: {
         coords: entry.coords,
       });
       await seal(entry.dishId);
-      await rate(entry.dishId, score);
+      await rate(entry.dishId, score, { name: entry.name, name_zh: entry.name_zh });
       refreshBuddy();
       if (entry.coords) loadNearby(i, entry.dishId, entry.coords);
     } catch { patch(i, { status: 'failed' }); }
@@ -531,7 +605,7 @@ export default function RatingStack({ photos, picks, typed, userId, onExit }: {
     (async () => {
       await renamePatch(dishId, e);
       await seal(dishId);
-      await rate(dishId, gd.score);
+      await rate(dishId, gd.score, { name: e.en || gd.name, name_zh: e.zh || gd.name_zh });
       refreshBuddy();
       // Name-seeded, forced: a reclassified non-dish may already carry photo-derived
       // attributes (from the PATCH cascade), which would no-op a plain enrich.
@@ -637,7 +711,33 @@ export default function RatingStack({ photos, picks, typed, userId, onExit }: {
             plain close-and-keep rather than a discard that would delete dishes we
             never created. */}
         <TasteGrowth live={dishes} engine={engine} blobInputs={blobInputs} onExit={finishExit} onCancel={picksMode ? undefined : cancelSession} onPickPlace={onPickPlace} onAddPlace={onAddPlace} onEditName={onEditName} onReclassify={onReclassify} onRetry={onRetry}
-          sealSlot={sealReveal ? <SealReveal seal={sealReveal} /> : undefined}
+          taughtSlot={taught.length ? (
+            <p className="grow-taught" role="status">
+              {t('profile.justlearned', {
+                dims: taught.map(x => `${t(`dim.${x.dim}`)} ${x.dir > 0 ? '↑' : '↓'}`).join(' · '),
+              })}
+            </p>
+          ) : undefined}
+          sealSlot={(() => {
+            // This session's verdicts first, then anything recovered from a
+            // session that never got to paint. De-duped by row id: a reveal can
+            // legitimately appear in both lists if the ack lost the race.
+            const own = sealReveals;
+            const ownIds = new Set(own.map(s => s.id).filter(Boolean));
+            const older = recoveredReveals.filter(r => !r.id || !ownIds.has(r.id));
+            const all = [...own, ...older];
+            if (!all.length) return undefined;
+            return (
+              <div className="seal-reveal-stack">
+                {all.map((sr, i) => (
+                  // The streak rides on THIS session's newest verdict only — it's a
+                  // running count ending at that rating, and a recovered older card
+                  // would state a stale one.
+                  <SealReveal key={sr.id ?? i} seal={sr} showStreak={i === own.length - 1} />
+                ))}
+              </div>
+            );
+          })()}
           identitySlot={identityAsk ? (
             <IdentityConfirmCard
               mine={identityAsk.mine}

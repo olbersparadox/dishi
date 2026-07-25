@@ -345,6 +345,18 @@ export default function MyDishes({ t, lang }: { t: (k: string, p?: Record<string
         body: JSON.stringify({ dish_id: id, score }),
       });
       if (res.ok) {
+        // A re-rate should never find a pending seal — seals are only ever created
+        // for UNRATED dishes (scan pick time, and the 待評 list's lazy seal), and
+        // this list is rated dishes by definition. But `revealed_at` is one-way, so
+        // "shouldn't happen" is not a safe reason to discard the response: if a
+        // fourth seal-creation site ever appears, silently swallowing the reveal
+        // here would be the 2026-07-24 bug again. Leave it recoverable instead —
+        // NOT marked displayed, so the next rating session picks it up via
+        // /api/seals/displayed rather than it being lost.
+        const json = await res.json().catch(() => null);
+        if (json?.seal?.id) {
+          console.warn('[seal] re-rate broke a pending seal — left recoverable', json.seal.id);
+        }
         setRatingSaved(id);
         setTimeout(() => setRatingSaved(prev => (prev === id ? null : prev)), 2500);
       }

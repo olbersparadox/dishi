@@ -2247,3 +2247,74 @@ and the reveal rendered — 中 stamp, 揭開封印 — 預測命中, the sealed
 連續命中 7 次. Account then restored exactly: dish/rating/seal deleted,
 `taste_profiles` vector/affinity/evidence/rating_count written back from a
 pre-test snapshot (41 ratings, 36 seals, v2 — confirmed by query).
+
+## Follow-up: clearing every remaining way a seal could be lost — ✅ (this commit)
+
+Owner call: "do it all now and i finetune later. i don't want something like
+this forgotten in the backlog." So the `displayed_at` decision was taken rather
+than parked, and the three residual gaps found while auditing the first fix
+were closed with it. The BACKLOG entry as it stood at decision time:
+
+
+
+**Decision taken: the full split, with the "late reveal" objection answered by
+placement rather than by dropping the feature.** A recovered reveal surfaces on
+the next rating session's growth screen — in context, on a screen about rating —
+never as an interstitial on an unrelated page. That was the real objection
+("stale, detached from the rating that earned it"), and placing it inside the
+next rating moment answers it without giving up crash-safety.
+
+Migration `supabase/applied/sealed_predictions_displayed_at.sql`, applied live.
+`revealed_at` keeps its exact original meaning (outcome computed, one-way);
+`displayed_at` records the client's acknowledged render. **The seal contract is
+untouched:** every query in `/api/seals/displayed` is hard-filtered on
+`revealed_at IS NOT NULL`, so a pending prediction still cannot reach the client
+in any shape — the new column widens nothing. Both handlers authenticate first
+and scope to the caller's own `user_id` through the admin client.
+
+Backfill decision: the 36 pre-existing revealed rows were provably never
+displayed and would ALL have qualified as recoverable — dumping 36 stale
+verdicts into the next session would be noise, not payoff. Marked displayed so
+only NEW misses are ever recovered.
+
+### The three residual gaps, closed
+
+1. **Multi-seal batches were still destroying content.** The first fix showed
+   only the FIRST seal of a session, so an album batch of five breaking five
+   seals rendered one and consumed four. That was a correctness problem traded
+   for a UI problem — the honest fix was to give the card what it lacked, not to
+   drop verdicts. `SealReveal` now takes a `dish` (rendered with the real
+   `DishName` component, not a restyled lookalike) and RatingStack keeps every
+   seal. Render order is deterministic — this session's verdicts first, then
+   recovered ones — held in two separate state slots specifically so the order
+   can't depend on whether the rating POST or the recovery GET resolved first.
+   The streak line rides only on this session's newest card: it's a running
+   count ending at that rating, so repeating it per-card would read as several
+   different streaks, and a recovered older card would state a stale one.
+
+2. **`taught` had lost its last consumer.** `/api/ratings` has always computed
+   "what this rating taught the engine" from the same `taughtDims` source of
+   truth the learning itself uses — and it went unrendered for three days
+   alongside the seal, killed by the same `/log` removal. Restored on the growth
+   screen under the seal (predicted, then learned — the order they happen in),
+   merged across the session's dishes so a dim taught twice is one line.
+   `profile.justlearned` came back with it, now with a live consumer.
+
+3. **`MyDishes.updateRating` discarded the ratings response.** Currently
+   unreachable for seals — all three seal-creation sites (scan pick time, the
+   待評 lazy seal, RatingStack) only ever seal UNRATED dishes, and that list is
+   rated dishes by definition. But "shouldn't happen" is not a safe reason to
+   swallow a one-way reveal, so it now detects one and deliberately leaves it
+   **unacknowledged**, i.e. recoverable by the next session, rather than losing it.
+
+**Tests** (604 total): batch renders every seal with per-dish attribution; the
+render is acked; a previous session's unshown reveal is recovered. Each was
+verified to FAIL against a simulation of the behaviour it replaces (first-wins,
+and no-ack).
+
+**Verified live on real data**, owner account, then fully restored (36 seals /
+41 ratings / v2 / 0 recoverable, vector written back from snapshot): a single
+reveal now names its dish (燒鵝 / Roast Goose) and carries the taught line; and
+a three-card stack — this session's 豉汁蒸排骨 first, then recovered 雲吞麵 and
+燒鵝 — rendered in deterministic order, each correctly attributed, with the
+streak correctly absent because the 近 broke the run.

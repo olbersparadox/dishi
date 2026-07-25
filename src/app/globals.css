@@ -1196,6 +1196,26 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 .seal-reveal.near .seal-reveal-stamp { background: var(--ink); }
 .seal-reveal.miss .seal-reveal-stamp { background: var(--ink-soft); }
 .seal-reveal.near .seal-reveal-streak, .seal-reveal.miss .seal-reveal-streak { display: none; }
+/* Which dish the verdict is about — only rendered when a session broke more than
+   one seal (or recovered an older one), where an unlabelled card would be
+   ambiguous. Sits under the title, above the predicted/actual line. */
+.seal-reveal-dish { margin-top: 6px; }
+/* Stacked reveals: each card already carries its own margin-bottom, so the stack
+   only needs to stop the last one double-spacing against the refine ask below. */
+.seal-reveal-stack > .seal-reveal:last-child { margin-bottom: 0; }
+/* Cascade the entrance so several verdicts read one after another rather than
+   all slamming in together. Caps at 4 — beyond that the wait outstays the payoff. */
+.seal-reveal-stack > .seal-reveal:nth-child(2) { animation-delay: 90ms; }
+.seal-reveal-stack > .seal-reveal:nth-child(3) { animation-delay: 180ms; }
+.seal-reveal-stack > .seal-reveal:nth-child(n+4) { animation-delay: 270ms; }
+
+/* "You just taught me: …" — the LEARNED counterpart to the seal's PREDICTED.
+   Quiet by design: it reports, it doesn't celebrate, and it sits between the
+   verdict above and the refine ask below without competing with either. */
+.grow-taught {
+  font-size: 13px; color: var(--ink-soft); text-align: center;
+  margin: 0 0 12px; line-height: 1.5;
+}
 
 @keyframes sealStamp {
   0%   { transform: scale(1.7) rotate(-8deg); opacity: 0; }

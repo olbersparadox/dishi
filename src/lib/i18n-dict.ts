@@ -431,6 +431,9 @@ export const dict: Record<string, { zh: string; en: string }> = {
     en: 'It\u2019s your taste itself now \u2014 every rating genuinely reshapes it.',
   },
   'form.migration.cta': { zh: '看看它', en: 'See it' },
+  // What a rating taught the engine — restored 2026-07-24 with a real consumer
+  // (the growth screen). Lost its previous one when /log was killed.
+  'profile.justlearned': { zh: '你剛剛教會了我：{dims}', en: 'You just taught me: {dims}' },
   'seal.stamp.title': { zh: 'Dishi 封存了一個預測', en: 'Dishi sealed a prediction' },
   'seal.explain.title': { zh: '「印」是什麼？', en: 'What’s the 印 stamp?' },
   'seal.explain.body': {

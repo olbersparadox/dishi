@@ -94,7 +94,7 @@ export type GrowEngine = {
   justUnlocked?: boolean;
 };
 
-export default function TasteGrowth({ live, engine, blobInputs, onExit, onCancel, onPickPlace, onAddPlace, onEditName, onReclassify, onRetry, identitySlot, sealSlot }: {
+export default function TasteGrowth({ live, engine, blobInputs, onExit, onCancel, onPickPlace, onAddPlace, onEditName, onReclassify, onRetry, identitySlot, sealSlot, taughtSlot }: {
   live: GrowDish[];
   engine?: GrowEngine | null;                            // REAL taste-engine confidence for the bar
   // The REAL profile (same vector/evidence/ratingCount/seed blobForm.ts consumes
@@ -117,6 +117,10 @@ export default function TasteGrowth({ live, engine, blobInputs, onExit, onCancel
    * growth screen (above the blob) because it's the one thing here the engine
    * committed to before the person rated, and it's shown exactly once. */
   sealSlot?: React.ReactNode;
+  /** "You just taught me: umami ↑ · sweet ↓" — what the session's ratings actually
+   * moved. Sits under the seal: the seal is what the engine PREDICTED, this is
+   * what it LEARNED, and that's the order they happen in. */
+  taughtSlot?: React.ReactNode;
 }) {
   const { t, lang } = useLang();
   const rowCount = live.length;
@@ -366,6 +370,7 @@ export default function TasteGrowth({ live, engine, blobInputs, onExit, onCancel
           the engine's pre-committed call is the payoff of the rating that just
           landed, so it reads before the housekeeping asks below it. */}
       {sealSlot}
+      {taughtSlot}
 
       {/* One ask above the rows: confirming/refining is what makes the engine accurate,
           and it's optional (now or later). */}
