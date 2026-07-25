@@ -259,3 +259,73 @@ window to recompute cleanly, and it closes as soon as reveals start rendering.
    change, not a seal change.
 3. Backfill decision is *time-sensitive* — the clean window exists only until
    real reveals accumulate.
+
+---
+
+# 8. SIMULATION — what each option actually does (2026-07-24)
+
+`scripts/simulate-seal-bands.ts`, replaying all 36 real seals.
+`scripts/seal-rows.json` is the frozen fixture pulled from production.
+
+**Caveat, stated up front:** the taste vector and cuisine affinity *at seal
+time* were never stored — only the resulting `predicted_raw`. So (d) is
+recomputed against the CURRENT profile. That makes it a faithful
+formula-vs-formula comparison under one fixed profile, not a replay of what
+would have been predicted back then. Reconstruction drift of the current
+formula against the stored values: **median 0.045, p90 0.272, max 0.318** —
+small for recent rows, large for early thin-profile ones. Treat (d)'s per-row
+verdicts as indicative; the *aggregate* direction is solid, because the ~2×
+gain in the dimension term is a property of the arithmetic, not of the profile.
+
+Actual flick bands (ground truth): **love 11 · like 20 · meh 3 · dislike 2**.
+
+| option | predicted bands | unreachable | hit | near | miss |
+|---|---|---|---|---|---|
+| **current** | love 0 · like 22 · meh 14 · dislike 0 | love, dislike | 12 (33.3%) | 24 (66.7%) | 0 |
+| **(a)/(c) fitted edges** | 11 · 20 · 3 · 2 | none | 18 (50.0%) | 16 (44.4%) | 2 (5.6%) |
+| **(b) normalized** | 20 · 9 · 7 · 0 | dislike | 16 (44.4%) | 19 (52.8%) | 1 (2.8%) |
+| **(d) fixed divisor** | 11 · 19 · 6 · 0 | dislike | **19 (52.8%)** | 17 (47.2%) | **0** |
+
+## The number that decides it
+
+Recall per actual band — *when the person really loved it, did the engine say so?*
+
+| actually | n | current | (a)/(c) | (b) | (d) |
+|---|---|---|---|---|---|
+| **love** | 11 | **0 (0%)** | 5 (45%) | **9 (82%)** | 6 (55%) |
+| like | 20 | 10 (50%) | 12 (60%) | 6 (30%) | **12 (60%)** |
+| meh | 3 | **2 (67%)** | 0 (0%) | 1 (33%) | 1 (33%) |
+| dislike | 2 | 0 (0%) | **1 (50%)** | 0 (0%) | 0 (0%) |
+
+**Today the engine calls 0 of 11 loves.** Not "rarely" — never. That single row
+is the whole complaint about the mechanic reading lukewarm.
+
+## Reading it
+
+- **(d) fixed divisor is the best all-rounder**: highest hit rate (52.8%), the
+  only option with **zero misses**, and the best `like` recall while unlocking
+  `love`. It also does this WITHOUT any fitted constants — the edges stay
+  exactly as they are; only the arithmetic bug is corrected. The dimension term
+  goes from mean 0.068 (range 0.002–0.14) to mean 0.146 (range 0.003–0.36),
+  i.e. from "dwarfed by the 0.3 cuisine bonus" to "comparable with it".
+- **(b) normalized wins on love recall (82%) but by over-calling**: it predicts
+  20 loves where there were 11, and `like` recall collapses to 30%. It is not
+  more accurate, it is more enthusiastic — it slides the whole distribution up.
+- **(a)/(c) fitted edges look respectable in aggregate but destroy `meh`
+  (0/3)** and introduce the only meaningful miss count. And the fitted `like`
+  and `meh` edges land 0.008 apart (0.0482 vs 0.0399), which is noise, not a
+  boundary — a rounding difference would flip the band. They are also fitted to
+  ONE user's 36 rows, and §3's maturity drift means they decay.
+- **`dislike` stays unreachable under (b) and (d).** With only 2 real dislikes
+  the evidence is too thin to design for; (a) "solves" it only by fitting an
+  edge to those 2 points, which is overfitting, not calibration. Worth revisiting
+  when real negative ratings accumulate — it is a genuinely open remainder, not
+  something any of these options honestly fixes.
+
+## What this doesn't settle
+
+(d) changes `contentScore`, which ranks menu items everywhere — recommendations,
+scan ordering, duels. This simulation says nothing about that blast radius; it
+only shows the seal-side effect. Shipping (d) means treating it as a
+recommendation-quality change and simulating THAT too (`scripts/simulate-duels.ts`
+is the precedent), not just flipping the divisor because the seal numbers improve.
