@@ -103,6 +103,34 @@ Only the owner's manual Phase 0.5 persistence re-test remains, outside code.)
   Design conversation first — do not build straight from this line.
 (Diet taxonomy growth — DECIDED + SHIPPED 2026-07-23: tree_nut + structural-only
 soy added (13 → 15), gluten deliberately rejected. See DECISIONS.md.)
+- [ ] **[F] A flick can't say "the dish is fine, this place cooked it badly."**
+  Raised by the owner 2026-07-26 from a real rating: 火腿通粉 scored low not
+  because they dislike the dish but because the shop served the soup "like hot
+  water." The engine reads every low flick as a statement about the DISH, so that
+  rating is currently teaching their palate to dislike macaroni soup. Voice notes
+  make it worse, not better — `extractVoiceSignal` converts "soup was like hot
+  water" into taste attributes plus a sentiment nudge, laundering a complaint
+  about a chef into a permanent preference (see `src/lib/voice.ts` SYSTEM prompt,
+  which has no concept of execution).
+
+  Two reasons this is bigger than a data-quality annoyance:
+  (1) it corrupts the taste vector for every diner who eats a badly-made version
+  of something they'd otherwise like — a systematic bias, not noise;
+  (2) "this restaurant makes this dish badly" is dish-level demand data, the
+  exact consumer-side signal the business model is built on, and it is currently
+  being discarded at the moment it's generated.
+
+  Open design questions, all owner's: does the flick gain a second axis, or does
+  execution get captured some other way (a follow-up tap, voice, restaurant-level
+  rating)? Does an execution-flagged rating teach the palate at all, teach it at
+  reduced weight, or only attach to the restaurant? How does this interact with
+  the never-sell-placement rule if it becomes owner-visible? Design conversation
+  first — do not build straight from this line.
+
+  Known-confounded row meanwhile: the 火腿通粉 rating is excluded from the
+  scale-calibration and seal-band analysis rather than re-rated — asking the
+  owner to restate a real bad meal as a good one would falsify the history the
+  whole engine replays from.
 
 ## Table Mode continuation — Fable-tier, in dependency order
 
