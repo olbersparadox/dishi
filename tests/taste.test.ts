@@ -139,11 +139,39 @@ describe('updateTaste', () => {
 });
 
 describe('updateCuisineAffinity', () => {
-  it('accumulates and clamps', () => {
+  it('converges on the AVERAGE feeling, and never saturates (2026-07-24)', () => {
+    // The bug this replaces: affinity was an accumulator (prev + 0.2*score,
+    // clamped), so a run of ordinary-good meals pinned it at the +1 ceiling and
+    // it stopped learning. Observed live — cantonese and japanese both sat at
+    // exactly 1.0 across 78% of one person's ratings, so the cuisine term was a
+    // constant that told the engine nothing and drowned out the dish's own
+    // attributes. Rating a cuisine "pretty good" forever must settle at
+    // "pretty good", NOT at "the most I could possibly love anything".
     let a: Record<string, number> = {};
-    for (let i = 0; i < 20; i++) a = updateCuisineAffinity(a, 'japanese', 1);
-    expect(a.japanese).toBeLessThanOrEqual(1);
-    expect(a.japanese).toBeGreaterThan(0.5);
+    for (let i = 0; i < 40; i++) a = updateCuisineAffinity(a, 'cantonese', 0.35);
+    expect(a.cantonese).toBeCloseTo(0.35, 2);
+    expect(a.cantonese).toBeLessThan(0.5);   // the old accumulator would be 1.0 here
+  });
+
+  it('cuisines rated the same end up the same — no first-mover saturation', () => {
+    // Under the accumulator whichever cuisine got there first pinned at 1.0 and
+    // the other could only tie, never differ; both then contributed an identical
+    // maximal bonus. Equal treatment must produce equal affinity, so any real
+    // discrimination has to come from the dish's attributes.
+    let a: Record<string, number> = {};
+    for (let i = 0; i < 30; i++) {
+      a = updateCuisineAffinity(a, 'cantonese', 0.6);
+      a = updateCuisineAffinity(a, 'japanese', 0.6);
+    }
+    expect(a.cantonese).toBeCloseTo(a.japanese, 6);
+    expect(a.cantonese).toBeCloseTo(0.6, 2);
+  });
+
+  it('a genuinely disliked cuisine goes negative, and stays bounded', () => {
+    let a: Record<string, number> = {};
+    for (let i = 0; i < 40; i++) a = updateCuisineAffinity(a, 'indian', -0.9);
+    expect(a.indian).toBeCloseTo(-0.9, 2);
+    expect(a.indian).toBeGreaterThanOrEqual(-1);
   });
 
   it('normalizes case', () => {

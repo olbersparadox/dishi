@@ -2445,3 +2445,51 @@ regardless of formula.
 **Open remainder:** `dislike` is still unreachable (0/2). Two real dislikes in
 the whole dataset is not enough to tune against; fitting an edge to two points
 would be overfitting, not calibration.
+
+---
+
+# Direction: what the taste engine is FOR (owner, 2026-07-24)
+
+Stated by the owner while reviewing the seal/calibration work. Recorded because
+it reframes what counts as progress, and because everything below it is
+downstream of it.
+
+> "dishi should learn in the future why you like 乾炒牛河 at restaurant A and
+> not 乾炒牛河 at restaurant B. It's the core idea of taste learning, not just
+> simple understanding of how the dish is made nor what kind of ingredients it
+> used, but how it was cooked and prepared that matters. Why there are good
+> chefs and bad chefs, the NORMAL way of how people judge tastes in real life.
+> I don't need the engine to understand this at day 1. But definitely by design
+> this has to be the aim otherwise there's no future for the product."
+
+**The aim: EXECUTION, not composition.** The same dish, cooked by two kitchens,
+is two different experiences — 鑊氣, seasoning balance, freshness of the oil,
+whether the beef is tender or grey. That difference is how real people actually
+judge food, and it is the thing no ingredient list can capture.
+
+**Why this is a design constraint and not a feature request.** The current
+engine scores a dish from its ATTRIBUTES (`contentScore` over 18 compositional
+dims). Two instances of 乾炒牛河 have near-identical attributes, so the engine
+is structurally incapable of preferring one kitchen over another. Every
+mechanic added from here should be judged against whether it moves toward
+execution-level signal or entrenches composition-level scoring.
+
+**What that implies (not yet built, recorded so it isn't lost):**
+- The substrate already exists: `dish_identities` links the same real dish
+  across restaurants. Same-identity, different-restaurant is exactly the
+  comparison that isolates execution from composition.
+- The 18 dims describe WHAT a dish is. Execution needs signal about HOW WELL it
+  was made. That is a different axis, not a 19th dim.
+- Duels are the natural instrument: a duel between two INSTANCES of the same
+  identity holds composition constant, so the entire contrast is execution.
+  (Duels stay — the owner never asked to kill them; low usage is a surfacing
+  problem, not a verdict. See the correction in BACKLOG.)
+- Restaurant-level quality is the emergent output: "good chefs and bad chefs"
+  falls out of aggregated per-execution signal, and is also the consumer-side
+  demand data the business case rests on.
+
+**Sequencing:** explicitly NOT day-one. The near-term work is making the
+existing signal honest and discriminating (self-calibrating rating scale,
+non-saturating affinity, feeding the starved dims) — because execution-level
+learning needs a trustworthy base to sit on. But no near-term choice may
+foreclose it.

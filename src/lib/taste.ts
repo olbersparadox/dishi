@@ -119,6 +119,30 @@ export function thresholdVisionAttrs(attrs: DishVector, cutoff = LEARN_CUTOFF): 
   return out;
 }
 
+/** How fast cuisine affinity moves toward a new rating. Converging, not
+ * accumulating — see updateCuisineAffinity. */
+export const CUISINE_ALPHA = 0.25;
+
+/**
+ * Cuisine affinity: how much this person likes a cuisine ON AVERAGE.
+ *
+ * Was an ACCUMULATOR (`prev + 0.2 * score`, clamped to ±1), which saturates:
+ * at a mean rating of ~0.38 it pins at the +1 ceiling after ~13 meals and then
+ * stops learning entirely. Observed live 2026-07-24 — cantonese and japanese
+ * both sat at exactly 1.0, covering 78% of the person's ratings, so for most of
+ * their food the cuisine term was a constant that (a) carried no information,
+ * (b) could no longer tell those two cuisines apart, and (c) contributed a
+ * maximal 0.3 to contentScore, drowning out the dish's own attributes.
+ *
+ * Now an EMA toward the score, so it converges on the average feeling about a
+ * cuisine and can never pin. Two consequences, both wanted: cuisines the person
+ * rates similarly END UP similar (which is honest — the discrimination should
+ * come from the dish's attributes, not from who saturated first), and the
+ * cuisine bonus shrinks to a proportionate size instead of dominating.
+ *
+ * Existing profiles heal through the normal full-history replay (replay.ts),
+ * which re-derives affinity from scratch on any re-rate.
+ */
 export function updateCuisineAffinity(
   affinity: Record<string, number>,
   cuisine: string | null | undefined,
@@ -128,7 +152,7 @@ export function updateCuisineAffinity(
   const key = cuisine.toLowerCase();
   if (key === 'unknown') return affinity; // vision fallback value, not a real cuisine signal
   const prev = affinity[key] ?? 0;
-  return { ...affinity, [key]: clamp(prev + 0.2 * score, -1, 1) };
+  return { ...affinity, [key]: clamp(prev + CUISINE_ALPHA * (score - prev), -1, 1) };
 }
 
 /** Cosine similarity between two taste vectors over the fixed dims. */
