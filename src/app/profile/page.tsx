@@ -4,7 +4,6 @@ import { useRouter } from 'next/navigation';
 import AuthGate from '@/components/AuthGate';
 import { supabaseBrowser } from '@/lib/supabase/client';
 import TasteFormCard from '@/components/TasteFormCard';
-import SealReveal, { type SealResult } from '@/components/SealReveal';
 import DishName from '@/components/DishName';
 import SealStamp from '@/components/SealStamp';
 import ExplainModal from '@/components/ExplainModal';
@@ -82,10 +81,7 @@ function TasteProfile() {
   const [points, setPoints] = useState(0);
   const [toRate, setToRate] = useState<ToRate[] | null>(null);
   const [ratedRows, setRatedRows] = useState<RatedRow[]>([]);
-  const [justRated, setJustRated] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
-  const [sealReveal, setSealReveal] = useState<SealResult | null>(null);
-  const [justLearned, setJustLearned] = useState<{ dim: string; dir: number }[] | null>(null);
   const [sealedIds, setSealedIds] = useState<Set<string>>(new Set());
   const [persona, setPersona] = useState<Persona>('spoon');
   const [handle, setHandle] = useState<string | null>(null);
@@ -93,21 +89,16 @@ function TasteProfile() {
   // the SAME picker as its 相簿舊菜 fast track (one entry point, merged pill).
   const albumInputRef = useRef<HTMLInputElement | null>(null);
 
-  useEffect(() => {
-    // The rating flow lands here (not Home) the moment a rating is saved — this
-    // is where "what did that just teach Dishi" and "rate another?" belong,
-    // since Taste is the screen about training the engine, not browsing it.
-    if (new URLSearchParams(window.location.search).get('rated') === '1') {
-      setJustRated(true);
-      window.history.replaceState({}, '', '/profile'); // don't re-celebrate on refresh
-      try {
-        const rawSeal = sessionStorage.getItem('dishi_seal_reveal');
-        if (rawSeal) { setSealReveal(JSON.parse(rawSeal)); sessionStorage.removeItem('dishi_seal_reveal'); }
-        const rawLearned = sessionStorage.getItem('dishi_just_learned');
-        if (rawLearned) { setJustLearned(JSON.parse(rawLearned)); sessionStorage.removeItem('dishi_just_learned'); }
-      } catch { /* storage may be unavailable */ }
-    }
-  }, []);
+  // The post-rating handoff that used to live here (?rated=1 + the
+  // dishi_seal_reveal / dishi_just_learned sessionStorage keys) is GONE, not
+  // moved: it existed because the old /log page rated on a different route and
+  // navigated here afterwards. /log was killed 2026-07-22 and its writer went
+  // with it, leaving a reader with no producer — ?rated=1 was never set again,
+  // so `justRated` was permanently false and the seal reveal it gated could
+  // never paint, silently burning a one-way `revealed_at` on every rating.
+  // Rating is now an overlay on THIS page (RatingStack), so there is no
+  // navigation to hand anything off across: the reveal is read straight off the
+  // /api/ratings response and shown on the growth screen where the session ends.
 
   useEffect(() => {
     const supabase = supabaseBrowser();
@@ -222,19 +213,6 @@ function TasteProfile() {
 
   return (
     <div>
-      {justRated && sealReveal && <SealReveal seal={sealReveal} />}
-      {justRated && (
-        <div className="rated-banner" role="status">
-          <span className="rated-banner-icon" aria-hidden>🍜</span>
-          <span className="rated-banner-text">
-            {justLearned && justLearned.length > 0
-              ? t('profile.justlearned', {
-                  dims: justLearned.map(x => `${t(`dim.${x.dim}`)} ${x.dir > 0 ? '↑' : '↓'}`).join(' · '),
-                })
-              : t('home.rated')}
-          </span>
-        </div>
-      )}
       <h1 style={{ marginBottom: 22 }}>{t('profile.title')}</h1>
 
       {/* +Log is no longer its own bottom-nav tab (nav is now Feed / Scan /

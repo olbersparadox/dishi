@@ -2188,3 +2188,62 @@ it as an artifact). Re-test must: paste as TEXT, and use a Claude account with
 no Dishi history (or a temp/incognito chat). Matrix, Sonnet-class+: {Project
 instructions field, in-conversation paste} × {pasted as text}. Recorded in
 BACKLOG item 4.
+
+---
+
+# Batch: seal reveal + band calibration (2026-07-24)
+
+## 1. Seal reveal fired server-side but never rendered — ✅ (this commit)
+
+**Symptom (owner, live):** 36 seals, 0 pending, 36 revealed, outcomes computed
+correctly — and the owner saw nothing on screen, twice. `revealed_at` is
+one-way, so every rating was permanently consuming a seal with no payoff: the
+mechanic was silently destroying its own content on every rating.
+
+**Root cause — NOT today's changes.** The spec's hypothesis (1d's Taste-tab
+refetch, item 2's pick-context rework, based on the 35-min/5-hour seal→reveal
+gaps) was wrong, and the timing signal was a red herring: the reveal was dead
+on EVERY path, for three days, since `8c07b62` (2026-07-22, "kill legacy
+/log"). Found by grepping the writer rather than the reader —
+`dishi_seal_reveal` was read in `profile/page.tsx` and written NOWHERE.
+
+The old `/log` page was the only producer. It did:
+`const json = await res.json()` → `sessionStorage.setItem('dishi_seal_reveal',
+…)` → `router.push('/profile?rated=1')`. Killing `/log` removed all three
+legs at once, leaving a reader with no writer and a `justRated` gate nothing
+ever set. Its replacement, `RatingStack`, posted the rating fire-and-forget
+(`fetch('/api/ratings', …).catch(() => {})`) and threw the response — with its
+`seal` — away. So the reveal was triple-dead: no producer, no trigger, no
+render. `dishi_just_learned` (the "what this taught you" banner) died the same
+way, unnoticed.
+
+**Fix.** The sessionStorage + `?rated=1` handoff was not repaired — it was
+deleted, because it existed only to cross a route boundary that no longer
+exists (rating is now an overlay on the profile page and never navigates).
+Instead: `rate()` awaits and parses the response, RatingStack lifts `json.seal`
+into state, and `TasteGrowth` renders it via a new `sealSlot` (mirroring the
+existing `identitySlot` pattern) at the top of the growth screen — the
+session's own end state, where the person actually is. Legacy killed in the
+same change per CLAUDE.md: the dead `justRated` banner, its orphaned state, the
+now-unused `profile.justlearned` / `home.rated` i18n keys, and the
+`.rated-banner` CSS.
+
+**Multi-seal note:** the FIRST revealed seal of a session wins the card —
+`SealReveal` carries no dish name, so stacking several anonymous verdicts would
+read as noise. A batch that breaks more than one still consumes the others,
+which is exactly what the `displayed_at` backlog item exists to decide.
+
+**Tests** (`tests/sealRevealRenders.test.tsx`, jsdom): a rating whose response
+carries a seal renders the reveal; the pick-from-待評 path specifically; the
+reveal survives the growth-screen mount; no seal ⇒ no card invented; and the
+seal-before-rating ordering contract still holds. Verified these genuinely
+catch the regression by re-running them against a simulated fire-and-forget
+`rate()` — 3 of 4 fail, as they must.
+
+**Verified live, on real data,** with owner consent: seeded one 待評 dish on
+the owner's account, let the APP seal it (genuine engine output — predicted
+`like`, raw 0.368, reason 夠腍滑、蒸得嫩…), rated it through the real flick UI,
+and the reveal rendered — 中 stamp, 揭開封印 — 預測命中, the sealed reason, and
+連續命中 7 次. Account then restored exactly: dish/rating/seal deleted,
+`taste_profiles` vector/affinity/evidence/rating_count written back from a
+pre-test snapshot (41 ratings, 36 seals, v2 — confirmed by query).

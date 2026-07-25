@@ -94,7 +94,7 @@ export type GrowEngine = {
   justUnlocked?: boolean;
 };
 
-export default function TasteGrowth({ live, engine, blobInputs, onExit, onCancel, onPickPlace, onAddPlace, onEditName, onReclassify, onRetry, identitySlot }: {
+export default function TasteGrowth({ live, engine, blobInputs, onExit, onCancel, onPickPlace, onAddPlace, onEditName, onReclassify, onRetry, identitySlot, sealSlot }: {
   live: GrowDish[];
   engine?: GrowEngine | null;                            // REAL taste-engine confidence for the bar
   // The REAL profile (same vector/evidence/ratingCount/seed blobForm.ts consumes
@@ -113,6 +113,10 @@ export default function TasteGrowth({ live, engine, blobInputs, onExit, onCancel
    * dish rows when the just-logged dish fuzzy-matched a known identity (at most
    * one per log session; RatingStack owns the probe + cap). */
   identitySlot?: React.ReactNode;
+  /** 封印 reveal — the seal this session's rating broke, rendered at the TOP of the
+   * growth screen (above the blob) because it's the one thing here the engine
+   * committed to before the person rated, and it's shown exactly once. */
+  sealSlot?: React.ReactNode;
 }) {
   const { t, lang } = useLang();
   const rowCount = live.length;
@@ -357,6 +361,11 @@ export default function TasteGrowth({ live, engine, blobInputs, onExit, onCancel
         <div className="xp-bar" role="progressbar" aria-valuenow={Math.round(barFill)}><div className="xp-fill" style={{ width: `${barFill}%` }} /></div>
         <p className="grow2-toready">{barLine}</p>
       </div>
+
+      {/* 封印 broken — first thing in the scrolling body, directly under the blob:
+          the engine's pre-committed call is the payoff of the rating that just
+          landed, so it reads before the housekeeping asks below it. */}
+      {sealSlot}
 
       {/* One ask above the rows: confirming/refining is what makes the engine accurate,
           and it's optional (now or later). */}

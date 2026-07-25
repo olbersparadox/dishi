@@ -25,6 +25,7 @@ import { pickPlaceContext, type PickRestaurant } from '@/lib/pickContext';
 import SnapRating from '@/components/SnapRating';
 import TasteGrowth, { type GrowDish, type GrowPlace, type NameEdit } from '@/components/TasteGrowth';
 import IdentityConfirmCard from '@/components/IdentityConfirmCard';
+import SealReveal, { type SealResult } from '@/components/SealReveal';
 import type { DuelDish } from '@/components/DuelSide';
 import type { FormInputs } from '@/lib/blobForm';
 
@@ -110,6 +111,12 @@ export default function RatingStack({ photos, picks, typed, userId, onExit }: {
   const [idx, setIdx] = useState(0);
   const [dishes, setDishes] = useState<GrowDish[]>([]); // one per RATED card (skips omitted)
   const [phase, setPhase] = useState<Phase>('flick');
+  // The broken seal, lifted off the /api/ratings response (see `rate` below) and
+  // shown on the growth screen — the session's own end-state, which is where the
+  // person actually is when it lands. It deliberately does NOT live on the profile
+  // page any more: rating no longer navigates anywhere (RatingStack is an overlay),
+  // so the old sessionStorage + ?rated=1 handoff had nothing left to hand off to.
+  const [sealReveal, setSealReveal] = useState<SealResult | null>(null);
   // The REAL engine state (from /api/buddy) that drives the growth bar — the dishi
   // version ladder: progress toward the NEXT version (toward v1 while locked), and
   // the ratcheted version number for the unlocked line. Refreshed as ratings +
@@ -268,8 +275,28 @@ export default function RatingStack({ photos, picks, typed, userId, onExit }: {
   // ── Shared pipeline steps (reused by the first run AND a not-a-dish reclassify) ──
   const seal = (dishId: string) =>
     fetch('/api/seals', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dish_id: dishId }) }).catch(() => {});
-  const rate = (dishId: string, score: number) =>
-    fetch('/api/ratings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dish_id: dishId, score }) }).catch(() => {});
+  // The rating POST is ALSO the seal reveal: /api/ratings breaks any pending seal
+  // for this dish and returns it, and `revealed_at` is one-way — a response we
+  // don't read is a seal permanently consumed with no payoff. (That is exactly
+  // what regressed: the old /log page read `json.seal` into sessionStorage and
+  // navigated to /profile?rated=1; when /log was killed 2026-07-22 the reveal
+  // lost its only producer and every rating since has silently burned its seal.)
+  // So this must stay await-and-parse, never fire-and-forget.
+  const rate = async (dishId: string, score: number): Promise<void> => {
+    try {
+      const res = await fetch('/api/ratings', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dish_id: dishId, score }),
+      });
+      if (!res.ok) return;
+      const json = await res.json().catch(() => null);
+      // First revealed seal of the session wins the card: SealReveal carries no
+      // dish name, so stacking several anonymous verdicts would read as noise.
+      // A batch that breaks more than one is why the reveal is also recorded
+      // server-side — see the displayed_at note in docs/BACKLOG.md.
+      if (json?.seal) setSealReveal(cur => cur ?? json.seal);
+    } catch { /* a lost rating already shows as a failed card; don't mask it here */ }
+  };
   const enrich = (i: number, dishId: string) =>
     fetch('/api/dishes/enrich', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: dishId }) })
       .then(r => (r.ok ? r.json() : null))
@@ -610,6 +637,7 @@ export default function RatingStack({ photos, picks, typed, userId, onExit }: {
             plain close-and-keep rather than a discard that would delete dishes we
             never created. */}
         <TasteGrowth live={dishes} engine={engine} blobInputs={blobInputs} onExit={finishExit} onCancel={picksMode ? undefined : cancelSession} onPickPlace={onPickPlace} onAddPlace={onAddPlace} onEditName={onEditName} onReclassify={onReclassify} onRetry={onRetry}
+          sealSlot={sealReveal ? <SealReveal seal={sealReveal} /> : undefined}
           identitySlot={identityAsk ? (
             <IdentityConfirmCard
               mine={identityAsk.mine}

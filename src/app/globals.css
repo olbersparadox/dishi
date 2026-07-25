@@ -742,14 +742,6 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
    <span>; size/color still come from .seal-stamp (and any context override). */
 .seal-stamp-btn { border: none; padding: 0; cursor: pointer; }
 
-.rated-banner {
-  display: flex; align-items: center; gap: 12px;
-  background: var(--paper-inset); border: none; border-radius: 12px;
-  padding: 14px 16px; margin-bottom: 14px;
-}
-.rated-banner-icon { font-size: 30px; line-height: 1; flex-shrink: 0; }
-.rated-banner-text { flex: 1; font-size: 16px; font-weight: 600; line-height: 1.45; }
-.rated-banner a { color: var(--ink); }
 
 /* Three-path log entry on the Taste tab — replaces the single ＋記錄口味 button.
    Equal visual weight across all three is the point (a home-cooked dinner or an

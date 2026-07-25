@@ -148,8 +148,6 @@ export const dict: Record<string, { zh: string; en: string }> = {
 
   // ---- home ----
   'home.title': { zh: '食記', en: 'Journal' },
-  'home.rated': { zh: '已評分！', en: 'Rated!' },
-  'profile.justlearned': { zh: '你剛剛教會了我：{dims}', en: 'You just taught me: {dims}' },
   'home.homecooking': { zh: '住家菜', en: 'Home cooking' },
 
   // ---- log ----

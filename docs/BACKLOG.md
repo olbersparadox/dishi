@@ -19,6 +19,35 @@ bilingual ingredients — see DECISIONS.md).
 2026-07-24, closing the item — full entry moved to DECISIONS.md. Owner review
 of the whole shipped feature is still deferred ("later"), outside code.)
 
+## Seal reveal: `displayed_at` safety net — *(Fable/Opus — contract change)* [F]
+
+**Decision needed from owner — deliberately NOT chosen while fixing the render
+bug (2026-07-24).** `revealed_at` currently means two things at once: "the
+outcome was computed" AND "the person saw it". The render regression (fixed
+this session) proved how bad that conflation is — 36 seals were computed and
+consumed, none displayed, and none recoverable, because the one-way
+`revealed_at` was already stamped.
+
+Proposal: split them. `revealed_at` keeps meaning "outcome computed server-side";
+a new `displayed_at` (nullable) marks "actually shown once". An undisplayed
+reveal could then be re-shown on the next visit instead of being lost.
+
+**Tradeoff, stated honestly:**
+- FOR: no future render break can silently destroy content; the mechanic
+  becomes crash-safe. Cheap: one nullable column + one write.
+- AGAINST: it weakens the seal's "shown exactly once, in the moment" quality —
+  a reveal could surface days later, detached from the rating that earned it,
+  which reads as stale rather than as a payoff. It also adds a second write
+  path on a table that is deliberately RLS-locked and admin-only, and the
+  client would need an "unshown reveals" fetch that does NOT leak pending
+  seals (the honesty contract's hard line).
+- MIDDLE OPTION: keep one column but only stamp it from the client's
+  acknowledged render, not from the server compute. Simpler, but a client that
+  dies mid-render still loses the seal, and it moves a trust-critical write to
+  the least trustworthy place.
+
+Not started. Needs an owner call on whether a late reveal is better than none.
+
 ## Ready to build — specs are decided, no open questions
 
 (Carb-tripwire follow-up: honest vector re-score — SHIPPED 2026-07-22, see
