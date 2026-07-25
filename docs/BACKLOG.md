@@ -15,6 +15,55 @@ bilingual ingredients — see DECISIONS.md).
 
 ## Now — in progress
 
+- [ ] **[F] Self-calibrating rating scale — EVIDENCE DONE, IMPLEMENTATION OPEN.**
+  Next thing to build. Full evidence: `docs/rnd/seal-band-calibration.md` §10;
+  simulation: `scripts/simulate-scale-calibration.ts`.
+
+  **Decided (owner, 2026-07-24):** do NOT hardcode what 一般般 is worth —
+  "everyone's scale is different… the math should be smart enough to tune itself
+  according to user rating behaviour." Score each rating relative to the user's
+  OWN neutral point instead of taking the raw flick value.
+
+  **Measured on the real 41-rating history**, replayed through the real shipped
+  `updateTaste` (pairwise ranking accuracy vs what the person actually rated):
+
+  | metric | current | calibrated |
+  |---|---|---|
+  | all pairs (n=522) | 76.1% | **80.8%** (+4.8pp) |
+  | within-cuisine (n=161) | 72.7% | **75.8%** (+3.1pp) |
+
+  With centre = 0.311 (learned, not set): 幾好食 0.35 teaches +0.039 (their
+  normal, so ~nothing) and 一般般 0.1 teaches **−0.211**, genuinely negative.
+
+  **Method that produced those numbers** (keep it — it is deliberate):
+  median not mean (one furious −0.9 must not move where "ordinary" sits);
+  shrunk toward `PRIOR_CENTER = 0` with k=5, so a brand-new profile behaves
+  exactly as today and calibration only emerges with evidence; computed from
+  history BEFORE each rating so it never peeks at the value being learned.
+
+  **THE OPEN DECISION — do not guess this.** Where does the centre live?
+  `replay.ts` re-derives from full history for free, but `/api/ratings` updates
+  incrementally. The two paths MUST agree exactly, or re-rating a dish would
+  silently produce a different profile than rating it first time — the same
+  class of silent divergence as the seal bug. Options: (a) extra query over the
+  user's scores on each rating (cheap at current scale, O(n) forever),
+  (b) a stored running value on `taste_profiles` (fast, but must be provably
+  reproducible by replay), (c) recompute only inside replay and accept the
+  incremental path lags by one rating. Pick with the owner.
+
+  **Verification bar** (this batch set the precedent, follow it): simulate
+  BEFORE shipping, including the ranking blast-radius check — the first
+  divisor recommendation was wrong and only the simulation caught it. Tests must
+  provably fail against the pre-change behaviour. Screenshot any visible change.
+
+- [ ] **[owner decision] `scripts/seal-rows.json` is real eating data in a
+  PUBLIC repo.** Committed in `0d851e0` before this was considered. Scores,
+  cuisines and attribute vectors — no names, restaurants, dates or user ids, but
+  still a real person's meals. `scripts/rating-history.json` was gitignored for
+  this reason. Decide: leave it, or strip it from the repo (history rewrite) and
+  make `simulate-seal-bands.ts` rebuild it like the other fixture does.
+
+
 (dishi — your AI palate (export redesign): §5 remainder SHIPPED `18761d7`
 2026-07-24, closing the item — full entry moved to DECISIONS.md. Owner review
 of the whole shipped feature is still deferred ("later"), outside code.)
