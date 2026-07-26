@@ -56,12 +56,16 @@ bilingual ingredients — see DECISIONS.md).
   divisor recommendation was wrong and only the simulation caught it. Tests must
   provably fail against the pre-change behaviour. Screenshot any visible change.
 
-- [ ] **[owner decision] `scripts/seal-rows.json` is real eating data in a
-  PUBLIC repo.** Committed in `0d851e0` before this was considered. Scores,
-  cuisines and attribute vectors — no names, restaurants, dates or user ids, but
-  still a real person's meals. `scripts/rating-history.json` was gitignored for
-  this reason. Decide: leave it, or strip it from the repo (history rewrite) and
-  make `simulate-seal-bands.ts` rebuild it like the other fixture does.
+- [ ] **[owner decision, IN PROGRESS elsewhere] `scripts/seal-rows.json` is
+  real eating data in a PUBLIC repo.** Committed in `0d851e0` before this was
+  considered. Scores, cuisines and attribute vectors — no names, restaurants,
+  dates or user ids, but still a real person's meals. `scripts/rating-history.json`
+  was gitignored for this reason. Decide: leave it, or strip it from the repo
+  (history rewrite) and make `simulate-seal-bands.ts` rebuild it like the other
+  fixture does.
+  **2026-07-26: owner is already working this in a separate session, blocked
+  on a Fable build slot.** Don't duplicate — check for a resolving commit
+  before picking this up.
 
 
 (dishi — your AI palate (export redesign): §5 remainder SHIPPED `18761d7`
