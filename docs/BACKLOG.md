@@ -183,14 +183,32 @@ DECISIONS.md.)
     Owners see nothing. If it ever becomes owner-visible it must be
     un-editable and must never touch ranking.
 
-  **5. Duels.** `selectDuelPair` (src/lib/duels.ts:81) explicitly skips
-  same-identity pairs, and `duelContrast` learns only from attribute
-  differences — two 乾炒牛河 have near-identical attributes, so a same-dish duel
-  is structurally incapable of teaching anything today. Leave that exclusion
-  alone: the slider, not the duel, is the execution instrument. Note that
-  commit `f9f1aed` bumped duel surfacing 0.3 → 0.55 citing same-dish execution
-  contrast as the rationale — that rationale describes behaviour the code does
-  not have; the bump only serves more ordinary duels.
+  **5. UI: REUSE THE DUEL CHASSIS, rearranged — do not build a new surface**
+  (owner, 2026-07-26). `DuelSide.tsx` is already the extracted shared anatomy of
+  a two-dish comparison (photo / zh-pinned name / location), and its own header
+  records that the identity-confirm card mounts it rather than a lookalike. The
+  execution slider is its THIRD consumer: two instances of the same identity
+  side by side on the same chassis, with the slider replacing the pick buttons.
+  `DuelOverlay.tsx` supplies the floating-card shell, the resolve → reveal →
+  OK rhythm, and the dismiss semantics; rearrange those, don't re-invent them.
+  Per the repo's "reuse, don't imitate" rule, copying styles to make this
+  resemble a duel is the wrong implementation, not a shortcut to it.
+
+  Keep in mind what each side WRAPS is per-card and deliberate (duels wrap a
+  tappable button meaning "I prefer this"; the identity card wraps a static div
+  so duel muscle memory can't merge two dishes by accident). The slider needs
+  its own wrapper decision made consciously, not inherited.
+
+  **What duels can and cannot contribute.** The duel LEARNING MATH cannot carry
+  execution: `duelContrast` reads attribute differences only, and two 乾炒牛河
+  have near-identical attributes, so `selectDuelPair` (src/lib/duels.ts:81)
+  rightly skips same-identity pairs — leave that exclusion in place for taste
+  duels. That is a statement about the math, NOT about the interaction: the
+  duel's side-by-side comparison IS the right instrument, which is exactly why
+  this item mounts its chassis. Note also that commit `f9f1aed` bumped duel
+  surfacing 0.3 → 0.55 citing same-dish execution contrast as its rationale —
+  that rationale describes behaviour the code does not have; the bump only
+  serves more ordinary duels.
 
   **DATA REALITY — read before promising anything.** Measured live 2026-07-26:
   the owner has ZERO dish identities eaten at two different restaurants. Two

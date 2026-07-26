@@ -2493,3 +2493,54 @@ existing signal honest and discriminating (self-calibrating rating scale,
 non-saturating affinity, feeding the starved dims) — because execution-level
 learning needs a trustworthy base to sit on. But no near-term choice may
 foreclose it.
+
+---
+
+# Direction: comparison is the core product DNA (owner, 2026-07-26)
+
+Stated while specifying the execution slider, and recorded as a standing
+direction because it governs what counts as on-strategy from here.
+
+> "we can have more interactions like these (different dishes / same dishes at
+> different places / ...etc) to fine tune the understanding of user's taste.
+> this is the core product DNA and should stick to it with evolving ideas and
+> executions to deliver"
+
+**The claim.** People do not judge food by assigning absolute scores in a
+vacuum; they judge by comparing. So the engine's primary instrument is a FAMILY
+of comparison interactions, not any single mechanic — and that family is
+expected to keep growing rather than being "done."
+
+Known members so far:
+- **different dishes** — 對決 duels. Shipped. Teaches the taste vector from
+  attribute contrast (`duelContrast`, `updateTasteFromDuel`).
+- **the same dish at different places** — the 1-10 execution slider. Specced in
+  BACKLOG. Teaches restaurant×dish execution quality, never the palate.
+- more to come; new comparison mechanics are on-strategy by default.
+
+**Why this pairs with the execution aim.** It is the practical answer to
+"Direction: what the taste engine is FOR" (2026-07-24) — comparison is what
+isolates execution from composition. Holding the dish constant and varying the
+kitchen leaves execution as the only difference; holding the person constant and
+varying the dish leaves taste as the only difference. Each comparison type
+subtracts a different confound, which is why a family beats any one mechanic.
+
+**Two binding consequences.**
+
+1. **One visual chassis, extended by rearrangement.** `DuelSide.tsx` already
+   exists as the extracted side-anatomy of a two-dish comparison (photo /
+   zh-pinned name / location) precisely so a second card — the identity-confirm
+   card 係咪同一味？ — could mount it instead of a lookalike. Every future
+   comparison mechanic mounts the same chassis and rearranges what wraps it.
+   Building a similar-looking card is the wrong implementation, not a shortcut.
+   What each card wraps around a side stays a conscious per-card decision:
+   duels wrap a tappable button ("I prefer this"), the identity card wraps a
+   static div so duel muscle memory cannot merge two dishes by accident.
+
+2. **The interaction generalises; the learning math does not.** A duel's
+   learning is attribute-contrast based and is structurally incapable of
+   carrying execution signal (two 乾炒牛河 have near-identical attributes, which
+   is why `selectDuelPair` skips same-identity pairs). That is a statement about
+   the MATH, not the interaction. Each new comparison type needs its own answer
+   to "what does this teach, and where does it go" — reusing the chassis must
+   never be taken as licence to reuse the update rule.

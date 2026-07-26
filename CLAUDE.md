@@ -24,6 +24,18 @@ consumer-side dish-level demand data.
   `name_edited_at`.
 - Equal-weight logging: restaurant dishes, home cooking, and old camera-roll
   photos all count the same. Don't privilege the restaurant path in UI.
+- **COMPARISON IS THE CORE PRODUCT DNA** (owner, 2026-07-26). People judge food
+  by comparing, not by scoring in a vacuum — so a FAMILY of comparison
+  interactions is the engine's main instrument, expected to keep growing:
+  different dishes (對決 duels, shipped), the same dish at different places
+  (execution slider — see BACKLOG), and more to come. Two consequences that
+  bind: (1) treat this as a standing direction to extend, not a finished
+  feature — new comparison mechanics are on-strategy by default; (2) they share
+  ONE visual chassis. `DuelSide.tsx` is the extracted side-anatomy and
+  `DuelOverlay.tsx` the card shell — mount and rearrange them, never build a
+  lookalike (see the "Reuse, don't imitate" rule below). The aim these serve is
+  EXECUTION-level understanding — why 乾炒牛河 is good at one shop and bad at
+  another — recorded in DECISIONS.md, "Direction: what the taste engine is FOR".
 
 ## Stack & commands
 
