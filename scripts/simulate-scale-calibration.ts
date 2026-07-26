@@ -17,10 +17,11 @@
 // ways, then score both vectors on pairwise ranking accuracy — does the vector
 // order dishes the way the person actually rated them? Same ground-truth metric
 // as scripts/simulate-duels.ts and simulate-seal-bands.ts.
-// The fixture is real user data and is NOT committed (this repo is public).
-// Build it first:
+// Both fixtures are real user data and are NOT committed (this repo is public).
+// Build them first:
 //   set -a; . ./.env.local; set +a
 //   SIM_USER_ID=<uuid> npx tsx scripts/build-rating-fixture.ts
+//   SIM_USER_ID=<uuid> npx tsx scripts/build-seal-fixture.ts
 //   npx tsx scripts/simulate-scale-calibration.ts
 import {
   DIMS, emptyTaste, updateTaste, bumpEvidence, updateCuisineAffinity, contentScore,

@@ -29,8 +29,9 @@
 // scheme only earns its place by beating it while actually spreading its calls.
 //
 // Run: npx tsx scripts/simulate-seal-percentile-bands.ts
-// Needs scripts/rating-history.json (gitignored real data — build it first with
-// scripts/build-rating-fixture.ts; see simulate-scale-calibration.ts's header).
+// Needs scripts/rating-history.json and scripts/seal-rows.json (both gitignored
+// real data — build them first with scripts/build-rating-fixture.ts and
+// scripts/build-seal-fixture.ts; see simulate-scale-calibration.ts's header).
 import {
   emptyTaste, updateTaste, bumpEvidence, updateCuisineAffinity, contentScore,
   neutralCenter,

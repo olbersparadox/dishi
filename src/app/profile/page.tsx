@@ -234,11 +234,11 @@ function TasteProfile() {
           present) supplies where + when for all of them; home vs restaurant vs skip is
           chosen per-dish inside the flow. Each segment is a <label> so the tap natively
           opens the picker with a real user gesture.
-          (2026-07-22: the 食物相/打字/外賣單 redesign was rolled back — the 打字 typed
-          quick-add flow hung on enrich and felt inconsistent with the rest of the app.
-          TypedQuickAdd.tsx, the /api/dishes/suggest predictive endpoint, and RatingStack's
-          typed mode are kept in the codebase, unmounted, for a later retry — see
-          docs/BACKLOG.md.) */}
+          (The 食物相/打字/外賣單 redesign was rolled back 2026-07-22 and the direction
+          ABANDONED 2026-07-26 — its code is deleted, not parked. Don't reintroduce a
+          typed-entry path from older notes; see DECISIONS.md for why it was dropped.
+          The predictive dish-name suggestions it spawned live on in TasteGrowth's
+          rename editor, which is a different surface and is fine.) */}
       <div className="log-src-merged">
         {/* ⓘ — how/why to rate. Sits above the three <label> segments (own onClick,
             stopPropagation) so tapping it opens the explainer, not the photo picker. */}

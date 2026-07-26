@@ -2442,9 +2442,34 @@ Historical outcomes left as computed (a v1 hit WAS a real correct prediction);
 silently averaged. Streak still counts across both — each hit is genuine
 regardless of formula.
 
-**Open remainder:** `dislike` is still unreachable (0/2). Two real dislikes in
-the whole dataset is not enough to tune against; fitting an edge to two points
-would be overfitting, not calibration.
+**Open remainder — CLOSED 2026-07-26 by `8432890`.** As written here (and in
+BACKLOG until now), `dislike` was still unreachable (0/2): two real dislikes in
+the whole dataset is not enough to tune against, and fitting an edge to two
+points would be overfitting, not calibration. That framing assumed the fix had
+to be a better EDGE. Per-user quantile banding (`predictedDirectionOf`) reached
+the band without touching an edge at all — it maps a prediction through the
+person's own predicted and actual distributions, so nothing is fitted to the 36
+seal outcomes and there is no free parameter to overfit. Measured before ship,
+`docs/rnd/seal-band-calibration.md` §12:
+
+| scheme | hit | near | miss | bands used |
+|---|---|---|---|---|
+| fixed edges (was shipped) | 5 | 23 | 8 | 2/4 |
+| constant `like` (baseline) | 20 | 14 | 2 | 1/4 |
+| **quantile-mapped (shipped)** | **20** | 16 | **0** | **4/4** |
+
+All four bands in use, zero misses (down from 8), and `dislike` called 2/2 —
+the first time in the project's history. Per-band recall: love 5/11, like 12/20,
+meh 1/3, dislike 2/2.
+
+**The caveat §12 records, kept here so the close is not read as stronger than it
+is:** quantile mapping TIES the constant-`like` baseline on raw hits (20 of 36
+real outcomes are `like`, so a constant predictor also scores 20). The case for
+it rests on zero misses instead of two, four live bands instead of one, and
+being a real prediction rather than a constant — not on the hit number.
+
+`MIN_SCORED_DIMS = 10` stays open and genuinely provisional; it is still the one
+fitted constant, chosen on one palate.
 
 ---
 
@@ -2646,3 +2671,419 @@ subtracts a different confound, which is why a family beats any one mechanic.
    the MATH, not the interaction. Each new comparison type needs its own answer
    to "what does this teach, and where does it go" — reusing the chassis must
    never be taken as licence to reuse the update rule.
+
+---
+
+# Identity, connection, and export positioning (owner, 2026-07-26)
+
+Five decisions taken together, because they only make sense as one shape:
+a person gets a NAME, other people can FOLLOW that name, what the name
+publishes is a PUBLIC taste page, and the AI export stops carrying a
+character. The vision they feed (dishi.username: post/bookmark, daily
+content, 食家 tier) is filed in BACKLOG under "VISION — needs Fable
+architecture review"; these five are the settled inputs to it.
+
+## 1. Username, set at v1 unlock
+
+`dishi.[username]` is chosen the moment v1 unlocks — framed as an emotional
+milestone (you have built v1 of your own taste AI), never as a settings
+chore.
+
+**No gate change is needed.** v1 IS `exportUnlocked(conf)`, i.e.
+`evidenceConfidence >= EMERGING_AT (0.33)` — the single source of truth in
+`tasteExport.ts`, which `version.ts` deliberately does not duplicate. What
+that costs in ratings, from the formula (`0.55·min(1,rc/25) + 0.30·cov +
+0.15·variety`):
+
+- zero coverage and zero variety: **15 ratings**
+- a realistic early mix (~6 explored dims, ~3 cuisines): **8 ratings**
+
+So it is already double digits for typical use, and naming happens with a
+real profile behind it. The earlier worry about "naming at dish 5" was
+confusing this gate with `SEAL_GATE = 5`, which is the seal mechanic's
+threshold and unrelated.
+
+A planned album-based onboarding stream (separate work, TBC) feeds the gate
+naturally — a person arrives at v1 with history rather than grinding to it.
+
+**What the username retires once it exists:** it supplies the shared-menu
+profile indicator, and the ask-for-name card in table entry goes away.
+
+**Sequence with the chop-colour work.** `a0c517c` shipped chop colour as
+`f(user_id)` for de-collision. Before building identity, decide whether chop
+identity should key off the username instead — and do it once, not twice.
+
+**Rename policy: one free rename before the first share or the first
+follower, then at version milestones.** The owner's initial proposal (rename
+at v5/v10) was checked against the actual curve and is too sparse to work as
+a safety valve. Computed from `versionSubstrate` + `versionThreshold`
+(2026-07-26), across mixes from narrow (8 dims / 3 cuisines) to saturated
+(18 dims / 15 cuisines):
+
+| version | substrate threshold | ratings needed |
+|---|---|---|
+| v2 | 1.150 | 21 – 52 |
+| v3 | 1.963 | 78 – 118 |
+| v5 | 4.248 | ~290 – 360 |
+| v10 | 17.272 | ~2,280 – 2,440 |
+
+v5 is in the low hundreds of ratings and v10 is years-of-use scale, exactly
+as the module's own calibration note says. Regret about a name peaks
+immediately after choosing it, so a first-share/first-follower escape hatch
+is the one that matters; milestone renames are a bonus, not the mechanism.
+
+## 2. Connection is ASYMMETRIC (follow), not mutual
+
+Chosen for the 食家 path: a 食家 with many followers cannot mutually connect
+with all of them, so a mutual-friend model breaks at exactly the shape the
+product wants to allow.
+
+**Binding consequence: 貼文 is PUBLISHING, not friend-sharing.** Anyone may
+follow, so a posted dish is visible to anyone who chooses to. Copy must say
+公開/public and must never say "friends" — the word would describe a privacy
+guarantee the mechanic does not provide.
+
+Unchanged by this: 食記 stays private by default, and posting stays per-dish
+opt-in. **Companion edges must never be inferable from a public post** — who
+you ate with is not part of what you publish.
+
+## 3. The dossier IS the public taste page — there is no third artifact
+
+`dishi.me/[username]` is the shareable taste identity. A "copy for AI" button
+on that page emits the third-person text a friend can hand to their own AI.
+One artifact, two readers.
+
+- **Contents:** version + 識 N 味, top dimensions, and anchors WITH restaurant
+  names ("炒蝦 @ 雀友茶樓"). The restaurants are the credibility — dimensions
+  alone read as a horoscope. A posted-dish feed is a later second section.
+- **Visibility:** publicly viewable WITHOUT login. A signup wall here kills
+  the acquisition path the page exists to serve.
+- **Density gate:** automatic, no separate rule — no username before v1, no
+  share before a username.
+- **Exposed:** anchors and restaurant names yes; **eaten dates NO** (they
+  reveal whereabouts and patterns); **companions NEVER**; full 食記 no, only
+  opt-in posts. One toggle hides restaurant names, accepting a weaker page.
+
+**Why this survives the channel that killed the taster** (persona Phase 0.5
+§4): a third-person reference document contains no behavioural instructions,
+so attachment conversion is irrelevant — there is nothing for a host to
+refuse. It is data, and hosts accept data (§5, payload/costume split).
+
+**Two hard rules:**
+1. A dossier NEVER enters the recipient's taste engine. It is read-only
+   context for a human or their AI; a vector learns only from what that
+   person actually ate and rated. Anything else is the phantom-preference
+   failure mode that import was rejected for in the first place.
+2. A dossier is never visible during a rating flow. Seeing a friend's verdict
+   before you flick contaminates the rating at source.
+
+## 4. "No friend graph" is REVERSED — reworded, not just deleted
+
+`CLAUDE.md` (open threads) and BACKLOG's standing strategy line both said "no
+friend graph yet." The replacement is not "yes friend graph": it is
+**asymmetric follow plus a public taste identity**, which is closer to a
+creator/audience model than to a friend graph, and it is deliberately not
+mutual (decision 2).
+
+**Why it earns its place now, on the recorded product test:** it is the only
+mechanic that generates same-dish-different-restaurant pairs — the substrate
+the execution slider needs and does not have. Measured live 2026-07-26: ZERO
+dish identities eaten at two different restaurants. A recommendation from
+someone you follow is the most likely reason a person eats 乾炒牛河 somewhere
+new.
+
+## 5. The export becomes TASTE-ONLY; personas move in-app
+
+The export imports taste LEARNING into the user's own AI, with no character
+required: summon it by name, have it understand that this taste should
+influence food-related answers, and let it live in a specific Project rather
+than in global memory. That is exactly the shape that tested well in Phase
+0.5 — install-only, summonable, with no promise of ambient surfacing.
+
+**Recorded as a deliberate partial retirement, not drift.** Affected: the
+three persona briefs, the persona install flow, `taste_profiles.persona`, and
+the voice/chime/house-rule apparatus in `tasteExport.ts`.
+
+**Do NOT delete the personas.** In-app is where a persona cannot be refused
+by a host — the one place the costume half of the payload/costume split
+actually works. Retire it from the EXPORT path only.
+
+**The install card must NOT promise ambient self-surfacing.** Proactive
+surfacing is a standing behavioural instruction, which is the precise
+category hosts decline. Teach one summon path as reliable; describe ambient
+surfacing as *may happen on some hosts*, or leave it out.
+
+No code was written for this in the recording session — the export rewrite is
+filed as its own BACKLOG item.
+
+---
+
+# `scripts/seal-rows.json` cleared from the repo (owner, 2026-07-26)
+
+The fixture the seal-band simulations replay was committed in `0d851e0` before
+anyone asked whether it should be. It holds a real person's meals — scores,
+cuisines and attribute vectors, with no names, restaurants, dates or user ids —
+in a PUBLIC repo. `scripts/rating-history.json` had already been gitignored for
+exactly this reason; this one slipped through the same door.
+
+**Decision: clear it.**
+
+- Added to `.gitignore` and untracked (`git rm --cached`).
+- `scripts/build-seal-fixture.ts` rebuilds it from the DB, the same way
+  `build-rating-fixture.ts` rebuilds the other one. Verified 2026-07-26: the
+  rebuilt file reproduces the committed 36 rows byte-for-byte and now returns
+  44 (eight seals revealed since it was frozen).
+- Every consumer's header names the builder, so a missing fixture reads as
+  "run this first" rather than a broken import. `scripts/` is already excluded
+  from the root tsconfig, so a missing fixture cannot break `next build` —
+  that lesson was learned when `rating-history.json` did exactly that.
+
+**Sweep for others (2026-07-26):** the only tracked files that could carry real
+user data are `supabase/seed.sql` (20 hand-authored synthetic dishes, flagged
+`is_synthetic`) and `scripts/eval-hk-shorthand.ts` (a curated list of dish
+NAMES, no ratings). `seal-rows.json` was the only leak.
+
+**The honest limit, recorded rather than glossed:** the file has been public
+since `0d851e0`. Removing it from HEAD stops it reaching any future clone, and
+a history rewrite removes it from the commit graph — but existing clones,
+forks, and any mirror or cache that already fetched it keep their copy. This
+is worth doing and it is not erasure. Treat anything that has been pushed to a
+public repo as having left the building; the durable fix is the `.gitignore`
+rule that stops the next one.
+
+## History rewrite: NOT doing it (decided 2026-07-26)
+
+The brief specified a `git filter-repo` rewrite plus force-push. Declining, on
+a proportionality reading the owner delegated:
+
+- **What is exposed is weak.** Floats, cuisine labels and attribute vectors for
+  44 meals. No names, no restaurants, no dates, no user ids, no dish text.
+  It is not re-identifiable, and it is one person who is the repo's own owner.
+- **A rewrite cannot achieve the thing that would justify its cost.** The blob
+  has been fetchable since `0d851e0`; clones, forks and GitHub's own
+  unreferenced-object retention keep it either way. The rewrite buys tidiness
+  in the commit graph, not confidentiality.
+- **Its cost is concrete and lands on a live workflow.** It rewrites every hash
+  on `main`, which breaks every existing clone and working copy, and the
+  claude.ai Project is re-synced from this repo after every push. Neither
+  `git filter-repo` nor BFG is installed, so the operation would also be a
+  first run of an unfamiliar tool against the only copy of the history.
+
+**Reversible if the judgment changes.** Nothing here forecloses a rewrite — the
+blob stays exactly where it is, and the calculus only shifts if something
+genuinely identifying is found to have been committed. The rule that matters is
+already in place: fixtures built from real data are gitignored and rebuilt from
+the DB, so there is no next one.
+
+---
+
+# 佢哋整得點？ — the 1-10 execution slider — ✅ SHIPPED `575c153` (data + learning), `15a9399` (UI), `d0d689c` (tests), `bc312bd`, `8b31fb1`, `550c738` (2026-07-26)
+
+Moved from BACKLOG 2026-07-26 on an audit: the entry was still sitting under
+"Ready to build" while every part of it was live — migration
+(`supabase/applied/ratings_execution_score.sql`), `/api/ratings/execution`,
+`executionRangeFor` + the exclusion rule in `taste.ts`, identity-aware
+`replay.ts`, `ExecutionSlider.tsx` mounted in `RatingStack.tsx:772`, its CSS in
+`globals.css`, i18n keys, and `tests/executionSliderChassis.test.tsx`.
+
+Both *(extension, flag to owner)* annotations in the spec below were confirmed
+by the owner on 2026-07-26 and are marked inline: the mirrored positive bound,
+and broadening the trigger beyond negatives-only.
+
+**The spec as built, verbatim:**
+
+- [ ] **[Opus] 佢哋整得點？ — a 1-10 execution slider. Supersedes the 火腿通粉
+  binary question entirely (owner, 2026-07-26).** This is the first build toward
+  the recorded product aim "why you like 乾炒牛河 at restaurant A and not at
+  restaurant B" (DECISIONS.md, "Direction: what the taste engine is FOR",
+  2026-07-24). That entry gated execution-level work behind making the base
+  signal honest first — self-calibrating scale, non-saturating affinity, starved
+  dims. All three have now shipped, so the gate is passed.
+
+  **The design shift that makes this better than what it replaces.** The earlier
+  spec ASKED "係唔啱我，定係佢哋整得唔好？". This one never asks: it measures each
+  instance and lets the DATA answer. 火腿通粉 at A scores 2; when 火腿通粉 at B
+  later scores 8, the dish is obviously fine and A is the problem. The
+  dish-vs-execution distinction falls out of comparison instead of a self-report.
+  Consequence, accepted by the owner: a dish eaten only ONCE stays ambiguous, so
+  the 火腿通粉 row keeps mis-teaching the palate until that dish is eaten
+  somewhere else.
+
+  **Why a 1-10 scale doesn't reintroduce the problem calibration just fixed.**
+  An absolute scale across PEOPLE has the "everyone's scale is different"
+  problem. This one is scoped to one person AND one dish identity — "how does
+  this 乾炒牛河 compare to the other 乾炒牛河 you have had" — so the comparison
+  set is fixed and it is self-calibrating by construction. Cross-user
+  aggregation will need the same neutralCenter treatment; that is a later
+  problem, do not solve it now.
+
+  **1. The mechanic.** After rating, one slider: 佢哋整得點？ 1-10, passing line
+  at 5. Replaces the two-tap binary; there is now exactly ONE execution question
+  in the app, never two on one rating.
+
+  **2. Range is BOUNDED BY THE FLICK so the two cannot contradict** (owner):
+  a flick clearly below the person's own neutral can only take 1-4 — you cannot
+  have flicked 唔會再食 and call the plate a 9.
+  - flick clearly below neutral (`calibratedScore <= -0.20`) → slider 1-4
+  - flick clearly above neutral → slider 5-10, by the same logic in reverse.
+    The owner specified only the negative bound; this mirrors it rather than
+    leaving "loved it, cooked terribly" reachable. *(Owner-confirmed
+    2026-07-26; live in `executionRangeFor`, src/lib/taste.ts.)*
+  - otherwise → full 1-10
+
+  **3. When it appears** — either condition:
+  - the flick is clearly off the person's neutral (same trigger as the old
+    spec: `calibratedScore` beyond ±0.20, after a 10-rating warm-up — both
+    constants measured, see git history for "badly-cooked" commit), OR
+  - the dish identity already has a rated instance, so a comparison exists.
+
+    The old spec was NEGATIVES ONLY. That cannot stand here — a comparison
+    needs the good instance too, or 乾炒牛河 at B=8 never gets recorded and A=2
+    compares against nothing. Broadened deliberately. *(Owner-confirmed
+    2026-07-26; live in `/api/ratings`, which builds the reference side
+    whenever a sibling instance exists, whatever its sign.)*
+
+  **4. What it teaches.**
+  - Stored per rating; NEVER teaches the taste vector directly.
+  - Palate protection is COMPARATIVE and retroactive: a rating drops out of
+    taste learning once its execution score is at or below the passing line
+    AND another instance of the same `dish_identity_id` scored higher — that
+    is the moment the engine can actually tell it was the kitchen. Before that
+    the rating is ambiguous and keeps teaching, which is honest.
+  - Restaurant×dish quality is the aggregate of execution scores grouped by
+    restaurant and identity. That is the demand-data asset; v1 COLLECTS ONLY.
+    Owners see nothing. If it ever becomes owner-visible it must be
+    un-editable and must never touch ranking.
+
+  **5. UI: REUSE THE DUEL CHASSIS, rearranged — do not build a new surface**
+  (owner, 2026-07-26). `DuelSide.tsx` is already the extracted shared anatomy of
+  a two-dish comparison (photo / zh-pinned name / location), and its own header
+  records that the identity-confirm card mounts it rather than a lookalike. The
+  execution slider is its THIRD consumer: two instances of the same identity
+  side by side on the same chassis, with the slider replacing the pick buttons.
+  `DuelOverlay.tsx` supplies the floating-card shell, the resolve → reveal →
+  OK rhythm, and the dismiss semantics; rearrange those, don't re-invent them.
+  Per the repo's "reuse, don't imitate" rule, copying styles to make this
+  resemble a duel is the wrong implementation, not a shortcut to it.
+
+  Keep in mind what each side WRAPS is per-card and deliberate (duels wrap a
+  tappable button meaning "I prefer this"; the identity card wraps a static div
+  so duel muscle memory can't merge two dishes by accident). The slider needs
+  its own wrapper decision made consciously, not inherited.
+
+  **What duels can and cannot contribute.** The duel LEARNING MATH cannot carry
+  execution: `duelContrast` reads attribute differences only, and two 乾炒牛河
+  have near-identical attributes, so `selectDuelPair` (src/lib/duels.ts:81)
+  rightly skips same-identity pairs — leave that exclusion in place for taste
+  duels. That is a statement about the math, NOT about the interaction: the
+  duel's side-by-side comparison IS the right instrument, which is exactly why
+  this item mounts its chassis. Note also that commit `f9f1aed` bumped duel
+  surfacing 0.3 → 0.55 citing same-dish execution contrast as its rationale —
+  that rationale describes behaviour the code does not have; the bump only
+  serves more ordinary duels.
+
+  **DATA REALITY — read before promising anything.** Measured live 2026-07-26:
+  the owner has ZERO dish identities eaten at two different restaurants. Two
+  identities repeat at all (蛋撻 ×2 scoring 0.1/0.35, 壽司拼盤 ×2 scoring 0.6/1)
+  and both are the SAME restaurant on different visits — which is still real
+  execution variance (a good day vs a bad day) and should count, but it is not
+  the good-chef/bad-chef signal. So the comparison payoff fires ~0 times today.
+  Build it anyway: unlike the negative-rating ceiling (which no amount of
+  logging fixes), this one accrues automatically from normal use — every score
+  banked now becomes usable the first time a dish repeats elsewhere.
+
+  **Implementation notes.**
+  - Migration: `ratings.execution_score smallint check (execution_score between
+    1 and 10)`, null = unasked/skipped. Apply live, record in `supabase/applied/`.
+  - `/api/ratings` returns whether to ask AND the permitted range; the client
+    must never compute either, or the two drift.
+  - Setting the score may change what a rating teaches (rule 4), so it must
+    trigger `replayProfile` — the proven re-rate path.
+  - **Both learning paths must agree exactly** (the standing constraint):
+    `replay.ts` and the `/api/ratings` incremental branch need the same
+    exclusion rule, and replay must become `dish_identity_id`-aware to evaluate
+    it. A test must DETECT divergence, not tolerate it.
+  - Skipping the slider must stay free — no badge, no nag.
+
+  **Verification bar**: tests provably fail against pre-change behaviour;
+  screenshot the slider state. Simulate the learning-exclusion rule against the
+  real history before shipping — it changes the taste vector.
+
+## Its ancestor entry — the binary question it replaced
+
+Kept because it records WHY the problem matters, which the slider spec assumes
+rather than restates. It was superseded before any code was written for it;
+nothing here was ever built as a binary question.
+
+- [ ] **[F] A flick can't say "the dish is fine, this place cooked it badly."**
+  Raised by the owner 2026-07-26 from a real rating: 火腿通粉 scored low not
+  because they dislike the dish but because the shop served the soup "like hot
+  water." The engine reads every low flick as a statement about the DISH, so that
+  rating is currently teaching their palate to dislike macaroni soup. Voice notes
+  make it worse, not better — `extractVoiceSignal` converts "soup was like hot
+  water" into taste attributes plus a sentiment nudge, laundering a complaint
+  about a chef into a permanent preference (see `src/lib/voice.ts` SYSTEM prompt,
+  which has no concept of execution).
+
+  Two reasons this is bigger than a data-quality annoyance:
+  (1) it corrupts the taste vector for every diner who eats a badly-made version
+  of something they'd otherwise like — a systematic bias, not noise;
+  (2) "this restaurant makes this dish badly" is dish-level demand data, the
+  exact consumer-side signal the business model is built on, and it is currently
+  being discarded at the moment it's generated.
+
+  **SUPERSEDED 2026-07-26 — do not build this as a binary question.** The owner
+  replaced it with a single 1-10 execution slider that measures each instance
+  instead of asking which cause it was; the dish-vs-execution answer then falls
+  out of comparing instances. See "佢哋整得點？" under "Ready to build". This
+  entry stays only because it records WHY the problem matters.
+
+---
+
+# Log-entry redesign (食物相 / 打字 / 外賣單) — DIRECTION ABANDONED (owner, 2026-07-26)
+
+The 2026-07-22 redesign reorganized log entry around what the user is HOLDING
+— 📷 食物相 (any food photo) · ✎ 打字 (no photo, type a name) · 🧾 外賣單 (a
+delivery-order screencap) — replacing 餐廳菜/住家菜/相簿舊菜. Items 1 (the IA
+change) and 3 (typed quick-add) shipped and were rolled back the same day; the
+full original spec, the implementation, and the rollback writeup are already
+recorded above. Items 2 (食物相) and 4 (外賣單) were never built.
+
+**Owner's call, 2026-07-26: "tried, and not OK." The whole direction is dead —
+not parked, not blocked, not awaiting a design pass.**
+
+The three named paths were items 2, 3 and 4, but item 1 goes with them: the IA
+change WAS the three-chip pill, so keeping it open would have left a redesign of
+a surface nobody wants redesigned. The entry pill stays as it is today —
+餐廳菜/住家菜/相簿舊菜, all three opening the same photo picker, the labels
+teaching that everything counts equally.
+
+**Why it failed, from the rollback evidence:** the shipped pill's raw styling
+never matched the app's polish, and 打字 hung indefinitely at AI 認緊呢道菜…
+because the enrich-before-rating step didn't resolve for the user. Underneath
+those two symptoms is the thing that makes a retry unattractive: 打字 asks for
+typing before the rating moment, which is friction the photo path doesn't have,
+and 外賣單 is a whole screencap-parsing pipeline for a channel nobody had asked
+for. The equal-weight logging principle they were meant to serve is already
+served by the merged pill.
+
+**Code deleted in the same pass** (it had been preserved unmounted for a retry
+that is not coming — a feature-flagged corpse is how regressions ship):
+`TypedQuickAdd.tsx`, `src/lib/typedQuickAdd.ts`, `tests/typedQuickAdd.test.ts`,
+RatingStack's entire `typed` mode (`TypedEntry`, `typedMode`, `typedSrc`,
+`runTypedPipeline`, and every branch keyed off them), and the two entry-chip
+icons `PencilIcon`/`TakeawayIcon`. i18n keys `typed.*` removed per the
+remove-keys-when-the-last-usage-goes rule. 45 test files / 659 tests pass after
+removal, `tsc` clean.
+
+**Deliberately KEPT:** `GET /api/dishes/suggest` + `dishSuggest.ts`. The
+predictive dish-name suggestions were born in this batch but shipped into a
+different, working surface — the rename editor in `TasteGrowth.tsx` — and are
+live. `RestaurantPicker`'s 住家菜/略過 split and its `{kind:'home'}` payload also
+stay: the chip is live UI in the scan and MyDishes flows, and only its former
+consumer went away.
+
+**For anyone reading older notes:** the 食物相/打字/外賣單 spec still exists in
+the Claude Project conversation and in this file's history. Do not rebuild from
+it. If a photo-first or typed entry point is ever wanted again, it belongs on
+the merged pill as a new decision, not as a revival of this one.

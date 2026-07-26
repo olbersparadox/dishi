@@ -1,6 +1,6 @@
-// Pulls the owner's real rating history into a frozen fixture for the
-// scale-calibration simulation. Run once; the JSON is committed so the
-// simulation is reproducible without DB access.
+// Pulls the owner's real rating history into a fixture for the scale-calibration
+// simulation. The JSON is gitignored, not committed — this repo is public and
+// these are a real person's meals; rebuild it locally when you need it.
 //   npx tsx scripts/build-rating-fixture.ts   (needs SUPABASE env)
 import { createClient } from '@supabase/supabase-js';
 import { writeFileSync } from 'node:fs';

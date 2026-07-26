@@ -209,8 +209,8 @@ export default function RestaurantPicker({ onChange, skipFirst = false, seedCoor
   }
   // "No restaurant" — split into 住家菜 (home) and 略過 (skip) to match the album rating
   // flow's wording. 略過 still means onChange(null); 住家菜 carries a distinct
-  // {kind:'home'} so a caller that cares (打字 quick-add, for dishes.source) can
-  // tell "home cooking" apart from "didn't say" — existing callers that only check
+  // {kind:'home'} so a caller that cares can tell "home cooking" apart from
+  // "didn't say" — existing callers that only check
   // for `.kind === 'existing' | 'new'` see no behavioural change. Toggle: tapping
   // the picked one un-picks it.
   function noRestaurant(key: 'home' | 'skip') {

@@ -140,7 +140,13 @@ consumer-side dish-level demand data.
 - 食記 journal: order album logs by when-eaten vs when-logged (fuzzy eaten-date
   question is unresolved design).
 - AI taste export loop: keep versioning deltas visible and recurring.
-- Consumer scan density: one dense neighborhood first; no friend graph yet.
+- Consumer scan density: one dense neighborhood first. The old "no friend
+  graph yet" is REVERSED (owner, 2026-07-26): the social layer is asymmetric
+  FOLLOW plus a public taste page at `dishi.me/[username]` — a creator/audience
+  model, deliberately not mutual. It earns its place because it is the only
+  mechanic that generates same-dish-different-restaurant pairs, which the
+  execution slider needs and does not have. See DECISIONS.md, "Identity,
+  connection, and export positioning".
 
 ## UI verification (mandatory)
 

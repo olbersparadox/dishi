@@ -4,6 +4,8 @@
 // than abstractions. See docs/rnd/seal-band-calibration.md for the diagnosis.
 //
 // Run: npx tsx scripts/simulate-seal-bands.ts
+// Needs scripts/seal-rows.json (gitignored real data — build it first with
+// scripts/build-seal-fixture.ts).
 //
 // HONEST LIMIT, read before trusting option (d)'s numbers: the taste vector and
 // cuisine affinity AT SEAL TIME were never stored — only the resulting
