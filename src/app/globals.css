@@ -37,6 +37,31 @@
    * anywhere, so it's not in the stack.) The wordmark alone keeps its
    * original bold sans via --font-wordmark (next/font, layout.tsx). */
   --font-display: 'Songti TC', 'Noto Serif TC', Georgia, serif;
+
+  /* Type scale, consolidated 2026-07-26 (see the design-token audit): 28 raw
+   * font-size values collapsed onto 7 tokens by ROLE, not by mechanically
+   * averaging — e.g. every 13/13.5/14px "hint caption" (--ink-soft meta text,
+   * 46 uses) is genuinely the same visual thing, so it's one token now, not
+   * three numbers that happened to drift apart over time. Two deliberately
+   * excluded: .btn.export's 17px (hand-tuned CTA sizing, see its own comment)
+   * and .auth-wordmark's 70px (a singular sign-in hero, not part of any
+   * cluster) — both stay hardcoded on purpose.
+   * subtitle-a/b and title-a/b are genuinely TWO steps each (dish-name-with-
+   * photo vs. without; a stat number vs. a page headline) — collapsing those
+   * further would lose a real distinction, not just tidy up drift. */
+  --fs-micro: 12px;      /* labels, tiny badges — was 10/10.5/11/11.5/12/12.5 */
+  --fs-caption: 14px;    /* --ink-soft hint/meta text — was 13/13.5/14 */
+  --fs-body: 15px;       /* UI copy, blurbs — was 15/15.5/16 */
+  --fs-subtitle-a: 18px; /* denser dish-name rows, card titles — was 17/18 */
+  --fs-subtitle-b: 20px; /* looser dish-name rows, prominent lines — was 19/20 */
+  --fs-title-a: 23px;    /* stat numbers, mid headlines — was 21/22/23/24/26 */
+  --fs-title-b: 30px;    /* page titles, "dishi" — was 27/30/34, and (for now)
+                             the 52px seal-reveal face + 130px flick verdict word */
+  /* Promoted alongside the type scale: 650 was never a one-off nudge — it's
+   * carrying every .btn, the tabbar, and the owner-tabs, 9 uses. The other
+   * off-ladder weights (550/750/1000) stay hardcoded; each is a genuine single-
+   * selector nudge, not a repeated value pretending not to be a token. */
+  --fw-btn: 650;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -53,38 +78,36 @@ body {
    any such auto-link back to plain inherited text, in case one still slips through. */
 a[href^="tel:"] { color: inherit; text-decoration: inherit; }
 h1, h2, h3, .display { font-family: var(--font-display); font-weight: 500; letter-spacing: 0.06em; }
-/* The em-tracking above is tuned for Chinese, where a little space between dense
-   glyphs reads well. On Latin headings/names the same tracking looks too airy, so
-   English mode pulls display-serif letter-spacing back to near-normal. */
-.lang-en h1, .lang-en h2, .lang-en h3, .lang-en .display,
-.lang-en .card-title, .lang-en .join-table-title { letter-spacing: -0.01em; }
-/* The big section title (h1) is a light-weight 30px serif, so the -0.01em above
-   still reads airy in Latin ("Journal" next to the denser Chinese 食記). Pull it in
-   further. CJK titles keep the 0.06em base — they're only ever under .lang-zh. */
-.lang-en h1 { letter-spacing: -0.03em; }
-/* Dish-name tracking is NOT handled here: it's tagged per slot by the actual script
-   (.dn-cjk / .dn-latin, set in DishName) so a Latin name tightens even when the chrome
-   language is Chinese — which .lang-en never covered (and .lang-en isn't even applied
-   to the DOM). See .dishname-primary.dn-* below. */
-h1 { font-size: 30px; line-height: 1.15; }
-h3 { font-size: 16px; }
+/* 2026-07-26: removed six .lang-en/.lang-zh rules here and at .join-table-blurb /
+   .lang-sheet-title / .lang-sheet-subtitle — dead code, confirmed by grepping every
+   .tsx in the app: nothing ever sets className="lang-en" or "lang-zh", so none of
+   those rules had ever fired (see the design-token audit, 2026-07-26). The em-
+   tracking above is tuned for Chinese and currently applies unconditionally, in
+   EVERY language — Latin headings run a bit airy as a result. If English tracking
+   needs pulling back, gate it on the real `lang` value in JS (the pattern
+   RestaurantPicker.tsx's captionCls uses), not a CSS class that nothing sets.
+   Dish-name tracking already does the right thing independent of this: it's
+   tagged per slot by the actual SCRIPT (.dn-cjk / .dn-latin, set in DishName), so
+   a Latin name tightens even mid-Chinese-chrome. See .dishname-primary.dn-* below. */
+h1 { font-size: var(--fs-title-b); line-height: 1.15; }
+h3 { font-size: var(--fs-body); }
 
 .shell { max-width: 420px; margin: 0 auto; padding: 28px 12px 96px; }
 
 .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
 .wordmark {
   font-family: var(--font-wordmark), system-ui, sans-serif;
-  font-size: 34px; font-weight: 800; letter-spacing: -0.02em;
+  font-size: var(--fs-title-b); font-weight: 800; letter-spacing: -0.02em;
 }
 .wordmark em { color: var(--seal); font-style: normal; }
 /* Sign-in screen: the topbar's wordmark moves down into the centered auth
    block instead (enlarged), so the small top-left one is hidden there only. */
 .shell:has(.auth-screen) > .topbar .wordmark { visibility: hidden; }
 .auth-wordmark { font-size: 70px; text-align: center; margin-bottom: 24px; }
-.tagline { font-size: 12px; color: var(--ink-soft); }
-.auth-tagline { font-size: 19px; font-weight: 300; color: var(--ink); text-align: left; line-height: 26.5px; margin: -8px 0 24px; white-space: pre-line; }
+.tagline { font-size: var(--fs-micro); color: var(--ink-soft); }
+.auth-tagline { font-size: var(--fs-subtitle-b); font-weight: 300; color: var(--ink); text-align: left; line-height: 26.5px; margin: -8px 0 24px; white-space: pre-line; }
 .auth-longcopy { text-align: left; line-height: 1.62; margin: -17px 0 24px; }
-.card-meta.auth-longcopy { margin-top: -17px; font-size: 15px; }
+.card-meta.auth-longcopy { margin-top: -17px; font-size: var(--fs-body); }
 .auth-title { font-weight: 600; }
 
 .card {
@@ -93,8 +116,8 @@ h3 { font-size: 16px; }
 }
 .card-photo { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; display: block; background: var(--clay); }
 .card-body { padding: 18px 18px 20px; }
-.card-title { font-family: var(--font-display); font-size: 17px; font-weight: 500; letter-spacing: 0.05em; }
-.card-meta { font-size: 13px; color: var(--ink-soft); margin-top: 2px; }
+.card-title { font-family: var(--font-display); font-size: var(--fs-subtitle-a); font-weight: 500; letter-spacing: 0.05em; }
+.card-meta { font-size: var(--fs-caption); color: var(--ink-soft); margin-top: 2px; }
 /* RestaurantPicker's hint captions (finding/denied/沒有位置/拍攝地點附近) — a
    touch more tracking on the CJK text; applied only when lang==='zh' (see
    RestaurantPicker.tsx's captionCls — the .lang-zh/.lang-en selector pattern
@@ -104,7 +127,7 @@ h3 { font-size: 16px; }
    always shown in that state, but passively-present read as "nothing happened"
    on tap. A brief ink shake, no color change (stays inside the palette contract —
    this is not the seal/dirty-save vermillion). */
-.needloc-flash { animation: needlocAttn 0.4s ease; color: var(--ink); font-weight: 650; }
+.needloc-flash { animation: needlocAttn 0.4s ease; color: var(--ink); font-weight: var(--fw-btn); }
 @keyframes needlocAttn {
   0%, 100% { transform: translateX(0); }
   20% { transform: translateX(-3px); }
@@ -121,7 +144,7 @@ button { font: inherit; cursor: pointer; }
  * different font from 儲存 sitting right next to them). */
 .btn {
   border: 1px solid var(--ink); background: transparent; color: var(--ink);
-  border-radius: 999px; padding: 10px 16px; font-weight: 650;
+  border-radius: 999px; padding: 10px 16px; font-weight: var(--fw-btn);
   font-family: var(--font-display);
 }
 .btn.primary {
@@ -134,8 +157,8 @@ button { font: inherit; cursor: pointer; }
    `dirty` flag at every dish-edit site (Eat Journal rename, growth-screen refine). */
 .btn.primary.dirty { background: var(--seal); border-color: var(--seal); color: var(--seal-ink); }
 .btn.ghost { border-color: var(--line); color: var(--ink-soft); }
-.btn.small { padding: 9px 18px; font-size: 14px; }
-.btn.large { padding: 14px 18px; font-size: 16px; flex: 1; }
+.btn.small { padding: 9px 18px; font-size: var(--fs-caption); }
+.btn.large { padding: 14px 18px; font-size: var(--fs-body); flex: 1; }
 /* A continue/advance button dims until its step's requirement is met. The
  * disabled attribute is already set correctly across every rating flow (log
  * continue, no-photo save, scan pick confirm, table join, new-restaurant
@@ -160,7 +183,7 @@ button { font: inherit; cursor: pointer; }
 /* Locked state (§1/§5): no button at all — the anticipation line + album fast
    track replace it (a disabled pill is a dead button, which the spec forbids).
    Full ink, not footnote grey: the locked card is a promise, not an apology. */
-.export-antic { font-size: 14px; color: var(--ink); line-height: 1.6; text-align: center; margin: 2px 4px 0; }
+.export-antic { font-size: var(--fs-caption); color: var(--ink); line-height: 1.6; text-align: center; margin: 2px 4px 0; }
 /* Small icon-only actions (edit/delete on a rated dish) — a quiet round tap
    target rather than a bordered .btn, since a row of these next to a dish's
    metadata is scanned visually, not read as buttons with labels. */
@@ -186,11 +209,11 @@ button { font: inherit; cursor: pointer; }
    paper-inset fill and muted ink-soft glyph at the same 1.7 stroke — so neither
    reads as heavier than the other; they differ only by icon. Hover darkens both. */
 .icon-btn.rate {
-  background: var(--paper-inset, #eee9dd); color: var(--ink-soft);
+  background: var(--paper-inset); color: var(--ink-soft);
 }
 .icon-btn.rate:hover, .icon-btn.rate:focus-visible { background: var(--line); color: var(--ink); }
 .icon-btn.delete {
-  background: var(--paper-inset, #eee9dd); color: var(--ink-soft);
+  background: var(--paper-inset); color: var(--ink-soft);
 }
 .icon-btn.delete:hover, .icon-btn.delete:focus-visible { background: var(--line); color: var(--ink); }
 
@@ -209,7 +232,7 @@ button { font: inherit; cursor: pointer; }
 
 .chip {
   border: 1px solid var(--line); background: transparent; border-radius: 99px;
-  padding: 7px 15px; font-size: 13px; color: var(--ink-soft);
+  padding: 7px 15px; font-size: var(--fs-caption); color: var(--ink-soft);
 }
 .chip.on { border-color: var(--ink); color: var(--ink); background: transparent; }
 /* Utility pills (+ add-a-place / not-at-a-restaurant) — soft-filled so they read
@@ -222,7 +245,7 @@ button { font: inherit; cursor: pointer; }
    chip: they're the thing being READ and chosen between — often a long bilingual
    shop name plus a distance — not a utility action like 略過 / 住家菜, which stay
    at 13px so the row still reads as content-then-actions. */
-.chip.picker-nearby { font-size: 15px; }
+.chip.picker-nearby { font-size: var(--fs-body); }
 
 /* A table member's pick avatar — a plain circular profile-icon-with-initials, the
    same clean look as the rest of the app (matching scan's settled-list aesthetic),
@@ -253,12 +276,12 @@ button { font: inherit; cursor: pointer; }
 @keyframes chopThunk { 0% { transform: scale(0.4); opacity: 0; } 65% { transform: scale(1.15); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .chop-stamp-pop { animation: none; } }
 .chop-stamp-overflow {
-  margin-left: 4px; font-size: 12px; color: var(--ink-soft); font-weight: 600;
+  margin-left: 4px; font-size: var(--fs-micro); color: var(--ink-soft); font-weight: 600;
   display: inline-flex; align-items: center;
 }
 
 .field { width: 100%; border: 1px solid var(--line); border-radius: 10px; padding: 11px 12px; font: inherit; background: var(--paper-raised); }
-.label { display: block; font-size: 14px; font-weight: 400; color: var(--ink-soft); margin: 18px 0 8px; }
+.label { display: block; font-size: var(--fs-caption); font-weight: 400; color: var(--ink-soft); margin: 18px 0 8px; }
 
 .tabbar {
   position: fixed; bottom: 0; left: 0; right: 0; background: #ffffffee;
@@ -267,7 +290,7 @@ button { font: inherit; cursor: pointer; }
   padding: 8px 16px calc(8px + env(safe-area-inset-bottom));
 }
 .tabbar-side {
-  text-decoration: none; color: var(--ink-soft); font-weight: 650; font-size: 14px;
+  text-decoration: none; color: var(--ink-soft); font-weight: var(--fw-btn); font-size: var(--fs-caption);
   padding: 10px 22px; border-radius: 12px; flex: 1; text-align: center;
 }
 .tabbar-side.active { color: var(--ink); background: var(--paper-inset); }
@@ -297,12 +320,12 @@ button { font: inherit; cursor: pointer; }
 .flick-arrow-down { bottom: -6px; }
 .flick-word {
   position: absolute; left: 14px; bottom: 14px; pointer-events: none;
-  font-family: var(--font-display); font-weight: 800; font-size: 26px; color: #fff;
+  font-family: var(--font-display); font-weight: 800; font-size: var(--fs-title-a); color: #fff;
   text-shadow: 0 2px 14px #00000088; letter-spacing: -0.01em;
 }
 .flick-hint {
   position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
-  pointer-events: none; color: #fff; font-size: 13px; font-weight: 650;
+  pointer-events: none; color: #fff; font-size: var(--fs-caption); font-weight: var(--fw-btn);
   background: #00000066; padding: 8px 14px; border-radius: 99px;
 }
 @media (prefers-reduced-motion: reduce) {
@@ -371,14 +394,14 @@ button { font: inherit; cursor: pointer; }
 /* rating verdict — small English over a big native word, bottom-left ~70% wide */
 .snap-verdict { position: absolute; left: 24px; bottom: 40px; max-width: 82%; z-index: 4; pointer-events: none; }
 .snap-word-en {
-  font-family: var(--font-display); font-weight: 700; font-size: 22px;
+  font-family: var(--font-display); font-weight: 700; font-size: var(--fs-title-a);
   color: #141210; letter-spacing: 0.04em; margin-bottom: 4px; text-transform: uppercase;
 }
 .snap-word-en.is-skip { color: #6d757a; }
 .snap-word {
   text-align: left; white-space: normal;
   font-family: var(--font-display); font-weight: 800;
-  font-size: 130px; line-height: 0.96; letter-spacing: -0.02em;
+  font-size: var(--fs-title-b); line-height: 0.96; letter-spacing: -0.02em;
   color: #141210;
 }
 .snap-word.is-skip { color: #6d757a; font-weight: 700; } /* dismiss reads neutral, not a verdict */
@@ -424,15 +447,15 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 /* width + side margins match .shell (max-width 420, 12px gutters) so the sheet reads as
    the same column as every other section */
 .rate-sheet-inner { max-width: 420px; margin: 0 auto; padding: 28px 12px 96px; min-height: 100%; }
-.rate-loading { display: grid; place-items: center; color: var(--ink-soft); font-size: 14px; }
+.rate-loading { display: grid; place-items: center; color: var(--ink-soft); font-size: var(--fs-caption); }
 
 /* ---- The growth / level-up reward (TasteGrowth) — FIRST-PASS, owner to refine ---- */
 .grow { text-align: center; padding-top: 12px; }
-.grow-spark { font-size: 34px; color: var(--ink); opacity: 0.9; }
-.grow-title { font-size: 23px; margin: 8px 0 6px; }
-.grow-taught { font-size: 14px; color: var(--ink-soft); margin-bottom: 26px; }
+.grow-spark { font-size: var(--fs-title-b); color: var(--ink); opacity: 0.9; }
+.grow-title { font-size: var(--fs-title-a); margin: 8px 0 6px; }
+.grow-taught { font-size: var(--fs-caption); color: var(--ink-soft); margin-bottom: 26px; }
 .grow-barwrap { max-width: 300px; margin: 0 auto; }
-.grow-level { font-size: 12px; font-weight: 700; color: var(--ink-soft); text-align: left; margin-bottom: 6px; }
+.grow-level { font-size: var(--fs-micro); font-weight: 700; color: var(--ink-soft); text-align: left; margin-bottom: 6px; }
 .grow-bar { height: 12px; border-radius: 99px; background: var(--paper-inset); overflow: hidden; }
 .grow-fill {
   display: block; height: 100%; border-radius: 99px; background: var(--ink);
@@ -473,7 +496,7 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
    bolder so the "learning going into the blob" reads clearly */
 .blob-flyer {
   position: absolute; left: 50%; top: 50%; white-space: nowrap;
-  font-family: var(--font-display); font-size: 22px; font-weight: 800;
+  font-family: var(--font-display); font-size: var(--fs-title-a); font-weight: 800;
   color: var(--ink); letter-spacing: 0.02em;
   text-shadow: 0 1px 6px var(--glaze); /* stays legible crossing the paper cards */
   animation: flyIn 1150ms cubic-bezier(0.45, 0, 0.28, 1) forwards;
@@ -485,17 +508,17 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
   100% { opacity: 0; transform: translate(-50%, -50%) translate(0, 0) scale(0.2); }
 }
 @media (prefers-reduced-motion: reduce) { .blob-flyer { animation: flyIn 300ms linear forwards; } }
-.grow2-title { font-size: 27px; margin: 6px 0 4px; }
+.grow2-title { font-size: var(--fs-title-b); margin: 6px 0 4px; }
 /* bar length matches the Taste AI page's buddy bar (which sits inside a padded card),
    not the full column — so it doesn't read as an over-long rail. -5px top nudges the
    bar + progress line up without resizing the cards below. */
 .grow2-top .xp-bar { max-width: 280px; margin: 11px auto 0; }
 /* dishes-to-go toward Taste AI 1.0 — the progress line, in a light weight */
-.grow2-toready { font-size: 15px; font-weight: 400; color: var(--ink); margin: 10px 0 0; }
+.grow2-toready { font-size: var(--fs-body); font-weight: 400; color: var(--ink); margin: 10px 0 0; }
 /* The one ask above the rows — confirming/refining is what makes the engine accurate.
    Given room to breathe (top + bottom). */
 .grow-refine-ask {
-  font-size: 16px; color: var(--ink-soft); text-align: center; line-height: 1.5;
+  font-size: var(--fs-body); color: var(--ink-soft); text-align: center; line-height: 1.5;
   letter-spacing: 0.04em; max-width: 360px; margin: 26px auto 18px;
 }
 /* Name and location are "refine" surfaces: BLACK with white text, NO outline, gently
@@ -512,7 +535,7 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 .refine-name .dishname-secondary { color: rgba(250, 247, 241, 0.72); } /* English legible on black */
 /* location pill: bigger text + a rounded-RECTANGLE radius (like the thumbnail / name tile),
    not the chip-pill 999px */
-.refine-place { animation-delay: 1.2s; font-size: 15px; border-radius: 10px; }
+.refine-place { animation-delay: 1.2s; font-size: var(--fs-body); border-radius: 10px; }
 @keyframes refineBreath {
   0%, 100% { background: var(--ink); box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); }
   50%      { background: #423d37;   box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.16); }
@@ -522,7 +545,7 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 }
 /* two-field name editor — same mechanic as the Eat Journal (edit one clears + retranslates the other) */
 .learn-nameedit { display: flex; flex-direction: column; width: 100%; max-width: 320px; }
-.learn-editlabel { font-size: 11px; margin: 6px 0 2px; }
+.learn-editlabel { font-size: var(--fs-micro); margin: 6px 0 2px; }
 .learn-editactions { display: flex; gap: 8px; margin-top: 10px; }
 /* Typed "+ 加間舖" field — same column rhythm as the inline name editor above it. */
 .learn-addplace { display: block; }
@@ -533,7 +556,7 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 /* the auto-translate note sits to the RIGHT of the 中文 label and matches it exactly —
    same size + weight (overrides .card-meta's 13px) so the two read as one line, not a
    label + a smaller footnote */
-.name-edit-note { flex: 0 1 auto; text-align: right; line-height: 1.3; font-size: 11.5px; font-weight: 400; }
+.name-edit-note { flex: 0 1 auto; text-align: right; line-height: 1.3; font-size: var(--fs-micro); font-weight: 400; }
 
 .learn-list { list-style: none; display: flex; flex-direction: column; gap: 10px; margin: 14px 0 0; padding: 0; }
 .learn-row {
@@ -547,39 +570,39 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 .learn-thumbcol { flex: 0 0 auto; width: 54px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
 .learn-thumb {
   flex: 0 0 auto; width: 54px; height: 54px; border-radius: 10px; overflow: hidden;
-  background: var(--paper-inset); display: grid; place-items: center; font-size: 22px;
+  background: var(--paper-inset); display: grid; place-items: center; font-size: var(--fs-title-a);
 }
 .learn-thumb img { width: 100%; height: 100%; object-fit: cover; }
 .learn-row.is-working .learn-thumb { animation: learnPulse 1.1s ease-in-out infinite; }
 @keyframes learnPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
-.learn-verdict { font-size: 13px; font-weight: 500; color: var(--ink); text-align: center; line-height: 1.15; }
+.learn-verdict { font-size: var(--fs-caption); font-weight: 500; color: var(--ink); text-align: center; line-height: 1.15; }
 .learn-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .learn-head { display: flex; align-items: baseline; gap: 8px; }
 .learn-titleline { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
-.learn-name { font-family: var(--font-display); font-weight: 700; font-size: 16px; color: var(--ink); }
+.learn-name { font-family: var(--font-display); font-weight: 700; font-size: var(--fs-body); color: var(--ink); }
 .learn-skel { color: var(--ink-soft); font-weight: 600; }
 /* re-deriving after a name change → the chip block fades out, this shows, then the new
    chips fade back in (keyed remount on .learn-info-reveal) */
-.learn-reenrich { font-size: 12px; color: var(--ink-soft); font-style: italic; margin-top: 4px; }
+.learn-reenrich { font-size: var(--fs-micro); color: var(--ink-soft); font-style: italic; margin-top: 4px; }
 .learn-info-reveal { animation: infoReveal 340ms ease-out; }
 @keyframes infoReveal { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .learn-info-reveal { animation: none; } }
 /* ingredient tags stream in one by one */
 .learn-chips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 2px; }
 .learn-tag {
-  font-size: 11px; padding: 3px 9px; border-radius: 99px;
+  font-size: var(--fs-micro); padding: 3px 9px; border-radius: 99px;
   background: var(--paper-inset); color: var(--ink-soft); animation: chipIn 240ms ease-out;
 }
-.learn-finding { font-size: 12px; color: var(--ink-soft); font-style: italic; }
+.learn-finding { font-size: var(--fs-micro); color: var(--ink-soft); font-style: italic; }
 /* A pick's restaurant known at creation: the same ink location tile as .refine-place,
    but STATIC — no breath, not a button — because it's settled fact, not tap-to-change.
    (Correction lives in 食記's 轉餐廳; the confirm card is a fast confirm, not an editor.) */
 .learn-place-fixed {
   display: inline-flex; align-items: center; gap: 6px; min-width: 0; max-width: 100%;
-  border-radius: 10px; padding: 6px 13px; font-size: 15px;
+  border-radius: 10px; padding: 6px 13px; font-size: var(--fs-body);
   background: var(--ink); color: var(--glaze);
 }
-.learn-learned { font-size: 12px; color: var(--seal); font-weight: 600; }
+.learn-learned { font-size: var(--fs-micro); color: var(--seal); font-weight: 600; }
 @keyframes chipIn { from { opacity: 0; transform: scale(0.82); } to { opacity: 1; transform: none; } }
 .learn-place { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 5px; }
 /* "add a place" + "home cooked" reuse .chip-util, the SAME treatment/order as the
@@ -594,12 +617,12 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 /* Not food: a quiet, dashed, dimmed row — visibly OUTSIDE the learning set. Type reuses
    the app's own .learn-name + .card-meta; the fix is a normal .chip-util. */
 .learn-row.not-dish { background: var(--glaze); border-style: dashed; }
-.learn-row.not-dish .learn-name { color: var(--ink-soft); font-weight: 800; font-size: 20px; }
+.learn-row.not-dish .learn-name { color: var(--ink-soft); font-weight: 800; font-size: var(--fs-subtitle-b); }
 .not-dish-main { gap: 3px; }
 .learn-thumb-dim { opacity: 0.5; filter: grayscale(0.5); }
 .not-dish-fix { align-self: flex-start; margin-top: 6px; }
 .learn-chip {
-  font-size: 12px; padding: 5px 11px; border-radius: 99px; cursor: pointer;
+  font-size: var(--fs-micro); padding: 5px 11px; border-radius: 99px; cursor: pointer;
   border: 1px solid var(--line); background: var(--paper-inset); color: var(--ink-soft);
 }
 .learn-chip.on { background: var(--ink); border-color: var(--ink); color: #fff; }
@@ -621,8 +644,8 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 }
 
 .bars { display: grid; gap: 8px; }
-.bar-row { display: grid; grid-template-columns: 76px 1fr; align-items: center; gap: 10px; font-size: 13px; }
-.bar-track { position: relative; height: 8px; background: #fff; border: 1px solid var(--line); border-radius: 99px; }
+.bar-row { display: grid; grid-template-columns: 76px 1fr; align-items: center; gap: 10px; font-size: var(--fs-caption); }
+.bar-track { position: relative; height: 8px; background: var(--paper-raised); border: 1px solid var(--line); border-radius: 99px; }
 .bar-fill { position: absolute; top: 0; bottom: 0; border-radius: 99px; }
 
 
@@ -639,11 +662,11 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 @keyframes beam { 0% { top: 2%; } 50% { top: 96%; } 100% { top: 2%; } }
 @media (prefers-reduced-motion: reduce) { .scan-beam { animation: none; top: 50%; } }
 
-.scan-status { font-weight: 650; color: var(--ink-soft); animation: pulse 1.6s ease-in-out infinite; }
+.scan-status { font-weight: var(--fw-btn); color: var(--ink-soft); animation: pulse 1.6s ease-in-out infinite; }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
 
 .scan-banner {
-  font-size: 13px; background: var(--paper-inset); border: none;
+  font-size: var(--fs-caption); background: var(--paper-inset); border: none;
   border-radius: 12px; padding: 10px 14px; margin: 10px 0; color: var(--ink);
 }
 /* Fire pick highlight: quiet selected-style wash, not a colored border — the
@@ -653,22 +676,22 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 /* Rank now renders INLINE with the dish name ("1. 葡式香辣燒春雞") per the
    handoff's Screen 4 — the old separate rank column is gone. The fire mark
    sits inline in the name row at text scale. */
-.scan-fire { font-size: 17px; line-height: 1; flex-shrink: 0; margin-left: 6px; position: relative; top: -1px; }
+.scan-fire { font-size: var(--fs-subtitle-a); line-height: 1; flex-shrink: 0; margin-left: 6px; position: relative; top: -1px; }
 /* Table-mode's per-member fire (2026-07-21): a small 🔥 dotted in that member's own
    chop color — "predicted to suit them," distinct from the pick stamps' "they
    actually picked this." Same badge technique as the AI-sparkle on the header globe
    and the notification bell's red dot: an absolutely-positioned circle with a paper
    cutout so it stays legible sitting over the emoji. */
-.fire-dot-badge { position: relative; display: inline-flex; font-size: 15px; line-height: 1; margin-left: 4px; }
+.fire-dot-badge { position: relative; display: inline-flex; font-size: var(--fs-body); line-height: 1; margin-left: 4px; }
 .fire-dot {
   position: absolute; top: -2px; right: -3px; width: 8px; height: 8px; border-radius: 50%;
   border: 1.5px solid var(--glaze);
 }
-.scan-reason { font-size: 13px; margin-top: 8px; color: var(--seal); font-weight: 550; display: flex; align-items: flex-start; gap: 6px; }
+.scan-reason { font-size: var(--fs-caption); margin-top: 8px; color: var(--seal); font-weight: 550; display: flex; align-items: flex-start; gap: 6px; }
 /* The speech-bubble mark on the why-recommended line, in a distinct accent so it
    reads as Dishi "speaking". */
 .scan-reason-icon { color: var(--seal); flex-shrink: 0; line-height: 1; margin-top: 1px; }
-.scan-caution { font-size: 13px; margin-top: 4px; color: var(--ink-soft); font-weight: 550; }
+.scan-caution { font-size: var(--fs-caption); margin-top: 4px; color: var(--ink-soft); font-weight: 550; }
 
 /* --- table mode --- */
 .table-code {
@@ -680,7 +703,7 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
   /* Monospace, not the CJK-serif display font: a numeric code reads as a code in
      mono, and its Latin digits (unlike Songti TC's) are unmistakably not sans. */
   font-family: ui-monospace, 'SF Mono', 'Menlo', 'Cascadia Mono', 'Courier New', monospace;
-  text-align: center; font-size: 18px;
+  text-align: center; font-size: var(--fs-subtitle-a);
 }
 .group-ring {
   width: 46px; height: 46px; border-radius: 50%; flex-shrink: 0;
@@ -690,11 +713,11 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
   content: ''; position: absolute; inset: 5px; background: var(--paper-raised); border-radius: 50%;
 }
 .group-ring span {
-  position: relative; font-weight: 800; font-size: 14px;
+  position: relative; font-weight: 800; font-size: var(--fs-caption);
   font-variant-numeric: tabular-nums;
 }
 .badge-unanimous, .badge-fair {
-  font-size: 10.5px; font-weight: 700; border-radius: 99px; padding: 2px 8px;
+  font-size: var(--fs-micro); font-weight: 700; border-radius: 99px; padding: 2px 8px;
   margin-left: 6px; vertical-align: 2px; white-space: nowrap;
 }
 .badge-unanimous { color: var(--ink); background: var(--paper-inset); }
@@ -703,24 +726,24 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 /* --- owner dashboard --- */
 .stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 16px; }
 .stat {
-  background: #fff; border: 1px solid var(--line); border-radius: 14px;
+  background: var(--paper-raised); border: 1px solid var(--line); border-radius: 14px;
   padding: 12px 8px; text-align: center;
 }
-.stat-num { font-family: var(--font-display); font-weight: 800; font-size: 22px; }
-.stat-label { font-size: 11px; color: var(--ink-soft); margin-top: 2px; }
+.stat-num { font-family: var(--font-display); font-weight: 800; font-size: var(--fs-title-a); }
+.stat-label { font-size: var(--fs-micro); color: var(--ink-soft); margin-top: 2px; }
 
 /* Taste-tab stat grid specifically (handoff spec) — scoped separately from
  * .stat above, which the owner dashboard also uses and wasn't part of this
  * design pass. */
 .taste-stat { border: 1px solid var(--line); border-radius: 12px; padding: 12px 5px; text-align: center; }
-.taste-stat .stat-num { font-weight: 700; font-size: 22px; }
-.taste-stat .stat-label { font-size: 13.5px; margin-top: 3px; }
+.taste-stat .stat-num { font-weight: 700; font-size: var(--fs-title-a); }
+.taste-stat .stat-label { font-size: var(--fs-caption); margin-top: 3px; }
 /* Tappable stats: same box, now a <button> (tap → explainer). Undo the UA button
    reset (background/font/cursor) so it's pixel-identical to the old plain div. */
 /* color: inherit — iOS Safari's UA stylesheet paints <button> text blue when no
    color is set (the format-detection meta doesn't cover this); inherit keeps the
    numbers ink on every platform. */
-.stat-tap { background: #fff; font-family: inherit; color: inherit; cursor: pointer; width: 100%; }
+.stat-tap { background: var(--paper-raised); font-family: inherit; color: inherit; cursor: pointer; width: 100%; }
 .stat-row-tappable { position: relative; }
 /* The shared "tap-to-learn-more" modal (ExplainModal) — dead-centre of the SCREEN
    (position:fixed against the viewport), bigger box + bigger text, title centred,
@@ -745,8 +768,8 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
   to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 }
 @media (prefers-reduced-motion: reduce) { .explain-modal { animation: none; transform: translate(-50%, -50%); } }
-.explain-modal-title { font-family: var(--font-display); font-size: 20px; font-weight: 700; color: var(--ink); text-align: center; margin-bottom: 12px; }
-.explain-modal-body { font-size: 16px; color: var(--ink-soft); line-height: 1.65; text-align: left; white-space: pre-line; }
+.explain-modal-title { font-family: var(--font-display); font-size: var(--fs-subtitle-b); font-weight: 700; color: var(--ink); text-align: center; margin-bottom: 12px; }
+.explain-modal-body { font-size: var(--fs-body); color: var(--ink-soft); line-height: 1.65; text-align: left; white-space: pre-line; }
 .explain-modal-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
 /* Undo the <button> UA reset so a SealStamp 印 looks identical to the old inline
    <span>; size/color still come from .seal-stamp (and any context override). */
@@ -780,7 +803,7 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
   /* System sans, upright — not --font-display (a CJK serif): an italic serif "i"
      reads slanted and mismatched against the circle; a plain upright dot-i reads
      as a clean icon glyph instead. */
-  font-family: system-ui, -apple-system, sans-serif; font-size: 12.5px; font-weight: 600; line-height: 1;
+  font-family: system-ui, -apple-system, sans-serif; font-size: var(--fs-micro); font-weight: 600; line-height: 1;
 }
 .card-info-badge:active { background: rgba(245, 240, 232, 0.16); }
 .log-src-seg {
@@ -788,7 +811,7 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
   padding: 20px 6px; cursor: pointer;
   font-family: var(--font-display);
-  font-weight: 600; font-size: 14px; text-align: center; white-space: nowrap;
+  font-weight: 600; font-size: var(--fs-caption); text-align: center; white-space: nowrap;
 }
 /* Thin dividers BETWEEN the three (not on the outer edges) — a translucent glaze
    hairline, inset top/bottom so it hugs the icon+text rather than running the full
@@ -805,7 +828,7 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 }
 .qty-stepper button {
   width: 32px; height: 32px; border-radius: 10px; border: 1.5px solid var(--line);
-  background: #fff; font-size: 18px; font-weight: 700; line-height: 1;
+  background: var(--paper-raised); font-size: var(--fs-subtitle-a); font-weight: 700; line-height: 1;
 }
 .qty-stepper button:not(:disabled):hover { border-color: var(--ink); color: var(--ink); }
 .qty-stepper button:disabled { opacity: 0.35; cursor: default; }
@@ -819,8 +842,8 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 /* --- owner tabs --- */
 .owner-tabs { display: flex; gap: 6px; margin: 12px 0 16px; flex-wrap: wrap; }
 .owner-tabs button {
-  border: 1px solid var(--line); background: #fff; border-radius: 99px;
-  padding: 7px 14px; font-size: 13.5px; font-weight: 650; color: var(--ink-soft);
+  border: 1px solid var(--line); background: var(--paper-raised); border-radius: 99px;
+  padding: 7px 14px; font-size: var(--fs-caption); font-weight: var(--fw-btn); color: var(--ink-soft);
 }
 .owner-tabs button.on { border-color: var(--ink); color: var(--ink); background: var(--glaze); }
 .order-ticket { border-left: 4px solid var(--egg-tart); }
@@ -829,7 +852,7 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 /* --- language + bilingual dish names --- */
 .lang-toggle { display: flex; border: 1px solid var(--line); border-radius: 99px; overflow: hidden; }
 .lang-toggle button {
-  border: none; background: #fff; padding: 6px 12px; font-size: 13px; font-weight: 700; color: var(--ink-soft);
+  border: none; background: var(--paper-raised); padding: 6px 12px; font-size: var(--fs-caption); font-weight: 700; color: var(--ink-soft);
 }
 .lang-toggle button.on { background: var(--ink); color: #fff; }
 
@@ -857,16 +880,16 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
    open the primary→secondary gap (1px base -> 4px) when English (or any Latin) is
    on top, so it doesn't crowd the Chinese secondary. Keyed off the PRIMARY's script. */
 .dishname-primary.dn-latin + .dishname-secondary { margin-top: 4px; }
-.dishname-lg .dishname-primary { font-family: var(--font-display); font-size: 26px; font-weight: 700; }
-.dishname-lg .dishname-secondary { font-size: 14px; }
+.dishname-lg .dishname-primary { font-family: var(--font-display); font-size: var(--fs-title-a); font-weight: 700; }
+.dishname-lg .dishname-secondary { font-size: var(--fs-caption); }
 
 /* --- feed typography --- */
 /* location + cuisine line: quiet meta, paper palette (the old light-blue --sky
    was off-palette and is retired) */
-.dish-meta { font-size: 13px; font-weight: 400; color: var(--ink-soft); line-height: 1.35; margin-top: 2px; letter-spacing: 0.02em; }
+.dish-meta { font-size: var(--fs-caption); font-weight: 400; color: var(--ink-soft); line-height: 1.35; margin-top: 2px; letter-spacing: 0.02em; }
 /* primary dish name in feed cards: bigger, serif, medium weight per handoff */
-.card-title .dishname-primary { font-size: 20px; font-weight: 800; }
-.card-title .dishname-secondary { font-size: 13px; font-weight: 500; }
+.card-title .dishname-primary { font-size: var(--fs-subtitle-b); font-weight: 800; }
+.card-title .dishname-secondary { font-size: var(--fs-caption); font-weight: 500; }
 
 
 
@@ -876,8 +899,8 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 /* --- photo picker --- */
 .photo-picker {
   width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px;
-  border: 1px dashed #c9c2b2; border-radius: 16px; background: var(--glaze);
-  padding: 32px 16px; font-weight: 650; color: var(--ink-soft); cursor: pointer;
+  border: 1px dashed var(--ink-faint); border-radius: 16px; background: var(--glaze);
+  padding: 32px 16px; font-weight: var(--fw-btn); color: var(--ink-soft); cursor: pointer;
   transition: border-color 150ms, color 150ms;
 }
 .photo-picker:hover { border-color: var(--ink-soft); color: var(--ink); }
@@ -915,11 +938,11 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 .scan-benefit-swap.on { animation: scanBenefitIn 520ms ease both; }
 @keyframes scanBenefitIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .scan-benefit-swap.on { animation: none; } }
-.scan-benefit-name { font-family: var(--font-display); font-size: 17px; font-weight: 600; letter-spacing: 0.05em; color: var(--glaze); line-height: 1.2; }
-.scan-benefit-sub { font-size: 11.5px; letter-spacing: 0.02em; color: rgba(245, 240, 232, 0.62); }
+.scan-benefit-name { font-family: var(--font-display); font-size: var(--fs-subtitle-a); font-weight: 600; letter-spacing: 0.05em; color: var(--glaze); line-height: 1.2; }
+.scan-benefit-sub { font-size: var(--fs-micro); letter-spacing: 0.02em; color: rgba(245, 240, 232, 0.62); }
 .scan-benefit-chips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 2px; }
 .scan-benefit-chip {
-  font-size: 11px; line-height: 1; padding: 4px 9px; border-radius: 999px;
+  font-size: var(--fs-micro); line-height: 1; padding: 4px 9px; border-radius: 999px;
   border: 1px solid rgba(245, 240, 232, 0.35); color: var(--glaze); white-space: nowrap;
 }
 .scan-benefit-chip.rec { background: rgba(245, 240, 232, 0.16); border-color: transparent; font-weight: 600; }
@@ -939,9 +962,9 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
   background: var(--paper-raised); text-decoration: none; color: var(--ink);
 }
 .owner-entry:hover { background: var(--paper-inset); }
-.owner-entry-title { font-family: var(--font-display); font-size: 16px; font-weight: 700; }
-.owner-entry-blurb { font-size: 12.5px; color: var(--ink-soft); margin-top: 3px; line-height: 1.4; }
-.owner-entry-cta { flex-shrink: 0; font-size: 13px; color: var(--ink-soft); white-space: nowrap; }
+.owner-entry-title { font-family: var(--font-display); font-size: var(--fs-body); font-weight: 700; }
+.owner-entry-blurb { font-size: var(--fs-micro); color: var(--ink-soft); margin-top: 3px; line-height: 1.4; }
+.owner-entry-cta { flex-shrink: 0; font-size: var(--fs-caption); color: var(--ink-soft); white-space: nowrap; }
 
 /* --- 已評嘅菜: flat no-photo list on the Taste tab (design Screen 2) ---
    name (bold serif) + restaurant (grey) left, verdict word right, hairline
@@ -951,9 +974,9 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
   padding: 14px 2px; border-bottom: 1px solid var(--line);
 }
 .rated-flat-row:last-of-type { border-bottom: none; }
-.rated-flat-row .card-title { font-family: var(--font-display); font-size: 17px; font-weight: 700; }
-.rated-flat-meta { font-size: 12px; color: var(--ink-soft); margin-top: 4px; }
-.rated-flat-verdict { font-size: 13px; color: var(--ink); flex-shrink: 0; }
+.rated-flat-row .card-title { font-family: var(--font-display); font-size: var(--fs-subtitle-a); font-weight: 700; }
+.rated-flat-meta { font-size: var(--fs-micro); color: var(--ink-soft); margin-top: 4px; }
+.rated-flat-verdict { font-size: var(--fs-caption); color: var(--ink); flex-shrink: 0; }
 
 /* Rated-dish list: a hairline-divided list, not a stack of individually
  * boxed cards — repeating list items read as generic app chrome when each
@@ -972,7 +995,7 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 .rated-dish-row:last-of-type { border-bottom: none; }
 /* Tighter gap above the very first dish, under the 食記 heading. */
 .rated-dish-row:first-of-type { padding-top: 0; }
-.rated-dish-row .card-title { font-family: var(--font-display); font-size: 18px; font-weight: 700; }
+.rated-dish-row .card-title { font-family: var(--font-display); font-size: var(--fs-subtitle-a); font-weight: 700; }
 @media (prefers-reduced-motion: reduce) { .rated-dish-row { animation: none; } }
 
 /* Journal row: [photo + verdict] | [date/name/meta/chips] | [kebab] */
@@ -989,15 +1012,15 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 .journal-photo-empty { background: var(--paper-inset); }
 .journal-photo-add {
   display: flex; align-items: center; justify-content: center; cursor: pointer;
-  color: var(--ink-faint); font-size: 24px; font-weight: 300; line-height: 1;
+  color: var(--ink-faint); font-size: var(--fs-title-a); font-weight: 300; line-height: 1;
   border: 1px dashed var(--line);
 }
 .journal-photo-add:hover { color: var(--ink-soft); background: var(--paper-inset); }
-.journal-verdict { font-size: 13px; font-weight: 500; color: var(--ink); text-align: center; }
+.journal-verdict { font-size: var(--fs-caption); font-weight: 500; color: var(--ink); text-align: center; }
 .journal-info { min-width: 0; flex: 1; }
 /* Looser vertical rhythm than before — date, name, meta and chips each get
    real breathing room rather than stacking tight. */
-.journal-date { font-size: 13px; color: var(--ink-soft); margin-bottom: 3px; letter-spacing: 0.03em; }
+.journal-date { font-size: var(--fs-caption); color: var(--ink-soft); margin-bottom: 3px; letter-spacing: 0.03em; }
 /* Tappable eaten-date: the visible label sits above an invisible full-size native
    date input, so tapping the date opens the OS picker while we keep full control of
    the shown text (incl. the 某年某月某日 placeholder). */
@@ -1019,7 +1042,7 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 
 /* System font (not the body Schibsted Grotesk, which only ships 400+) so the
    price can render genuinely light — SF Pro/Segoe/Roboto all support <400. */
-.dish-price { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 20px; font-weight: 200; color: var(--ink); white-space: nowrap; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+.dish-price { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: var(--fs-subtitle-b); font-weight: 200; color: var(--ink); white-space: nowrap; flex-shrink: 0; font-variant-numeric: tabular-nums; }
 
 /* --- taste-form + AI-export cards (handoff Screen 2; previously defined only
    in the retired .paper-scope overlay, folded here verbatim-in-spirit) --- */
@@ -1030,7 +1053,7 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 }
 .taste-form-legend {
   display: flex; justify-content: center; gap: 20px; margin-top: 14px;
-  font-size: 16px; color: var(--ink-soft);
+  font-size: var(--fs-body); color: var(--ink-soft);
 }
 .taste-form-legend .dot {
   display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px;
@@ -1042,13 +1065,13 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
    below runs the full stat-line width with V{n+1} pinned at its right end. */
 .version-line { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 14px; }
 .version-now, .version-next {
-  font-family: var(--font-display); font-weight: 800; font-size: 16px; color: var(--ink);
+  font-family: var(--font-display); font-weight: 800; font-size: var(--fs-body); color: var(--ink);
   letter-spacing: 0.02em; flex-shrink: 0;
   position: relative; top: -1px; /* nudge up 1px */
 }
 /* Enlarged to match the version bar's own height (13px) below — was reading as a
    small caption next to the now-taller bar. */
-.version-next { font-size: 18px; color: var(--ink-soft); font-weight: 700; }
+.version-next { font-size: var(--fs-subtitle-a); color: var(--ink-soft); font-weight: 700; }
 .version-bar-row { display: flex; align-items: center; gap: 10px; margin-top: 16px; }
 /* This bar specifically (the taste-tab version-progress bar, not .grow2-top's growth-
    screen bar, which stays untouched): +5px height, and shortened 10px by giving the
@@ -1078,7 +1101,7 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
    the dish-name line per the handoff; /table keeps its column until that
    screen gets its own design pass). */
 .scan-rank {
-  font-family: var(--font-display); font-weight: 700; font-size: 18px;
+  font-family: var(--font-display); font-weight: 700; font-size: var(--fs-subtitle-a);
   color: var(--ink-soft); width: 20px; text-align: center; flex-shrink: 0;
 }
 
@@ -1126,7 +1149,7 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 .flick-nophoto {
   display: flex; align-items: center; justify-content: center;
   background: linear-gradient(160deg, var(--glaze), var(--porcelain));
-  font-family: var(--font-display), system-ui; font-weight: 800; font-size: 30px;
+  font-family: var(--font-display), system-ui; font-weight: 800; font-size: var(--fs-title-b);
   line-height: 1.25; color: var(--ink); text-align: center; padding: 28px;
 }
 
@@ -1148,11 +1171,11 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
   position: absolute; right: -4px; bottom: -4px; cursor: pointer;
   display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%;
   background: var(--ink); color: var(--glaze); border: 2px solid var(--glaze);
-  font-size: 10px; line-height: 1;
+  font-size: var(--fs-micro); line-height: 1;
 }
 .pick-card-cam:hover { background: #423d37; }
 .pick-card-name {
-  font-family: var(--font-display); font-size: 17px; font-weight: 700;
+  font-family: var(--font-display); font-size: var(--fs-subtitle-a); font-weight: 700;
   display: flex; align-items: center; gap: 7px;
 }
 /* Match the 食記 journal's dish-name treatment (.card-title) exactly: a bigger,
@@ -1160,11 +1183,11 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
    override — the base .dishname-primary/.dishname-secondary carry it in em (0.05em
    for the CJK primary, 0.01em for the Latin secondary), so scaling the font-size
    scales the tracking to the journal's px values too. */
-.pick-card-name .dishname-primary { font-size: 20px; font-weight: 800; }
-.pick-card-name .dishname-secondary { font-size: 13px; font-weight: 500; }
+.pick-card-name .dishname-primary { font-size: var(--fs-subtitle-b); font-weight: 800; }
+.pick-card-name .dishname-secondary { font-size: var(--fs-caption); font-weight: 500; }
 /* Location line: same 13px / 0.02em tracking as the journal's .dish-meta, sat 6px
    below the name — the journal's own secondary→meta gap. */
-.pick-card-meta { font-size: 13px; font-weight: 400; color: var(--ink-soft); line-height: 1.35; letter-spacing: 0.02em; margin-top: 6px; }
+.pick-card-meta { font-size: var(--fs-caption); font-weight: 400; color: var(--ink-soft); line-height: 1.35; letter-spacing: 0.02em; margin-top: 6px; }
 .pick-card-actions { display: flex; gap: 8px; flex-shrink: 0; }
 
 /* 封印預測 — the seal stamp on a to-be-rated card. Small, quiet, vermillion:
@@ -1174,7 +1197,7 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 .seal-stamp {
   display: inline-flex; align-items: center; justify-content: center;
   width: 18px; height: 18px; border-radius: 4px; flex-shrink: 0;
-  background: var(--seal); color: var(--seal-ink); font-size: 12.5px; font-weight: 700;
+  background: var(--seal); color: var(--seal-ink); font-size: var(--fs-micro); font-weight: 700;
   font-family: 'PingFang TC', 'Heiti TC', 'Microsoft JhengHei', sans-serif; margin-left: 5px; vertical-align: 3px;
 }
 
@@ -1199,7 +1222,7 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 }
 .seal-badge-tile {
   flex: 0 0 auto; align-self: stretch; min-width: 34px; max-width: 52px; aspect-ratio: 1;
-  font-size: 21px;
+  font-size: var(--fs-title-a);
 }
 /* Inline variant — 已評嘅菜, where the verdict rides the dish NAME (DishName's
    `suffix` slot) rather than a tile. Geometry is the .seal-stamp 印's, one step
@@ -1207,7 +1230,7 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
    the same before (sealed 印) and after (broken seal) in the same footprint. */
 .seal-badge-inline {
   width: 21px; height: 21px; border-radius: 5px; flex-shrink: 0;
-  font-size: 14px; margin-left: 6px; vertical-align: 1px;
+  font-size: var(--fs-caption); margin-left: 6px; vertical-align: 1px;
 }
 /* The reveal balloon's own content (2026-07-26 redesign) — leads with the face,
    big and centred (the same emoji as the badge, just no longer squeezed into a
@@ -1215,20 +1238,20 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
    reads without leaning in; then, smaller and set off by a rule, the supporting
    detail: the reason sealed in advance (it was written BEFORE the rating — the
    one claim this product makes), what that rating taught, and the streak. */
-.seal-modal-face { display: block; font-size: 52px; line-height: 1; margin: 0 auto 4px; }
+.seal-modal-face { display: block; font-size: var(--fs-title-b); line-height: 1; margin: 0 auto 4px; }
 .seal-modal-line {
-  font-family: var(--font-display); font-size: 19px; font-weight: 700;
+  font-family: var(--font-display); font-size: var(--fs-subtitle-b); font-weight: 700;
   color: var(--ink); text-align: center; margin: 2px 0;
 }
 .seal-modal-detail {
   margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line);
 }
 .seal-modal-reason, .seal-modal-learnt {
-  font-size: 13px; color: var(--ink-soft); line-height: 1.55; text-align: left;
+  font-size: var(--fs-caption); color: var(--ink-soft); line-height: 1.55; text-align: left;
 }
 .seal-modal-reason { margin: 0; }
 .seal-modal-learnt { margin: 8px 0 0; }
-.seal-modal-streak { font-size: 14px; color: var(--seal); font-weight: 600; margin-top: 10px; text-align: center; }
+.seal-modal-streak { font-size: var(--fs-caption); color: var(--seal); font-weight: 600; margin-top: 10px; text-align: center; }
 
 @keyframes sealStamp {
   0%   { transform: scale(1.7) rotate(-8deg); opacity: 0; }
@@ -1251,13 +1274,13 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
   margin-left: -10px;
 }
 .scan-pickable .card-body { padding: 16px 4px; }
-.scan-pickable .card-title { font-family: var(--font-display); font-size: 18px; font-weight: 700; }
+.scan-pickable .card-title { font-family: var(--font-display); font-size: var(--fs-subtitle-a); font-weight: 700; }
 /* Rank ("N.") as a hanging gutter: pulled OUT of the dish-name line so the name, its
    secondary translation, and the detail line all share ONE left edge (the name's),
    instead of the secondary + details sitting under the number while the name starts
    after it. Rank matches the name (.card-title .dishname-primary → 20px / 800). */
 .scan-item { display: flex; align-items: baseline; gap: 6px; }
-.scan-rank { flex-shrink: 0; font-family: var(--font-display); font-size: 20px; font-weight: 800; letter-spacing: -0.01em; }
+.scan-rank { flex-shrink: 0; font-family: var(--font-display); font-size: var(--fs-subtitle-b); font-weight: 800; letter-spacing: -0.01em; }
 .scan-item-main { flex: 1; min-width: 0; }
 .scan-pickable.picked {
   background: var(--paper-inset); border-bottom-color: transparent; border-radius: 16px;
@@ -1289,19 +1312,19 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 .scan-chip {
   padding: 5px 12px; display: inline-flex; align-items: center; gap: 4px;
 }
-.scan-chip-icon { font-size: 16px; line-height: 1; color: #000; } /* icon glyph stays black/native color */
-.scan-chip-label { font-size: 13.5px; color: inherit; }
+.scan-chip-icon { font-size: var(--fs-body); line-height: 1; color: #000; } /* icon glyph stays black/native color */
+.scan-chip-label { font-size: var(--fs-caption); color: inherit; }
 
 /* Hook line: Title Case in English (text-transform is a no-op on Chinese
    characters, so this is safe to apply unconditionally regardless of language). */
 .dish-hook { text-transform: capitalize; }
-.heaviness-dots { font-size: 11.5px; letter-spacing: 1px; opacity: 0.85; }
+.heaviness-dots { font-size: var(--fs-micro); letter-spacing: 1px; opacity: 0.85; }
 
 /* --- add-a-page (menu accumulation) --- */
 .btn.is-disabled { opacity: 0.5; pointer-events: none; }
 .scan-appending {
   display: flex; align-items: center; gap: 8px; margin-bottom: 16px;
-  font-size: 13px; color: var(--ink-soft);
+  font-size: var(--fs-caption); color: var(--ink-soft);
 }
 .scan-appending-dot {
   width: 8px; height: 8px; border-radius: 50%; background: var(--ink-soft);
@@ -1310,7 +1333,7 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 @keyframes appendingPulse { 0%,100% { opacity: 0.3; } 50% { opacity: 1; } }
 .scan-new-tag {
   display: inline-block; margin-left: 8px; padding: 1px 7px; border-radius: 999px;
-  font-size: 11px; font-weight: 700; font-family: var(--font-body);
+  font-size: var(--fs-micro); font-weight: 700; font-family: var(--font-body);
   background: var(--paper-inset); color: var(--ink-soft); vertical-align: middle;
   letter-spacing: 0;
 }
@@ -1322,7 +1345,7 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 .join-table {
   margin-top: 26px; padding-top: 20px; border-top: 1px solid var(--line);
 }
-.join-table-title { font-family: var(--font-display); font-size: 18px; font-weight: 1000; letter-spacing: 0.04em; margin-bottom: 6px; }
+.join-table-title { font-family: var(--font-display); font-size: var(--fs-subtitle-a); font-weight: 1000; letter-spacing: 0.04em; margin-bottom: 6px; }
 /* Inline ⓘ — the .card-info-badge circle-glyph, adapted for a LIGHT paper
    context (that one is corner-pinned on a dark card) and sat inline right
    after a heading's own text instead. Sized to the title's cap-height, a few
@@ -1332,15 +1355,14 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
   width: 16px; height: 16px; margin-left: 7px; vertical-align: middle;
   border-radius: 50%; border: 1.3px solid var(--ink-soft); background: transparent;
   color: var(--ink-soft); cursor: pointer; padding: 0;
-  font-family: system-ui, -apple-system, sans-serif; font-size: 10px; font-weight: 600; line-height: 1;
+  font-family: system-ui, -apple-system, sans-serif; font-size: var(--fs-micro); font-weight: 600; line-height: 1;
 }
 .info-inline-badge:active { background: var(--paper-inset); }
-.join-table-blurb { font-size: 13px; color: var(--ink-soft); margin-bottom: 14px; line-height: 1.5; letter-spacing: 0.02em; }
-.lang-en .join-table-blurb { letter-spacing: normal; }
+.join-table-blurb { font-size: var(--fs-caption); color: var(--ink-soft); margin-bottom: 14px; line-height: 1.5; letter-spacing: 0.02em; }
 .join-row { display: flex; align-items: center; gap: 12px; }
 .join-code-input {
   flex-shrink: 0; width: 208px; text-transform: uppercase; letter-spacing: 0.3em; font-weight: 700;
-  font-family: var(--font-display); font-size: 20px; text-align: center;
+  font-family: var(--font-display); font-size: var(--fs-subtitle-b); text-align: center;
   padding: 14px 16px; border-radius: 14px;
 }
 .join-code-input::placeholder { color: var(--ink-faint); letter-spacing: 0.3em; }
@@ -1366,20 +1388,20 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 }
 .table-bar-left { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
 .table-bar-codewrap { display: inline-flex; align-items: baseline; gap: 4px; min-width: 0; }
-.table-bar-label { font-size: 14px; color: var(--ink); }
+.table-bar-label { font-size: var(--fs-caption); color: var(--ink); }
 .table-bar-code {
-  font-family: var(--font-body), system-ui, sans-serif; font-weight: 700; font-size: 15px;
+  font-family: var(--font-body), system-ui, sans-serif; font-weight: 700; font-size: var(--fs-body);
   letter-spacing: 0.05em; color: var(--ink);
 }
-.table-bar-stat { font-size: 14px; color: var(--ink); white-space: pre-wrap; }
+.table-bar-stat { font-size: var(--fs-caption); color: var(--ink); white-space: pre-wrap; }
 
 /* --- cart bar: what you picked (left) vs what it costs (right) ---
    Handoff Screen 4 total bar: full-width ink pill, 15px/22px padding. */
 .cart-btn {
   width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 10px;
-  padding: 15px 22px; font-size: 15px;
+  padding: 15px 22px; font-size: var(--fs-body);
 }
-.cart-total { font-weight: 650; }
+.cart-total { font-weight: var(--fw-btn); }
 
 /* --- AI-palate install flow (owner spec 2026-07-23, title/body reuse 2026-07-24) --- */
 /* Title row: "dishi.Spoon → [host logo]" — the persona name in the shared
@@ -1393,7 +1415,7 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 /* Steps sit in `extra` (not `body`) so each line can hang-indent: a wrapped
    second line aligns under the step's own text, not back under the circled
    number, matching .explain-modal-body's type exactly. */
-.install-steps { display: flex; flex-direction: column; gap: 10px; font-size: 16px; color: var(--ink-soft); line-height: 1.65; text-align: left; }
+.install-steps { display: flex; flex-direction: column; gap: 10px; font-size: var(--fs-body); color: var(--ink-soft); line-height: 1.65; text-align: left; }
 .install-step { display: flex; gap: 8px; }
 .install-step-num { flex-shrink: 0; width: 1.4em; }
 .install-step-text { flex: 1; }
@@ -1423,8 +1445,8 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 .persona-slide { min-width: 100%; text-align: center; padding: 2px 12px 0; }
 /* The persona NAME is a name — the dish-name serif register (font-display,
    heavy), not UI-label styling. */
-.persona-name { font-family: var(--font-display); font-size: 26px; font-weight: 800; color: var(--ink); }
-.persona-blurb { font-size: 15.5px; color: var(--ink-soft); line-height: 1.55; margin-top: 1px; letter-spacing: 0.04em; }
+.persona-name { font-family: var(--font-display); font-size: var(--fs-title-a); font-weight: 800; color: var(--ink); }
+.persona-blurb { font-size: var(--fs-body); color: var(--ink-soft); line-height: 1.55; margin-top: 1px; letter-spacing: 0.04em; }
 /* A real <button> (was a decorative span row) — tapping the dots as a group
    advances the carousel one step, looping 3rd → 1st. Reset to a plain hit
    area; padding widens the tap target beyond the tiny visible dots. */
@@ -1471,7 +1493,7 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 .row-menu button {
   display: flex; align-items: center; gap: 10px; width: 100%;
   padding: 11px 14px; background: none; border: none; text-align: left;
-  font-size: 14px; color: var(--ink-soft); font-weight: 500;
+  font-size: var(--fs-caption); color: var(--ink-soft); font-weight: 500;
 }
 .row-menu button:hover, .row-menu button:focus-visible { background: var(--paper-inset); }
 /* Kebab menu button, pinned to the row's top-right (own flex child). */
@@ -1500,17 +1522,17 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
   box-shadow: 0 12px 32px rgba(20, 16, 12, 0.16); overflow: hidden;
   animation: duel-pop 200ms ease;
 }
-.notif-empty { padding: 18px 16px; font-size: 13px; color: var(--ink-soft); text-align: center; }
+.notif-empty { padding: 18px 16px; font-size: var(--fs-caption); color: var(--ink-soft); text-align: center; }
 .notif-item {
   display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
   padding: 12px 14px; background: none; border: none; border-bottom: 1px solid var(--line); cursor: pointer;
 }
 .notif-item:last-child { border-bottom: none; }
 .notif-item:active { background: rgba(20, 16, 12, 0.04); }
-.notif-item-seal { font-family: 'PingFang TC', 'Heiti TC', sans-serif; font-size: 12.5px; font-weight: 700; color: var(--seal); border: 1px solid var(--seal); border-radius: 3px; padding: 1px 3px; flex-shrink: 0; }
+.notif-item-seal { font-family: 'PingFang TC', 'Heiti TC', sans-serif; font-size: var(--fs-micro); font-weight: 700; color: var(--seal); border: 1px solid var(--seal); border-radius: 3px; padding: 1px 3px; flex-shrink: 0; }
 .notif-item-text { display: flex; flex-direction: column; min-width: 0; }
-.notif-item-label { font-family: var(--font-display); font-size: 15px; color: var(--ink); }
-.notif-item-sub { font-size: 12px; color: var(--ink-soft); }
+.notif-item-label { font-family: var(--font-display); font-size: var(--fs-body); color: var(--ink); }
+.notif-item-sub { font-size: var(--fs-micro); color: var(--ink-soft); }
 
 /* 語言對 globe picker (replaces the 中/EN switcher) */
 .lang-picker { position: relative; display: inline-flex; }
@@ -1528,24 +1550,18 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
   background: var(--glaze); border: 1px solid var(--line); border-radius: 14px;
   box-shadow: 0 12px 32px rgba(20, 16, 12, 0.16); padding: 14px; animation: duel-pop 200ms ease;
 }
-/* Reserve a constant block for title+subtitle (= the taller Chinese layout) so the
-   larger English title grows WITHIN it instead of pushing the pickers/card. Text is
-   bottom-aligned, so the subtitle→pickers gap is identical in both languages. */
+/* Reserve a constant block for title+subtitle, text bottom-aligned, so the
+   subtitle→pickers gap holds steady regardless of how many lines either wraps to. */
 .lang-sheet-head { min-height: 43px; margin-bottom: 12px; display: flex; flex-direction: column; justify-content: flex-end; }
-.lang-sheet-title { font-family: var(--font-display); font-size: 17px; font-weight: 700; margin-bottom: 2px; }
-/* English title only: larger, with a bit more air to the subtitle. Stays within the
-   fixed .lang-sheet-head slack (title rides up), so the pickers/card don't move. */
-.lang-en .lang-sheet-title { font-size: 20px; line-height: 1.1; margin-bottom: 4px; }
-.lang-sheet-subtitle { font-size: 12.5px; color: var(--ink-soft); line-height: 1.35; }
-/* Open the tracking for the Chinese subtitle only — Latin (the en string) stays tight. */
-.lang-zh .lang-sheet-subtitle { letter-spacing: 0.1em; }
+.lang-sheet-title { font-family: var(--font-display); font-size: var(--fs-subtitle-a); font-weight: 700; margin-bottom: 2px; }
+.lang-sheet-subtitle { font-size: var(--fs-micro); color: var(--ink-soft); line-height: 1.35; }
 .lang-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-.lang-slot-label { font-size: 13px; color: var(--ink-soft); flex-shrink: 0; }
+.lang-slot-label { font-size: var(--fs-caption); color: var(--ink-soft); flex-shrink: 0; }
 /* Custom chevron (replaces the native select arrow, which can't be repositioned) so
    it sits ~15px in from the right edge instead of hard against it. background-image
    only — the paper-raised background-color from .field is preserved. */
 .lang-select {
-  flex: 1; max-width: 180px; padding: 8px 27px 8px 10px; font-size: 14px;
+  flex: 1; max-width: 180px; padding: 8px 27px 8px 10px; font-size: var(--fs-caption);
   appearance: none; -webkit-appearance: none;
   /* Force ink text: iOS Safari otherwise renders the select's value in the system
      tint (blue). color alone isn't enough on iOS — -webkit-text-fill-color wins. */
@@ -1563,7 +1579,7 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
   width: 32px; height: 32px; border-radius: 50%;
   display: inline-flex; align-items: center; justify-content: center;
   background: var(--glaze); border: 1px solid var(--line);
-  color: var(--ink-soft); font-size: 14px; line-height: 1; cursor: pointer;
+  color: var(--ink-soft); font-size: var(--fs-caption); line-height: 1; cursor: pointer;
 }
 .lang-swap:hover, .lang-swap:focus-visible { color: var(--ink); border-color: var(--ink-soft); }
 
@@ -1581,12 +1597,12 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
    normal flow (the ✕ no longer competes for space). */
 .duel-head { display: flex; align-items: center; justify-content: center; gap: 4px; margin-bottom: 14px; position: relative; }
 .duel-head-center { display: flex; align-items: center; gap: 4px; }
-.duel-title { font-family: var(--font-display); font-size: 24px; }
+.duel-title { font-family: var(--font-display); font-size: var(--fs-title-a); }
 /* The 印 stamp up here scales with the title — a square, not just bigger text, so it
    still reads as the same stamped-icon shape. It's a SealStamp (<button>); the
    .seal-stamp-btn reset lives with the shared modal CSS. Tapping it opens the shared
    ExplainModal (same card as the 味 AI stat explainers). */
-.duel-head .seal-stamp { width: 24px; height: 24px; border-radius: 6px; font-size: 19px; }
+.duel-head .seal-stamp { width: 24px; height: 24px; border-radius: 6px; font-size: var(--fs-subtitle-b); }
 .duel-x {
   position: absolute; right: 0; top: 50%; transform: translateY(-50%);
   display: inline-flex; padding: 2px; background: none; border: none; color: var(--ink-soft); cursor: pointer;
@@ -1619,12 +1635,12 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 .duel-photo-blank { background: var(--line); }
 /* Dish names: the journal/scan .card-title treatment, but bigger + centred here (the
    dish IS the choice on this screen), and a tighter gap between the two name lines. */
-.duel-option .card-title .dishname-primary { font-size: 23px; }
-.duel-option .card-title .dishname-secondary { font-size: 15px; margin-top: -1px; }
-.duel-option-rest { font-size: 15px; color: var(--ink-soft); margin-top: 2px; }
+.duel-option .card-title .dishname-primary { font-size: var(--fs-title-a); }
+.duel-option .card-title .dishname-secondary { font-size: var(--fs-body); margin-top: -1px; }
+.duel-option-rest { font-size: var(--fs-body); color: var(--ink-soft); margin-top: 2px; }
 /* The prompt: bigger, bolder, black — per the design call. */
-.duel-q { text-align: center; margin-top: 16px; font-family: var(--font-display); font-weight: 800; font-size: 20px; color: var(--ink); }
-.duel-tie { display: block; margin: 8px auto 0; background: none; border: none; color: var(--ink-soft); font-size: 13px; text-decoration: underline; cursor: pointer; }
+.duel-q { text-align: center; margin-top: 16px; font-family: var(--font-display); font-weight: 800; font-size: var(--fs-subtitle-b); color: var(--ink); }
+.duel-tie { display: block; margin: 8px auto 0; background: none; border: none; color: var(--ink-soft); font-size: var(--fs-caption); text-decoration: underline; cursor: pointer; }
 
 /* 佢哋整得點？ — execution slider on the duel chassis (ExecutionSlider.tsx).
    FIRST-PASS VISUAL, flagged for a Claude Design pass like the duel card was:
@@ -1634,7 +1650,7 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 .duel-pair.exec-single { grid-template-columns: 1fr; }
 .exec-col { display: flex; flex-direction: column; }
 .exec-scale { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 100%; margin-top: 8px; }
-.exec-value { font-family: var(--font-display); font-weight: 800; font-size: 24px; color: var(--ink); line-height: 1; }
+.exec-value { font-family: var(--font-display); font-weight: 800; font-size: var(--fs-title-a); color: var(--ink); line-height: 1; }
 /* The track is ALWAYS the full 1-10 so two scales are directly comparable; the
    band shows what this flick permits and the thumb clamps to it. --lo/--hi are
    set inline per row. */
@@ -1645,13 +1661,13 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
   background: color-mix(in srgb, var(--ink) 14%, transparent); pointer-events: none;
 }
 .exec-range { width: 100%; accent-color: var(--ink); position: relative; z-index: 1; background: transparent; }
-.exec-ends { width: 100%; display: flex; justify-content: space-between; font-size: 11px; color: var(--ink-soft); }
-.exec-pass { display: block; margin-top: 10px; text-align: center; font-size: 12px; color: var(--ink-soft); }
+.exec-ends { width: 100%; display: flex; justify-content: space-between; font-size: var(--fs-micro); color: var(--ink-soft); }
+.exec-pass { display: block; margin-top: 10px; text-align: center; font-size: var(--fs-micro); color: var(--ink-soft); }
 /* The half-second acknowledgement, sized like the card's own question line. */
-.exec-saved { text-align: center; margin: 28px 0; font-family: var(--font-display); font-weight: 800; font-size: 26px; color: var(--ink); }
+.exec-saved { text-align: center; margin: 28px 0; font-family: var(--font-display); font-weight: 800; font-size: var(--fs-title-a); color: var(--ink); }
 /* A previously-scored instance sits alongside as context, not as a choice. */
 .exec-sibling { opacity: 0.72; }
-.exec-prior { display: block; margin-top: 4px; text-align: center; font-size: 12px; color: var(--ink-soft); }
+.exec-prior { display: block; margin-top: 4px; text-align: center; font-size: var(--fs-micro); color: var(--ink-soft); }
 
 /* 係咪同一味？ — identity-confirm card on the duel chassis. The sides are the
    SAME .duel-option anatomy (DuelSide.tsx) but rendered as static divs: not
@@ -1672,9 +1688,9 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
   background: var(--ink); color: var(--glaze); border-radius: 50%;
 }
 .identity-answer:not(:disabled):active .identity-answer-circle { opacity: 0.7; }
-.identity-result { font-size: 15px; line-height: 1.5; color: var(--ink); font-weight: 650; }
+.identity-result { font-size: var(--fs-body); line-height: 1.5; color: var(--ink); font-weight: var(--fw-btn); }
 /* Reveal STAYS on screen (no auto-close) so the result is readable; the ✓ closes. */
 .duel-reveal { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-top: 16px; text-align: center; }
 /* No longer wraps a stamp — the face above it carries the verdict now. */
-.duel-verdict { font-family: var(--font-display); font-weight: 700; font-size: 34px; color: var(--ink); text-align: center; }
-.duel-learned { font-size: 15px; line-height: 1.5; color: var(--ink); }
+.duel-verdict { font-family: var(--font-display); font-weight: 700; font-size: var(--fs-title-b); color: var(--ink); text-align: center; }
+.duel-learned { font-size: var(--fs-body); line-height: 1.5; color: var(--ink); }
