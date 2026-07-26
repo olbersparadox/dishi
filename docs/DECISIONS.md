@@ -2496,6 +2496,108 @@ foreclose it.
 
 ---
 
+## Self-calibrating rating scale + seal percentile bands — ✅ SHIPPED `d8115f5`, `8432890` — pushed 2026-07-26
+
+The two BACKLOG entries as they stood at decision time (carried together
+because each note said to move them "as one story"):
+
+> - [x] **Seal bands: per-user quantile mapping — BUILT, verified, not yet
+>   pushed.** Fixes the §11 breakage (fixed edges 0.35 apart could not carve a
+>   0.26-wide predicted distribution, so predictions collapsed to one band: 5/36
+>   hits, 2 of 4 bands ever used). `directionOf` still bands the actual flick;
+>   new `predictedDirectionOf` in `src/lib/seal.ts` bands a PREDICTION by mapping
+>   it onto the person's own flick scale. Distributions recomputed live in
+>   `stakeSeal` — no stored state, no migration. `SCORING_VERSION` → 3.
+>
+>   Measured (`scripts/simulate-seal-percentile-bands.ts`, evidence in §12):
+>   hits 5 → 20, misses 8 → 0, bands used 2 → 4, `dislike` called 2/2 for the
+>   first time. Ties a constant-`like` predictor on raw hits (both 20 — that
+>   baseline exists because 20/36 outcomes are `like`) but wins on misses, band
+>   coverage, and actually being a prediction. Beats or ties the constant across
+>   generous/harsh/discriminating/one-note rating styles; beats shipped fixed
+>   edges at every history size, so no warm-up gate was needed.
+>
+>   **Remaining before this can be called done:** a rendered screenshot of the
+>   reveal card showing a non-`meh` predicted band end-to-end. No UI code
+>   changed (the card is `SealRevealBadge.tsx`, untouched — only the data
+>   reaching it), but the batch's own bar asks for pixels, and producing them
+>   needs a logged-in session with a pending seal.
+>
+>   Move this entry and the calibration entry below into DECISIONS.md together
+>   once pushed — they are one story.
+>
+> - [x] **Self-calibrating rating scale — SHIPPED, but see the warning below.**
+>   Implementation: `src/lib/taste.ts` (`neutralCenter`, `calibratedScore`,
+>   `PRIOR_CENTER`, `CENTER_PRIOR_K`), `src/lib/replay.ts`, `src/app/api/ratings/
+>   route.ts`. Tests: `tests/taste.test.ts` (calibration describe blocks).
+>   Evidence: `docs/rnd/seal-band-calibration.md` §10. Full rationale and the
+>   centre-location decision belong in DECISIONS.md — not yet moved there
+>   because of the warning below; move it once the seal-band fix ships
+>   alongside it, so the two land in DECISIONS.md as one coherent story.
+>
+>   **Decided (owner, 2026-07-24):** do NOT hardcode what 一般般 is worth —
+>   score each rating relative to the user's OWN learned neutral point instead
+>   of the raw flick value. Measured: pairwise ranking accuracy 76.1% → 80.8%
+>   overall (n=522), 72.7% → 75.8% within-cuisine (n=161).
+>
+>   **Centre-location decision (made 2026-07-25):** option (a), an extra query
+>   over the user's own prior scores in `/api/ratings`' non-re-rate branch —
+>   cheaper than the full replay the re-rate branch already runs, and the only
+>   option provably identical between the incremental and replay paths (a
+>   median has no running-scalar form, so option (b)'s stored value would mean
+>   a second copy of every score — the exact divergence risk this was picked to
+>   avoid). Option (c), letting the incremental path lag, was rejected as
+>   guaranteeing the divergence rather than risking it.
+>
+>   **Seal decision:** `directionOf` reads the RAW flick, not the centred score
+>   — the seal is a claim about the flick the person made, and its bands were
+>   calibrated on raw flicks. This is unchanged and is NOT the source of the
+>   breakage above; the breakage is `contentScore`/affinity feeding into
+>   `directionOf`'s fixed edges, not `directionOf` itself.
+>
+>   **⚠️ SHIPPED WITHOUT ITS GATE — read before touching this branch.** The plan
+>   was: build, verify, hold locally, ship together with the seal-band fix so
+>   the seal never regresses in production even briefly. That held for about a
+>   day (commit `d8115f5`, deliberately unpushed). A later session ran `git pull
+>   origin main` on the same local branch and pushed the resulting merge
+>   (`0df7190` → ... → `0f3d4c5`) without knowing the calibration commit sitting
+>   on that branch was embargoed — git has no way to mark a commit "hold this
+>   one." **Lesson for every future session:** before pushing anything on this
+>   repo, check `git log origin/main..HEAD` for commits you didn't just write,
+>   and ask before pushing if you find one. A backlog note alone didn't stop
+>   this — the embargo lived only in a prior session's memory, not in a form
+>   git or a fresh session could see.
+
+**Both landed on `main` 2026-07-26** in a batch push alongside the execution
+slider work (`d25d0c3`..`550c738`), closing the embargo gap the warning above
+describes — `d8115f5` and `8432890` are confirmed ancestors of `origin/main`.
+
+**The screenshot requirement was met at component level, not via a live
+reveal.** The original ask specified pixels from "a logged-in session with a
+pending seal" — that would need a real `/api/seals` → `/api/ratings` round
+trip against a production account. Instead, `SealRevealBadge.tsx` (the real
+component, unmodified) was mounted in a temporary dev-only route
+(`src/app/dev-seal-preview`, deleted immediately after) with four mock
+`SealResult` props spanning the outcome space: predicted `love`/actual
+`love` (hit), predicted `like`/actual `love` (near), predicted `meh`/actual
+`meh` (hit — included so "what does meh look like" has an answer on record),
+and predicted `dislike`/actual `love` (miss). All four rendered and opened
+correctly, screenshotted. This proves the component renders every
+predicted/actual/outcome combination correctly; it does **not** prove the
+live data pipeline (percentile mapping → `/api/ratings` → this component)
+wires up in production, which is what "end-to-end" in the original bar meant.
+No pending seal was found on any real account to verify that live — worth
+re-checking the first time a real seal reveals a non-`meh` band in
+production.
+
+**Operational note:** an earlier attempt at this verification created test
+dishes/seals on `wool.hk@gmail.com`, a real external tester's account the
+owner does not control — caught and reverted before anything was seen by
+that tester. Test fixtures for this app belong on the owner's own account
+only, never a tester's.
+
+---
+
 # Direction: comparison is the core product DNA (owner, 2026-07-26)
 
 Stated while specifying the execution slider, and recorded as a standing
