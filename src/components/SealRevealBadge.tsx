@@ -46,7 +46,11 @@ export type SealResult = {
 // The result, as a face. Deliberately the ONLY difference between the three
 // stamps: keeping the vermillion square constant (it's the 印 being broken)
 // means the eye reads "a seal opened here" first and the verdict second.
-const FACE: Record<SealResult['outcome'], string> = { hit: '😁', near: '😉', miss: '😅' };
+//
+// EXPORTED because the duel card's own reveal shows the same verdict and must
+// show the same face — a second copy of this mapping is how two surfaces start
+// disagreeing about what a hit looks like. One seal, one vocabulary.
+export const FACE: Record<SealResult['outcome'], string> = { hit: '😁', near: '😉', miss: '😅' };
 
 export default function SealRevealBadge({ seal, size = 'tile', showStreak: showStreakProp = true }: {
   seal: SealResult;

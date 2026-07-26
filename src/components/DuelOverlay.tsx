@@ -8,6 +8,9 @@ import { useState } from 'react';
 import { useLang } from '@/lib/i18n';
 import { CloseIcon, CheckIcon } from './icons';
 import SealStamp from './SealStamp';
+// The verdict FACE comes from the rating reveal, not a copy of it — one seal,
+// one vocabulary, so a hit never looks like two different things.
+import { FACE } from './SealRevealBadge';
 // Side anatomy (photo / zh-pinned name / location) is the SHARED chassis — the
 // identity-confirm card mounts the same component. See DuelSide.tsx.
 import DuelSide, { type DuelDish } from './DuelSide';
@@ -82,11 +85,15 @@ export default function DuelOverlay({ duel, onClose }: { duel: Duel; onClose: (r
             </>
           ) : (
             <div className="duel-reveal" role="status">
-              {/* The sealed result — stays put so it's actually readable. 開 ("opened" —
-                  the seal broken) sits in a stamp box that mirrors the header 印, so the
-                  reveal visually answers the seal. */}
+              {/* The sealed result — stays put so it's actually readable. The FACE
+                  leads, exactly as it does on a rating's reveal: same three faces,
+                  same meaning, so a duel hit and a rating hit read identically.
+                  A tie takes the middle face — the engine was neither right nor
+                  wrong, which is precisely what 😉 says there. */}
+              <span className="seal-modal-face" aria-hidden>
+                {FACE[reveal.tie ? 'near' : reveal.predicted_correct ? 'hit' : 'miss']}
+              </span>
               <div className="duel-verdict">
-                <span className="seal-stamp duel-open-stamp" aria-hidden>開</span>
                 <span>{reveal.tie ? t('duel.tieresult') : reveal.predicted_correct ? t('duel.hit') : t('duel.miss')}</span>
               </div>
               {reveal.learned.length > 0 && (

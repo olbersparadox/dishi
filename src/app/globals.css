@@ -1610,7 +1610,11 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 /* The chosen dish is NOT enlarged — it just stays put while the loser collapses
    away so the choice reads. (On a tie, neither is chosen, so both collapse.) */
 .duel-option.won { border-color: var(--ink); }
-.duel-option.faded { opacity: 0; max-width: 0; flex-basis: 0; padding: 0; margin: 0; border-width: 0; overflow: hidden; }
+/* max-height too, not just width: on a TIE both sides fade, and collapsing only
+   the width left the row holding its full photo height as a blank gap. On a
+   normal pick the winner is unfaded and still sets the height, so this is inert
+   there. */
+.duel-option.faded { opacity: 0; max-width: 0; max-height: 0; flex-basis: 0; padding: 0; margin: 0; border-width: 0; overflow: hidden; }
 .duel-photo { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 10px; display: block; }
 .duel-photo-blank { background: var(--line); }
 /* Dish names: the journal/scan .card-title treatment, but bigger + centred here (the
@@ -1669,8 +1673,6 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 .identity-result { font-size: 15px; line-height: 1.5; color: var(--ink); font-weight: 650; }
 /* Reveal STAYS on screen (no auto-close) so the result is readable; the ✓ closes. */
 .duel-reveal { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-top: 16px; text-align: center; }
-.duel-verdict { display: flex; align-items: center; gap: 10px; font-family: var(--font-display); font-weight: 700; font-size: 34px; color: var(--ink); }
-/* 開 sits in a vermillion stamp box that mirrors the header 印 — the reveal answering
-   the seal. Sized to the verdict line, not the small header stamp. */
-.duel-open-stamp { width: 44px; height: 44px; border-radius: 8px; font-size: 30px; margin-left: 0; vertical-align: 0; }
+/* No longer wraps a stamp — the face above it carries the verdict now. */
+.duel-verdict { font-family: var(--font-display); font-weight: 700; font-size: 34px; color: var(--ink); text-align: center; }
 .duel-learned { font-size: 15px; line-height: 1.5; color: var(--ink); }
