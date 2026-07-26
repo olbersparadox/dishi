@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseServer, supabaseAdmin } from '@/lib/supabase/server';
 import { extractVoiceSignal } from '@/lib/voice';
-import { updateTaste, updateCuisineAffinity, bumpEvidence, emptyTaste, taughtDims, calibratedScore, type TasteVector } from '@/lib/taste';
+import { updateTaste, updateCuisineAffinity, bumpEvidence, emptyTaste, taughtDims, calibratedScore, executionRangeFor, type TasteVector } from '@/lib/taste';
 import { replayProfile } from '@/lib/replay';
 import { directionOf, outcomeOf } from '@/lib/seal';
 
@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
   }
 
   const { data: dish, error: dishErr } = await supabase
-    .from('dishes').select('id, attributes, cuisine').eq('id', dish_id).single();
+    .from('dishes').select('id, attributes, cuisine, dish_identity_id').eq('id', dish_id).single();
   if (dishErr || !dish) return NextResponse.json({ error: 'Dish not found.' }, { status: 404 });
 
   // Re-rating the same dish replaces the rating row (upsert below) — it must not
@@ -139,6 +139,35 @@ export async function POST(req: NextRequest) {
     dir: Math.sign(learnedScore * (presence - 0.5)) as -1 | 0 | 1,
   })).filter(x => x.dir !== 0);
 
+  // 佢哋整得點？ — whether to offer the execution slider, and what range this
+  // flick permits. Decided SERVER-SIDE and handed to the client whole: the
+  // threshold, the warm-up and the bounds all key off the person's learned
+  // neutral point, and a client recomputing any of them would drift from the
+  // engine the moment either changes.
+  //
+  // Asked when the flick is clearly off their normal (so the plate is worth a
+  // question at all), OR when this dish identity already has another rating —
+  // because a comparison needs the GOOD instance recorded too, not just the bad
+  // one. Answering is always optional; skipping costs nothing.
+  const WARMUP = 10;
+  let execution: { ask: boolean; min: number; max: number } | null = null;
+  {
+    const offNormal = Math.abs(learnedScore) >= 0.2;
+    let hasSibling = false;
+    if (dish.dish_identity_id) {
+      const { count } = await supabase
+        .from('ratings')
+        .select('id, dishes!inner(dish_identity_id)', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('dishes.dish_identity_id', dish.dish_identity_id)
+        .neq('dish_id', dish_id);
+      hasSibling = (count ?? 0) > 0;
+    }
+    const mature = nextCount >= WARMUP;
+    const range = executionRangeFor(learnedScore);
+    execution = { ask: (mature && offNormal) || hasSibling, ...range };
+  }
+
   // 封印預測 reveal: if a seal exists and hasn't been broken yet, break it now
   // using the ACTUAL rating just committed. This is the only place a seal is
   // ever revealed — never before the rating lands, and never client-side.
@@ -189,5 +218,5 @@ export async function POST(req: NextRequest) {
     };
   }
 
-  return NextResponse.json({ ok: true, taste: nextVector, rating_count: nextCount, taught, seal });
+  return NextResponse.json({ ok: true, taste: nextVector, rating_count: nextCount, taught, seal, execution });
 }

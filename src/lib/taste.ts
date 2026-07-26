@@ -134,6 +134,59 @@ export function calibratedScore(rawScore: number, priorScores: number[]): number
   return rawScore - neutralCenter(priorScores);
 }
 
+// ── Execution quality (佢哋整得點？) ───────────────────────────────────────────
+// A flick says how the MEAL went; it cannot say whether a bad meal was the dish
+// or the kitchen. Real case that forced this: 火腿通粉 flicked 唔會再食 because
+// the shop served the soup "like hot water" — teaching the palate a permanent
+// dislike of macaroni soup the person does not actually have.
+//
+// The mechanic MEASURES rather than asks. Every instance gets a 1-10 execution
+// score, and the dish-vs-execution answer falls out of comparing instances of
+// the same dish identity: 火腿通粉 at A=2 and later at B=8 means the dish is
+// fine and A is the problem. See docs/DECISIONS.md "Direction: comparison is
+// the core product DNA".
+
+/** Passing line. 1-4 is a kitchen that failed the dish; 5+ is a fair rendering
+ * of it. The owner set 5 explicitly ("below the passing point at 5"). */
+export const EXECUTION_PASS = 5;
+
+/**
+ * Should this rating be kept OUT of taste learning?
+ *
+ * Only once the engine can actually TELL it was the kitchen — this instance
+ * failed AND some other instance of the same dish identity passed. One bad
+ * plate on its own is ambiguous (maybe you really don't like the dish), and
+ * staying ambiguous is the honest state: it keeps teaching until there is
+ * evidence to the contrary, rather than discarding a real opinion on a guess.
+ *
+ * Deliberately NOT "any lower score elsewhere": two failing instances (2 and 3)
+ * are not evidence the dish is fine, they are evidence you keep meeting bad
+ * kitchens. It takes a PASSING instance to exonerate the dish.
+ */
+export function isExecutionConfounded(
+  executionScore: number | null | undefined,
+  /** Execution scores of the user's OTHER ratings of the same dish identity. */
+  siblingScores: (number | null | undefined)[],
+): boolean {
+  if (executionScore == null || executionScore >= EXECUTION_PASS) return false;
+  return siblingScores.some(s => s != null && s >= EXECUTION_PASS);
+}
+
+/**
+ * The slider range a given flick permits, so the two can never contradict each
+ * other. You cannot flick 唔會再食 and then call the plate a 9, nor rave about a
+ * dish and call the cooking a 1.
+ *
+ * Bounds key off the CENTRED score (the person's own neutral), not the raw
+ * flick — the same self-calibrating rule the rest of the engine uses, so a
+ * harsh rater's ordinary flick isn't treated as a complaint.
+ */
+export function executionRangeFor(calibrated: number, threshold = 0.2): { min: number; max: number } {
+  if (calibrated <= -threshold) return { min: 1, max: EXECUTION_PASS - 1 };
+  if (calibrated >= threshold) return { min: EXECUTION_PASS, max: 10 };
+  return { min: 1, max: 10 };
+}
+
 /**
  * Update a user's taste vector after a rating.
  * EMA with a PER-DIMENSION learning rate that decays as that dimension accumulates

@@ -3,7 +3,7 @@ import { supabaseAdmin } from './supabase/server';
 import {
   emptyTaste, updateTaste, updateCuisineAffinity, bumpEvidence,
   updateTasteFromDuel, updateTasteFromDuelTie, bumpEvidenceFromDuel,
-  calibratedScore,
+  calibratedScore, isExecutionConfounded,
   type TasteVector, type EvidenceMap,
 } from './taste';
 
@@ -50,11 +50,13 @@ export async function replayProfile(
   replayed: number;
   /** Per dish_id, the neutral point that dish's rating was scored against. */
   centers: Record<string, number>;
+  /** How many ratings were dropped from learning as kitchen-attributable. */
+  confounded: number;
 } | null> {
   const [{ data: rows, error }, { data: duelRows }] = await Promise.all([
     supabase
       .from('ratings')
-      .select('dish_id, score, voice_attributes, created_at, dishes(attributes, cuisine)')
+      .select('dish_id, score, execution_score, voice_attributes, created_at, dishes(attributes, cuisine, dish_identity_id)')
       .eq('user_id', userId)
       .order('created_at', { ascending: true }),
     supabaseAdmin()
@@ -74,10 +76,38 @@ export async function replayProfile(
     | { t: number; kind: 'tie'; a: Record<string, number>; b: Record<string, number> };
 
   const events: Event[] = [];
+  let confounded = 0; // ratings the engine can now blame on the kitchen
+
+  // Execution scores grouped by dish identity, so each rating can be tested
+  // against its SIBLINGS — the same dish rendered by another kitchen (or the
+  // same kitchen on another day). This is the whole basis of the confound rule:
+  // one bad plate is ambiguous, one bad plate next to a good one is a verdict.
+  const scoresByIdentity = new Map<string, number[]>();
+  for (const r of rows as any[]) {
+    const id = r.dishes?.dish_identity_id;
+    if (!id || r.execution_score == null) continue;
+    const list = scoresByIdentity.get(id) ?? [];
+    list.push(r.execution_score);
+    scoresByIdentity.set(id, list);
+  }
 
   for (const r of rows as any[]) {
     const dish = r.dishes;
     if (!dish) continue; // defensive: rating without a joinable dish teaches nothing
+
+    // A rating the engine can now attribute to the kitchen is not evidence about
+    // this person's taste, so it leaves the learning stream ENTIRELY — no
+    // vector, no evidence, no affinity, and (below) no contribution to the
+    // neutral point either. A flick that wasn't about taste must not calibrate
+    // how taste flicks are read. It still counts as a rating; see `replayed`.
+    const identityId = dish.dish_identity_id;
+    const siblings = identityId
+      // Its own score is in the group too — drop one copy of it, not every equal
+      // value, or two instances that both scored 7 would cancel each other out.
+      ? dropOne(scoresByIdentity.get(identityId) ?? [], r.execution_score)
+      : [];
+    if (isExecutionConfounded(r.execution_score, siblings)) { confounded++; continue; }
+
     const voice = r.voice_attributes && Object.keys(r.voice_attributes).length ? r.voice_attributes : null;
     events.push({ t: new Date(r.created_at).getTime(), kind: 'rating', dishId: r.dish_id, attrs: dish.attributes ?? {}, cuisine: dish.cuisine, score: r.score, voice });
   }
@@ -125,5 +155,16 @@ export async function replayProfile(
     }
   }
 
-  return { vector, evidence, cuisine_affinity: affinity, replayed, centers };
+  // `replayed` counts ratings that TAUGHT, mirroring rating_count's meaning for
+  // the learning rate. Execution-confounded ones are added back: the person did
+  // rate the dish, so gates built on rating_count (the seal gate, export
+  // confidence) must still see it — only the palate ignores it.
+  return { vector, evidence, cuisine_affinity: affinity, replayed: replayed + confounded, centers, confounded };
+}
+
+/** Remove a single occurrence of `value`, leaving other equal values in place. */
+function dropOne(list: number[], value: number | null | undefined): number[] {
+  if (value == null) return list;
+  const i = list.indexOf(value);
+  return i < 0 ? list : [...list.slice(0, i), ...list.slice(i + 1)];
 }
