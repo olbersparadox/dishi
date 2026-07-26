@@ -78,17 +78,26 @@ body {
    any such auto-link back to plain inherited text, in case one still slips through. */
 a[href^="tel:"] { color: inherit; text-decoration: inherit; }
 h1, h2, h3, .display { font-family: var(--font-display); font-weight: 500; letter-spacing: 0.06em; }
-/* 2026-07-26: removed six .lang-en/.lang-zh rules here and at .join-table-blurb /
-   .lang-sheet-title / .lang-sheet-subtitle — dead code, confirmed by grepping every
-   .tsx in the app: nothing ever sets className="lang-en" or "lang-zh", so none of
-   those rules had ever fired (see the design-token audit, 2026-07-26). The em-
-   tracking above is tuned for Chinese and currently applies unconditionally, in
-   EVERY language — Latin headings run a bit airy as a result. If English tracking
-   needs pulling back, gate it on the real `lang` value in JS (the pattern
-   RestaurantPicker.tsx's captionCls uses), not a CSS class that nothing sets.
-   Dish-name tracking already does the right thing independent of this: it's
-   tagged per slot by the actual SCRIPT (.dn-cjk / .dn-latin, set in DishName), so
-   a Latin name tightens even mid-Chinese-chrome. See .dishname-primary.dn-* below. */
+/* 2026-07-26 CORRECTION: the six .lang-en/.lang-zh rules below (and at
+   .join-table-blurb / .lang-sheet-title / .lang-sheet-subtitle) were deleted
+   earlier today as "dead code" on the claim that nothing sets those class-
+   names. That grep missed Shell.tsx's `className={`app-root lang-${lang}`}` on
+   the app root (ShellInner) — a template literal, not a literal string match —
+   which DOES put "lang-zh"/"lang-en" on every page's ancestor element. The
+   rules were live the whole time; deleting them made every English heading
+   ("Journal", "Scan a menu", "Taste AI", "Dishes you've rated", ...) inherit
+   the Chinese-tuned 0.06em base tracking with nothing pulling it back. Restored
+   verbatim (font-size tokens only, from the same pass) — see ROLLBACK note in
+   commit 1fbe46e if this needs re-deriving. */
+.lang-en h1, .lang-en h2, .lang-en h3, .lang-en .display,
+.lang-en .card-title, .lang-en .join-table-title { letter-spacing: -0.01em; }
+/* The big section title (h1) is a light-weight 30px serif, so the -0.01em above
+   still reads airy in Latin ("Journal" next to the denser Chinese 食記). Pull it in
+   further. CJK titles keep the 0.06em base — they're only ever under .lang-zh. */
+.lang-en h1 { letter-spacing: -0.03em; }
+/* Dish-name tracking is NOT handled here: it's tagged per slot by the actual script
+   (.dn-cjk / .dn-latin, set in DishName) so a Latin name tightens even when the chrome
+   language is Chinese. See .dishname-primary.dn-* below. */
 h1 { font-size: var(--fs-title-b); line-height: 1.15; }
 h3 { font-size: var(--fs-body); }
 
@@ -1366,6 +1375,7 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 }
 .info-inline-badge:active { background: var(--paper-inset); }
 .join-table-blurb { font-size: var(--fs-caption); color: var(--ink-soft); margin-bottom: 14px; line-height: 1.5; letter-spacing: 0.02em; }
+.lang-en .join-table-blurb { letter-spacing: normal; }
 .join-row { display: flex; align-items: center; gap: 12px; }
 .join-code-input {
   flex-shrink: 0; width: 208px; text-transform: uppercase; letter-spacing: 0.3em; font-weight: 700;
@@ -1561,7 +1571,12 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
    subtitle→pickers gap holds steady regardless of how many lines either wraps to. */
 .lang-sheet-head { min-height: 43px; margin-bottom: 12px; display: flex; flex-direction: column; justify-content: flex-end; }
 .lang-sheet-title { font-family: var(--font-display); font-size: var(--fs-subtitle-a); font-weight: 700; margin-bottom: 2px; }
+/* English title only: larger, with a bit more air to the subtitle. Stays within the
+   fixed .lang-sheet-head slack (title rides up), so the pickers/card don't move. */
+.lang-en .lang-sheet-title { font-size: var(--fs-subtitle-b); line-height: 1.1; margin-bottom: 4px; }
 .lang-sheet-subtitle { font-size: var(--fs-micro); color: var(--ink-soft); line-height: 1.35; }
+/* Open the tracking for the Chinese subtitle only — Latin (the en string) stays tight. */
+.lang-zh .lang-sheet-subtitle { letter-spacing: 0.1em; }
 .lang-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .lang-slot-label { font-size: var(--fs-caption); color: var(--ink-soft); flex-shrink: 0; }
 /* Custom chevron (replaces the native select arrow, which can't be repositioned) so
