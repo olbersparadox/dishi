@@ -254,6 +254,20 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'picker.name': { zh: '餐廳名', en: 'Restaurant name' },
   'picker.confirm': { zh: '加入', en: 'Add' },
   'picker.needloc': { zh: '新舖需要開定位，Dishi 先可以幫其他人釘住個位。', en: 'New places need location on, so Dishi can pin them for others.' },
+  // photoOnly (食記 retrospective edit): the shortlist is the PHOTO's location or
+  // nothing — the device's location is days and miles away from the meal, so it
+  // would be confidently wrong. Live GPS stays reachable for PINNING a newly
+  // typed place, but only on an explicit tap (picker.uselivegeo).
+  'picker.nophotoloc': {
+    zh: '這張相片沒有位置資料 — 可以自己輸入店名，或者跳過。',
+    en: 'This photo has no location — add the place by name, or skip.',
+  },
+  'picker.fromhere': { zh: '📍 你現時位置附近', en: '📍 Around where you are now' },
+  'picker.needloc.photo': {
+    zh: '這張相片沒有位置，新舖需要一個位置才釘得住。',
+    en: 'This photo has no location, and a new place needs one to be pinned.',
+  },
+  'picker.uselivegeo': { zh: '用我現時位置', en: 'Use my current location' },
   'picker.moredetails': { zh: '+ 更多資料', en: '+ Add more details' },
   'picker.area': { zh: '地區（例如：銅鑼灣）', en: 'Area (e.g. Causeway Bay)' },
   'picker.address': { zh: '地址', en: 'Address' },
@@ -443,10 +457,12 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'seal.reveal.hit': { zh: '揭開封印 — 預測命中', en: 'Broke the seal \u2014 nailed it' },
   'seal.reveal.near': { zh: '拆開個印 \u2014 幾接近', en: 'Broke the seal \u2014 close' },
   'seal.reveal.miss': { zh: '揭開封印 — 預測落空', en: 'Broke the seal \u2014 missed it' },
-  'seal.reveal.detail': {
-    zh: 'Dishi 早前預測你會「{predicted}」，你實際是「{actual}」。',
-    en: 'Dishi predicted you\u2019d feel \u201c{predicted}\u201d \u2014 you actually felt \u201c{actual}\u201d.',
-  },
+  // Split into two title-sized lines (2026-07-26) \u2014 the balloon leads with the
+  // call, then the actual, each big enough to read at a glance; the reason and
+  // what it taught follow as smaller supporting text (seal.reveal.sealed /
+  // profile.justlearned).
+  'seal.reveal.predicted': { zh: 'Dishi \u9810\u8a08\uff1a\u300c{predicted}\u300d', en: 'Dishi called it: \u201c{predicted}\u201d' },
+  'seal.reveal.actual': { zh: '\u4f60\u7684\u8a55\u50f9\uff1a\u300c{actual}\u300d', en: 'You rated it: \u201c{actual}\u201d' },
   'seal.reveal.sealed': {
     zh: '封存時寫下的理由：{reason}。',
     en: 'Sealed reason: {reason}.',

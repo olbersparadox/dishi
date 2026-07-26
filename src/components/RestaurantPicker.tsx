@@ -39,7 +39,7 @@ export type RestaurantChoice =
  * whenever Google or a prior Dishi record actually has both languages — never a
  * fabricated second line.
  */
-export default function RestaurantPicker({ onChange, skipFirst = false, seedCoords = null, onCoords }: {
+export default function RestaurantPicker({ onChange, skipFirst = false, seedCoords = null, photoOnly = false, onCoords }: {
   onChange: (c: RestaurantChoice) => void;
   /** Reports the coords the picker resolved to (photo seed or live GPS), so the log
    * page can reverse-geocode a district when the user skips (no restaurant chosen).
@@ -53,13 +53,25 @@ export default function RestaurantPicker({ onChange, skipFirst = false, seedCoor
   /** Photo EXIF coords: WHERE the photo was taken, which beats live GPS (where the
    * phone is now) for a retrospective log. When present, the nearby list is seeded
    * from here instead of geolocation — so a couch-logged restaurant dish still gets
-   * the right shortlist. null → fall back to live GPS. */
+   * the right shortlist. null → fall back to live GPS (unless `photoOnly`). */
   seedCoords?: { lat: number; lng: number } | null;
+  /** RETROSPECTIVE edit (食記): never let live GPS produce the suggestion list.
+   * With the default fallback, the same picker suggested photo-location places for
+   * a dish that kept its EXIF and here's-where-you-are-now places for one that
+   * didn't — the shortlist silently meant two different things, and on an edit
+   * made days later and miles away the second kind is just wrong. Under
+   * `photoOnly` the list is EXIF or nothing; live GPS is still reachable for
+   * PINNING a newly typed place, but only when the person asks for it explicitly
+   * (a brand-new restaurant needs some coordinate or it can't be deduped). */
+  photoOnly?: boolean;
 }) {
   const { t, lang } = useLang();
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [nearby, setNearby] = useState<Nearby[]>([]);
-  const [status, setStatus] = useState<'locating' | 'ready' | 'denied'>('locating');
+  // 'nogeo' is photoOnly's own end state: the photo carries no location, so there
+  // is no honest shortlist to offer. Distinct from 'denied' (location permission
+  // off), which is about the device, not the photo.
+  const [status, setStatus] = useState<'locating' | 'ready' | 'denied' | 'nogeo'>('locating');
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [newName, setNewName] = useState('');
@@ -98,15 +110,32 @@ export default function RestaurantPicker({ onChange, skipFirst = false, seedCoor
 
   useEffect(() => {
     // Photo location wins: it's where the dish was actually eaten, not where the
-    // phone is now. Fall back to live GPS only when there's no photo GPS to seed from.
+    // phone is now. Fall back to live GPS only when there's no photo GPS to seed
+    // from AND this isn't a retrospective edit (see `photoOnly`).
     if (seedCoords) { loadNearby(seedCoords.lat, seedCoords.lng); return; }
+    if (photoOnly) { setStatus('nogeo'); return; }
     if (!navigator.geolocation) { setStatus('denied'); return; }
     navigator.geolocation.getCurrentPosition(
       pos => loadNearby(pos.coords.latitude, pos.coords.longitude),
       () => setStatus('denied'),
       { enableHighAccuracy: true, timeout: 8000 },
     );
-  }, [seedCoords, loadNearby]);
+  }, [seedCoords, photoOnly, loadNearby]);
+
+  // photoOnly's explicit escape hatch: a newly typed place needs SOME coordinate
+  // or it can't be pinned or deduped. Offered only inside the add form, only when
+  // the photo had no location, and only on a deliberate tap — so live GPS can
+  // pin a new place without ever having quietly shaped the suggestion list.
+  const [useLiveGeo, setUseLiveGeo] = useState(false);
+  function requestLiveGeo() {
+    if (!navigator.geolocation) { setStatus('denied'); return; }
+    setUseLiveGeo(true);
+    navigator.geolocation.getCurrentPosition(
+      pos => loadNearby(pos.coords.latitude, pos.coords.longitude),
+      () => { setUseLiveGeo(false); setStatus('denied'); },
+      { enableHighAccuracy: true, timeout: 8000 },
+    );
+  }
 
   function pick(r: Nearby) {
     const key = r.source === 'dishi' ? r.id! : r.place_id!;
@@ -233,10 +262,15 @@ export default function RestaurantPicker({ onChange, skipFirst = false, seedCoor
     <div>
       {status === 'locating' && <p className="card-meta">{t('picker.finding')}</p>}
       {status === 'denied' && <p className="card-meta">{t('picker.denied')}</p>}
-      {/* Transparent, not magic: say the list is seeded from the photo's location. */}
+      {/* The photo has no location and we refuse to substitute the device's —
+          say which it is, rather than showing a confidently wrong shortlist. */}
+      {status === 'nogeo' && <p className="card-meta">{t('picker.nophotoloc')}</p>}
+      {/* Transparent, not magic: say where the list is seeded from — the photo's
+          location normally, or the device's on the explicit opt-in below. */}
       {seedCoords && status === 'ready' && <p className="card-meta">{t('picker.fromphoto')}</p>}
+      {!seedCoords && useLiveGeo && status === 'ready' && <p className="card-meta">{t('picker.fromhere')}</p>}
 
-      <div className="chips" style={{ marginTop: 8 }}>
+      <div className="chips picker-chips" style={{ marginTop: 8 }}>
         {skipFirst && (<>
           <button className={`chip chip-util ${selectedKey === 'skip' ? 'on' : ''}`} onClick={() => noRestaurant('skip')}>{t('grow.skip')}</button>
           <button className={`chip chip-util ${selectedKey === 'home' ? 'on' : ''}`} onClick={() => noRestaurant('home')}>{t('place.home')}</button>
@@ -249,7 +283,7 @@ export default function RestaurantPicker({ onChange, skipFirst = false, seedCoor
           // name happens to be on file for it — never a fabricated second line.
           const label = lang === 'zh' ? (r.name_zh ?? r.name) : r.name;
           return (
-            <button key={key} className={`chip ${selectedKey === key ? 'on' : ''}`} onClick={() => pick(r)}>
+            <button key={key} className={`chip picker-nearby ${selectedKey === key ? 'on' : ''}`} onClick={() => pick(r)}>
               {label}
               {r.distance_m !== null && <span style={{ opacity: 0.55 }}> · {Math.round(r.distance_m)}m</span>}
               {r.source === 'google' && <span style={{ opacity: 0.5 }}> · {t('picker.new')}</span>}
@@ -368,9 +402,19 @@ export default function RestaurantPicker({ onChange, skipFirst = false, seedCoor
         </div>
       )}
       {adding && !coords && (
-        <p className={`card-meta ${needlocFlash ? 'needloc-flash' : ''}`} style={{ marginTop: 6 }}>
-          {t('picker.needloc')}
-        </p>
+        <div style={{ marginTop: 6 }}>
+          <p className={`card-meta ${needlocFlash ? 'needloc-flash' : ''}`}>
+            {photoOnly ? t('picker.needloc.photo') : t('picker.needloc')}
+          </p>
+          {/* The one place live GPS is allowed under photoOnly, and only on a
+              deliberate tap: a brand-new restaurant is useless to everyone else
+              without a coordinate to pin it to. */}
+          {photoOnly && !useLiveGeo && (
+            <button className="btn ghost small" style={{ marginTop: 6 }} onClick={requestLiveGeo}>
+              {t('picker.uselivegeo')}
+            </button>
+          )}
+        </div>
       )}
     </div>
   );

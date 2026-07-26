@@ -14,8 +14,21 @@
 //   2. the pick-from-待評 path specifically (the one the owner hit) is covered;
 //   3. the reveal survives the growth screen's mount — it is not cleared by the
 //      post-rating refresh/exit sequence;
-//   4. no seal in the response => no reveal card invented.
+//   4. no seal in the response => no reveal invented.
 // A fire-and-forget `rate()` fails (1)-(3); a missing render site fails all.
+//
+// 2026-07-26: the reveal moved from a stack of cards above the dish rows to a
+// stamp beside each dish's NAME, with the words behind a tap (the shared
+// ExplainModal). "Rendered" therefore now means "a badge exists on that dish's
+// row", and the prose assertions open it first. The consumption contract is
+// unchanged and still pinned: nothing may burn a one-way `revealed_at` without
+// putting the verdict on screen.
+//
+// Same date: the balloon itself was redesigned (big centred face, predicted/
+// actual as two title-size lines, reason + "what this taught me" as smaller
+// supporting text underneath), and the session-wide "你剛剛教會了我" banner
+// that used to sit above the dish rows was retired — what a rating taught now
+// rides on ITS OWN seal's balloon instead (see the last describe block).
 // Assertions read the ZH copy: LanguageProvider defaults to Chinese-first, which
 // is what a real user sees here.
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -70,6 +83,23 @@ function mockFetch(seal: unknown, opts: { missed?: unknown[]; taught?: unknown[]
 }
 const urls = (calls: { url: string }[]) => calls.map(c => c.url);
 
+/** Every seal badge on screen, in row order. The verdict is a stamp beside the
+ *  dish name now, so this is what "the reveal rendered" means. */
+const badges = () => Array.from(document.querySelectorAll<HTMLElement>('.seal-badge'));
+/** The badge on the row whose dish name is `name` — the attribution assertion:
+ *  a verdict stamped on the wrong dish is worse than no verdict. */
+const badgeOnRow = (name: string) => {
+  const row = Array.from(document.querySelectorAll('.learn-row'))
+    .find(r => (r.textContent ?? '').includes(name));
+  return row?.querySelector<HTMLElement>('.seal-badge') ?? null;
+};
+/** Open a verdict and wait for the shared explainer to carry its words. */
+const openBadge = async (el: HTMLElement | null) => {
+  expect(el, 'no seal badge to open').toBeTruthy();
+  el!.click();
+  await waitFor(() => expect(document.querySelector('.explain-modal')).toBeTruthy());
+};
+
 function mountPick() {
   return render(
     <LanguageProvider>
@@ -106,9 +136,16 @@ describe('seal reveal renders after a rating (pick-from-待評 path)', () => {
     mockFetch(SEAL);
     mountPick();
     screen.getByTestId('flick').click();
-    // The reveal's own copy — outcome title AND the sealed-in-advance reason,
-    // which only exists on the response (nothing client-side could invent it).
-    await waitFor(() => expect(screen.getByText(/拆開個印/)).toBeTruthy());
+    // The stamp lands on the dish's own row, labelled with the outcome…
+    await waitFor(() => expect(badgeOnRow('叉燒')).toBeTruthy());
+    expect(badgeOnRow('叉燒')!.getAttribute('aria-label')).toMatch(/拆開個印/);
+    // …and opening it gives the reveal's own copy — the predicted and actual
+    // direction (SEAL: predicted 'like' -> 幾中意, actual 'love' -> 好鍾意) AND
+    // the sealed-in-advance reason, which only exists on the response (nothing
+    // client-side could invent it).
+    await openBadge(badgeOnRow('叉燒'));
+    expect(screen.getByText(/幾中意/)).toBeTruthy();
+    expect(screen.getByText(/好鍾意/)).toBeTruthy();
     expect(screen.getByText(/鑊氣重嘅嘢/)).toBeTruthy();
   });
 
@@ -116,7 +153,7 @@ describe('seal reveal renders after a rating (pick-from-待評 path)', () => {
     const calls = mockFetch(SEAL);
     mountPick();
     screen.getByTestId('flick').click();
-    await waitFor(() => expect(screen.getByText(/拆開個印/)).toBeTruthy());
+    await waitFor(() => expect(badges()).toHaveLength(1));
     // Ordering contract, unchanged by the fix: the seal is written BEFORE the
     // rating that breaks it (the honesty contract), never after.
     const u = urls(calls);
@@ -130,19 +167,33 @@ describe('seal reveal renders after a rating (pick-from-待評 path)', () => {
     mockFetch(SEAL);
     mountPick();
     screen.getByTestId('flick').click();
-    await waitFor(() => expect(screen.getByText(/拆開個印/)).toBeTruthy());
+    await waitFor(() => expect(badges()).toHaveLength(1));
     // The growth screen is now mounted (the flick card is gone) and the reveal is
     // still on it — the post-rating refresh/exit sequence must not eat it.
     expect(screen.queryByTestId('flick')).toBeNull();
-    expect(screen.getByText(/拆開個印/)).toBeTruthy();
+    expect(badgeOnRow('叉燒')).toBeTruthy();
   });
 
-  it('no seal in the response => no reveal card invented', async () => {
+  it('no seal in the response => no reveal invented', async () => {
     mockFetch(null);
     mountPick();
     screen.getByTestId('flick').click();
     await waitFor(() => expect(screen.queryByTestId('flick')).toBeNull()); // reached growth
+    expect(badges()).toHaveLength(0);
     expect(screen.queryByText(/拆開個印/)).toBeNull();
+  });
+
+  it('the verdict stays SEALED until tapped — no prose on the row itself', async () => {
+    // The whole point of the move: the growth screen shows a stamp, not a wall of
+    // verdict prose. If the reason/predicted-actual lines render inline again,
+    // this fails.
+    mockFetch(SEAL);
+    mountPick();
+    screen.getByTestId('flick').click();
+    await waitFor(() => expect(badges()).toHaveLength(1));
+    expect(screen.queryByText(/鑊氣重嘅嘢/)).toBeNull();
+    expect(screen.queryByText(/預計/)).toBeNull();
+    expect(document.querySelector('.explain-modal')).toBeNull();
   });
 });
 
@@ -155,15 +206,11 @@ describe('no seal is silently consumed (batch, recovery, taught)', () => {
     mountBatch();
     await flickAll(3);
     await waitFor(() => expect(screen.queryByTestId('flick')).toBeNull());
-    await waitFor(() => expect(screen.getAllByText(/拆開個印/)).toHaveLength(3));
-    // Each card names ITS OWN dish — three anonymous verdicts would be unreadable.
-    // Scoped to the seal cards: the growth screen's dish rows carry these names
-    // too, and a match there would prove nothing about the verdicts.
-    const named = Array.from(document.querySelectorAll('.seal-reveal .seal-reveal-dish'))
-      .map(el => el.textContent ?? '');
-    expect(named).toHaveLength(3);
+    await waitFor(() => expect(badges()).toHaveLength(3));
+    // Each verdict is stamped on ITS OWN dish's row — attribution is structural
+    // now (the badge is inside the row), not a name the card had to restate.
     for (const n of ['叉燒', '燒鵝', '蒸石斑']) {
-      expect(named.some(x => x.includes(n)), `no seal card named ${n}`).toBe(true);
+      expect(badgeOnRow(n), `no seal badge on the ${n} row`).toBeTruthy();
     }
     // And every one was acknowledged as displayed, so none stays "recoverable".
     const acked = calls
@@ -176,7 +223,7 @@ describe('no seal is silently consumed (batch, recovery, taught)', () => {
     const calls = mockFetch(SEAL);
     mountPick();
     screen.getByTestId('flick').click();
-    await waitFor(() => expect(screen.getByText(/拆開個印/)).toBeTruthy());
+    await waitFor(() => expect(badges()).toHaveLength(1));
     const ack = calls.find(c => c.url.includes('/api/seals/displayed') && c.body?.ids?.length);
     expect(ack, 'no displayed-ack was sent — the reveal would look unshown forever').toBeTruthy();
     expect(ack!.body.ids).toContain('seal-1');
@@ -184,22 +231,67 @@ describe('no seal is silently consumed (batch, recovery, taught)', () => {
 
   it('recovers a reveal a PREVIOUS session computed but never showed', async () => {
     // The safety net: revealed_at means "computed", displayed_at means "seen".
+    // A recovered verdict now stamps the row of ITS OWN dish, so it surfaces on a
+    // session that rates that dish again.
     const missed = [{
       id: 'old-1', predicted_direction: 'meh', actual_direction: 'like',
       outcome: 'near', reason_zh: '舊嘅預測', reason_en: 'an older call',
-      dish: { id: 'dX', name: 'Wonton Noodle', name_zh: '雲吞麵' },
+      dish: { id: 'dish-1', name: 'Char Siu', name_zh: '叉燒' },
     }];
-    mockFetch(null, { missed });
+    const calls = mockFetch(null, { missed });
     mountPick();
     screen.getByTestId('flick').click();
-    await waitFor(() => expect(screen.getByText(/舊嘅預測/)).toBeTruthy());
-    expect(screen.getByText('雲吞麵')).toBeTruthy();
+    await waitFor(() => expect(badgeOnRow('叉燒')).toBeTruthy());
+    await openBadge(badgeOnRow('叉燒'));
+    expect(screen.getByText(/舊嘅預測/)).toBeTruthy();
+    // Shown => acked, so it stops coming back.
+    await waitFor(() => expect(calls.some(c =>
+      c.url.includes('/api/seals/displayed') && c.body?.ids?.includes('old-1'))).toBe(true));
   });
 
-  it('renders what the rating TAUGHT the engine (its consumer died with /log too)', async () => {
+  it('a recovered reveal with NO row here is left unacked — not burned invisibly', async () => {
+    // The consequence of stamping verdicts onto dish rows: a recovered one whose
+    // dish isn't in this session has nowhere to land. Acking it anyway would mark
+    // it "seen" while showing nobody anything — the exact failure displayed_at
+    // exists to prevent. It must stay recoverable instead.
+    const missed = [{
+      id: 'orphan-1', predicted_direction: 'meh', actual_direction: 'like',
+      outcome: 'near', reason_zh: '孤兒預測', reason_en: 'an orphan call',
+      dish: { id: 'not-in-this-session', name: 'Wonton Noodle', name_zh: '雲吞麵' },
+    }];
+    const calls = mockFetch(null, { missed });
+    mountPick();
+    screen.getByTestId('flick').click();
+    await waitFor(() => expect(screen.queryByTestId('flick')).toBeNull()); // reached growth
+    expect(badges()).toHaveLength(0);
+    const acked = calls
+      .filter(c => c.url.includes('/api/seals/displayed') && c.body?.ids)
+      .flatMap(c => c.body.ids);
+    expect(acked).not.toContain('orphan-1');
+  });
+
+  it('what a rating taught rides on ITS OWN seal — no seal, no surface for it', async () => {
+    // 2026-07-26: the session-wide "你剛剛教會了我" banner above the dish rows
+    // was retired. Taught deltas are still computed and still applied to the
+    // profile server-side either way — this only pins that a rating with NO
+    // seal has nowhere left to say so on screen (nothing invented, nothing
+    // silently dropped from view that used to have a home).
     mockFetch(null, { taught: [{ dim: 'umami', dir: 1 }, { dim: 'sweet', dir: -1 }] });
     mountPick();
     screen.getByTestId('flick').click();
-    await waitFor(() => expect(screen.getByText(/你剛剛教會了我/)).toBeTruthy());
+    await waitFor(() => expect(screen.queryByTestId('flick')).toBeNull()); // reached growth
+    expect(screen.queryByText(/你剛剛教會了我/)).toBeNull();
+    expect(badges()).toHaveLength(0);
+  });
+
+  it('what a rating taught shows inside ITS dish’s seal balloon', async () => {
+    mockFetch(SEAL, { taught: [{ dim: 'umami', dir: 1 }, { dim: 'sweet', dir: -1 }] });
+    mountPick();
+    screen.getByTestId('flick').click();
+    await waitFor(() => expect(badgeOnRow('叉燒')).toBeTruthy());
+    // Closed: the learnt line is behind the tap, same as the rest of the reveal.
+    expect(screen.queryByText(/你剛剛教會了我/)).toBeNull();
+    await openBadge(badgeOnRow('叉燒'));
+    expect(screen.getByText(/你剛剛教會了我/)).toBeTruthy();
   });
 });

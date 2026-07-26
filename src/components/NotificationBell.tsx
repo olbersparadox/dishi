@@ -16,7 +16,9 @@ import DuelOverlay, { type Duel } from './DuelOverlay';
 
 const SEEN_KEY = 'dishi_notif_seen';
 const AUTO_KEY = 'dishi_duel_autosurfaced';
-const AUTO_PROB = 0.3;
+// Increased from 0.3 → 0.55 (2026-07-26) for better taste-learning refinement
+// through pairwise contrast (duels are the only high-signal per-instance source).
+const AUTO_PROB = 0.55;
 
 type Notification = { id: string; label: string; sub: string; duel: Duel };
 

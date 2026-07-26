@@ -5,6 +5,7 @@ import { reanalyzeAnchored } from '@/lib/vision';
 import { scoreOneDish } from '@/lib/menuScan';
 import { replayProfile } from '@/lib/replay';
 import { resolveOrCreateRestaurant } from '@/lib/restaurant';
+import { directionOf } from '@/lib/seal';
 
 // The PATCH rename cascade runs reanalyzeAnchored (a vision call, ~15-20s) BEFORE it
 // writes the row, so the default ~10s window killed the function before the update
@@ -108,11 +109,22 @@ export async function GET(req: NextRequest) {
   // SAME identity chain the table's own chop stamps rendered live, so a
   // person doesn't change name between the meal and the diary of it.
   let companions = new Map<string, { user_id: string; name: string }[]>();
+  // The BROKEN seal per dish — what the engine called before the person rated,
+  // so the 已評嘅菜 list can stamp each dish with how that call went (the same
+  // reveal the growth screen shows, now with a permanent home instead of a
+  // once-only card).
+  //
+  // THE SEAL CONTRACT: this query is hard-filtered on `revealed_at IS NOT NULL`.
+  // A pending prediction must never reach the client in any shape — it may only
+  // ever learn that a seal EXISTS (the 印 stamp), never what it says. Read via
+  // the admin client and scoped to this user, per the standing pattern for
+  // sealed_predictions (RLS-locked against its own owner).
+  let seals = new Map<string, unknown>();
 
   if (ids.length) {
     // locked_dish_ids batches what used to be one is_dish_locked RPC PER dish (the
     // journal's main slowness) into a single query returning just the locked ids.
-    const [{ data: marks }, { data: ratings }, { data: lockedRows }, { data: edges }] = await Promise.all([
+    const [{ data: marks }, { data: ratings }, { data: lockedRows }, { data: edges }, { data: sealRows }] = await Promise.all([
       admin.from('helpful_marks').select('dish_id').in('dish_id', ids),
       supabase.from('ratings').select('dish_id, score').eq('user_id', user.id).in('dish_id', ids),
       admin.rpc('locked_dish_ids', { p_dish_ids: ids }),
@@ -123,11 +135,34 @@ export async function GET(req: NextRequest) {
         .select('dish_id, user_a, user_b')
         .in('dish_id', ids)
         .or(`user_a.eq.${user.id},user_b.eq.${user.id}`),
+      admin.from('sealed_predictions')
+        .select('id, dish_id, predicted_direction, outcome, actual_score, predicted_reason_zh, predicted_reason_en')
+        .eq('user_id', user.id)
+        .in('dish_id', ids)
+        .not('revealed_at', 'is', null)   // decided only — never a pending seal
+        .order('revealed_at', { ascending: false }),
     ]);
     for (const m of marks ?? []) hearts.set(m.dish_id, (hearts.get(m.dish_id) ?? 0) + 1);
     for (const r of ratings ?? []) myScores.set(r.dish_id, r.score);
     for (const row of (lockedRows ?? []) as unknown[]) {
       lockedSet.add(typeof row === 'string' ? row : (row as { locked_dish_ids?: string }).locked_dish_ids ?? '');
+    }
+    // Newest revealed verdict wins per dish (rows arrive revealed-desc): a
+    // re-rated dish is stamped with the call on the rating that stands, not an
+    // older one it has since superseded.
+    for (const s of (sealRows ?? []) as any[]) {
+      if (seals.has(s.dish_id)) continue;
+      seals.set(s.dish_id, {
+        id: s.id,
+        predicted_direction: s.predicted_direction,
+        // Re-derived from the STORED actual_score with the same directionOf the
+        // reveal itself used, so this route can never state a different verdict
+        // than the one already computed. `outcome` is read, not recomputed.
+        actual_direction: directionOf(s.actual_score ?? 0),
+        outcome: s.outcome,
+        reason_zh: s.predicted_reason_zh ?? null,
+        reason_en: s.predicted_reason_en ?? null,
+      });
     }
 
     if (edges && edges.length) {
@@ -164,6 +199,7 @@ export async function GET(req: NextRequest) {
       my_score: myScores.get(d.id) ?? null,
       locked: lockedSet.has(d.id),
       companions: companions.get(d.id) ?? [], // 同檯 chop names for shared-meal dishes
+      seal: seals.get(d.id) ?? null, // the BROKEN seal only — see the query above
 
       created_at: d.created_at, // used as the next page's `before` cursor
       eaten_at: d.eaten_at ?? null, // photo-EXIF when-eaten; shown (not ordered by) on the card

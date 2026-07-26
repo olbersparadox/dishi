@@ -25,7 +25,7 @@ import { pickPlaceContext, type PickRestaurant } from '@/lib/pickContext';
 import SnapRating from '@/components/SnapRating';
 import TasteGrowth, { type GrowDish, type GrowPlace, type NameEdit } from '@/components/TasteGrowth';
 import IdentityConfirmCard from '@/components/IdentityConfirmCard';
-import SealReveal, { type SealResult } from '@/components/SealReveal';
+import SealRevealBadge, { type SealResult } from '@/components/SealRevealBadge';
 import type { DuelDish } from '@/components/DuelSide';
 import type { FormInputs } from '@/lib/blobForm';
 
@@ -119,9 +119,10 @@ export default function RatingStack({ photos, picks, typed, userId, onExit }: {
   // nothing left to hand off to.
   //
   // ALL of them, not just the first: `revealed_at` is one-way, so a batch that
-  // breaks five seals and renders one has destroyed four. Each card names its own
-  // dish (SealReveal.dish) — that attribution is what makes showing several
-  // legible rather than a stack of anonymous verdicts.
+  // breaks five seals and renders one has destroyed four. Each verdict is stamped
+  // on its OWN dish row (SealResult.dish → TasteGrowth's sealSlots) — that
+  // attribution is what makes several legible rather than a stack of anonymous
+  // cards.
   const [sealReveals, setSealReveals] = useState<SealResult[]>([]);
   // Recovered reveals are held SEPARATELY from this session's own, so the render
   // order is deterministic rather than a race between the rating POST and the
@@ -129,13 +130,6 @@ export default function RatingStack({ photos, picks, typed, userId, onExit }: {
   // older recovered ones follow. One combined list would order by whichever
   // request resolved first, which differs run to run.
   const [recoveredReveals, setRecoveredReveals] = useState<SealResult[]>([]);
-  // What the session's ratings actually TAUGHT the engine — dims that moved, and
-  // which way. /api/ratings has always computed this from the same taughtDims
-  // source of truth the learning itself uses (so it can never claim learning that
-  // didn't happen), but it lost its last consumer when /log was killed and went
-  // unrendered for three days alongside the seal. Merged across the session's
-  // dishes: the same dim taught twice is one line, not two.
-  const [taught, setTaught] = useState<{ dim: string; dir: number }[]>([]);
   // Acknowledge that a reveal actually reached the screen. Until this lands the
   // row stays recoverable, so a crash between the rating and the render no
   // longer destroys the verdict (see /api/seals/displayed). Fire-and-forget is
@@ -162,12 +156,29 @@ export default function RatingStack({ photos, picks, typed, userId, onExit }: {
         const missed: SealResult[] = j?.seals ?? [];
         if (!alive || !missed.length) return;
         setRecoveredReveals(missed);
-        markSealDisplayedMany(missed.map(m => m.id).filter(Boolean) as string[]);
       })
       .catch(() => {});
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase]);
+  // Ack a RECOVERED reveal only once it actually has a row to be stamped on.
+  // A verdict now lives beside its dish's name, so a recovered one whose dish
+  // isn't in this session has nowhere to render — acking it on arrival (what the
+  // old top-of-screen card stack could safely do, since it rendered everything
+  // unconditionally) would mark it "seen" while showing nobody anything, which is
+  // the exact failure class displayed_at exists to prevent. Unmatched ones are
+  // left alone and stay recoverable for a session that does rate that dish.
+  const ackedRecovered = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const fresh = recoveredReveals
+      .filter(r => r.id && !ackedRecovered.current.has(r.id)
+        && r.dish?.id && dishes.some(d => d.dishId === r.dish!.id))
+      .map(r => r.id as string);
+    if (!fresh.length) return;
+    fresh.forEach(id => ackedRecovered.current.add(id));
+    markSealDisplayedMany(fresh);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recoveredReveals, dishes]);
   const markSealDisplayedMany = (ids: string[]) => {
     if (!ids.length) return;
     fetch('/api/seals/displayed', {
@@ -353,18 +364,15 @@ export default function RatingStack({ photos, picks, typed, userId, onExit }: {
       const json = await res.json().catch(() => null);
       // Keep EVERY seal the session breaks, tagged with the dish it belongs to.
       // Dropping any of them would silently consume a one-way `revealed_at`.
-      if (Array.isArray(json?.taught) && json.taught.length) {
-        setTaught(cur => {
-          const have = new Set(cur.map(x => x.dim));
-          const added = (json.taught as { dim: string; dir: number }[])
-            .filter(x => !have.has(x.dim));
-          return [...cur, ...added].slice(0, 6);
-        });
-      }
       if (json?.seal) {
         const withDish: SealResult = {
           ...json.seal,
           dish: dish ? { id: dishId, name: dish.name, name_zh: dish.name_zh ?? null } : null,
+          // What THIS rating taught — rides on ITS seal, since the reveal balloon
+          // is the only place it's shown now (the session-wide banner above the
+          // dish rows was retired 2026-07-26). A rating with no seal teaches the
+          // engine just the same; it just has nowhere on screen to say so.
+          taught: Array.isArray(json.taught) && json.taught.length ? json.taught : undefined,
         };
         setSealReveals(cur => [...cur, withDish]);
         markSealDisplayed(json.seal.id);
@@ -711,32 +719,26 @@ export default function RatingStack({ photos, picks, typed, userId, onExit }: {
             plain close-and-keep rather than a discard that would delete dishes we
             never created. */}
         <TasteGrowth live={dishes} engine={engine} blobInputs={blobInputs} onExit={finishExit} onCancel={picksMode ? undefined : cancelSession} onPickPlace={onPickPlace} onAddPlace={onAddPlace} onEditName={onEditName} onReclassify={onReclassify} onRetry={onRetry}
-          taughtSlot={taught.length ? (
-            <p className="grow-taught" role="status">
-              {t('profile.justlearned', {
-                dims: taught.map(x => `${t(`dim.${x.dim}`)} ${x.dir > 0 ? '↑' : '↓'}`).join(' · '),
-              })}
-            </p>
-          ) : undefined}
-          sealSlot={(() => {
+          sealSlots={(() => {
             // This session's verdicts first, then anything recovered from a
             // session that never got to paint. De-duped by row id: a reveal can
             // legitimately appear in both lists if the ack lost the race.
             const own = sealReveals;
             const ownIds = new Set(own.map(s => s.id).filter(Boolean));
             const older = recoveredReveals.filter(r => !r.id || !ownIds.has(r.id));
-            const all = [...own, ...older];
-            if (!all.length) return undefined;
-            return (
-              <div className="seal-reveal-stack">
-                {all.map((sr, i) => (
-                  // The streak rides on THIS session's newest verdict only — it's a
-                  // running count ending at that rating, and a recovered older card
-                  // would state a stale one.
-                  <SealReveal key={sr.id ?? i} seal={sr} showStreak={i === own.length - 1} />
-                ))}
-              </div>
-            );
+            const slots: Record<string, React.ReactNode> = {};
+            [...own, ...older].forEach((sr, i) => {
+              const dishId = sr.dish?.id;
+              // First writer wins, and this session's own verdicts come first: if
+              // a dish was re-rated here, the fresh call is the one to stamp, not
+              // the stale recovered one for the same dish.
+              if (!dishId || slots[dishId]) return;
+              // The streak rides on THIS session's newest verdict only — it's a
+              // running count ending at that rating, and a recovered older one
+              // would state a stale figure.
+              slots[dishId] = <SealRevealBadge key={sr.id ?? i} seal={sr} showStreak={i === own.length - 1} />;
+            });
+            return slots;
           })()}
           identitySlot={identityAsk ? (
             <IdentityConfirmCard

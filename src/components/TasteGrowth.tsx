@@ -94,7 +94,7 @@ export type GrowEngine = {
   justUnlocked?: boolean;
 };
 
-export default function TasteGrowth({ live, engine, blobInputs, onExit, onCancel, onPickPlace, onAddPlace, onEditName, onReclassify, onRetry, identitySlot, sealSlot, taughtSlot }: {
+export default function TasteGrowth({ live, engine, blobInputs, onExit, onCancel, onPickPlace, onAddPlace, onEditName, onReclassify, onRetry, identitySlot, sealSlots }: {
   live: GrowDish[];
   engine?: GrowEngine | null;                            // REAL taste-engine confidence for the bar
   // The REAL profile (same vector/evidence/ratingCount/seed blobForm.ts consumes
@@ -113,14 +113,12 @@ export default function TasteGrowth({ live, engine, blobInputs, onExit, onCancel
    * dish rows when the just-logged dish fuzzy-matched a known identity (at most
    * one per log session; RatingStack owns the probe + cap). */
   identitySlot?: React.ReactNode;
-  /** 封印 reveal — the seal this session's rating broke, rendered at the TOP of the
-   * growth screen (above the blob) because it's the one thing here the engine
-   * committed to before the person rated, and it's shown exactly once. */
-  sealSlot?: React.ReactNode;
-  /** "You just taught me: umami ↑ · sweet ↓" — what the session's ratings actually
-   * moved. Sits under the seal: the seal is what the engine PREDICTED, this is
-   * what it LEARNED, and that's the order they happen in. */
-  taughtSlot?: React.ReactNode;
+  /** 封印 reveals, keyed by DISH ID — each one stamps the row of the dish it's
+   * about, beside the name (see .learn-head). Was a stack of full cards above
+   * the rows; that buried the review list in prose and forced every card to
+   * re-state which dish it meant. Keyed rather than indexed because a reveal
+   * knows its dish, not its position in this session's queue. */
+  sealSlots?: Record<string, React.ReactNode>;
 }) {
   const { t, lang } = useLang();
   const rowCount = live.length;
@@ -366,11 +364,9 @@ export default function TasteGrowth({ live, engine, blobInputs, onExit, onCancel
         <p className="grow2-toready">{barLine}</p>
       </div>
 
-      {/* 封印 broken — first thing in the scrolling body, directly under the blob:
-          the engine's pre-committed call is the payoff of the rating that just
-          landed, so it reads before the housekeeping asks below it. */}
-      {sealSlot}
-      {taughtSlot}
+      {/* 封印 broken, and what it taught — no longer a block here: each verdict
+          (and the per-dish learning that rode with it) is stamped on its own
+          dish row below (sealSlots), where the dish it's about is in view. */}
 
       {/* One ask above the rows: confirming/refining is what makes the engine accurate,
           and it's optional (now or later). */}
@@ -474,6 +470,11 @@ export default function TasteGrowth({ live, engine, blobInputs, onExit, onCancel
                       : <button className="refine-pill refine-name" onClick={() => startEdit(i)} aria-label={t('grow.rename')}>
                           <DishName name={p.en} name_zh={p.zh} size="md" />
                         </button>}
+                  {/* The broken seal, stamped beside the name tile it belongs to.
+                      Hidden while the name editor is open — the editor takes the
+                      whole head, and a verdict floating next to two input fields
+                      reads as part of the form. */}
+                  {editIdx !== i && it.dishId && sealSlots?.[it.dishId]}
                 </div>
 
                 {/* A name change re-derives the ingredients: chips fall away → "re-analysing"

@@ -213,6 +213,11 @@ button { font: inherit; cursor: pointer; }
 .chip.chip-util { background: var(--paper-inset); border-color: transparent; color: var(--ink-soft); }
 .chip.chip-util.on { background: var(--ink); border-color: transparent; color: var(--glaze); }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+/* Nearby-restaurant suggestions (RestaurantPicker) run a size up from the base
+   chip: they're the thing being READ and chosen between — often a long bilingual
+   shop name plus a distance — not a utility action like 略過 / 住家菜, which stay
+   at 13px so the row still reads as content-then-actions. */
+.chip.picker-nearby { font-size: 15px; }
 
 /* A table member's pick avatar — a plain circular profile-icon-with-initials, the
    same clean look as the rest of the app (matching scan's settled-list aesthetic),
@@ -1168,66 +1173,65 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
   font-family: 'PingFang TC', 'Heiti TC', 'Microsoft JhengHei', sans-serif; margin-left: 5px; vertical-align: 3px;
 }
 
-/* Seal reveal — shown once, right after a rating that broke a seal. It presses
-   in like a chop being stamped, then settles. Motion is decorative only; the
-   content is fully readable with animations off. */
-.seal-reveal {
-  background: #faf7f1; border: 1px solid #e2ddd2; border-radius: 14px;
-  padding: 14px 16px; margin-bottom: 12px; text-align: center;
-  animation: sealCardIn 320ms ease both;
-}
-.seal-reveal-stamp {
-  width: 40px; height: 40px; border-radius: 8px; margin: 0 auto 8px;
-  background: var(--seal); color: var(--seal-ink); display: flex; align-items: center; justify-content: center;
-  font-size: 20px; font-family: var(--font-display);
+/* Seal reveal — the broken 封印, stamped beside the dish's name on the growth
+   screen's review row (replaced the stacked prose cards, 2026-07-26). Same
+   vermillion square as the .seal-stamp 印 it breaks, at the name tile's own
+   height and radius, so the two read as the same object before and after: a seal
+   that was closed, now open. The face carries the verdict; the words live behind
+   a tap (the shared ExplainModal). It presses in like a chop being stamped —
+   motion is decorative only.
+
+   Sizing: align-self:stretch pins it to the name tile's height (they're a pair,
+   not a chip floating beside a block), aspect-ratio squares it off, and max-width
+   stops a three-line dish name from inflating that square into a slab — past the
+   cap it just stays a stamp-width tile at full name height. */
+.seal-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  border: none; padding: 0; cursor: pointer;
+  border-radius: 10px; background: var(--seal); color: var(--seal-ink);
+  line-height: 1;
   animation: sealStamp 420ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
-.seal-reveal-title { font-weight: 650; font-size: 15px; color: var(--ink); }
-.seal-reveal-detail { font-size: 12.5px; color: var(--ink-soft); margin-top: 4px; }
-.seal-reveal-reason {
-  font-size: 12.5px; color: var(--ink); margin-top: 8px;
-  padding-top: 8px; border-top: 1px solid var(--line);
-  font-family: var(--font-display);
+.seal-badge-tile {
+  flex: 0 0 auto; align-self: stretch; min-width: 34px; max-width: 52px; aspect-ratio: 1;
+  font-size: 21px;
 }
-.seal-reveal-streak { font-size: 12px; color: var(--seal); font-weight: 600; margin-top: 6px; }
-/* Outcomes stay inside the paper+ink palette: a hit is the seal's own
- * vermillion (its one legitimate home), a near-hit ink, a miss soft grey. */
-.seal-reveal.hit .seal-reveal-stamp { background: var(--seal); }
-.seal-reveal.near .seal-reveal-stamp { background: var(--ink); }
-.seal-reveal.miss .seal-reveal-stamp { background: var(--ink-soft); }
-.seal-reveal.near .seal-reveal-streak, .seal-reveal.miss .seal-reveal-streak { display: none; }
-/* Which dish the verdict is about — only rendered when a session broke more than
-   one seal (or recovered an older one), where an unlabelled card would be
-   ambiguous. Sits under the title, above the predicted/actual line. */
-.seal-reveal-dish { margin-top: 6px; }
-/* Stacked reveals: each card already carries its own margin-bottom, so the stack
-   only needs to stop the last one double-spacing against the refine ask below. */
-.seal-reveal-stack > .seal-reveal:last-child { margin-bottom: 0; }
-/* Cascade the entrance so several verdicts read one after another rather than
-   all slamming in together. Caps at 4 — beyond that the wait outstays the payoff. */
-.seal-reveal-stack > .seal-reveal:nth-child(2) { animation-delay: 90ms; }
-.seal-reveal-stack > .seal-reveal:nth-child(3) { animation-delay: 180ms; }
-.seal-reveal-stack > .seal-reveal:nth-child(n+4) { animation-delay: 270ms; }
-
-/* "You just taught me: …" — the LEARNED counterpart to the seal's PREDICTED.
-   Quiet by design: it reports, it doesn't celebrate, and it sits between the
-   verdict above and the refine ask below without competing with either. */
-.grow-taught {
-  font-size: 13px; color: var(--ink-soft); text-align: center;
-  margin: 0 0 12px; line-height: 1.5;
+/* Inline variant — 已評嘅菜, where the verdict rides the dish NAME (DishName's
+   `suffix` slot) rather than a tile. Geometry is the .seal-stamp 印's, one step
+   up: the same square-chop silhouette at the name's own size, so a dish reads
+   the same before (sealed 印) and after (broken seal) in the same footprint. */
+.seal-badge-inline {
+  width: 21px; height: 21px; border-radius: 5px; flex-shrink: 0;
+  font-size: 14px; margin-left: 6px; vertical-align: 1px;
 }
+/* The reveal balloon's own content (2026-07-26 redesign) — leads with the face,
+   big and centred (the same emoji as the badge, just no longer squeezed into a
+   ~20px tile); then the call and the actual, each at title size so the verdict
+   reads without leaning in; then, smaller and set off by a rule, the supporting
+   detail: the reason sealed in advance (it was written BEFORE the rating — the
+   one claim this product makes), what that rating taught, and the streak. */
+.seal-modal-face { display: block; font-size: 52px; line-height: 1; margin: 0 auto 4px; }
+.seal-modal-line {
+  font-family: var(--font-display); font-size: 19px; font-weight: 700;
+  color: var(--ink); text-align: center; margin: 2px 0;
+}
+.seal-modal-detail {
+  margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line);
+}
+.seal-modal-reason, .seal-modal-learnt {
+  font-size: 13px; color: var(--ink-soft); line-height: 1.55; text-align: left;
+}
+.seal-modal-reason { margin: 0; }
+.seal-modal-learnt { margin: 8px 0 0; }
+.seal-modal-streak { font-size: 14px; color: var(--seal); font-weight: 600; margin-top: 10px; text-align: center; }
 
 @keyframes sealStamp {
   0%   { transform: scale(1.7) rotate(-8deg); opacity: 0; }
   55%  { transform: scale(0.92) rotate(2deg); opacity: 1; }
   100% { transform: scale(1) rotate(0deg); opacity: 1; }
 }
-@keyframes sealCardIn {
-  from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
 @media (prefers-reduced-motion: reduce) {
-  .seal-reveal, .seal-reveal-stamp { animation: none; }
+  .seal-badge { animation: none; }
 }
 
 

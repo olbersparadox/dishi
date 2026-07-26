@@ -519,10 +519,15 @@ export default function MyDishes({ t, lang }: { t: (k: string, p?: Record<string
                     <div style={{ marginTop: 8 }}>
                       {/* Seed from WHERE THE PHOTO WAS TAKEN (stored EXIF coords), not the
                           device's live GPS — this is a retrospective edit, the person is
-                          almost never standing where they ate. null coords (old dishes /
-                          EXIF-stripped photos) fall back to live GPS, as before. */}
+                          almost never standing where they ate. photoOnly kills the live-GPS
+                          fallback outright: with it, a dish that kept its EXIF got
+                          photo-location suggestions and one that didn't got wherever-you-are-
+                          now suggestions, so the same shortlist silently meant two different
+                          things. EXIF or nothing here; live GPS stays reachable inside the add
+                          form, on an explicit tap, purely to PIN a newly typed place. */}
                       <RestaurantPicker
                         onChange={setDraftRestaurant}
+                        photoOnly
                         seedCoords={d.lat != null && d.lng != null ? { lat: d.lat, lng: d.lng } : null}
                       />
                     </div>

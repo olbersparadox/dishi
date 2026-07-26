@@ -6,6 +6,8 @@ import { supabaseBrowser } from '@/lib/supabase/client';
 import TasteFormCard from '@/components/TasteFormCard';
 import DishName from '@/components/DishName';
 import SealStamp from '@/components/SealStamp';
+import { type SealResult } from '@/components/SealRevealBadge';
+import RatedDishRow from '@/components/RatedDishRow';
 import ExplainModal from '@/components/ExplainModal';
 import type { ExportDish } from '@/lib/tasteExport';
 import { isPersona, type Persona } from '@/lib/persona';
@@ -49,6 +51,10 @@ type RatedRow = {
   /** Shared-table dish (has 同檯 companion edges) — feeds the export's honest
    * "loved dishes skew communal" line. */
   shared: boolean;
+  /** The BROKEN seal for this dish, when it had one — the growth screen shows a
+   * reveal once, this is where it keeps living. Always a decided verdict: the
+   * API filters on revealed_at, so a pending prediction can't arrive here. */
+  seal: SealResult | null;
 };
 
 function TasteProfile() {
@@ -152,6 +158,7 @@ function TasteProfile() {
           dish_identity_id: d.dish_identity_id ?? null,
           identity_name: d.identity_name ?? null, identity_name_zh: d.identity_name_zh ?? null,
           shared: (d.companions?.length ?? 0) > 0,
+          seal: d.seal ?? null,
         }))))
       .catch(() => setRatedRows([]));
   }, [refreshKey]);
@@ -325,15 +332,13 @@ function TasteProfile() {
         <div style={{ marginBottom: 20 }}>
           <h3 style={{ marginBottom: 2 }}>{t('profile.rated')}</h3>
           {ratedGroups.map(d => (
-            <div className="rated-flat-row" key={d.dish_identity_id ?? d.id}>
-              <div style={{ minWidth: 0 }}>
-                <div className="card-title">
-                  <DishName id={d.id} name={d.identity_name ?? d.name} name_zh={d.identity_name_zh ?? d.name_zh} />
-                </div>
-                {d.restaurant && <div className="rated-flat-meta">{d.restaurant}</div>}
-              </div>
-              <div className="rated-flat-verdict">{t(wordKeyFor(d.my_score as number))}</div>
-            </div>
+            <RatedDishRow key={d.dish_identity_id ?? d.id}
+              id={d.id}
+              name={d.identity_name ?? d.name}
+              name_zh={d.identity_name_zh ?? d.name_zh}
+              restaurant={d.restaurant}
+              verdict={t(wordKeyFor(d.my_score as number))}
+              seal={d.seal} />
           ))}
         </div>
       )}
