@@ -1,0 +1,17 @@
+// Local analysis/simulation scripts. Split out of the root tsconfig so they are
+// NOT type-checked by `next build` — several of them import gitignored fixtures
+// (rating-history.json), which made a dev-only file break the production deploy.
+//
+// Check them on demand, on a machine that has the fixtures:  npx tsc -p scripts
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "noEmit": true,
+    "paths": { "@/*": ["../src/*"] }
+  },
+  "include": ["**/*.ts"],
+  "exclude": []
+}

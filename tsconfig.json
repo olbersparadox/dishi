@@ -16,5 +16,12 @@
     "paths": { "@/*": ["./src/*"] }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules"]
+  // `scripts/` is local analysis tooling, never shipped — and some of it imports
+  // fixtures that are deliberately gitignored (scripts/rating-history.json is a
+  // real person's meals; this repo is public). Next type-checks everything in
+  // `include` during `next build`, so leaving scripts in here meant a dev-only
+  // script referencing a local-only file FAILED THE PRODUCTION DEPLOY while
+  // building fine on the machine that had the fixture. Type-check them with
+  // `npx tsc -p scripts` instead (scripts/tsconfig.json).
+  "exclude": ["node_modules", "scripts"]
 }
