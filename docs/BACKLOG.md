@@ -122,88 +122,102 @@ contentScore divisor fix `e8ccb4e`. One remainder is OPEN, below.)
 (Carb-tripwire follow-up: honest vector re-score — SHIPPED 2026-07-22, see
 DECISIONS.md.)
 
-- [ ] **[F for the UI card / Opus for the learning path] "係唔啱我，定係佢哋整得
-  唔好？" — separating a bad dish from a badly-cooked one.** Owner-raised
-  2026-07-26; rationale and the business argument are in DECISIONS.md /
-  git history (moved out of the owner-decision section once all four design
-  questions were answered — search git log for "火腿通粉" or "badly-cooked" if
-  the full rationale is needed). All four design questions are answered —
-  build from this. **STILL NOT BUILT as of 2026-07-26 10:41** — a separate
-  session touched `SealReveal.tsx`/`RatingStack.tsx` in the same window for an
-  unrelated visual redesign (see "Now — in progress" above); check
-  `git log -- src/app/api/ratings/route.ts` for an `attribution`/`execution`
-  column before assuming this is done or half-done.
+- [ ] **[Opus] 佢哋整得點？ — a 1-10 execution slider. Supersedes the 火腿通粉
+  binary question entirely (owner, 2026-07-26).** This is the first build toward
+  the recorded product aim "why you like 乾炒牛河 at restaurant A and not at
+  restaurant B" (DECISIONS.md, "Direction: what the taste engine is FOR",
+  2026-07-24). That entry gated execution-level work behind making the base
+  signal honest first — self-calibrating scale, non-saturating affinity, starved
+  dims. All three have now shipped, so the gate is passed.
 
-  **DEPENDS ON** `neutralCenter`/`calibratedScore` in `src/lib/taste.ts`
-  (shipped and LIVE — see the calibration item above, including its warning).
-  No longer a reason to hold this on that account, but the seal-band fix above
-  is the more urgent item; sequence this after it unless told otherwise.
+  **The design shift that makes this better than what it replaces.** The earlier
+  spec ASKED "係唔啱我，定係佢哋整得唔好？". This one never asks: it measures each
+  instance and lets the DATA answer. 火腿通粉 at A scores 2; when 火腿通粉 at B
+  later scores 8, the dish is obviously fine and A is the problem. The
+  dish-vs-execution distinction falls out of comparison instead of a self-report.
+  Consequence, accepted by the owner: a dish eaten only ONCE stays ambiguous, so
+  the 火腿通粉 row keeps mis-teaching the palate until that dish is eaten
+  somewhere else.
 
-  **1. When to ask.** When the flick lands **clearly below the person's own
-  neutral point** — `calibratedScore(score, priorScores) <= -0.20` — and only
-  after a warm-up of **10 ratings**, so the centre is earned before it gates
-  anything. Nothing here is an absolute score: a generous rater gets asked at
-  一般般, a rater whose normal IS 一般般 doesn't get asked until lower.
+  **Why a 1-10 scale doesn't reintroduce the problem calibration just fixed.**
+  An absolute scale across PEOPLE has the "everyone's scale is different"
+  problem. This one is scoped to one person AND one dish identity — "how does
+  this 乾炒牛河 compare to the other 乾炒牛河 you have had" — so the comparison
+  set is fixed and it is self-calibrating by construction. Cross-user
+  aggregation will need the same neutralCenter treatment; that is a later
+  problem, do not solve it now.
 
-  Both constants measured on the real 48-rating history, not chosen by feel.
-  At warm-up ≥10, threshold 0.20 is the widest bar that triggers on
-  唔會再食 / 唔啱我 / 一般般 while NEVER triggering on 幾好食 — the owner's most
-  common flick (56% of ratings) and by definition their ordinary meal. Below a
-  warm-up of 10 the centre is still shrunk toward the prior, and 幾好食 starts
-  firing (14 false asks). Re-measure both if the flick values ever change.
+  **1. The mechanic.** After rating, one slider: 佢哋整得點？ 1-10, passing line
+  at 5. Replaces the two-tap binary; there is now exactly ONE execution question
+  in the app, never two on one rating.
 
-  **2. NEGATIVE DIRECTION ONLY (owner reversed an earlier "both", knowing the
-  cost).** The mirrored case is real — "this place makes it exceptionally well"
-  is arguably the more valuable restaurant signal — but symmetric asking fires
-  on 45% of this palate's ratings, and negatives are where the damage is: with
-  calibration a 唔會再食 teaches −1.21 against a 幾好食's +0.04, and this profile
-  has only 4 negatives total. One mis-attributed negative distorts the vector
-  more than ten mis-attributed positives. Expect this to fire ~4 times on the
-  owner's existing history — that is understood and accepted; it is a v1 testing
-  whether people answer the question at all. Positive direction is a fast-follow,
-  not a cancelled idea.
+  **2. Range is BOUNDED BY THE FLICK so the two cannot contradict** (owner):
+  a flick clearly below the person's own neutral can only take 1-4 — you cannot
+  have flicked 唔會再食 and call the plate a 9.
+  - flick clearly below neutral (`calibratedScore <= -0.20`) → slider 1-4
+  - *(extension, flag to owner)* flick clearly above neutral → slider 5-10, by
+    the same logic in reverse. The owner specified only the negative bound;
+    this mirrors it rather than leaving "loved it, cooked terribly" reachable.
+  - otherwise → full 1-10
 
-  **3. What an "execution" answer teaches: NOTHING.** The score stays in
-  `ratings` (the history must not be falsified — the engine replays from it), but
-  the rating leaves the taste-learning stream entirely: no `updateTaste`, no
-  `bumpEvidence`, no `updateCuisineAffinity`, AND no contribution to
-  `neutralCenter`'s prior scores. One rule, no exceptions: a flick that isn't
-  about taste must not calibrate how taste flicks are read either. It still
-  counts toward `rating_count` / `replayed` — the person did rate the dish, so
-  the seal gate and export confidence should still see it.
+  **3. When it appears** — either condition:
+  - the flick is clearly off the person's neutral (same trigger as the old
+    spec: `calibratedScore` beyond ±0.20, after a 10-rating warm-up — both
+    constants measured, see git history for "badly-cooked" commit), OR
+  - the dish identity already has a rated instance, so a comparison exists.
 
-  **4. No restaurant required.** The motivating row (通心粉配火腿煎蛋, −0.9,
-  `source=album`) has NO `restaurant_id`, and 29% of this user's logs don't —
-  so gating on one would have skipped the very case that prompted this. The two
-  benefits decouple: palate protection needs no restaurant, the demand-data
-  signal does. When the answer is "the place" and no restaurant is attached,
-  reuse the growth screen's EXISTING place picker (`onPickPlace` / `onAddPlace`
-  on `TasteGrowth`) — do not build a second one.
+    *(extension, flag to owner)*: the old spec was NEGATIVES ONLY. That cannot
+    stand here — a comparison needs the good instance too, or 乾炒牛河 at B=8
+    never gets recorded and A=2 compares against nothing. Broadened
+    deliberately.
+
+  **4. What it teaches.**
+  - Stored per rating; NEVER teaches the taste vector directly.
+  - Palate protection is COMPARATIVE and retroactive: a rating drops out of
+    taste learning once its execution score is at or below the passing line
+    AND another instance of the same `dish_identity_id` scored higher — that
+    is the moment the engine can actually tell it was the kitchen. Before that
+    the rating is ambiguous and keeps teaching, which is honest.
+  - Restaurant×dish quality is the aggregate of execution scores grouped by
+    restaurant and identity. That is the demand-data asset; v1 COLLECTS ONLY.
+    Owners see nothing. If it ever becomes owner-visible it must be
+    un-editable and must never touch ranking.
+
+  **5. Duels.** `selectDuelPair` (src/lib/duels.ts:81) explicitly skips
+  same-identity pairs, and `duelContrast` learns only from attribute
+  differences — two 乾炒牛河 have near-identical attributes, so a same-dish duel
+  is structurally incapable of teaching anything today. Leave that exclusion
+  alone: the slider, not the duel, is the execution instrument. Note that
+  commit `f9f1aed` bumped duel surfacing 0.3 → 0.55 citing same-dish execution
+  contrast as the rationale — that rationale describes behaviour the code does
+  not have; the bump only serves more ordinary duels.
+
+  **DATA REALITY — read before promising anything.** Measured live 2026-07-26:
+  the owner has ZERO dish identities eaten at two different restaurants. Two
+  identities repeat at all (蛋撻 ×2 scoring 0.1/0.35, 壽司拼盤 ×2 scoring 0.6/1)
+  and both are the SAME restaurant on different visits — which is still real
+  execution variance (a good day vs a bad day) and should count, but it is not
+  the good-chef/bad-chef signal. So the comparison payoff fires ~0 times today.
+  Build it anyway: unlike the negative-rating ceiling (which no amount of
+  logging fixes), this one accrues automatically from normal use — every score
+  banked now becomes usable the first time a dish repeats elsewhere.
 
   **Implementation notes.**
-  - Migration: `ratings.attribution text check (attribution in ('dish','execution'))`,
-    null = unasked/ignored. Apply live, then record in `supabase/applied/`.
-  - The question is asked AFTER the rating has already been learned, so an
-    "execution" answer must UN-teach it: set the column, then `replayProfile` —
-    the same proven path a re-rate uses. A "dish" answer or an ignore needs no
-    replay.
-  - `/api/ratings` returns whether to ask; the client must never compute the
-    threshold itself, or the two would drift.
-  - **Both learning paths must agree exactly**, exactly as with the centre:
-    `replay.ts` and the `/api/ratings` incremental branch must apply the same
-    skip rule, and a test must detect divergence rather than tolerate it.
-  - Seal: an execution-flagged rating must NOT break the streak. The engine's
-    claim was about the dish and may have been right; punishing it for a chef is
-    dishonest. Streak is computed in `/api/ratings` from revealed history — it
-    needs to exclude seals whose rating is execution-flagged.
-  - Restaurant owners see NOTHING of this in v1. If it ever becomes
-    owner-visible it must be un-editable and must never touch ranking, or it
-    becomes the placement-selling that is permanently ruled out.
+  - Migration: `ratings.execution_score smallint check (execution_score between
+    1 and 10)`, null = unasked/skipped. Apply live, record in `supabase/applied/`.
+  - `/api/ratings` returns whether to ask AND the permitted range; the client
+    must never compute either, or the two drift.
+  - Setting the score may change what a rating teaches (rule 4), so it must
+    trigger `replayProfile` — the proven re-rate path.
+  - **Both learning paths must agree exactly** (the standing constraint):
+    `replay.ts` and the `/api/ratings` incremental branch need the same
+    exclusion rule, and replay must become `dish_identity_id`-aware to evaluate
+    it. A test must DETECT divergence, not tolerate it.
+  - Skipping the slider must stay free — no badge, no nag.
 
-  **Verification bar** (batch precedent): tests must provably fail against
-  pre-change behaviour; screenshot the new growth-screen state before "done".
-  The card is a NEW visible surface → Fable for the first pass, per the
-  model-selection rule; the learning-path and seal changes are Opus-tier.
+  **Verification bar**: tests provably fail against pre-change behaviour;
+  screenshot the slider state. Simulate the learning-exclusion rule against the
+  real history before shipping — it changes the taste vector.
 
 ## Needs an owner decision before any code
 
@@ -233,7 +247,11 @@ soy added (13 → 15), gluten deliberately rejected. See DECISIONS.md.)
   exact consumer-side signal the business model is built on, and it is currently
   being discarded at the moment it's generated.
 
-  **DESIGN DECIDED 2026-07-26 — spec moved to "Ready to build" below.**
+  **SUPERSEDED 2026-07-26 — do not build this as a binary question.** The owner
+  replaced it with a single 1-10 execution slider that measures each instance
+  instead of asking which cause it was; the dish-vs-execution answer then falls
+  out of comparing instances. See "佢哋整得點？" under "Ready to build". This
+  entry stays only because it records WHY the problem matters.
 
 ## Table Mode continuation — Fable-tier, in dependency order
 
