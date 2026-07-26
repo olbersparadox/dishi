@@ -1622,6 +1622,18 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 .duel-q { text-align: center; margin-top: 16px; font-family: var(--font-display); font-weight: 800; font-size: 20px; color: var(--ink); }
 .duel-tie { display: block; margin: 8px auto 0; background: none; border: none; color: var(--ink-soft); font-size: 13px; text-decoration: underline; cursor: pointer; }
 
+/* 佢哋整得點？ — execution slider on the duel chassis (ExecutionSlider.tsx).
+   FIRST-PASS VISUAL, flagged for a Claude Design pass like the duel card was:
+   the layout reuses .duel-* wholesale and only the scale itself is new. */
+.exec-scale { margin-top: 14px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.exec-value { font-family: var(--font-display); font-weight: 800; font-size: 30px; color: var(--ink); line-height: 1; }
+.exec-range { width: 100%; max-width: 260px; accent-color: var(--ink); }
+.exec-ends { width: 100%; max-width: 260px; display: flex; justify-content: space-between; font-size: 12px; color: var(--ink-soft); }
+.exec-pass { font-size: 12px; color: var(--ink-soft); }
+/* A previously-scored instance sits alongside as context, not as a choice. */
+.exec-sibling { opacity: 0.72; }
+.exec-prior { display: block; margin-top: 4px; text-align: center; font-size: 12px; color: var(--ink-soft); }
+
 /* 係咪同一味？ — identity-confirm card on the duel chassis. The sides are the
    SAME .duel-option anatomy (DuelSide.tsx) but rendered as static divs: not
    tappable, by spec — tapping a side means "I prefer this" in a duel, and that

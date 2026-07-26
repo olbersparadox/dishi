@@ -173,6 +173,19 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'duel.learned': { zh: '學到：{dims}', en: 'Learned: {dims}' },
   'duel.ok': { zh: '好', en: 'OK' },
 
+  // 佢哋整得點？ — execution quality, on the same duel chassis. Asks ONLY how well
+  // this kitchen rendered the dish; it never asks the eater whether the problem
+  // was the dish or the cooking — that is answered by comparing instances.
+  // Register stays 書面 per the standing shift.
+  'exec.title': { zh: '佢哋整得點？', en: 'How was it made?' },
+  // Body copy is 書面 per the standing register shift; the TITLE keeps its
+  // Cantonese voice as a deliberate exception, exactly like 係咪同一味？ above.
+  'exec.q': { zh: '只評廚房的功夫，與你喜不喜歡這道菜無關', en: 'Just the kitchen’s work — not whether you like the dish' },
+  'exec.low': { zh: '整得差', en: 'Badly made' },
+  'exec.high': { zh: '整得好', en: 'Well made' },
+  'exec.pass': { zh: '5 分合格', en: '5 is a pass' },
+  'exec.prior': { zh: '你之前畀 {n} 分', en: 'You gave this {n}' },
+
   // 係咪同一味？ — identity-confirm card (gate 3 of the identity pipeline, on
   // the duel chassis). Header/buttons keep the spec's own Cantonese wording —
   // this card's voice is a direct owner design, like the flick verdicts.

@@ -27,6 +27,7 @@ import TasteGrowth, { type GrowDish, type GrowPlace, type NameEdit } from '@/com
 import IdentityConfirmCard from '@/components/IdentityConfirmCard';
 import SealRevealBadge, { type SealResult } from '@/components/SealRevealBadge';
 import type { DuelDish } from '@/components/DuelSide';
+import ExecutionSlider from '@/components/ExecutionSlider';
 import type { FormInputs } from '@/lib/blobForm';
 
 type Phase = 'flick' | 'grow';
@@ -124,6 +125,10 @@ export default function RatingStack({ photos, picks, typed, userId, onExit }: {
   // attribution is what makes several legible rather than a stack of anonymous
   // cards.
   const [sealReveals, setSealReveals] = useState<SealResult[]>([]);
+  // 佢哋整得點？ cards waiting for the growth screen. A queue rather than a single
+  // card because an album batch can rate several plates worth asking about; they
+  // are drained one at a time so the person is never stacked up on.
+  const [executionQueue, setExecutionQueue] = useState<{ dish: DuelDish; min: number; max: number }[]>([]);
   // Recovered reveals are held SEPARATELY from this session's own, so the render
   // order is deterministic rather than a race between the rating POST and the
   // recovery GET: this session's verdict leads (it's about the dish just rated),
@@ -376,6 +381,18 @@ export default function RatingStack({ photos, picks, typed, userId, onExit }: {
         };
         setSealReveals(cur => [...cur, withDish]);
         markSealDisplayed(json.seal.id);
+      }
+      // 佢哋整得點？ — queued, never shown mid-flick. The server decides whether
+      // to ask and what range the flick permits (see /api/ratings); this side
+      // only obeys, so the two can't drift. Queued cards are drained on the
+      // growth screen, after the stack is done — interrupting a batch of album
+      // photos to ask about one plate would break the flick rhythm the whole
+      // rating flow is built around.
+      if (json?.execution?.ask && dish) {
+        setExecutionQueue(cur => [...cur, {
+          dish: { id: dishId, name: dish.name, name_zh: dish.name_zh ?? null, photo_url: null, restaurant: null },
+          min: json.execution.min, max: json.execution.max,
+        }]);
       }
     } catch { /* a lost rating already shows as a failed card; don't mask it here */ }
   };
@@ -749,6 +766,20 @@ export default function RatingStack({ photos, picks, typed, userId, onExit }: {
           ) : undefined}
         />
       </div>
+      {/* 佢哋整得點？ — drained one at a time, on top of the growth screen, only
+          once the flicking is over. Dismissing is free and simply advances the
+          queue: an unanswered card costs nothing (the rating still taught), so
+          there is deliberately no nag and no badge. Sits OUTSIDE rate-sheet-inner
+          because it is a floating overlay on the duel chassis, not page content. */}
+      {executionQueue.length > 0 && (
+        <ExecutionSlider
+          key={executionQueue[0].dish.id}
+          dish={executionQueue[0].dish}
+          min={executionQueue[0].min}
+          max={executionQueue[0].max}
+          onDone={() => setExecutionQueue(cur => cur.slice(1))}
+        />
+      )}
     </div>
   );
 }
