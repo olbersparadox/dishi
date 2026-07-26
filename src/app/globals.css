@@ -1625,11 +1625,15 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 /* 佢哋整得點？ — execution slider on the duel chassis (ExecutionSlider.tsx).
    FIRST-PASS VISUAL, flagged for a Claude Design pass like the duel card was:
    the layout reuses .duel-* wholesale and only the scale itself is new. */
-.exec-scale { margin-top: 14px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
-.exec-value { font-family: var(--font-display); font-weight: 800; font-size: 30px; color: var(--ink); line-height: 1; }
-.exec-range { width: 100%; max-width: 260px; accent-color: var(--ink); }
-.exec-ends { width: 100%; max-width: 260px; display: flex; justify-content: space-between; font-size: 12px; color: var(--ink-soft); }
-.exec-pass { font-size: 12px; color: var(--ink-soft); }
+/* Each dish keeps the duel card's own two-up column, with its scale directly
+   beneath it. The anchor shape has one row and spans the full width. */
+.duel-pair.exec-single { grid-template-columns: 1fr; }
+.exec-col { display: flex; flex-direction: column; }
+.exec-scale { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 100%; margin-top: 8px; }
+.exec-value { font-family: var(--font-display); font-weight: 800; font-size: 24px; color: var(--ink); line-height: 1; }
+.exec-range { width: 100%; accent-color: var(--ink); }
+.exec-ends { width: 100%; display: flex; justify-content: space-between; font-size: 11px; color: var(--ink-soft); }
+.exec-pass { display: block; margin-top: 10px; text-align: center; font-size: 12px; color: var(--ink-soft); }
 /* A previously-scored instance sits alongside as context, not as a choice. */
 .exec-sibling { opacity: 0.72; }
 .exec-prior { display: block; margin-top: 4px; text-align: center; font-size: 12px; color: var(--ink-soft); }

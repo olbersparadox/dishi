@@ -181,6 +181,10 @@ export const dict: Record<string, { zh: string; en: string }> = {
   // Body copy is 書面 per the standing register shift; the TITLE keeps its
   // Cantonese voice as a deliberate exception, exactly like 係咪同一味？ above.
   'exec.q': { zh: '只評廚房的功夫，與你喜不喜歡這道菜無關', en: 'Just the kitchen’s work — not whether you like the dish' },
+  // The comparison shape. Says plainly that BOTH scales move — the earlier one
+  // is a judgement to revise, not a record to read.
+  'exec.q.compare': { zh: '同上次比較，兩邊都可以調', en: 'Compare with last time — both scales can move' },
+  'exec.reference': { zh: '上次', en: 'Last time' },
   'exec.low': { zh: '整得差', en: 'Badly made' },
   'exec.high': { zh: '整得好', en: 'Well made' },
   'exec.pass': { zh: '5 分合格', en: '5 is a pass' },

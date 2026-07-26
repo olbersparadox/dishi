@@ -1,49 +1,56 @@
 'use client';
-// 佢哋整得點？ — the execution-quality card. Third consumer of the 對決 chassis,
-// per the standing "comparison is the core product DNA" direction: it mounts
-// DuelOverlay's shell classes and DuelSide's dish anatomy rather than a
-// lookalike (CLAUDE.md, "Reuse, don't imitate").
+// 佢哋整得點？ — execution quality, as a COMPARISON. Third consumer of the 對決
+// chassis, per "comparison is the core product DNA" (CLAUDE.md): it mounts
+// DuelSide's dish anatomy and DuelOverlay's shell rather than a lookalike.
 //
-// What it asks is NOT "was it the dish or the kitchen" — that question is never
-// put to the eater. It asks only how well THIS kitchen rendered the dish, and
-// the dish-vs-kitchen answer falls out of comparing instances later
-// (isExecutionConfounded in taste.ts).
+// Two shapes, one mechanic:
+//   ONE row  — no other instance of this dish exists yet. Lays down an ANCHOR,
+//              bounded by the flick (a 唔會再食 can only be 1-4).
+//   TWO rows — a previous instance exists. Both sliders are LIVE, the earlier
+//              one preset to whatever it was last set to (or mid-range if it
+//              was never scored). The signal is the GAP between them.
 //
-// What this card wraps around a side is deliberately DIFFERENT from a duel's:
-// duels wrap each side in a tappable button meaning "I prefer this". Here the
-// sides are static — the judgement is the slider, and a tappable side would
-// invite duel muscle memory to answer a question this card isn't asking.
+// Why the reference stays editable: the earlier dish's score is a judgement,
+// not a fact, and judgement legitimately moves once the two are side by side —
+// "actually that one was better than I remembered; this is a 2." Freezing it
+// into a read-only label would destroy the comparison this card exists to make.
+// Each row is still bounded by its OWN flick, so revising the reference can
+// never contradict how that meal was actually rated.
 //
-// FIRST-PASS VISUAL — the slider's own styling wants a Claude Design pass, same
-// footing as DuelOverlay's header comment.
+// The card never asks "was it the dish or the kitchen" — that is inferred from
+// the gap (isExecutionConfounded in taste.ts), never self-reported.
+//
+// FIRST-PASS VISUAL — the scale styling wants a Claude Design pass, same
+// footing as DuelOverlay's own header note.
 import { useState } from 'react';
 import { useLang } from '@/lib/i18n';
 import { CloseIcon, CheckIcon } from './icons';
 import DuelSide, { type DuelDish } from './DuelSide';
 
-/** A previously-scored instance of the SAME dish identity — the comparison that
- * gives this card its meaning. Empty on the first instance, which is fine: the
- * score still banks and becomes usable the moment the dish repeats. */
-export type ExecutionSibling = { dish: DuelDish; score: number };
-
-export default function ExecutionSlider({
-  dish, min, max, siblings = [], onDone,
-}: {
+/** One dish on the card. `min`/`max` come from the server — each row is bounded
+ * by ITS OWN flick, so a positively-rated reference can't be dragged to 1. */
+export type ExecutionRow = {
   dish: DuelDish;
-  /** Bounds handed down by the server so this card cannot contradict the flick —
-   * never recomputed here (see /api/ratings). */
   min: number;
   max: number;
-  siblings?: ExecutionSibling[];
-  /** scored=false when skipped or dismissed. Skipping is free, always. */
+  /** Where the slider starts: a previously recorded score, or null for mid-range. */
+  value: number | null;
+};
+
+export default function ExecutionSlider({ rows, onDone }: {
+  /** One row (anchor) or two (comparison, earlier dish FIRST). */
+  rows: ExecutionRow[];
+  /** scored=false when skipped or dismissed. Skipping is always free. */
   onDone: (scored: boolean) => void;
 }) {
   const { t } = useLang();
-  // Start mid-range so the card never pre-accuses a kitchen the person hasn't
-  // judged yet — they must move it or skip.
-  const [value, setValue] = useState(Math.round((min + max) / 2));
+  const mid = (r: ExecutionRow) => Math.round((r.min + r.max) / 2);
+  // Mid-range start on an unscored row so the card never pre-accuses a kitchen
+  // the person hasn't judged; a previously scored row opens where they left it.
+  const [values, setValues] = useState<number[]>(rows.map(r => r.value ?? mid(r)));
   const [busy, setBusy] = useState(false);
   const [closing, setClosing] = useState(false);
+  const comparing = rows.length > 1;
 
   function close(scored: boolean) {
     if (closing) return;
@@ -51,13 +58,21 @@ export default function ExecutionSlider({
     setTimeout(() => onDone(scored), 340); // let the fade-out play, as duels do
   }
 
+  function setAt(i: number, v: number) {
+    setValues(cur => cur.map((x, j) => (j === i ? v : x)));
+  }
+
   async function submit() {
     if (busy) return;
     setBusy(true);
     try {
+      // Both rows are sent: on a comparison the reference may have just been
+      // revised, and the revision is as much a judgement as the new score.
       const res = await fetch('/api/ratings/execution', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dish_id: dish.id, execution_score: value }),
+        body: JSON.stringify({
+          scores: rows.map((r, i) => ({ dish_id: r.dish.id, execution_score: values[i] })),
+        }),
       });
       close(res.ok);
     } catch {
@@ -77,39 +92,38 @@ export default function ExecutionSlider({
             <button className="duel-x" onClick={() => close(false)} aria-label={t('home.cancel')}><CloseIcon /></button>
           </div>
 
-          {/* The dish being judged, plus any earlier rendering of the same dish —
-              side by side, because the comparison IS the point. Static, not
-              tappable: see the header note. */}
-          <div className="duel-pair">
-            {siblings.map(s => (
-              <div key={s.dish.id} className="duel-option exec-sibling">
-                <DuelSide dish={s.dish} />
-                <span className="exec-prior">{t('exec.prior', { n: s.score })}</span>
+          <p className="duel-q">{t(comparing ? 'exec.q.compare' : 'exec.q')}</p>
+
+          {/* Each dish sits in the duel card's own two-up pair, with its OWN scale
+              directly beneath it — so which slider belongs to which plate is never
+              in question. Sides are STATIC: the answer is the scale, and a tappable
+              side would invite duel muscle memory to answer a question this card
+              isn't asking. One row (the anchor shape) spans the full width. */}
+          <div className={`duel-pair ${comparing ? '' : 'exec-single'}`}>
+            {rows.map((r, i) => (
+              <div className="duel-option exec-col" key={r.dish.id}>
+                <DuelSide dish={r.dish} />
+                {comparing && i === 0 && <span className="exec-prior">{t('exec.reference')}</span>}
+                <div className="exec-scale">
+                  <output className="exec-value" aria-live="polite">{values[i]}</output>
+                  <input
+                    className="exec-range"
+                    type="range" min={r.min} max={r.max} step={1} value={values[i]}
+                    onChange={e => setAt(i, Number(e.target.value))}
+                    aria-label={r.dish.restaurant ?? t('exec.title')}
+                  />
+                  <div className="exec-ends">
+                    <span>{t('exec.low')}</span>
+                    <span>{t('exec.high')}</span>
+                  </div>
+                </div>
               </div>
             ))}
-            <div className="duel-option">
-              <DuelSide dish={dish} />
-            </div>
           </div>
 
-          <p className="duel-q">{t('exec.q')}</p>
-
-          <div className="exec-scale">
-            <output className="exec-value" aria-live="polite">{value}</output>
-            <input
-              className="exec-range"
-              type="range" min={min} max={max} step={1} value={value}
-              onChange={e => setValue(Number(e.target.value))}
-              aria-label={t('exec.title')}
-            />
-            <div className="exec-ends">
-              <span>{t('exec.low')}</span>
-              <span>{t('exec.high')}</span>
-            </div>
-            {/* Only meaningful when the range actually spans the passing line —
-                a flick-bounded range sits entirely on one side of it. */}
-            {min < 5 && max >= 5 && <span className="exec-pass">{t('exec.pass')}</span>}
-          </div>
+          {/* Only meaningful when a range actually spans the passing line — a
+              flick-bounded range sits entirely on one side of it. */}
+          {rows.some(r => r.min < 5 && r.max >= 5) && <span className="exec-pass">{t('exec.pass')}</span>}
 
           <div className="ok-circle-wrap">
             <button className="ok-circle" onClick={submit} disabled={busy} aria-label={t('duel.ok')}>

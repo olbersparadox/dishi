@@ -24,15 +24,18 @@ export async function POST(req: NextRequest) {
   }
 
   const { data: dish, error: dishErr } = await supabase
-    .from('dishes').select('id, attributes, cuisine, dish_identity_id').eq('id', dish_id).single();
+    .from('dishes')
+    .select('id, attributes, cuisine, dish_identity_id, name, name_zh, photo_url, restaurants(name)')
+    .eq('id', dish_id).single();
   if (dishErr || !dish) return NextResponse.json({ error: 'Dish not found.' }, { status: 404 });
 
   // Re-rating the same dish replaces the rating row (upsert below) — it must not
   // ALSO inflate rating_count, which controls the EMA learning-rate decay. A user
   // correcting a slip-flick shouldn't age their profile.
   const { data: priorRating } = await supabase
-    .from('ratings').select('id').eq('user_id', user.id).eq('dish_id', dish_id).maybeSingle();
+    .from('ratings').select('id, execution_score').eq('user_id', user.id).eq('dish_id', dish_id).maybeSingle();
   const isRerate = !!priorRating;
+  const rating0 = priorRating; // any execution score this dish already carries
 
   // Voice note -> structured attributes (+ optional sentiment nudge on the score).
   const voice = voice_transcript ? await extractVoiceSignal(voice_transcript) : { attributes: {}, sentiment_hint: null };
@@ -149,23 +152,70 @@ export async function POST(req: NextRequest) {
   // question at all), OR when this dish identity already has another rating —
   // because a comparison needs the GOOD instance recorded too, not just the bad
   // one. Answering is always optional; skipping costs nothing.
+  // Two shapes. A REPEAT of the same dish identity always asks, with no
+  // threshold — that comparison IS the measurement, the only moment that
+  // separates a bad kitchen from a disliked dish, and repeats are rare enough
+  // to be self-limiting. Otherwise an ANCHOR is offered only on a genuinely
+  // strong opinion, which on real data means 唔會再食/唔啱我/好鍾意/掃晒 and never
+  // the ordinary 幾好食/一般般 (measured: 19% of ratings at this bar, against 45%
+  // at 0.2 — past which it becomes a ritual people click through).
+  //
+  // Both directions deliberately: exonerating a dish requires a PASSING sibling
+  // score, so a negatives-only rule could never record one and nothing would
+  // ever be exonerated.
   const WARMUP = 10;
-  let execution: { ask: boolean; min: number; max: number } | null = null;
+  const ANCHOR_THRESHOLD = 0.35;
+  type ExecRow = {
+    dish: { id: string; name: string; name_zh: string | null; photo_url: string | null; restaurant: string | null };
+    min: number; max: number; value: number | null;
+  };
+  let execution: { rows: ExecRow[] } | null = null;
   {
-    const offNormal = Math.abs(learnedScore) >= 0.2;
-    let hasSibling = false;
+    const anyDish = dish as any;
+    const range = executionRangeFor(learnedScore);
+    const mine: ExecRow = {
+      dish: {
+        id: dish_id, name: anyDish.name, name_zh: anyDish.name_zh ?? null,
+        photo_url: anyDish.photo_url ?? null, restaurant: anyDish.restaurants?.name ?? null,
+      },
+      ...range,
+      value: (rating0?.execution_score ?? null) as number | null,
+    };
+
+    // The most recent OTHER instance of the same dish the person has rated —
+    // the reference side of the comparison. Its own flick bounds its own scale,
+    // so revising it can never contradict how THAT meal was rated.
+    let reference: ExecRow | null = null;
     if (dish.dish_identity_id) {
-      const { count } = await supabase
+      const { data: sib } = await supabase
         .from('ratings')
-        .select('id, dishes!inner(dish_identity_id)', { count: 'exact', head: true })
+        .select('dish_id, score, execution_score, created_at, dishes!inner(dish_identity_id, name, name_zh, photo_url, restaurants(name))')
         .eq('user_id', user.id)
         .eq('dishes.dish_identity_id', dish.dish_identity_id)
-        .neq('dish_id', dish_id);
-      hasSibling = (count ?? 0) > 0;
+        .neq('dish_id', dish_id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (sib) {
+        const sd = (sib as any).dishes;
+        const sibPrior = (await supabase.from('ratings').select('score')
+          .eq('user_id', user.id).neq('dish_id', sib.dish_id)).data ?? [];
+        const sibRange = executionRangeFor(calibratedScore(sib.score as number, sibPrior.map(r => r.score as number)));
+        reference = {
+          dish: {
+            id: sib.dish_id as string, name: sd?.name, name_zh: sd?.name_zh ?? null,
+            photo_url: sd?.photo_url ?? null, restaurant: sd?.restaurants?.name ?? null,
+          },
+          ...sibRange,
+          value: (sib.execution_score ?? null) as number | null,
+        };
+      }
     }
-    const mature = nextCount >= WARMUP;
-    const range = executionRangeFor(learnedScore);
-    execution = { ask: (mature && offNormal) || hasSibling, ...range };
+
+    const strongOpinion = nextCount >= WARMUP && Math.abs(learnedScore) >= ANCHOR_THRESHOLD;
+    // Reference FIRST — it is the thing being compared against.
+    if (reference) execution = { rows: [reference, mine] };
+    else if (strongOpinion) execution = { rows: [mine] };
   }
 
   // 封印預測 reveal: if a seal exists and hasn't been broken yet, break it now
