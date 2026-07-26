@@ -169,7 +169,9 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'duel.tie': { zh: '難以取捨', en: 'Can’t separate them' },
   'duel.hit': { zh: 'dishi 估中咗', en: 'dishi called it' },
   'duel.miss': { zh: 'dishi 估錯咗', en: 'dishi got that wrong' },
-  'duel.tieresult': { zh: '兩者相近，已記錄', en: 'About even — noted' },
+  // Reassurance, not a verdict: a tie is a real answer, so the copy says so
+  // rather than making the person feel they gave the engine nothing.
+  'duel.tieresult': { zh: '無妨，任何回應都幫到我們調校你的口味', en: 'No worries — every answer helps tune your taste' },
   'duel.learned': { zh: '學到：{dims}', en: 'Learned: {dims}' },
   'duel.ok': { zh: '好', en: 'OK' },
 
@@ -185,6 +187,9 @@ export const dict: Record<string, { zh: string; en: string }> = {
   // is a judgement to revise, not a record to read.
   'exec.q.compare': { zh: '同上次比較，兩邊都可以調', en: 'Compare with last time — both scales can move' },
   'exec.reference': { zh: '上次', en: 'Last time' },
+  // Shown for a beat after saving, then the card closes itself — an answer
+  // should feel received, not swallowed.
+  'exec.saved': { zh: '收到', en: 'Got it' },
   'exec.low': { zh: '整得差', en: 'Badly made' },
   'exec.high': { zh: '整得好', en: 'Well made' },
   'exec.pass': { zh: '5 分合格', en: '5 is a pass' },

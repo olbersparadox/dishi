@@ -1647,6 +1647,8 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 .exec-range { width: 100%; accent-color: var(--ink); position: relative; z-index: 1; background: transparent; }
 .exec-ends { width: 100%; display: flex; justify-content: space-between; font-size: 11px; color: var(--ink-soft); }
 .exec-pass { display: block; margin-top: 10px; text-align: center; font-size: 12px; color: var(--ink-soft); }
+/* The half-second acknowledgement, sized like the card's own question line. */
+.exec-saved { text-align: center; margin: 28px 0; font-family: var(--font-display); font-weight: 800; font-size: 26px; color: var(--ink); }
 /* A previously-scored instance sits alongside as context, not as a choice. */
 .exec-sibling { opacity: 0.72; }
 .exec-prior { display: block; margin-top: 4px; text-align: center; font-size: 12px; color: var(--ink-soft); }

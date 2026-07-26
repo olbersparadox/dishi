@@ -50,6 +50,9 @@ export default function ExecutionSlider({ rows, onDone }: {
   const [values, setValues] = useState<number[]>(rows.map(r => r.value ?? mid(r)));
   const [busy, setBusy] = useState(false);
   const [closing, setClosing] = useState(false);
+  // A brief acknowledgement before the card leaves, so an answer feels received
+  // rather than swallowed. Deliberately short — this is a beat, not a screen.
+  const [saved, setSaved] = useState(false);
   const comparing = rows.length > 1;
 
   function close(scored: boolean) {
@@ -83,7 +86,9 @@ export default function ExecutionSlider({ rows, onDone }: {
           scores: rows.map((r, i) => ({ dish_id: r.dish.id, execution_score: values[i] })),
         }),
       });
-      close(res.ok);
+      if (!res.ok) { close(false); return; }
+      setSaved(true);
+      setTimeout(() => close(true), 500);
     } catch {
       close(false); // a failed save must not trap the person in the card
     } finally { setBusy(false); }
@@ -101,13 +106,18 @@ export default function ExecutionSlider({ rows, onDone }: {
             <button className="duel-x" onClick={() => close(false)} aria-label={t('home.cancel')}><CloseIcon /></button>
           </div>
 
+          {saved ? (
+            <p className="exec-saved" role="status">{t('exec.saved')}</p>
+          ) : (
           <p className="duel-q">{t(comparing ? 'exec.q.compare' : 'exec.q')}</p>
+          )}
 
           {/* Each dish sits in the duel card's own two-up pair, with its OWN scale
               directly beneath it — so which slider belongs to which plate is never
               in question. Sides are STATIC: the answer is the scale, and a tappable
               side would invite duel muscle memory to answer a question this card
               isn't asking. One row (the anchor shape) spans the full width. */}
+          {!saved && (
           <div className={`duel-pair ${comparing ? '' : 'exec-single'}`}>
             {rows.map((r, i) => (
               <div className="duel-option exec-col" key={r.dish.id}>
@@ -138,16 +148,19 @@ export default function ExecutionSlider({ rows, onDone }: {
               </div>
             ))}
           </div>
+          )}
 
           {/* Always shown now: every track spans the full 1-10, so the passing
               line is always a real position on it. */}
-          <span className="exec-pass">{t('exec.pass')}</span>
+          {!saved && <span className="exec-pass">{t('exec.pass')}</span>}
 
-          <div className="ok-circle-wrap">
-            <button className="ok-circle" onClick={submit} disabled={busy} aria-label={t('duel.ok')}>
-              <CheckIcon size={26} />
-            </button>
-          </div>
+          {!saved && (
+            <div className="ok-circle-wrap">
+              <button className="ok-circle" onClick={submit} disabled={busy} aria-label={t('duel.ok')}>
+                <CheckIcon size={26} />
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
