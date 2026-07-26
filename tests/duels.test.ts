@@ -262,3 +262,110 @@ describe('replayProfile (merged ratings + duels)', () => {
     expect(out!.replayed).toBe(1);
   });
 });
+
+/**
+ * 佢哋整得點？ at the replay level (2026-07-26). The pure rule is tested in
+ * taste.test.ts; this pins that replay actually APPLIES it — that a passing
+ * score on one instance retroactively pulls a failing sibling out of learning,
+ * which is the whole 火腿通粉 fix.
+ */
+describe('replayProfile — execution-confounded ratings leave the learning stream', () => {
+  const macaroni = { creamy: 0.9 };
+
+  it('one bad plate still teaches — ambiguous, so the opinion stands', async () => {
+    const { replayProfile } = await import('../src/lib/replay');
+    duelData = [];
+    ratingData = [
+      { dish_id: 'a', score: -0.9, execution_score: 2, voice_attributes: null,
+        created_at: '2026-07-01T00:00:00Z',
+        dishes: { attributes: macaroni, cuisine: 'cantonese', dish_identity_id: 'ident-1' } },
+    ];
+    const out = await replayProfile({ from: () => makeChain(ratingData) } as any, 'user-1');
+    expect(out!.confounded).toBe(0);
+    expect(out!.vector.creamy).toBeLessThan(0); // the hate was learned
+  });
+
+  it('a PASSING sibling retroactively rescues the dish from the palate', async () => {
+    const { replayProfile } = await import('../src/lib/replay');
+    duelData = [];
+    // Same dish identity, two kitchens: one botched it (2), one did it justice (8).
+    ratingData = [
+      { dish_id: 'a', score: -0.9, execution_score: 2, voice_attributes: null,
+        created_at: '2026-07-01T00:00:00Z',
+        dishes: { attributes: macaroni, cuisine: 'cantonese', dish_identity_id: 'ident-1' } },
+      { dish_id: 'b', score: 0.6, execution_score: 8, voice_attributes: null,
+        created_at: '2026-07-02T00:00:00Z',
+        dishes: { attributes: macaroni, cuisine: 'cantonese', dish_identity_id: 'ident-1' } },
+    ];
+    const out = await replayProfile({ from: () => makeChain(ratingData) } as any, 'user-1');
+    expect(out!.confounded).toBe(1);          // the -0.9 was blamed on the kitchen
+    expect(out!.vector.creamy).toBeGreaterThan(0); // only the honest rating taught
+    // ...but the person still rated two dishes, so gates built on rating_count
+    // (seal gate, export confidence) must not lose one.
+    expect(out!.replayed).toBe(2);
+  });
+
+  it('two BAD instances exonerate nothing — both keep teaching', async () => {
+    const { replayProfile } = await import('../src/lib/replay');
+    duelData = [];
+    ratingData = [
+      { dish_id: 'a', score: -0.9, execution_score: 2, voice_attributes: null,
+        created_at: '2026-07-01T00:00:00Z',
+        dishes: { attributes: macaroni, cuisine: 'cantonese', dish_identity_id: 'ident-1' } },
+      { dish_id: 'b', score: -0.5, execution_score: 3, voice_attributes: null,
+        created_at: '2026-07-02T00:00:00Z',
+        dishes: { attributes: macaroni, cuisine: 'cantonese', dish_identity_id: 'ident-1' } },
+    ];
+    const out = await replayProfile({ from: () => makeChain(ratingData) } as any, 'user-1');
+    expect(out!.confounded).toBe(0);
+    expect(out!.vector.creamy).toBeLessThan(0);
+  });
+
+  it('two instances scoring the SAME do not cancel each other out', async () => {
+    // Guards the dropOne() subtlety: removing every equal value instead of one
+    // copy would make each instance look like its own passing sibling.
+    const { replayProfile } = await import('../src/lib/replay');
+    duelData = [];
+    ratingData = [
+      { dish_id: 'a', score: 0.35, execution_score: 7, voice_attributes: null,
+        created_at: '2026-07-01T00:00:00Z',
+        dishes: { attributes: macaroni, cuisine: 'cantonese', dish_identity_id: 'ident-1' } },
+      { dish_id: 'b', score: 0.35, execution_score: 7, voice_attributes: null,
+        created_at: '2026-07-02T00:00:00Z',
+        dishes: { attributes: macaroni, cuisine: 'cantonese', dish_identity_id: 'ident-1' } },
+    ];
+    const out = await replayProfile({ from: () => makeChain(ratingData) } as any, 'user-1');
+    expect(out!.confounded).toBe(0); // both passing, neither confounded
+  });
+
+  it('a bad plate of a DIFFERENT dish is not rescued by an unrelated good one', async () => {
+    const { replayProfile } = await import('../src/lib/replay');
+    duelData = [];
+    ratingData = [
+      { dish_id: 'a', score: -0.9, execution_score: 2, voice_attributes: null,
+        created_at: '2026-07-01T00:00:00Z',
+        dishes: { attributes: macaroni, cuisine: 'cantonese', dish_identity_id: 'ident-1' } },
+      { dish_id: 'b', score: 0.6, execution_score: 9, voice_attributes: null,
+        created_at: '2026-07-02T00:00:00Z',
+        dishes: { attributes: { crispy: 0.9 }, cuisine: 'cantonese', dish_identity_id: 'ident-OTHER' } },
+    ];
+    const out = await replayProfile({ from: () => makeChain(ratingData) } as any, 'user-1');
+    expect(out!.confounded).toBe(0);
+    expect(out!.vector.creamy).toBeLessThan(0); // still learned, correctly
+  });
+
+  it('unscored ratings are untouched — skipping the slider must cost nothing', async () => {
+    const { replayProfile } = await import('../src/lib/replay');
+    duelData = [];
+    ratingData = [
+      { dish_id: 'a', score: -0.9, execution_score: null, voice_attributes: null,
+        created_at: '2026-07-01T00:00:00Z',
+        dishes: { attributes: macaroni, cuisine: 'cantonese', dish_identity_id: 'ident-1' } },
+      { dish_id: 'b', score: 0.6, execution_score: 9, voice_attributes: null,
+        created_at: '2026-07-02T00:00:00Z',
+        dishes: { attributes: macaroni, cuisine: 'cantonese', dish_identity_id: 'ident-1' } },
+    ];
+    const out = await replayProfile({ from: () => makeChain(ratingData) } as any, 'user-1');
+    expect(out!.confounded).toBe(0);
+  });
+});

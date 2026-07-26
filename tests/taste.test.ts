@@ -4,6 +4,7 @@ import {
   thresholdVisionAttrs, LEARN_CUTOFF,
   similarity, contentScore, blendScores, toMatchPercent, toRelativeMatchPercent,
   MIN_SCORED_DIMS, neutralCenter, calibratedScore, PRIOR_CENTER, CENTER_PRIOR_K,
+  isExecutionConfounded, executionRangeFor, EXECUTION_PASS,
 } from '../src/lib/taste';
 
 describe('updateTaste', () => {
@@ -586,5 +587,79 @@ describe('calibration: the incremental path and replay must not diverge', () => 
     const normal = Array(20).fill(0.35);
     const meh = updateCuisineAffinity({}, 'cantonese', calibratedScore(0.1, normal));
     expect(meh.cantonese).toBeLessThan(0);
+  });
+});
+
+/**
+ * 佢哋整得點？ — execution quality (2026-07-26). A flick says how the MEAL went;
+ * it cannot say whether a bad meal was the dish or the kitchen. Rather than ask,
+ * the engine measures each instance 1-10 and lets comparison answer it.
+ * See docs/DECISIONS.md "Direction: comparison is the core product DNA".
+ */
+describe('isExecutionConfounded — when a bad plate stops being about taste', () => {
+  it('one bad plate on its own is AMBIGUOUS and keeps teaching', () => {
+    // The honest default. A single 火腿通粉 scored 2 might mean a lazy kitchen —
+    // or that this person genuinely dislikes macaroni soup. With nothing to
+    // compare against, discarding their opinion would be a guess.
+    expect(isExecutionConfounded(2, [])).toBe(false);
+    expect(isExecutionConfounded(1, [undefined, null])).toBe(false);
+  });
+
+  it('a PASSING sibling exonerates the dish and pulls the rating out', () => {
+    // 火腿通粉 at A = 2, later at B = 8. The dish is plainly fine; A is the
+    // problem, so A's furious flick is no longer evidence about this palate.
+    expect(isExecutionConfounded(2, [8])).toBe(true);
+    expect(isExecutionConfounded(4, [EXECUTION_PASS])).toBe(true);
+  });
+
+  it('two BAD instances do not exonerate anything', () => {
+    // Meeting two bad kitchens is not evidence the dish is good. Only a plate
+    // that actually passed can vouch for it.
+    expect(isExecutionConfounded(2, [3])).toBe(false);
+    expect(isExecutionConfounded(1, [4, 2, 3])).toBe(false);
+  });
+
+  it('a passing plate is never confounded, however good its siblings', () => {
+    // If the kitchen did the dish justice, the flick IS about taste.
+    expect(isExecutionConfounded(EXECUTION_PASS, [10])).toBe(false);
+    expect(isExecutionConfounded(9, [10])).toBe(false);
+  });
+
+  it('an unscored rating always teaches — skipping the slider costs nothing', () => {
+    expect(isExecutionConfounded(null, [9])).toBe(false);
+    expect(isExecutionConfounded(undefined, [9])).toBe(false);
+  });
+});
+
+describe('executionRangeFor — the slider cannot contradict the flick', () => {
+  it('a flick well BELOW your normal caps the slider under the passing line', () => {
+    // You cannot flick 唔會再食 and then call the plate a 9.
+    const r = executionRangeFor(-0.5);
+    expect(r.min).toBe(1);
+    expect(r.max).toBe(EXECUTION_PASS - 1);
+  });
+
+  it('a flick well ABOVE your normal floors the slider at passing', () => {
+    // ...nor rave about a dish and call the cooking a failure.
+    const r = executionRangeFor(0.5);
+    expect(r.min).toBe(EXECUTION_PASS);
+    expect(r.max).toBe(10);
+  });
+
+  it('an ordinary flick leaves the whole scale open', () => {
+    expect(executionRangeFor(0)).toEqual({ min: 1, max: 10 });
+  });
+
+  it('keys off the CENTRED score, so a harsh rater is not misread', () => {
+    // The same raw flick means different things to different people, so the
+    // bound has to read the centred value — the input here IS already centred.
+    // A harsh rater whose normal is 一般般: 一般般 centres near 0 for them, so
+    // it must NOT be treated as a complaint the way it would for a generous one.
+    const harshNormal = calibratedScore(0.1, Array(50).fill(0.1));   // ~0, their ordinary meal
+    const generousMeh = calibratedScore(0.1, Array(50).fill(0.35));  // clearly below theirs
+    expect(harshNormal).toBeGreaterThan(-0.2);   // not a complaint for them
+    expect(generousMeh).toBeLessThanOrEqual(-0.2);
+    expect(executionRangeFor(harshNormal).max).toBe(10);
+    expect(executionRangeFor(generousMeh).max).toBe(EXECUTION_PASS - 1);
   });
 });
