@@ -78,17 +78,9 @@ body {
    any such auto-link back to plain inherited text, in case one still slips through. */
 a[href^="tel:"] { color: inherit; text-decoration: inherit; }
 h1, h2, h3, .display { font-family: var(--font-display); font-weight: 500; letter-spacing: 0.06em; }
-/* 2026-07-26 CORRECTION: the six .lang-en/.lang-zh rules below (and at
-   .join-table-blurb / .lang-sheet-title / .lang-sheet-subtitle) were deleted
-   earlier today as "dead code" on the claim that nothing sets those class-
-   names. That grep missed Shell.tsx's `className={`app-root lang-${lang}`}` on
-   the app root (ShellInner) — a template literal, not a literal string match —
-   which DOES put "lang-zh"/"lang-en" on every page's ancestor element. The
-   rules were live the whole time; deleting them made every English heading
-   ("Journal", "Scan a menu", "Taste AI", "Dishes you've rated", ...) inherit
-   the Chinese-tuned 0.06em base tracking with nothing pulling it back. Restored
-   verbatim (font-size tokens only, from the same pass) — see ROLLBACK note in
-   commit 1fbe46e if this needs re-deriving. */
+/* The em-tracking above is tuned for Chinese; Latin pulls it back via .lang-en,
+   set on the app root by Shell.tsx (`app-root lang-${lang}`) — real and live,
+   not the dead literal-classname pattern the rest of this file avoids. */
 .lang-en h1, .lang-en h2, .lang-en h3, .lang-en .display,
 .lang-en .card-title, .lang-en .join-table-title { letter-spacing: -0.01em; }
 /* The big section title (h1) is a light-weight 30px serif, so the -0.01em above
