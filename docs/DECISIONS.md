@@ -9,6 +9,39 @@ better"), copy it back to BACKLOG.md with a note; don't edit history here.
 Organized chronologically, oldest first, in the same batches BACKLOG.md
 carried them in.
 
+## Quick index
+
+**Directions & principles**
+- [Direction: what the taste engine is FOR](#direction-what-the-taste-engine-is-for-owner-2026-07-24) (owner vision, 2026-07-24)
+- [Direction: comparison is the core product DNA](#direction-comparison-is-the-core-product-dna-owner-2026-07-26) (owner vision, 2026-07-26)
+
+**Identity & social**
+- [Identity, connection, and export positioning](#identity-connection-and-export-positioning-owner-2026-07-26) (owner decisions 1-5, 2026-07-26)
+
+**Engine & data**
+- [Self-calibrating rating scale + seal percentile bands](#direction-what-the-taste-engine-is-for-owner-2026-07-24) (both shipped, 2026-07-26)
+- [Seal dislike band closed](#dislike-band-closed-via-8432890) — per-user quantile banding fixed unreachable band
+- [佢哋整得點？ execution slider](#佢哋整得點️--the-1-10-execution-slider--✅-shipped) — shipped, both extensions confirmed
+- [`scripts/seal-rows.json` cleared](#scriptsseal-rowsjson-cleared-from-the-repo-owner-2026-07-26) — fixture moved to builder, history rewrite declined
+
+**Batches by date**
+- [2026-07-20](#batch-restaurant-picker-×3--hk-menu-shorthand-2026-07-20): Picker, HK menu shorthand
+- [2026-07-21](#batch-rating-stack-upload-failure--rename-re-derivation-2026-07-21): Upload, re-derivation
+- [2026-07-21](#batch-dishi-version-ladder--taste-pagegrowth-ui-batch-2026-07-21): Version ladder, growth UI
+- [2026-07-21](#batch-table-mode-social--one-surface-chops-echo-2026-07-21): Table social, chops, echo
+- [2026-07-22](#backlog-additions--2026-07-22-identity-confirm-card-on-the-duel-chassis): Identity-confirm card
+- [2026-07-22](#backlog-additions--2026-07-22-log-entry-three-paths-by-what-youre-holding): Log entry, shipped & rolled back
+- [2026-07-23](#batch-diet-taxonomy-growth--tree-nuts--soy-gluten-rejected-2026-07-23): Diet taxonomy
+- [2026-07-23](#batch-dishipersona-rd-phase-0-2026-07-23): Persona Phase 0 gate & install flow
+- [2026-07-23](#batch-pick-flow-field-session-fixes-2026-07-23): Pick-flow polish
+- [2026-07-24](#batch-field-session-fixes-2026-07-24): Field-session fixes
+- [2026-07-24](#batch-dishipersona-phase-05-field-test-fixes-2026-07-24): Persona Phase 0.5 tests
+- [2026-07-24](#batch-table-mode-two-account-field-test-fixes-2026-07-24): Table two-account fixes
+- [2026-07-24](#batch-seal-reveal--band-calibration-2026-07-24): Seal reveal & band calibration
+
+**Abandoned**
+- [Log-entry redesign (食物相/打字/外賣單)](#log-entry-redesign-食物相--打字--外賣單--direction-abandoned-owner-2026-07-26) — direction dropped, code deleted, 2026-07-26
+
 ---
 
 ## OTP login (kill the magic-link browser trap) — *(Sonnet)* — ✅ DONE `20789e6`, `0e3cd2b`, `11ae61b`
@@ -2713,10 +2746,19 @@ profile indicator, and the ask-for-name card in table entry goes away.
 `f(user_id)` for de-collision. Before building identity, decide whether chop
 identity should key off the username instead — and do it once, not twice.
 
-**Rename policy: one free rename before the first share or the first
-follower, then at version milestones.** The owner's initial proposal (rename
-at v5/v10) was checked against the actual curve and is too sparse to work as
-a safety valve. Computed from `versionSubstrate` + `versionThreshold`
+**Rename policy — SETTLED 2026-07-26, and simpler than either earlier
+proposal: name it at v1 with a "choose carefully" warning, then exactly ONE
+free change, ever.** No conditions, no milestone schedule, no first-share
+tripwire. The owner's call, and the right one: every conditional version of
+this rule needs the UI to explain a state machine ("you can still change this
+because nobody follows you yet"), which is a lot of copy to justify a second
+rename. One change is a promise a person can hold in their head, and the
+warning at naming time does the real work.
+
+The earlier proposal in this entry (one free rename before the first share or
+follower, then at version milestones) is SUPERSEDED — kept below only for the
+threshold numbers, which stand and are the reason milestone renames were
+never viable. Computed from `versionSubstrate` + `versionThreshold`
 (2026-07-26), across mixes from narrow (8 dims / 3 cuisines) to saturated
 (18 dims / 15 cuisines):
 
@@ -2728,24 +2770,81 @@ a safety valve. Computed from `versionSubstrate` + `versionThreshold`
 | v10 | 17.272 | ~2,280 – 2,440 |
 
 v5 is in the low hundreds of ratings and v10 is years-of-use scale, exactly
-as the module's own calibration note says. Regret about a name peaks
-immediately after choosing it, so a first-share/first-follower escape hatch
-is the one that matters; milestone renames are a bonus, not the mechanism.
+as the module's own calibration note says — a "rename at v5" valve would open
+years after the regret it was meant to relieve. Regret about a name peaks
+immediately after choosing it, which is why the settled rule puts the one
+change on demand rather than on a schedule.
 
-## 2. Connection is ASYMMETRIC (follow), not mutual
+**Built 2026-07-26.** The username reuses the EXISTING `profiles.handle`
+column rather than adding a second identity field: `handle` was already
+unique and already the fallback shown on chops and pick attributions, but was
+auto-derived from the email local part (`mosuko`, `wool.hk`) — which both
+leaked the address and was never chosen. Claiming a username overwrites it,
+so one identity string serves the chop, the table, and (later)
+`dishi.me/[username]`. See "dishi.username — claim at v1 + one free rename"
+below for the implementation.
 
-Chosen for the 食家 path: a 食家 with many followers cannot mutually connect
-with all of them, so a mutual-friend model breaks at exactly the shape the
-product wants to allow.
+## 2. There is NO social graph — distribution is by TASTE-RANK — SETTLED 2026-07-27
 
-**Binding consequence: 貼文 is PUBLISHING, not friend-sharing.** Anyone may
-follow, so a posted dish is visible to anyone who chooses to. Copy must say
-公開/public and must never say "friends" — the word would describe a privacy
-guarantee the mechanic does not provide.
+**Final. This supersedes the earlier "asymmetric follow, not mutual" version
+of this decision, and it closes the question — no follow table, no mutual
+connection, no accept flow, no friend concept anywhere in the product.**
 
-Unchanged by this: 食記 stays private by default, and posting stays per-dish
-opt-in. **Companion edges must never be inferable from a public post** — who
-you ate with is not part of what you publish.
+A follow graph's only contribution to the product is DISTRIBUTION — a way for
+a posted dish to reach someone. Dishi already has two distribution channels
+that need no graph at all:
+
+1. **The taste-ranked feed** — posts enter the same shared pool as persona
+   content and are ranked per user with `contentScore`. A post reaches whoever
+   the ranking says it matches.
+2. **Messenger share** — a link sent to a specific person. That is
+   friend-trust distribution, and it is a URL, not a schema.
+
+A graph would be a third channel duplicating both, and it is the one that
+makes Dishi look like a social network.
+
+**Why taste-rank and not a graph — the strategic core.** IG, Threads, FB and X
+all distribute by social graph. That is their turf and their moat; Dishi
+cannot win there and should not enter. Distributing by TASTE MATCH is Dishi's
+own turf and rests on the dish-level vectors none of them have. The recorded
+amendment already says it for persona content — *"Ranking is what makes it
+Dishi. Identical content for everyone is a magazine, and a magazine is where
+Dishi has no edge"* — and it applies to user posts identically.
+
+**What this buys, beyond simplicity:**
+
+- **Nothing to farm.** 食家 was parked because influence metrics are gameable.
+  With no follower count there is no status ladder to climb, which removes the
+  gaming surface rather than policing it.
+- **Achievement stays tied to food.** The reward for posting is *N people want
+  to try this dish*, not a follower number — social value that feeds the
+  engine instead of competing with it.
+- **The better business artifact.** Bookmarks are intent-to-eat at dish level,
+  which is exactly the recorded moat and is sellable as demand insight without
+  touching the never-sell-placement rule. A follower graph produces no such
+  data.
+
+**Binding consequence, UNCHANGED and now stronger: 貼文 is PUBLISHING, not
+friend-sharing.** A post can be surfaced to anyone the ranking matches, so
+copy must say 公開/public and must NEVER say "friends" — there is no friend
+relationship in the product to describe.
+
+Unchanged: 食記 stays private by default, and posting stays per-dish opt-in.
+**Companion edges must never be inferable from a public post** — who you ate
+with is not part of what you publish.
+
+**The fallback, recorded so it is not re-litigated:** if taste-ranked
+distribution measurably underperforms, ASYMMETRIC follow is the shape to add —
+one directional row, no lifecycle. MUTUAL connection is rejected outright: it
+needs a pending/accepted/blocked state machine, turns every feed read into an
+edge join, and would make posts friends-only, contradicting the publishing
+consequence above. Adding a graph requires evidence that taste-rank failed,
+not a preference.
+
+**Accepted risk:** if posting is visibly rewarded, people may inflate ratings
+to justify a post. Ratings are private and posting is per-dish opt-in, so
+exposure is limited — but this is the same corruption that parked 食家, and
+bookmark counts must be watched once visible.
 
 ## 3. The dossier IS the public taste page — there is no third artifact
 
@@ -2777,20 +2876,43 @@ refuse. It is data, and hosts accept data (§5, payload/costume split).
 2. A dossier is never visible during a rating flow. Seeing a friend's verdict
    before you flick contaminates the rating at source.
 
-## 4. "No friend graph" is REVERSED — reworded, not just deleted
+## 4. "No friend graph" STANDS — for a better reason than before — SETTLED 2026-07-27
 
-`CLAUDE.md` (open threads) and BACKLOG's standing strategy line both said "no
-friend graph yet." The replacement is not "yes friend graph": it is
-**asymmetric follow plus a public taste identity**, which is closer to a
-creator/audience model than to a friend graph, and it is deliberately not
-mutual (decision 2).
+This decision reversed itself twice and is now closed. History, so nobody
+reopens it: the standing line was "no friend graph yet"; on 2026-07-26 that
+was reversed to "asymmetric follow plus a public taste identity"; on
+2026-07-27 the reversal was itself withdrawn (decision 2).
 
-**Why it earns its place now, on the recorded product test:** it is the only
-mechanic that generates same-dish-different-restaurant pairs — the substrate
-the execution slider needs and does not have. Measured live 2026-07-26: ZERO
-dish identities eaten at two different restaurants. A recommendation from
-someone you follow is the most likely reason a person eats 乾炒牛河 somewhere
-new.
+**Final position: no social graph, and not as a "not yet."** The original line
+was right by accident — it read as a deferral. The settled reason is
+structural: distribution is solved by TASTE-RANK plus messenger share, so a
+graph has no job left to do. See decision 2.
+
+**What earns its place on the recorded product test** is not the connection
+mechanic. An earlier version of this paragraph said it was **bookmark → 待評**,
+"the only thing that generates same-dish-different-restaurant pairs."
+**CORRECTED 2026-07-27: that is false.** People eat common dishes at different
+restaurants constantly with no prompting — the claim rested on a premise
+invented in review and never checked.
+
+The real blocker is measurement, not behaviour. Re-measured 2026-07-27:
+**46 of 50 rated dishes have no `dish_identity_id`, and 3 identity rows exist
+in the whole database.** The same dish at ten restaurants records as ten
+unrelated dishes today, so the execution slider cannot fire regardless of how
+anyone eats or what anyone recommends. Fixing dish identity resolution
+plausibly outranks every social mechanic here, because it gates a feature that
+is already built and shipped and is testable by one person alone.
+
+The earlier justification said "a recommendation from someone you follow is
+the most likely reason a person eats 乾炒牛河 somewhere new." That argument
+does not discriminate — a recommendation surfaced by taste-match generates the
+same pair, and Dishi's whole premise is that taste-match beats social
+proximity for food. If that premise is false, the engine has a larger problem
+than the feed.
+
+**Consequence for the public page:** decision 3 is unaffected and does not
+depend on a graph. `dishi.me/[username]` is a public URL anyone can visit —
+there is no follow button on it, and there never was a need for one.
 
 ## 5. The export becomes TASTE-ONLY; personas move in-app
 
@@ -3087,3 +3209,81 @@ consumer went away.
 the Claude Project conversation and in this file's history. Do not rebuild from
 it. If a photo-first or typed entry point is ever wanted again, it belongs on
 the merged pill as a new decision, not as a revival of this one.
+
+---
+
+# dishi.username — claim at v1 + one free rename — 🟡 BACKEND BUILT, UI OPEN (2026-07-26)
+
+**Status correction.** This was briefly recorded as SHIPPED. It is not, and
+nothing here is committed. What is real: the migration is applied live, and
+`src/lib/username.ts` (+10 tests), `/api/username`, and the `/api/buddy`
+identity block are written and passing. What is NOT: the UI. The first pass
+put a small button on the version line opening a modal sheet; the owner's
+placement is an inline `dishi.[fill-in box]` directly under the ink blob, with
+the username line then sitting between the blob and the version line. The
+component is a rewrite, but nothing below the UI changes with it.
+
+The decisions in this entry — reusing `handle`, the claim/rename accounting,
+the validation rules, the DB-enforced uniqueness — are placement-independent
+and stand as recorded.
+
+The first build off "Identity, connection, and export positioning" decision 1.
+Owner settled the rename policy the same day: **name it at v1 with a "choose
+carefully" warning, then exactly ONE change, ever** — no conditions, no
+milestone schedule (see that entry's rename policy for why the conditional
+versions were dropped).
+
+**No new identity column.** `profiles.handle` was already unique and already
+the string shown on chops and pick attributions — it was just auto-derived
+from the email local part (`mosuko`, `wool.hk`), which leaked the address and
+was never chosen. Claiming a username overwrites it, so one string keeps
+serving the chop, the table, and later `dishi.me/[username]`. Two columns
+added (`supabase/applied/profiles_username_claim.sql`):
+`username_set_at` (null = never claimed) and `username_changes_used`.
+
+**`username_set_at` is what gates the naming moment, never "handle is
+non-empty"** — every legacy profile already has a handle, so reading the
+column as "has a username" would silently skip the naming moment for exactly
+the people who most need it. `hasClaimedUsername()` exists to make that
+mistake hard to write.
+
+**The claim is free; only a rename spends the budget.** Re-submitting the name
+you already have is an explicit no-op rather than a spent change — otherwise a
+double-tap on 就用這個名 would burn the one chance a person gets.
+
+**Where it lives.** The naming prompt renders on the taste card once
+`version.v >= 1`, not inside the rating flow: mid-flick is the wrong moment to
+stop someone for a form, and below v1 there is nothing built yet to name.
+Once claimed, `dishi.{name}` renders in the same place and taps through to the
+rename. The identity rides on the `/api/buddy` response rather than its own
+fetch, because the prompt is gated on the version that same response computes.
+
+**Validation** (`src/lib/username.ts`, 10 tests): lowercase latin + digits +
+underscore, 3–20 chars, must lead with a letter (so a username can never read
+as an id in a path), and a reserved list covering app routes plus
+product-impersonation names. Chinese is deliberately NOT allowed here — it
+goes in `display_name`, which stays free-form for what a person wants to be
+CALLED. The username is a URL.
+
+**Uniqueness is enforced by the database, not the check.** A
+`lower(handle)` unique index is the authority; the availability check is a
+courtesy that prevents the common case. Verified by dry-run: updating a second
+profile to `MoSuKo` while `mosuko` exists is rejected by the index
+(`unique_violation`), so a race between two claimants cannot produce two
+identical names in different cases.
+
+**UI reused wholesale, no new CSS.** `UsernameSheet` mounts inside the shared
+`ExplainModal` (same scrim, same paper card, same dismissal as every other
+explainer) and styles itself from existing classes only — `.field`, `.btn`,
+`.btn.primary.dirty` for the vermillion save-when-valid state, `.label`.
+`globals.css` was not touched: the design system is the owner's to change.
+
+**Fixed during verification:** an unexpected server response (a 401 body, an
+unrecognized error) flowed straight into a `t()` lookup and would have
+rendered a raw untranslated string at the user. Server error codes are now
+whitelisted client-side, with anything unknown falling back to a real message.
+
+Verified with screenshots of all three states (claim, rename with one change
+left, rename spent) rendered from the real component. The logged-in placement
+on the taste card was NOT photographed: that needs an authenticated session,
+and authenticating as the owner is not something to do on their behalf.

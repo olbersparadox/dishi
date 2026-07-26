@@ -36,6 +36,16 @@ consumer-side dish-level demand data.
   lookalike (see the "Reuse, don't imitate" rule below). The aim these serve is
   EXECUTION-level understanding — why 乾炒牛河 is good at one shop and bad at
   another — recorded in DECISIONS.md, "Direction: what the taste engine is FOR".
+- **NO social graph — distribution is by TASTE-RANK** (settled 2026-07-27,
+  DECISIONS.md decision 2). No follow table, no mutual connection, no accept
+  flow, no "friends" concept anywhere in the product or its copy. Posts are
+  per-dish opt-in and reach people by taste-match ranking, plus a plain
+  messenger link. IG/Threads/FB/X own social-graph distribution; Dishi cannot
+  win there and does not enter. Taste-match distribution rests on the
+  dish-level vectors they don't have — that is the edge. 貼文 is PUBLISHING:
+  copy says 公開, never "friends". If a task seems to need a follow graph,
+  it is the wrong task — the fallback (asymmetric follow) requires evidence
+  that taste-rank failed, not a preference.
 
 ## Stack & commands
 
@@ -140,13 +150,7 @@ consumer-side dish-level demand data.
 - 食記 journal: order album logs by when-eaten vs when-logged (fuzzy eaten-date
   question is unresolved design).
 - AI taste export loop: keep versioning deltas visible and recurring.
-- Consumer scan density: one dense neighborhood first. The old "no friend
-  graph yet" is REVERSED (owner, 2026-07-26): the social layer is asymmetric
-  FOLLOW plus a public taste page at `dishi.me/[username]` — a creator/audience
-  model, deliberately not mutual. It earns its place because it is the only
-  mechanic that generates same-dish-different-restaurant pairs, which the
-  execution slider needs and does not have. See DECISIONS.md, "Identity,
-  connection, and export positioning".
+- Consumer scan density: one dense neighborhood first.
 
 ## UI verification (mandatory)
 

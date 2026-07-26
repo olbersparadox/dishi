@@ -5,6 +5,7 @@ import {
   engineConfidence, buddyElements, growthHint, exploredDims, UNLOCK_CONFIDENCE,
 } from '@/lib/buddy';
 import { versionForProfile, ratchetVersion } from '@/lib/version';
+import { renamesLeft } from '@/lib/username';
 import { stakeSeal, type SealableDish } from '@/lib/sealStake';
 
 /**
@@ -20,10 +21,15 @@ export async function GET() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Sign in first.' }, { status: 401 });
 
-  const [{ data: buddy }, { data: profile }, { data: myRatings }] = await Promise.all([
+  const [{ data: buddy }, { data: profile }, { data: myRatings }, { data: identity }] = await Promise.all([
     supabase.from('buddies').select('species').eq('user_id', user.id).maybeSingle(),
     supabase.from('taste_profiles').select('*').eq('user_id', user.id).maybeSingle(),
     supabase.from('ratings').select('dish_id').eq('user_id', user.id),
+    // The username rides along here rather than on its own endpoint: the naming
+    // moment is gated on the version this same response computes, so a separate
+    // fetch would only let the card render a prompt for a version it hasn't read.
+    supabase.from('profiles').select('handle, username_set_at, username_changes_used')
+      .eq('id', user.id).maybeSingle(),
   ]);
 
   // Distinct real cuisines the user has rated.
@@ -75,6 +81,13 @@ export async function GET() {
 
   return NextResponse.json({
     species: buddy?.species ?? null,
+    // dishi.username. `claimed` is what gates the naming moment — every legacy
+    // row already has an auto-derived handle, so a non-empty name proves nothing.
+    identity: {
+      username: (identity?.handle as string | null) ?? null,
+      claimed: !!identity?.username_set_at,
+      changesLeft: renamesLeft(identity?.username_changes_used as number | null),
+    },
     state: {
       strength: Math.round(confidence * 100),
       version: {

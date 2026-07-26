@@ -405,6 +405,44 @@ export const dict: Record<string, { zh: string; en: string }> = {
     zh: '可以逐張評分，也可以一次揀一疊相片批量評。你的食物相裡，藏著許多關於你口味的理解，好好利用它們，訓練專屬於你的 AI 口味引擎：評得越多、越多元，dishi 就越懂你，推薦越貼近你的口味。',
     en: 'Rate one at a time, or pick a whole stack of photos and rate in a batch. Hidden inside your food shots is a wealth of understanding about your taste, so put them to good use and train an AI taste engine that belongs to you: the more you rate, and the more varied, the better dishi knows you.',
   },
+  // dishi.username — claimed at the v1 unlock, then ONE change ever. The warning
+  // is load-bearing copy, not decoration: it is the entire reason the scarcity is
+  // fair, so it appears BEFORE the field, not as fine print under it.
+  'username.title': { zh: '為你的口味改個名', en: 'Name your taste' },
+  'username.blurb': {
+    zh: '你已經建立了 dishi v1 — 屬於你自己的口味 AI。改個名，這就是你的口味身分。',
+    en: 'You’ve built dishi v1 — your own taste AI. Give it a name; this becomes your taste identity.',
+  },
+  'username.warn': {
+    zh: '請認真選擇：改名的機會只有一次。',
+    en: 'Choose carefully — you can change it once, and once only.',
+  },
+  'username.placeholder': { zh: '你的名字', en: 'your name' },
+  'username.save': { zh: '就用這個名', en: 'Use this name' },
+  'username.later': { zh: '遲些再改', en: 'Later' },
+  'username.checking': { zh: '檢查中…', en: 'Checking…' },
+  'username.available': { zh: '可以用', en: 'Available' },
+  'username.err.empty': { zh: '請先輸入名字', en: 'Type a name first' },
+  'username.err.tooshort': { zh: '最少 3 個字元', en: 'At least 3 characters' },
+  'username.err.toolong': { zh: '最多 20 個字元', en: 'At most 20 characters' },
+  'username.err.shape': {
+    zh: '只可以用英文字母、數字和底線，並以字母開頭',
+    en: 'Letters, numbers and underscores only, starting with a letter',
+  },
+  'username.err.reserved': { zh: '這個名已被保留', en: 'That name is reserved' },
+  'username.err.taken': { zh: '這個名已經有人用了', en: 'That name is taken' },
+  'username.err.nochangesleft': { zh: '改名機會已經用完', en: 'You’ve used your one change' },
+  'username.err.failed': { zh: '改名失敗，請再試一次', en: 'Couldn’t save that — try again' },
+  // Rename sheet, reached by tapping the name on the taste card.
+  'username.rename.title': { zh: '改名', en: 'Change your name' },
+  'username.rename.last': {
+    zh: '你還有一次改名機會，用了之後就不能再改。',
+    en: 'You have one change left. After this, the name is permanent.',
+  },
+  'username.rename.none': {
+    zh: '改名機會已經用完，這個名會一直跟著你。',
+    en: 'You’ve used your one change — this name is yours for good.',
+  },
   'profile.helped': { zh: ' — 你的記錄曾幫助其他人做決定', en: ' — your logs helped other people decide' },
   'profile.cuisines': { zh: '菜系', en: 'Cuisines' },
   'profile.rated': { zh: '已評菜式', en: 'Dishes you\u2019ve rated' },

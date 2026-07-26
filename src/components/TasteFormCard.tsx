@@ -25,6 +25,7 @@ import {
 import { PERSONAS, PERSONA_META, VOICES, type Persona } from '@/lib/persona';
 import { splitBoldKeywords } from '@/lib/textBold';
 import { CloseIcon, CopyIcon, CheckIcon } from './icons';
+import UsernameSheet from './UsernameSheet';
 
 type BuddyState = {
   // The dishi version ladder (replaced Levels): v = ratcheted unlock history (what
@@ -40,6 +41,8 @@ type BuddyState = {
   evidence: Record<string, number>;
   profile_version: number;
 };
+
+type Identity = { username: string | null; claimed: boolean; changesLeft: number };
 
 const MIGRATION_SEEN_KEY = 'dishi_form_migration_seen';
 
@@ -60,6 +63,10 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
 }) {
   const { t, lang } = useLang();
   const [state, setState] = useState<BuddyState | null>(null);
+  // dishi.username. `claimed` false with a non-null username is the normal
+  // pre-feature state: every profile already carries an email-derived handle.
+  const [identity, setIdentity] = useState<Identity | null>(null);
+  const [namingOpen, setNamingOpen] = useState(false);
   const [hadSpecies, setHadSpecies] = useState<string | null | 'loading'>('loading');
   const [showMigration, setShowMigration] = useState(false);
   // Which stat box's explainer is open — same tap-a-glyph-to-learn-more pattern as
@@ -141,6 +148,7 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
     const json = await res.json();
     setState(json.state);
     setHadSpecies(json.species);
+    if (json.identity) setIdentity(json.identity);
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -240,6 +248,27 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
           legend, and the bar below runs the FULL stat-line width toward V{n+1} at its
           right end — progress between version thresholds, not raw confidence. The
           ladder is unbounded (see version.ts); Levels and their animal names are gone. */}
+      {/* dishi.username. Unclaimed at v1+ = the naming moment, offered once the
+          person has actually built something to name; claimed = the identity
+          itself, tappable for the one rename. Below v1 there is nothing to name
+          yet, so this renders nothing at all. */}
+      {identity && state.version.v >= 1 && (
+        <div className="version-line" style={{ marginTop: 10 }}>
+          {identity.claimed ? (
+            <button type="button" className="btn ghost small"
+              onClick={() => setNamingOpen(true)}
+              aria-label={t('username.rename.title')}>
+              dishi.{identity.username}
+            </button>
+          ) : (
+            <button type="button" className="btn primary small"
+              onClick={() => setNamingOpen(true)}>
+              {t('username.title')}
+            </button>
+          )}
+        </div>
+      )}
+
       <div className="version-line">
         <span className="version-now">V{state.version.v}</span>
         <div className="taste-form-legend" style={{ marginTop: 0 }}>
@@ -441,6 +470,16 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
             {copied && <p className="card-meta">{t('copied.short')}</p>}
           </div>
         }
+      />
+    )}
+
+    {namingOpen && identity && (
+      <UsernameSheet
+        current={identity.username}
+        claimed={identity.claimed}
+        changesLeft={identity.changesLeft}
+        onClose={() => setNamingOpen(false)}
+        onSaved={(username, changesLeft) => setIdentity({ username, claimed: true, changesLeft })}
       />
     )}
     </>
