@@ -8,7 +8,7 @@
 
 import type { supabaseAdmin } from './supabase/server';
 import { contentScore, emptyTaste, type TasteVector, SCORING_VERSION } from './taste';
-import { directionOf, SEAL_GATE } from './seal';
+import { predictedDirectionOf, SEAL_GATE } from './seal';
 import { composeReason } from './menuScoring';
 
 export type SealableDish = { id: string; attributes: Record<string, number>; cuisine: string | null };
@@ -39,7 +39,27 @@ export async function stakeSeal(
   const affinity = profile?.cuisine_affinity ?? {};
   const evidence = profile?.evidence ?? {};
   const raw = contentScore(vector, dish.attributes, affinity, dish.cuisine ?? undefined);
-  const direction = directionOf(raw);
+
+  // Banding a prediction needs this person's two distributions — what the engine
+  // predicts across dishes they've rated, and what they actually flick. Derived
+  // here rather than stored anywhere: recomputing from the live profile means the
+  // mapping can never drift out of step with the scoring version, and it keeps
+  // BOTH stake callers (POST /api/seals and the buddy auto-seal) on identical
+  // arithmetic without either having to remember to pass it in. Read via the
+  // admin client already in hand, scoped to this user.
+  const { data: rated } = await admin
+    .from('ratings')
+    .select('score, dishes(attributes, cuisine)')
+    .eq('user_id', userId);
+  const actualScores: number[] = [];
+  const predictedDist: number[] = [];
+  for (const r of (rated ?? []) as any[]) {
+    if (typeof r.score !== 'number') continue;
+    actualScores.push(r.score);
+    const d = r.dishes;
+    if (d) predictedDist.push(contentScore(vector, d.attributes ?? {}, affinity, d.cuisine ?? undefined));
+  }
+  const direction = predictedDirectionOf(raw, predictedDist, actualScores);
 
   // The honest reason, sealed alongside the prediction — composed from the SAME real
   // matched dimensions the scan reasons use, in BOTH languages, at stake time, so the

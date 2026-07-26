@@ -233,15 +233,24 @@ export function similarity(a: TasteVector, b: TasteVector): number {
   return dot / (Math.sqrt(na) * Math.sqrt(nb));
 }
 
-/** Which contentScore formula is in force, stamped onto every seal
+/** Which scoring engine is in force, stamped onto every seal
  * (sealed_predictions.scoring_version) so two engines are never silently
- * averaged in an aggregate. v1 divided by all 18 dims regardless of how many a
- * dish reported, which made the seal's `love` band unreachable. **Bump this
- * whenever contentScore's shape changes** — historical rows cannot be
- * recomputed (the seal-time taste vector was never stored), so the version
- * marker is the only thing keeping old and new predictions comparable-aware.
- * See supabase/applied/sealed_predictions_scoring_version.sql. */
-export const SCORING_VERSION = 2;
+ * averaged in an aggregate. **Bump this whenever what a seal MEANS changes** —
+ * contentScore's shape, the vector feeding it, or how a prediction is banded.
+ * Historical rows cannot be recomputed (the seal-time taste vector was never
+ * stored), so the version marker is the only thing keeping old and new
+ * predictions comparable-aware.
+ * See supabase/applied/sealed_predictions_scoring_version.sql.
+ *
+ * v1 — divided by all 18 dims regardless of how many a dish reported, which
+ *      made the seal's `love` band unreachable.
+ * v2 — divisor fixed to the dims actually scored (floored at MIN_SCORED_DIMS).
+ * v3 — two changes that both alter what a predicted band means: the
+ *      self-calibrating rating scale changed the vector feeding contentScore
+ *      (so `predicted_raw` magnitudes are not comparable across the boundary),
+ *      and predictions are now banded per-user by quantile mapping rather than
+ *      against fixed absolute edges (see predictedDirectionOf in seal.ts). */
+export const SCORING_VERSION = 3;
 
 /** Floor on contentScore's divisor — see the note inside contentScore. A dish
  * reporting fewer attributes than this is scored as if it had this many, so a

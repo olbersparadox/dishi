@@ -15,38 +15,30 @@ bilingual ingredients — see DECISIONS.md).
 
 ## Now — in progress
 
-- [ ] **[Opus] Seal bands are BROKEN IN PRODUCTION RIGHT NOW — fix is next,
-  urgent.** Self-calibrating rating scale (below) is DONE and LIVE (not held
-  back as intended — see the note under it), and it collapses the seal's
-  ability to call anything but `meh`. Measured on the real 36-seal history
-  (`scripts/simulate-scale-calibration.ts`, `docs/rnd/seal-band-calibration.md`
-  §11): hit rate **17 → 5**, misses **1 → 8**, and the predicted_raw spread
-  (0.262) is now narrower than one band (0.35 wide) — fixed absolute band
-  edges (`directionOf` in `src/lib/seal.ts`: −0.15/0.15/0.5) cannot express a
-  distribution that thin. This also re-confirms the two known-open defects
-  (`love` and `dislike` unreachable).
+- [x] **Seal bands: per-user quantile mapping — BUILT, verified, not yet
+  pushed.** Fixes the §11 breakage (fixed edges 0.35 apart could not carve a
+  0.26-wide predicted distribution, so predictions collapsed to one band: 5/36
+  hits, 2 of 4 bands ever used). `directionOf` still bands the actual flick;
+  new `predictedDirectionOf` in `src/lib/seal.ts` bands a PREDICTION by mapping
+  it onto the person's own flick scale. Distributions recomputed live in
+  `stakeSeal` — no stored state, no migration. `SCORING_VERSION` → 3.
 
-  Adding a constant offset back "fixes" the hit count (20, better than today's
-  17) but by predicting `like` for **all 36 seals** — a constant, not a
-  prediction. Ruled out; see §11's full reasoning before proposing it again.
+  Measured (`scripts/simulate-seal-percentile-bands.ts`, evidence in §12):
+  hits 5 → 20, misses 8 → 0, bands used 2 → 4, `dislike` called 2/2 for the
+  first time. Ties a constant-`like` predictor on raw hits (both 20 — that
+  baseline exists because 20/36 outcomes are `like`) but wins on misses, band
+  coverage, and actually being a prediction. Beats or ties the constant across
+  generous/harsh/discriminating/one-note rating styles; beats shipped fixed
+  edges at every history size, so no warm-up gate was needed.
 
-  **Direction (not yet simulated, that's the next step):** per-user bands
-  derived from the person's own predicted-score distribution (percentile
-  edges), the same self-calibrating principle already applied to the rating
-  scale, one layer up (§5c in this doc's evidence file names this option).
-  Needs its own ground-truth simulation — do NOT fit edges to the 36 real
-  seals directly, that's the exact overfitting §9c already ruled out for
-  `dislike`. Simulate against synthetic rater archetypes (generous/harsh/
-  discriminating) through the real engine first, the same method
-  `scripts/simulate-duels.ts` uses — this does NOT need more real testers
-  (see [[dishi-negative-rating-data-ceiling]] equivalent note: cross-palate
-  constants are blocked on data, but checking generalization across rating
-  BEHAVIOURS is a simulation question, not a data-collection one).
+  **Remaining before this can be called done:** a rendered screenshot of the
+  reveal card showing a non-`meh` predicted band end-to-end. No UI code
+  changed (the card is `SealRevealBadge.tsx`, untouched — only the data
+  reaching it), but the batch's own bar asks for pixels, and producing them
+  needs a logged-in session with a pending seal.
 
-  **Verification bar**: simulate before shipping, blast-radius check against
-  BOTH the ranking metric and the seal hit/miss/call distribution (not just
-  hit count — see the constant-predictor trap above). Tests must provably
-  fail against current behaviour. Screenshot the reveal card.
+  Move this entry and the calibration entry below into DECISIONS.md together
+  once pushed — they are one story.
 
 - [x] **Self-calibrating rating scale — SHIPPED, but see the warning below.**
   Implementation: `src/lib/taste.ts` (`neutralCenter`, `calibratedScore`,

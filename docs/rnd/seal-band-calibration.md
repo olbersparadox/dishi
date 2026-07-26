@@ -545,3 +545,84 @@ because the seal-time vector was never stored — the same limit §5(d) declares
 It is a faithful profile-vs-profile comparison, not a replay of history. The
 `current` column therefore differs from `simulate-seal-bands.ts`, which uses the
 live profile snapshot instead of one replayed from `rating-history.json`.
+
+---
+
+# 12. Per-user prediction bands — the fix for §11 (2026-07-26)
+
+§11 established that fixed band edges cannot carve `contentScore`'s distribution:
+the edges are 0.35 apart, the whole spread is ~0.26, so predictions collapse into
+whichever band the range overlaps. This section is the fix, measured before
+shipping per the batch's own bar.
+
+**The change.** `directionOf` still bands the ACTUAL flick (absolute, -1..1 — the
+seal is a claim about the flick the person made, per the owner's call). A new
+`predictedDirectionOf` bands the PREDICTION by quantile mapping: find where the
+raw score sits in what the engine predicts across dishes this person has rated,
+then read the flick value at that same position in what they actually flick, and
+band that. Both distributions are recomputed live inside `stakeSeal` from data
+already on hand — no stored state, no migration, and no way to drift out of step
+with `SCORING_VERSION` (bumped to 3: the calibrated vector and the new banding
+both change what a predicted band means).
+
+**Why this isn't the fitting §9c ruled out.** Nothing is tuned against the 36 seal
+outcomes. The mapping is fully determined by two distributions the person
+generated themselves, so there is no free parameter to overfit. That is also why
+`dislike` becomes reachable without anyone touching a band edge.
+
+**Result on the 36 real seals:**
+
+| scheme | hit | near | miss | bands used | calls |
+|---|---|---|---|---|---|
+| fixed edges (shipped) | 5 | 23 | 8 | 2/4 | meh 31 · like 5 |
+| constant `like` (baseline) | 20 | 14 | 2 | 1/4 | like 36 |
+| **quantile-mapped** | **20** | 16 | **0** | **4/4** | dislike 2 · meh 3 · like 20 · love 11 |
+
+Read the baseline row before celebrating. A constant predictor scores 20 because
+20 of 36 real outcomes are `like` — the trap §11 caught. Quantile mapping TIES it
+on raw hits and wins on everything else that matters: zero misses instead of two,
+all four bands in use instead of one, and `dislike` called 2/2 for the first time
+in the project's history. Per-band: love 5/11, like 12/20, meh 1/3, dislike 2/2.
+
+**Why the call distribution matches the real one exactly** (2/3/20/11 against
+2/3/20/11): that is the mechanism, not a coincidence. Quantile mapping guarantees
+the marginal, which means the seal can no longer be systematically miscalibrated —
+it will predict `love` about as often as the person actually loves things. What
+remains is purely whether the engine RANKS correctly, which is the honest thing
+for the seal to be judged on.
+
+**Does it generalise across rating styles?** The question more testers would have
+answered, answered by simulation instead. Re-express the same outcomes onto other
+rating styles, preserving ORDER so the engine's real discriminating power is held
+constant and only expression changes:
+
+| style | fixed | constant baseline | quantile | verdict |
+|---|---|---|---|---|
+| generous (≈real) | 4 | 20 | **23** | beats |
+| harsh | 13 | 14 | 14 | ties |
+| discriminating | 9 | 13 | 13 | ties |
+| one-note | 5 | 30 | **34** | beats |
+
+Never loses; beats on two; uses all four bands in every case while the constant
+uses one and fixed edges never exceed two.
+
+**Warm-up.** Hits when only the first k ratings are available to the mapping:
+k=5 → 20, k=8 → 19, k=10 → 16, k=15 → 18, k=20 → 20, k=41 → 20. There is a dip
+in the middle, but it is a dip relative to the CONSTANT baseline — against the
+shipped fixed edges (5) quantile mapping wins at every k. So no warm-up gate was
+added: it is strictly better than production from the seal gate upward, and
+sharpens as history accumulates. It also degrades honestly rather than failing —
+a one-note rater's flat actual distribution maps every prediction back to their
+single flick, which is the truthful call.
+
+**Honest limits.**
+- Same end-state-profile limit as §5(d) and §11: the seal-time vector was never
+  stored, so all 36 seals are scored against one profile. Faithful
+  scheme-vs-scheme comparison, not a replay of history.
+- The archetype test deliberately holds the preference ORDER fixed and varies
+  only expression, which isolates banding from ranking. It therefore says nothing
+  about whether the engine ranks well for OTHER people — that still needs more
+  palates, and remains blocked on the same data ceiling as `MIN_SCORED_DIMS`.
+- Ties rather than beats the constant baseline on the real palate's raw hit
+  count. The case for shipping rests on zero misses, four live bands, and being a
+  real prediction instead of a constant — not on the hit number alone.
