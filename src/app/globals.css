@@ -1155,10 +1155,17 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 
 /* --- log page: dishes-to-rate placeholders --- */
 .pick-card {
-  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  display: flex; align-items: center; gap: 14px;
   border-bottom: 1px solid var(--line);
   padding: 18px 2px; position: relative;
 }
+/* Name+meta block: flex:1 fills the row so it sits immediately next to the
+   thumb at the row's fixed 14px gap (the SAME rhythm as .journal-row's own
+   .journal-info) and pushes .pick-card-actions to the right edge on its own —
+   not `justify-content: space-between` on the row, which (with 3 children)
+   split the leftover space into TWO gaps instead of one, stranding the name
+   block adrift in the middle of the row instead of hugging the thumb. */
+.pick-card-info { flex: 1 1 auto; min-width: 0; }
 .pick-card:last-of-type { border-bottom: none; }
 /* Photo slot (field-session fix 2026-07-23): quiet, passive — same paper-inset
    fill as the journal's own empty slot, but the tap target is the camera BADGE
@@ -1230,7 +1237,7 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
    the same before (sealed 印) and after (broken seal) in the same footprint. */
 .seal-badge-inline {
   width: 21px; height: 21px; border-radius: 5px; flex-shrink: 0;
-  font-size: var(--fs-caption); margin-left: 6px; vertical-align: 1px;
+  font-size: var(--fs-caption); margin-left: 6px; vertical-align: 2px;
 }
 /* The reveal balloon's own content (2026-07-26 redesign) — leads with the face,
    big and centred (the same emoji as the badge, just no longer squeezed into a

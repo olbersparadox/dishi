@@ -14,7 +14,7 @@ describe('scan pick-confirm sheet — 取消 is an icon-only circle', () => {
   it('the confirmingPick sheet renders CloseIcon in the house .icon-btn.lg circle, not a text pill', () => {
     const sheetStart = SRC.indexOf('{confirmingPick && (');
     expect(sheetStart).toBeGreaterThan(-1);
-    const sheet = SRC.slice(sheetStart, sheetStart + 1700);
+    const sheet = SRC.slice(sheetStart, sheetStart + 2000);
     expect(sheet).toMatch(/className="icon-btn lg"/);
     expect(sheet).toMatch(/<CloseIcon/);
     expect(sheet).not.toMatch(/className="btn ghost"[^>]*>\s*\{t\('home\.cancel'\)\}/);
@@ -22,7 +22,7 @@ describe('scan pick-confirm sheet — 取消 is an icon-only circle', () => {
 
   it('the cancel button still wires to setConfirmingPick(false) and stays disabled while saving', () => {
     const sheetStart = SRC.indexOf('{confirmingPick && (');
-    const sheet = SRC.slice(sheetStart, sheetStart + 1700);
+    const sheet = SRC.slice(sheetStart, sheetStart + 2000);
     expect(sheet).toMatch(/onClick=\{\(\) => setConfirmingPick\(false\)\}\s*disabled=\{pickSaving\}/);
     expect(sheet).toMatch(/aria-label=\{t\('home\.cancel'\)\}/);
   });

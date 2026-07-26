@@ -244,8 +244,13 @@ function Scanner() {
     });
   }
 
-  async function confirmPicks() {
+  // Accepts the just-picked restaurant directly rather than only reading
+  // `pickRestaurant` state: the auto-advance-on-chip-tap below calls this in
+  // the SAME tick as setPickRestaurant(c), before that state update has
+  // landed — reading the state here would see the stale (previous) value.
+  async function confirmPicks(restaurantOverride?: RestaurantChoice) {
     if (!result) return;
+    const restaurant = restaurantOverride !== undefined ? restaurantOverride : pickRestaurant;
     setPickSaving(true); setPickError('');
     const chosen = result.items.filter(i => picked.has(i.name_original));
     try {
@@ -253,8 +258,8 @@ function Scanner() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          restaurant_id: pickRestaurant?.kind === 'existing' ? pickRestaurant.id : undefined,
-          new_restaurant: pickRestaurant?.kind === 'new' ? pickRestaurant : undefined,
+          restaurant_id: restaurant?.kind === 'existing' ? restaurant.id : undefined,
+          new_restaurant: restaurant?.kind === 'new' ? restaurant : undefined,
           table_session_id: tableSession?.session_id,
           items: chosen.map(i => ({
             name: i.name, name_zh: i.name_zh, cuisine: i.cuisine, attributes: i.attributes ?? {},
@@ -926,7 +931,16 @@ function Scanner() {
                 <div className="card" style={{ marginBottom: 8, maxHeight: '60vh', overflowY: 'auto' }}>
                   <div className="card-body">
                     <p style={{ fontWeight: 700, marginBottom: 8 }}>{t('scan.pickrestaurant')}</p>
-                    <RestaurantPicker onChange={setPickRestaurant} />
+                    {/* Picking a real restaurant (a nearby chip, a search result, or a
+                        confirmed typed name) IS the decision — advance straight into
+                        saving instead of making the person also find and tap the
+                        "已選 N 道" bar separately. 略過/住家菜 stay manual: those are
+                        answering "no restaurant", not picking one, and the price/count
+                        on the confirm bar is worth a second the person can still see. */}
+                    <RestaurantPicker onChange={c => {
+                      setPickRestaurant(c);
+                      if (c?.kind === 'existing' || c?.kind === 'new') confirmPicks(c);
+                    }} />
                     {pickError && <p style={{ color: 'var(--lacquer)', marginTop: 8 }}>{pickError}</p>}
                   </div>
                 </div>
@@ -939,7 +953,7 @@ function Scanner() {
                     aria-label={t('home.cancel')} title={t('home.cancel')}>
                     <CloseIcon size={18} />
                   </button>
-                  <button className="btn primary cart-btn" style={{ flex: 1 }} onClick={confirmPicks} disabled={pickSaving}>
+                  <button className="btn primary cart-btn" style={{ flex: 1 }} onClick={() => confirmPicks()} disabled={pickSaving}>
                     {pickSaving ? <span>{t('log.saving')}</span> : (
                       <>
                         <span>{countLabel}</span>

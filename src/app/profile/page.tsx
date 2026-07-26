@@ -285,7 +285,7 @@ function TasteProfile() {
             <div key={p.id} className="pick-card">
               <PickCardThumb photoUrl={p.photo_url} uploading={photoUploadingId === p.id}
                 onPick={file => addPickPhoto(p.id, file)} />
-              <div style={{ minWidth: 0 }}>
+              <div className="pick-card-info">
                 <div className="pick-card-name">
                 <DishName id={p.id} name={p.name} name_zh={p.name_zh}
                   suffix={sealedIds.has(p.id) && <SealStamp />} />
