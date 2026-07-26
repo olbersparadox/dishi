@@ -15,46 +15,80 @@ bilingual ingredients — see DECISIONS.md).
 
 ## Now — in progress
 
-- [ ] **[F] Self-calibrating rating scale — EVIDENCE DONE, IMPLEMENTATION OPEN.**
-  Next thing to build. Full evidence: `docs/rnd/seal-band-calibration.md` §10;
-  simulation: `scripts/simulate-scale-calibration.ts`.
+- [ ] **[Opus] Seal bands are BROKEN IN PRODUCTION RIGHT NOW — fix is next,
+  urgent.** Self-calibrating rating scale (below) is DONE and LIVE (not held
+  back as intended — see the note under it), and it collapses the seal's
+  ability to call anything but `meh`. Measured on the real 36-seal history
+  (`scripts/simulate-scale-calibration.ts`, `docs/rnd/seal-band-calibration.md`
+  §11): hit rate **17 → 5**, misses **1 → 8**, and the predicted_raw spread
+  (0.262) is now narrower than one band (0.35 wide) — fixed absolute band
+  edges (`directionOf` in `src/lib/seal.ts`: −0.15/0.15/0.5) cannot express a
+  distribution that thin. This also re-confirms the two known-open defects
+  (`love` and `dislike` unreachable).
+
+  Adding a constant offset back "fixes" the hit count (20, better than today's
+  17) but by predicting `like` for **all 36 seals** — a constant, not a
+  prediction. Ruled out; see §11's full reasoning before proposing it again.
+
+  **Direction (not yet simulated, that's the next step):** per-user bands
+  derived from the person's own predicted-score distribution (percentile
+  edges), the same self-calibrating principle already applied to the rating
+  scale, one layer up (§5c in this doc's evidence file names this option).
+  Needs its own ground-truth simulation — do NOT fit edges to the 36 real
+  seals directly, that's the exact overfitting §9c already ruled out for
+  `dislike`. Simulate against synthetic rater archetypes (generous/harsh/
+  discriminating) through the real engine first, the same method
+  `scripts/simulate-duels.ts` uses — this does NOT need more real testers
+  (see [[dishi-negative-rating-data-ceiling]] equivalent note: cross-palate
+  constants are blocked on data, but checking generalization across rating
+  BEHAVIOURS is a simulation question, not a data-collection one).
+
+  **Verification bar**: simulate before shipping, blast-radius check against
+  BOTH the ranking metric and the seal hit/miss/call distribution (not just
+  hit count — see the constant-predictor trap above). Tests must provably
+  fail against current behaviour. Screenshot the reveal card.
+
+- [x] **Self-calibrating rating scale — SHIPPED, but see the warning below.**
+  Implementation: `src/lib/taste.ts` (`neutralCenter`, `calibratedScore`,
+  `PRIOR_CENTER`, `CENTER_PRIOR_K`), `src/lib/replay.ts`, `src/app/api/ratings/
+  route.ts`. Tests: `tests/taste.test.ts` (calibration describe blocks).
+  Evidence: `docs/rnd/seal-band-calibration.md` §10. Full rationale and the
+  centre-location decision belong in DECISIONS.md — not yet moved there
+  because of the warning below; move it once the seal-band fix ships
+  alongside it, so the two land in DECISIONS.md as one coherent story.
 
   **Decided (owner, 2026-07-24):** do NOT hardcode what 一般般 is worth —
-  "everyone's scale is different… the math should be smart enough to tune itself
-  according to user rating behaviour." Score each rating relative to the user's
-  OWN neutral point instead of taking the raw flick value.
+  score each rating relative to the user's OWN learned neutral point instead
+  of the raw flick value. Measured: pairwise ranking accuracy 76.1% → 80.8%
+  overall (n=522), 72.7% → 75.8% within-cuisine (n=161).
 
-  **Measured on the real 41-rating history**, replayed through the real shipped
-  `updateTaste` (pairwise ranking accuracy vs what the person actually rated):
+  **Centre-location decision (made 2026-07-25):** option (a), an extra query
+  over the user's own prior scores in `/api/ratings`' non-re-rate branch —
+  cheaper than the full replay the re-rate branch already runs, and the only
+  option provably identical between the incremental and replay paths (a
+  median has no running-scalar form, so option (b)'s stored value would mean
+  a second copy of every score — the exact divergence risk this was picked to
+  avoid). Option (c), letting the incremental path lag, was rejected as
+  guaranteeing the divergence rather than risking it.
 
-  | metric | current | calibrated |
-  |---|---|---|
-  | all pairs (n=522) | 76.1% | **80.8%** (+4.8pp) |
-  | within-cuisine (n=161) | 72.7% | **75.8%** (+3.1pp) |
+  **Seal decision:** `directionOf` reads the RAW flick, not the centred score
+  — the seal is a claim about the flick the person made, and its bands were
+  calibrated on raw flicks. This is unchanged and is NOT the source of the
+  breakage above; the breakage is `contentScore`/affinity feeding into
+  `directionOf`'s fixed edges, not `directionOf` itself.
 
-  With centre = 0.311 (learned, not set): 幾好食 0.35 teaches +0.039 (their
-  normal, so ~nothing) and 一般般 0.1 teaches **−0.211**, genuinely negative.
-
-  **Method that produced those numbers** (keep it — it is deliberate):
-  median not mean (one furious −0.9 must not move where "ordinary" sits);
-  shrunk toward `PRIOR_CENTER = 0` with k=5, so a brand-new profile behaves
-  exactly as today and calibration only emerges with evidence; computed from
-  history BEFORE each rating so it never peeks at the value being learned.
-
-  **THE OPEN DECISION — do not guess this.** Where does the centre live?
-  `replay.ts` re-derives from full history for free, but `/api/ratings` updates
-  incrementally. The two paths MUST agree exactly, or re-rating a dish would
-  silently produce a different profile than rating it first time — the same
-  class of silent divergence as the seal bug. Options: (a) extra query over the
-  user's scores on each rating (cheap at current scale, O(n) forever),
-  (b) a stored running value on `taste_profiles` (fast, but must be provably
-  reproducible by replay), (c) recompute only inside replay and accept the
-  incremental path lags by one rating. Pick with the owner.
-
-  **Verification bar** (this batch set the precedent, follow it): simulate
-  BEFORE shipping, including the ranking blast-radius check — the first
-  divisor recommendation was wrong and only the simulation caught it. Tests must
-  provably fail against the pre-change behaviour. Screenshot any visible change.
+  **⚠️ SHIPPED WITHOUT ITS GATE — read before touching this branch.** The plan
+  was: build, verify, hold locally, ship together with the seal-band fix so
+  the seal never regresses in production even briefly. That held for about a
+  day (commit `d8115f5`, deliberately unpushed). A later session ran `git pull
+  origin main` on the same local branch and pushed the resulting merge
+  (`0df7190` → ... → `0f3d4c5`) without knowing the calibration commit sitting
+  on that branch was embargoed — git has no way to mark a commit "hold this
+  one." **Lesson for every future session:** before pushing anything on this
+  repo, check `git log origin/main..HEAD` for commits you didn't just write,
+  and ask before pushing if you find one. A backlog note alone didn't stop
+  this — the embargo lived only in a prior session's memory, not in a form
+  git or a fresh session could see.
 
 - [ ] **[owner decision, IN PROGRESS elsewhere] `scripts/seal-rows.json` is
   real eating data in a PUBLIC repo.** Committed in `0d851e0` before this was
@@ -98,13 +132,20 @@ DECISIONS.md.)
 
 - [ ] **[F for the UI card / Opus for the learning path] "係唔啱我，定係佢哋整得
   唔好？" — separating a bad dish from a badly-cooked one.** Owner-raised
-  2026-07-26; rationale and the business argument are in the owner-decision
-  section above. All four design questions are now answered — build from this.
+  2026-07-26; rationale and the business argument are in DECISIONS.md /
+  git history (moved out of the owner-decision section once all four design
+  questions were answered — search git log for "火腿通粉" or "badly-cooked" if
+  the full rationale is needed). All four design questions are answered —
+  build from this. **STILL NOT BUILT as of 2026-07-26 10:41** — a separate
+  session touched `SealReveal.tsx`/`RatingStack.tsx` in the same window for an
+  unrelated visual redesign (see "Now — in progress" above); check
+  `git log -- src/app/api/ratings/route.ts` for an `attribution`/`execution`
+  column before assuming this is done or half-done.
 
-  **DEPENDS ON** the self-calibrating scale (`neutralCenter` in
-  `src/lib/taste.ts`, commit `d8115f5`), which is committed but deliberately
-  UNPUSHED pending the seal-band fix. Same branch, so build on top; ship order
-  is seal-bands → this → calibration together, or whatever the owner decides.
+  **DEPENDS ON** `neutralCenter`/`calibratedScore` in `src/lib/taste.ts`
+  (shipped and LIVE — see the calibration item above, including its warning).
+  No longer a reason to hold this on that account, but the seal-band fix above
+  is the more urgent item; sequence this after it unless told otherwise.
 
   **1. When to ask.** When the flick lands **clearly below the person's own
   neutral point** — `calibratedScore(score, priorScores) <= -0.20` — and only
