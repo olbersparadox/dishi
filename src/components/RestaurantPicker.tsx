@@ -258,17 +258,33 @@ export default function RestaurantPicker({ onChange, skipFirst = false, seedCoor
     setGeocoding(false);
   }
 
+  // Slightly wider tracking on the picker's hint captions (finding/denied/
+  // fromphoto/etc) — CHINESE ONLY. `.lang-zh`/`.lang-en` CSS selectors exist in
+  // globals.css but are documented dead code (never applied to the DOM, see the
+  // comment at the top of that file) — gating on the actual `lang` value here is
+  // the only way this reliably lands on zh and skips en, where added tracking on
+  // Latin text reads as too airy.
+  const captionCls = `card-meta${lang === 'zh' ? ' picker-caption-zh' : ''}`;
+
   return (
-    <div>
-      {status === 'locating' && <p className="card-meta">{t('picker.finding')}</p>}
-      {status === 'denied' && <p className="card-meta">{t('picker.denied')}</p>}
+    // 8px breathing room above the caption/chip block — lives HERE (the shared
+    // component's own root), not in each caller's wrapper, so every restaurant-
+    // input path (食記 edit, scan page, 打字 quick-add) gets the identical gap
+    // without having to separately match it. PADDING, not margin: every caller
+    // wraps this in a plain div (no border/padding of its own), so a margin
+    // here would collapse straight through into the caller's own top margin
+    // instead of adding new space — padding never collapses, so this is the
+    // only version of "+8px" that's actually guaranteed to render.
+    <div style={{ paddingTop: 8 }}>
+      {status === 'locating' && <p className={captionCls}>{t('picker.finding')}</p>}
+      {status === 'denied' && <p className={captionCls}>{t('picker.denied')}</p>}
       {/* The photo has no location and we refuse to substitute the device's —
           say which it is, rather than showing a confidently wrong shortlist. */}
-      {status === 'nogeo' && <p className="card-meta">{t('picker.nophotoloc')}</p>}
+      {status === 'nogeo' && <p className={captionCls}>{t('picker.nophotoloc')}</p>}
       {/* Transparent, not magic: say where the list is seeded from — the photo's
           location normally, or the device's on the explicit opt-in below. */}
-      {seedCoords && status === 'ready' && <p className="card-meta">{t('picker.fromphoto')}</p>}
-      {!seedCoords && useLiveGeo && status === 'ready' && <p className="card-meta">{t('picker.fromhere')}</p>}
+      {seedCoords && status === 'ready' && <p className={captionCls}>{t('picker.fromphoto')}</p>}
+      {!seedCoords && useLiveGeo && status === 'ready' && <p className={captionCls}>{t('picker.fromhere')}</p>}
 
       <div className="chips picker-chips" style={{ marginTop: 8 }}>
         {skipFirst && (<>

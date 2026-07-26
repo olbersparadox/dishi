@@ -95,6 +95,11 @@ h3 { font-size: 16px; }
 .card-body { padding: 18px 18px 20px; }
 .card-title { font-family: var(--font-display); font-size: 17px; font-weight: 500; letter-spacing: 0.05em; }
 .card-meta { font-size: 13px; color: var(--ink-soft); margin-top: 2px; }
+/* RestaurantPicker's hint captions (finding/denied/沒有位置/拍攝地點附近) — a
+   touch more tracking on the CJK text; applied only when lang==='zh' (see
+   RestaurantPicker.tsx's captionCls — the .lang-zh/.lang-en selector pattern
+   elsewhere in this file is dead code, never applied to the DOM). */
+.picker-caption-zh { letter-spacing: 0.03em; }
 /* Confirm tapped with no coords yet (RestaurantPicker): the caption was already
    always shown in that state, but passively-present read as "nothing happened"
    on tap. A brief ink shake, no color change (stays inside the palette contract —
