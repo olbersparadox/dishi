@@ -73,20 +73,34 @@ describe('deliberate divergences from a duel', () => {
 });
 
 describe('the range is imposed by the flick, never chosen here', () => {
-  it('honours a server-supplied failing range', () => {
-    // A 唔會再食 flick caps the slider below the passing line, so the card
-    // cannot be used to call that plate a 9.
+  it('draws the FULL 1-10 track whatever the cap, so two scales compare directly', () => {
+    // A capped track drawn narrow would put a 2 where a 5 sits on a full one —
+    // which destroys the visual comparison the card exists to make.
     mount([row(DISH, 1, 4)]);
     const range = document.querySelector('.exec-range') as HTMLInputElement;
     expect(range.min).toBe('1');
-    expect(range.max).toBe('4');
+    expect(range.max).toBe('10');
+    expect(document.querySelector('.exec-track.capped')).toBeTruthy();
   });
 
-  it('honours a server-supplied passing range', () => {
+  it('clamps a failing flick below the passing line', () => {
+    // The cap constrains where the thumb may LAND, not how the scale is drawn.
+    mount([row(DISH, 1, 4)]);
+    const range = document.querySelector('.exec-range') as HTMLInputElement;
+    fireEvent.change(range, { target: { value: '9' } });
+    expect(range.value).toBe('4');
+  });
+
+  it('clamps a positive flick to at least the passing line', () => {
     mount([row(DISH, 5, 10)]);
     const range = document.querySelector('.exec-range') as HTMLInputElement;
-    expect(range.min).toBe('5');
-    expect(range.max).toBe('10');
+    fireEvent.change(range, { target: { value: '2' } });
+    expect(range.value).toBe('5');
+  });
+
+  it('an uncapped range draws no band', () => {
+    mount([row(DISH, 1, 10)]);
+    expect(document.querySelector('.exec-track.capped')).toBeNull();
   });
 
   it('starts mid-range so it never pre-accuses a kitchen', () => {
@@ -132,7 +146,11 @@ describe('answering and skipping', () => {
     expect(ranges.length).toBe(2);
     expect(ranges[0].value).toBe('8');       // preset to what it was
     expect(ranges[0].disabled).toBe(false);  // ...but still movable
-    expect(ranges[1].max).toBe('4');         // each row bounded by its OWN flick
+    // Each row is bounded by its OWN flick — enforced by clamping, while the
+    // track itself stays full-width so the two scales remain comparable.
+    expect(ranges[1].max).toBe('10');
+    fireEvent.change(ranges[1], { target: { value: '9' } });
+    expect(ranges[1].value).toBe('4');
   });
 
   it('sends BOTH scores, including a revised reference', async () => {

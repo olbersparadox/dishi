@@ -58,9 +58,18 @@ export default function ExecutionSlider({ rows, onDone }: {
     setTimeout(() => onDone(scored), 340); // let the fade-out play, as duels do
   }
 
+  // The TRACK is always the full 1-10, whatever the flick permits — two capped
+  // scales drawn at different widths are not comparable, and comparison is the
+  // whole point (a 2 on a 1-4 track sits where a 5 sits on a 1-10 one). The cap
+  // constrains where the thumb may LAND, not how the scale is drawn.
   function setAt(i: number, v: number) {
-    setValues(cur => cur.map((x, j) => (j === i ? v : x)));
+    const r = rows[i];
+    const clamped = Math.min(r.max, Math.max(r.min, v));
+    setValues(cur => cur.map((x, j) => (j === i ? clamped : x)));
   }
+
+  /** Where a value sits along the full 1-10 track, as a percentage. */
+  const pos = (v: number) => ((v - 1) / 9) * 100;
 
   async function submit() {
     if (busy) return;
@@ -106,12 +115,21 @@ export default function ExecutionSlider({ rows, onDone }: {
                 {comparing && i === 0 && <span className="exec-prior">{t('exec.reference')}</span>}
                 <div className="exec-scale">
                   <output className="exec-value" aria-live="polite">{values[i]}</output>
-                  <input
-                    className="exec-range"
-                    type="range" min={r.min} max={r.max} step={1} value={values[i]}
-                    onChange={e => setAt(i, Number(e.target.value))}
-                    aria-label={r.dish.restaurant ?? t('exec.title')}
-                  />
+                  {/* Full 1-10 track always; the shaded band marks what this
+                      flick allows, and the thumb clamps to it. */}
+                  <div
+                    className={`exec-track ${r.min > 1 || r.max < 10 ? 'capped' : ''}`}
+                    style={{ ['--lo' as string]: `${pos(r.min)}%`, ['--hi' as string]: `${pos(r.max)}%` }}
+                  >
+                    <input
+                      className="exec-range"
+                      type="range" min={1} max={10} step={1} value={values[i]}
+                      onChange={e => setAt(i, Number(e.target.value))}
+                      aria-label={r.dish.restaurant ?? t('exec.title')}
+                      aria-valuemin={r.min}
+                      aria-valuemax={r.max}
+                    />
+                  </div>
                   <div className="exec-ends">
                     <span>{t('exec.low')}</span>
                     <span>{t('exec.high')}</span>
@@ -121,9 +139,9 @@ export default function ExecutionSlider({ rows, onDone }: {
             ))}
           </div>
 
-          {/* Only meaningful when a range actually spans the passing line — a
-              flick-bounded range sits entirely on one side of it. */}
-          {rows.some(r => r.min < 5 && r.max >= 5) && <span className="exec-pass">{t('exec.pass')}</span>}
+          {/* Always shown now: every track spans the full 1-10, so the passing
+              line is always a real position on it. */}
+          <span className="exec-pass">{t('exec.pass')}</span>
 
           <div className="ok-circle-wrap">
             <button className="ok-circle" onClick={submit} disabled={busy} aria-label={t('duel.ok')}>
