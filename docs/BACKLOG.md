@@ -13,6 +13,29 @@ Audited 2026-07-22 against git history + live code (four items found
 falsely open and archived: OTP login, 語言對 fixes, seal at pick time,
 bilingual ingredients — see DECISIONS.md).
 
+## The three streams — map, sync'd 2026-07-28 (Fable review)
+
+Development runs as three streams. Named here because their items are NOT
+independent — all three converge on one keystone:
+
+1. **Engine** — calibration + R&D toward authentic taste learning.
+   NEXT: the canonical dish catalog (KEYSTONE item under "Ready to build"),
+   then a DATA-acquisition move — recent R&D keeps returning "model fine,
+   data too thin"; the solo corpus is now the binding constraint.
+2. **dishi.name** — identity, attachment, sharing (taste-rank + messenger
+   share; there is NO social graph, settled). NEXT: the taste-only export
+   rewrite (settled 2026-07-26, still unbuilt — the live export contradicts
+   it), then the [S] chop-wiring fix. Chain: taste-only export →
+   `dishi.me/[username]` public page → messenger share → 食記 feed.
+3. **UX/UI** — polish + the 書面化 register shift. No open corrections from
+   the 2026-07-28 review.
+
+**The keystone.** The canonical dish catalog serves all three streams: it
+unblocks execution-level signal (stream 1's recorded aim), sharpens
+taste-rank distribution (stream 2's only channel), and hosts the
+decomposition veto. Sequence it first; nothing in streams 1–2 that depends
+on cross-venue identity should be designed as if it might not exist.
+
 ## Now — in progress
 
 (Self-calibrating rating scale + seal percentile bands — SHIPPED `d8115f5`,
@@ -46,155 +69,92 @@ reached it without fitting anything; full entry in DECISIONS.md.)
   predictions and re-pick. Conservative today by design (no ranking
   regression), so this is a refinement, not a defect.
 
-## Needs an owner decision before any code — FOUND 2026-07-27
+## Cross-venue dish identity — DECIDED, moved
 
-- [ ] **[F] The execution slider cannot do the thing it was built for: dish
-  identity is SCOPED TO ONE RESTAURANT.** Found while checking why zero
-  execution comparisons exist. This is an architectural contradiction between
-  two shipped features, not a bug in either.
+(The 2026-07-27 finding that the execution slider is structurally blocked —
+dish identity is scoped to one restaurant — plus the Phase 0/Phase 1 R&D that
+answered it: moved verbatim to DECISIONS.md, "Cross-venue dish identity: the
+catalog approach — GO". The build lives below as the KEYSTONE item under
+"Ready to build".)
 
-  **The facts, verified in code and live schema:**
-  - `dish_identities.restaurant_id` — an identity is per-venue by schema, set
-    on mint from the dish's own `restaurant_id`.
-  - `/api/dishes/identity` GET pools candidates with
-    `.eq('restaurant_id', dish.restaurant_id)` — same restaurant only.
-  - Its POST **explicitly rejects** a cross-restaurant link with a 400:
-    "an identity is only ever meaningful within one restaurant's menu".
-  - `isExecutionConfounded` (taste.ts:166) compares a rating against "the
-    user's OTHER ratings of the same dish identity".
 
-  **Consequence:** the slider's own worked example — 火腿通粉 scores 2 at A,
-  8 at B, therefore A is the problem — is unreachable. A and B can never share
-  a dish identity. The detector only ever compares repeat visits to the SAME
-  venue, which is a real but much narrower signal (an off day vs a bad dish).
-
-  **This blocks the recorded product aim directly.** "Why you like 乾炒牛河 at
-  restaurant A and not at restaurant B" (DECISIONS.md, "Direction: what the
-  taste engine is FOR") has no data structure that can express it. Dishi has a
-  per-venue menu-item concept and no cross-venue DISH concept.
-
-  **Not a data-volume problem, and not a distribution problem.** 46 of 50
-  rated dishes carry no identity, which is the pipeline working as designed:
-  identities form only when two dishes at ONE restaurant look alike and a
-  human confirms, and the corpus averages ~2.5 dishes per restaurant. More
-  users, more logging, or a bookmark mechanic would not produce a single
-  cross-restaurant comparison.
-
-  **R&D Phase 0 done 2026-07-27 — feasibility ANSWERED, see
-  `docs/rnd/cross-venue-dish-phase0.md`.** On 30 held-out hard pairs both
-  prompts score ~95-100% with **zero false merges** (the apparent gap between
-  them did NOT replicate — see the correction below). Adjudication is not the
-  problem. Two things moved:
-
-  - **The predicted failure did not happen.** The expectation was that the
-    shipped prompt's menu-item semantics ("items a restaurant prices
-    separately") would make it answer "different" to every cross-venue pair.
-    It scored 93.3%, and both misses fell below `CONFIDENCE_FLOOR`, i.e. failed
-    safe. The prompt is less load-bearing than assumed.
-  - **The real risk moved to CANDIDATE GENERATION (gate 1, not gate 2).** The
-    eval handed the model the right pairs; production must find them among all
-    dishes at all venues, and N² adjudication is unaffordable. The hardest true
-    pair (`絲襪奶茶`/`港式奶茶`) shares ZERO characters, so the existing
-    string-overlap prefilter would never surface it.
-
-  **Proposed (not built, needs sign-off):** a canonical dish catalog — resolve
-  each dish ONCE to a canonical entry, turning O(N²) pairwise matching into
-  O(N) classification. Hang `canonical_dish_id` off `dishes` directly, NOT off
-  `dish_identities`, which is starved (3 rows total; identities need two
-  lookalikes at ONE restaurant and the corpus averages ~2.5 dishes per venue).
-
-  **Product question raised here — now SETTLED 2026-07-27, see below.** The
-  proposal was a `comparable` flag, on the argument that `壽司拼盤` at two shops
-  shares a name but not a thing. The owner rejected the distinction.
-
-  **R&D Phase 1 DONE 2026-07-27 — the candidate-generation risk is RETIRED.**
-  A canonical dish catalog replaces retrieval entirely: each dish resolves ONCE
-  to a catalog entry, and two dishes are the same iff they land on the same id.
-  Measured (`scripts/eval-catalog-resolution.ts`, 141-entry catalog):
-  **84.9% coverage** of the live corpus, **100% correct (29/29)** on the
-  held-out pairs it could decide, **0 false merges, 0 hallucinated ids**.
-  `絲襪奶茶` and `港式奶茶` both land on `milk-tea` — the exact pair no string
-  prefilter could ever surface. O(N²) matching becomes O(N) classification.
-
-  Uncovered dishes returned an honest "none" rather than a stretched match,
-  which is the safety property the design rests on. Uncovered is not a failure:
-  a dish with no entry gets no cross-venue identity and does not need one.
-
-  **Also corrected:** the Phase 0 claim that the purpose-written prompt beat the
-  shipped one is WITHDRAWN — a second run reversed the ranking. At n=30 the
-  prompts are indistinguishable. Only the zero-false-merge result replicates.
-
-  **`comparable` is SETTLED 2026-07-27 — everything is comparable, and the flag
-  is NOT built.** Owner's rule: *if a dish is common enough that different
-  restaurants offer it, then a "set" is itself a dish in the customer's mind.*
-  A diner absolutely uses 壽司拼盤 or 車仔麵 to judge which shop is better, which
-  is exactly what execution comparison measures. All 14 `false` entries were
-  flipped; the column is now uniformly true, so **do not put it in the schema.**
-
-  It did surface a SEPARATE still-open problem: two of the 14 were not assorted
-  dishes but GENERIC CATEGORIES (`炒飯`, `燉湯`). A category entry is a
-  false-merge magnet — 揚州炒飯 and 帶子炒飯 could both collapse onto 炒飯.
-  Categories probably should not be catalog entries at all; decide during schema
-  design.
-
-  **Go/no-go now ~85-90%, GO on schema design.** Remaining, in order:
-  (1) catalog growth policy — frequent "none" clusters surface for human review,
-  never auto-mint, which would recreate the false-merge risk;
-  (2) generic-category entries (above);
-  (3) Phase 2 base rate — `scripts/eval-menu-corpus-coverage.ts` is ready and
-  needs only menu PHOTOS in `scripts/menu-corpus/` (no eating, no app change;
-  the menu-scan route persists nothing, so the app cannot build this corpus).
-  This tunes expectations rather than gating the build.
-
-  **Blocker R&D cannot remove:** 2 clear cross-venue true pairs exist in 73
-  live dishes, so this cannot be validated on real data yet. Eating one common
-  dish at 3-4 shops and logging each would create the first ground truth —
-  and one person can do that alone.
-
-- [ ] **[F] Protein + base taste axes — the engine throws this signal away
-  today.** Owner insight 2026-07-27: Chinese dish names decompose as
-  `[key ingredient] + [cooking method] + [base]`, and preference is readable
-  from the slots. Checked — R&D in `docs/rnd/dish-decomposition.md`:
-
-  - **Cooking method IS already modelled** (6 of the 18 dims), so that half of
-    the insight is live. But it is starved by construction: a method dim fires
-    once per dish while flavour dims fire on nearly all of them, so `fried` sits
-    at 6 ratings of evidence vs `rich` at 54.
-  - **Protein and base are modelled NOWHERE.** No dim, no affinity map. And
-    `ingredients` is already extracted during enrichment (with HK carb shorthand
-    expansion) then DISCARDED — no column on `dishes`, zero references in
-    `taste.ts`/`buddy.ts`/the ratings route. The signal is computed and dropped.
-
-  **Recommended shape:** a separate protein/base affinity map following the
-  existing `cuisine_affinity` precedent — NOT new vector dims. The framing is
-  comparative within a family ("beef over pork", "rice over noodles"), which is
-  a like-rate rather than an EMA presence value; and adding ~10 sparse dims to a
-  vector whose method dims already sit at 6-11 evidence would dilute it.
-  Cheapest first step is persisting `ingredients`, which is already computed.
-
-  **Cannot be validated yet:** 51 ratings over ~6 proteins / ~9 methods /
-  ~6 bases leaves every cell in single digits. Needs several hundred ratings
-  before the question is even askable — the R&D answer is "cannot tell", not
-  "no effect".
-
-- [ ] **[F] Structural veto on catalog merges — build AFTER an enum fix.**
-  Same R&D. On the 30 held-out identity pairs the veto blocked 4 wrong merges
-  correctly and 1 TRUE match wrongly. The false veto is precise and fixable:
-  `生滾魚片粥` vs `魚片粥` differ only because 生滾 names a standard method the
-  plain name omits. **Root cause: the enum conflates "absent" with
-  "unspecified"** — both become `none`, but base-`none` on 蝦仁炒蛋 is a real
-  property (no carb) while method-`none` on 魚片粥 just means the name is silent.
-  The naive fix ("`none` never conflicts") was checked and is WRONG: it kills two
-  of the four correct vetoes. Split the value into `absent` vs `unspecified` and
-  veto only when both sides are SPECIFIED and differ.
-
-  **Structure cannot be the sole rule — measured:** 36% of pairs (10/28) had an
-  unparseable side (絲襪奶茶, 西多士, 菠蘿油, 楊枝甘露). Shape is *catalog
-  proposes, structure vetoes*, with the veto silent whenever either side does not
-  parse. This is also the principled answer to the generic-CATEGORY problem
-  (炒飯 = unspecified ingredient) instead of a hand-maintained blocklist.
 
 ## Ready to build — specs are decided, no open questions
+
+- [ ] **[F] KEYSTONE — canonical dish catalog (cross-venue dish identity) —
+  GO (owner sync 2026-07-28).** Full finding + R&D narrative in DECISIONS.md
+  ("Cross-venue dish identity: the catalog approach — GO"); evidence: 0 false
+  merges across every run, 84.9% corpus coverage, 100% on decided held-out
+  pairs (`docs/rnd/cross-venue-dish-phase0.md`). Schema design is the
+  remaining work, then the build. The consolidated spec:
+
+  - `canonical_dish_id` hangs off `dishes` directly, NOT off
+    `dish_identities` (starved by design: 3 rows total). Resolver runs once
+    per dish at enrichment — O(N) classification, no pairwise matching.
+  - An uncovered dish returns an honest "none" and simply has no cross-venue
+    identity. That is the safety property the design rests on, not a failure.
+  - Catalog growth policy: frequent "none" clusters surface for human review;
+    never auto-mint entries (auto-minting recreates the false-merge risk).
+  - Generic CATEGORY entries (炒飯, 燉湯) are false-merge magnets and must
+    not be merge targets; the structural empty-ingredient-slot signal
+    identifies them (veto component below) — no hand-maintained blocklist.
+  - **Structural veto component — only after the enum fix**
+    (`docs/rnd/dish-decomposition.md`). On the 30 held-out pairs the veto
+    blocked 4 wrong merges and 1 TRUE match. The false veto is precise:
+    `生滾魚片粥` vs `魚片粥` differ only because 生滾 names a standard method
+    the plain name omits. Root cause: the enum conflates "absent" with
+    "unspecified" — both become `none`, but base-`none` on 蝦仁炒蛋 is a real
+    property (no carb) while method-`none` on 魚片粥 just means the name is
+    silent. The naive fix ("`none` never conflicts") was checked and is
+    WRONG — it kills two of the four correct vetoes. Split into `absent` vs
+    `unspecified`; veto only when both sides are SPECIFIED and differ.
+    Structure stays a veto, never the sole rule: 36% of pairs (10/28) had an
+    unparseable side (絲襪奶茶, 西多士, 菠蘿油, 楊枝甘露) — shape is *catalog
+    proposes, structure vetoes*, silent when either side does not parse.
+  - **Repoint the execution slider — added 2026-07-28 review; do NOT ship
+    the catalog without this.** `isExecutionConfounded` (taste.ts) and the
+    execution-comparison path compare same-`dish_identity_id` siblings. Once
+    `canonical_dish_id` exists they must key off it (dish-identity remains
+    the same-venue fallback), or the flagship mechanic stays starved after
+    its blocker is gone. Part of the same build: where a cross-venue
+    comparison SURFACES (the 對決 chassis is the chassis; the entry point is
+    design work inside this item, not a separate feature).
+  - **Re-resolve on name-authority upgrades — added 2026-07-28 review.**
+    Resolution reads the dish's name, and the authority ladder can change
+    that name later (VISION → MENU/HUMAN/OWNER). A name edit or upgrade must
+    re-run resolution, or an early misread sticks forever even after the
+    owner corrects the name. Resolution writes its own column and must NOT
+    touch `name_edited_at` — that field is name authority, not resolution
+    state.
+  - Phase 2 base-rate eval remains open and does NOT gate the build:
+    `scripts/eval-menu-corpus-coverage.ts` is ready and needs only owner
+    menu PHOTOS in `scripts/menu-corpus/` (the menu-scan route persists
+    nothing, so the app cannot build this corpus itself).
+  - Real-data validation blocker stands: only 2 clear cross-venue true pairs
+    exist in 73 live dishes. The owner eating one common dish at 3–4 shops
+    creates the first ground truth (see the data-acquisition item under
+    "Later / standing").
+
+- [ ] **[S] Persist `ingredients` on dishes — split out 2026-07-28 (was
+  buried inside the protein/base item).** Enrichment already extracts up to
+  4 key ingredients with the HK carb-shorthand expansion (米/河/意/通/丁),
+  uses them for diet flags, then discards them — no column, zero downstream
+  readers. One column + one write. Mechanical, and it unblocks the parked
+  protein/base affinity work without waiting on its design.
+
+- [ ] **[S] Retire the ask-for-name card for claimed users — the username's
+  table payoff, found unwired (2026-07-28 review).** The claim itself DOES
+  mechanically replace the leaking email-derived handle (it overwrites
+  `profiles.handle`), so chops show the chosen name once claimed. What is
+  NOT wired: table entry (`src/app/table/page.tsx`, the chop card around
+  line 543) still asks a claimed user with no `display_name` "what should we
+  call you" as if they had never named themselves. Suppress the card when
+  the member has a claimed username — key off
+  `hasClaimedUsername(username_set_at)` (the members payload must carry the
+  flag), NEVER "handle is non-empty" (every legacy profile has a handle;
+  that is the leak). Deliberately OUT of this item: inviting the UNCLAIMED
+  to claim at the table — the naming moment lives on the taste card, gated
+  on v1, by decision; changing that is an owner design question, not wiring.
 
 (Carb-tripwire follow-up: honest vector re-score — SHIPPED 2026-07-22, see
 DECISIONS.md.)
@@ -243,6 +203,32 @@ question. Full entry, kept for the WHY, in DECISIONS.md.)
   unaffected and needs no graph. See DECISIONS.md decisions 2 and 4 under "Identity,
   connection, and export positioning", and the VISION entry at the end of this
   file.
+- [ ] **[F] Protein + base affinity map — PARKED PENDING DATA (2026-07-28).**
+  Owner insight 2026-07-27: names decompose as
+  `[key ingredient] + [method] + [base]` and preference is readable from the
+  slots. R&D (`docs/rnd/dish-decomposition.md`): method IS already modelled
+  (6 of the 18 dims) but starved by construction — a method dim fires once
+  per dish while flavour dims fire on nearly all, so `fried` sits at 6
+  ratings of evidence vs `rich` at 54; protein and base are modelled
+  NOWHERE. Shape when unparked: a separate affinity map on the
+  `cuisine_affinity` precedent, NOT new vector dims — the framing is
+  comparative within a family ("beef over pork", "rice over noodles"), a
+  like-rate, and ~10 sparse one-fire-per-dish dims would dilute the vector.
+  Parked because 51 ratings over ~6 proteins / ~9 methods / ~6 bases leaves
+  every cell in single digits — the R&D answer is "cannot tell", not "no
+  effect"; needs several hundred ratings. The [S] persist-`ingredients`
+  item under "Ready to build" is its prerequisite and is NOT parked.
+- [ ] **[Owner] Data acquisition is the binding constraint on engine R&D —
+  named 2026-07-28 review.** Recent R&D keeps concluding "model fine, data
+  too thin": decomposition Section A unanswerable, `MIN_SCORED_DIMS`
+  provisional on one palate, method dims starved. Further modelling has
+  diminishing returns until data grows. Three cheap moves, all owner-side:
+  (1) eat one common dish at 3–4 shops and log each — the first cross-venue
+  ground truth, composes with the catalog; (2) menu photos into
+  `scripts/menu-corpus/` for the Phase 2 eval; (3) the dense-neighborhood
+  scan push above — still a strategy line with no operational plan; it
+  needs one. After the catalog ships, the next engine block should be a
+  data move, not another model refinement.
 - Brainstormed, NOT confirmed (do not build): weekly recap card · web push
   re-entry triggers · revisit prompt ("would you order it again?") · 地雷
   dealbreaker probe · 排個名 restaurant mini-ranking · tempt-duel at scan time ·
@@ -433,6 +419,12 @@ if append also reads back from the session).
 
 ## 1. Rewrite the export as TASTE-ONLY — *(Fable — the doc IS the surface)*
 
+**NEXT in the dishi.name stream (sync 2026-07-28).** Decided 2026-07-26 and
+still unbuilt — `tasteExport.ts` still builds the full persona-voiced doc
+(`VOICES[persona]`), so the live product contradicts decision 5 today. This
+builds BEFORE any new stream-2 surface; the chain is: taste-only export →
+`dishi.me/[username]` public page → messenger share → 食記 feed.
+
 Owner decision 5, 2026-07-26 (full rationale in DECISIONS.md, "Identity,
 connection, and export positioning"). The export stops shipping a character
 and ships taste learning only.
@@ -538,12 +530,13 @@ only adds engagement does not qualify, however social it is.
   earns its place alone because it retires the ask-for-name card in table
   entry and replaces the email-derived handle that was leaking address local
   parts onto chops — value that does not depend on sharing existing.
-  **NOT shipped: backend only, uncommitted.** Schema (applied live),
-  validation, `/api/username`, and the `/api/buddy` identity block are built;
-  the UI is being redesigned to the owner's placement (inline `dishi.[box]`
-  under the ink blob, not the modal that was first built). Nothing else below
-  has started. See DECISIONS.md, "dishi.username — claim at v1 + one free
-  rename".
+  **SHIPPED 2026-07-27/28** (`09fcb8f`, refinements through `ac9df3b`):
+  schema live, validation, `/api/username`, `/api/buddy` identity block, the
+  inline claim under the ink blob, the rename sheet, the claim counted as
+  chance 1. **But the table payoff was found unwired (2026-07-28 review):**
+  the ask-for-name card still fires for claimed users — see the [S] wiring
+  item under "Ready to build". Nothing else below has started. See
+  DECISIONS.md, "dishi.username — claim at v1 + one free rename".
 - **The release train is post + bookmark + messenger share — there is no
   follow/invite in it (settled 2026-07-27).** Half-shipping still leaves the
   app incoherent: an identity with nothing to share, or sharing with no
@@ -643,3 +636,7 @@ requires, before any code):**
   count is safe here, or whether it recreates the rate-for-visibility
   incentive that got the 食家 tier parked. Decision 2 accepts this risk
   explicitly; the review decides the affordance.
+- Persona voice is CONTENT, not UI chrome (guard added 2026-07-28): when
+  Spoon/CK/Kiki move in-app as 食記 authors, the 書面化 register pass must
+  not flatten their voices — Kiki is deliberately Cantonese-forward. A copy
+  sweep that treats persona lines as UI copy would sand them down.
