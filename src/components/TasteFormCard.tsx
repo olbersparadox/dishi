@@ -67,6 +67,12 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
   // pre-feature state: every profile already carries an email-derived handle.
   const [identity, setIdentity] = useState<Identity | null>(null);
   const [namingOpen, setNamingOpen] = useState(false);
+  // What's been typed into the inline unclaimed pill. It seeds UsernameSheet ONCE
+  // on open (see `initial` there) rather than live-syncing both ways: while the
+  // sheet is up there is exactly one live field, the sheet's own. Dismissing
+  // without saving clears this back to the empty pill, so the preview can never
+  // sit showing a name nobody actually claimed.
+  const [nameDraft, setNameDraft] = useState('');
   const [hadSpecies, setHadSpecies] = useState<string | null | 'loading'>('loading');
   const [showMigration, setShowMigration] = useState(false);
   // Which stat box's explainer is open — same tap-a-glyph-to-learn-more pattern as
@@ -261,10 +267,26 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
               dishi.{identity.username}
             </button>
           ) : (
-            <button type="button" className="btn primary small"
-              onClick={() => setNamingOpen(true)}>
-              {t('username.title')}
-            </button>
+            /* Unclaimed reads as a PREVIEW of the claimed line, not a generic CTA:
+               the literal "dishi." in the claimed button's own type, then the pill
+               to type the rest into. Focusing the pill opens the same naming card
+               the claimed button opens — the one-change warning is the price of
+               the name, so it can't be skipped by typing straight past it. */
+            <span className="username-claim">
+              <span className="username-claim-prefix">dishi.</span>
+              <input
+                className="field username-claim-field"
+                maxLength={20}
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                aria-label={t('username.title')}
+                placeholder={t('username.placeholder')}
+                value={nameDraft}
+                onChange={e => setNameDraft(e.target.value)}
+                onFocus={e => { e.currentTarget.blur(); setNamingOpen(true); }}
+              />
+            </span>
           )}
         </div>
       )}
@@ -478,7 +500,8 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
         current={identity.username}
         claimed={identity.claimed}
         changesLeft={identity.changesLeft}
-        onClose={() => setNamingOpen(false)}
+        initial={nameDraft}
+        onClose={() => { setNamingOpen(false); setNameDraft(''); }}
         onSaved={(username, changesLeft) => setIdentity({ username, claimed: true, changesLeft })}
       />
     )}

@@ -1090,6 +1090,23 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 /* The dishi version ladder line (replaced Levels): V{n} leads the legend; the bar
    below runs the full stat-line width with V{n+1} pinned at its right end. */
 .version-line { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 14px; }
+
+/* The unclaimed dishi.username row — a preview of the claimed .btn.ghost.small
+   line rather than a CTA of its own, so "dishi." borrows that button's exact
+   type (display serif / --fw-btn / --fs-caption / --ink-soft) and only the
+   trailing name is still blank. No letter-spacing here on purpose: .btn sets
+   none either, so the Latin prefix reads identically under .lang-zh and
+   .lang-en. The field is the same .field as the naming card's, pulled to a
+   pill so it matches the button it sits beside. */
+.username-claim { display: inline-flex; align-items: center; gap: 6px; }
+.username-claim-prefix {
+  font-family: var(--font-display); font-weight: var(--fw-btn);
+  font-size: var(--fs-caption); color: var(--ink-soft); flex-shrink: 0;
+}
+.username-claim-field {
+  width: 9.5em; border-radius: 999px; padding: 8px 15px; font-size: var(--fs-caption);
+}
+.username-claim-field::placeholder { color: var(--ink-faint); }
 .version-now, .version-next {
   font-family: var(--font-display); font-weight: 800; font-size: var(--fs-body); color: var(--ink);
   letter-spacing: 0.02em; flex-shrink: 0;
