@@ -3,6 +3,8 @@ import { supabaseServer } from '@/lib/supabase/server';
 import { scoreOneDish, enrichOneDish, HK_MENU_SHORTHAND_GUIDANCE } from '@/lib/menuScan';
 import { translateDishName, inferCuisineFromName } from '@/lib/translate';
 import { replayProfile } from '@/lib/replay';
+import { resolveAndStoreCanonicalDish } from '@/lib/dishCanonical';
+import { buildExecutionOfferForRatedDish } from '@/lib/executionOffer';
 
 export const maxDuration = 60;
 
@@ -32,7 +34,7 @@ export async function POST(req: NextRequest) {
 
   const { data: dish } = await supabase
     .from('dishes')
-    .select('id, user_id, name, name_zh, attributes')
+    .select('id, user_id, name, name_zh, attributes, canonical_dish_id')
     .eq('id', id)
     .maybeSingle();
   if (!dish || dish.user_id !== user.id) {
@@ -44,6 +46,24 @@ export async function POST(req: NextRequest) {
   // The typed name is the derivation seed per the authority ladder (HUMAN > VISION);
   // without force this early-return made every post-rename call a silent no-op.
   if (!force && dish.attributes && Object.keys(dish.attributes as Record<string, unknown>).length > 0) {
+    // Canonical (cross-venue) resolution rides this branch for photo and
+    // menu-pick dishes: they arrive with attributes, so this early return is
+    // the ONLY enrich pass they ever make — and the client fires it in the
+    // background on every rating pipeline, which makes it the right free slot
+    // for the resolver's latency. Only when still unresolved; an honest "none"
+    // is retried here at no extra cost next time the dish is rated.
+    if (dish.canonical_dish_id == null) {
+      const canonical = await resolveAndStoreCanonicalDish(supabase, id, dish.name, dish.name_zh);
+      // Resolution landing AFTER the rating is the normal first-session order
+      // (enrich runs last in the pipeline). The rating response could not
+      // offer the cross-venue comparison — the id didn't exist yet — so the
+      // offer rides THIS response instead, and the client queues it exactly
+      // as if /api/ratings had sent it.
+      if (canonical) {
+        const execution = await buildExecutionOfferForRatedDish(supabase, user.id, id);
+        if (execution) return NextResponse.json({ dish: { ...dish, canonical_dish_id: canonical }, execution });
+      }
+    }
     return NextResponse.json({ dish });
   }
 
@@ -114,6 +134,13 @@ export async function POST(req: NextRequest) {
   const { data: updated } = await supabase
     .from('dishes').update(update).eq('id', id).select().single();
 
+  // Canonical (cross-venue) resolution, from the FINAL stored names — after the
+  // translation fill above, and after a force-rename replaced the seed. Always
+  // overwrites: a rename away from a catalog dish must CLEAR a stale id, so
+  // null is a write, not a skip. Resolution state only — never name authority.
+  const finalDish = updated ?? dish;
+  const canonical = await resolveAndStoreCanonicalDish(supabase, id, finalDish.name, finalDish.name_zh);
+
   // If the person already rated this dish (the common case — they rated within
   // seconds while this ran), that rating learned from empty attributes. Heal it by
   // replaying the whole profile against the dishes' CURRENT attributes.
@@ -134,7 +161,16 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Cross-venue comparison offer for a rating whose canonical id only just
+  // landed — same late-offer contract as the early-return branch above.
+  const execution = (canonical && rated)
+    ? await buildExecutionOfferForRatedDish(supabase, user.id, id)
+    : null;
+
   // ingredients aren't a stored column, but the client (the growth/refine screen)
   // shows them as chips — pass them through on the response only.
-  return NextResponse.json({ dish: { ...(updated ?? dish), ingredients: enrichment?.ingredients ?? [] } });
+  return NextResponse.json({
+    dish: { ...finalDish, canonical_dish_id: canonical, ingredients: enrichment?.ingredients ?? [] },
+    ...(execution ? { execution } : {}),
+  });
 }

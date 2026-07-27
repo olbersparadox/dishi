@@ -78,7 +78,11 @@ describe('applyOwnerMenuAuthority — exact path (useLLM: false)', () => {
     const dishUpdate = updates.find(u => u.table === 'dishes');
     expect(dishUpdate).toBeDefined();
     expect(dishUpdate!.filters.dish_identity_id).toBe('i1');
-    expect(dishUpdate!.payload).toEqual({ name: 'Har Gow', name_zh: '蝦餃' });
+    expect(dishUpdate!.payload).toMatchObject({ name: 'Har Gow', name_zh: '蝦餃' });
+    // …with its canonical (cross-venue) id re-resolved in the same write — a
+    // name change invalidates the old resolution. No key here means the
+    // resolver ran and answered (null = honest none in this keyless test env).
+    expect('canonical_dish_id' in dishUpdate!.payload).toBe(true);
   });
 
   it('treats cosmetic variation (case/width/punctuation) as exact — no LLM consulted', async () => {
@@ -195,12 +199,17 @@ describe('applyOwnerMenuAuthority — LLM path (useLLM: true)', () => {
 });
 
 describe('propagateIdentityNameToDishes', () => {
-  it('updates ONLY name fields on linked rows — never name_edited_at (no silent tier demotion)', async () => {
+  it('updates name fields + re-resolved canonical id — NEVER name_edited_at (no silent tier demotion)', async () => {
     const { client, updates } = makeAdmin({ menuItems: [], identities: [] });
     await propagateIdentityNameToDishes(client, 'i1', '水晶鮮蝦餃', null);
     expect(updates).toHaveLength(1);
     expect(updates[0].table).toBe('dishes');
     expect(updates[0].filters.dish_identity_id).toBe('i1');
-    expect(Object.keys(updates[0].payload).sort()).toEqual(['name', 'name_zh']);
+    // canonical_dish_id rides along by design: resolution reads the name and
+    // the name just changed, so the stale id must not survive. It is
+    // resolution STATE — the authority-ladder invariant this test exists for
+    // is the absence of name_edited_at, and that must never loosen.
+    expect(Object.keys(updates[0].payload).sort()).toEqual(['canonical_dish_id', 'name', 'name_zh']);
+    expect('name_edited_at' in updates[0].payload).toBe(false);
   });
 });

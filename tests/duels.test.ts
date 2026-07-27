@@ -322,8 +322,9 @@ describe('replayProfile — execution-confounded ratings leave the learning stre
   });
 
   it('two instances scoring the SAME do not cancel each other out', async () => {
-    // Guards the dropOne() subtlety: removing every equal value instead of one
-    // copy would make each instance look like its own passing sibling.
+    // Guards self-exclusion: the sibling rule must drop the rating's OWN row
+    // (by dish_id), not every row with an equal score — else each instance
+    // would look like its own passing sibling.
     const { replayProfile } = await import('../src/lib/replay');
     duelData = [];
     ratingData = [
@@ -367,5 +368,77 @@ describe('replayProfile — execution-confounded ratings leave the learning stre
     ];
     const out = await replayProfile({ from: () => makeChain(ratingData) } as any, 'user-1');
     expect(out!.confounded).toBe(0);
+  });
+
+  // ── Cross-venue: canonical_dish_id joins what per-venue identity never could ──
+  // (2026-07-28, the catalog build.) dish_identity_id is scoped to ONE
+  // restaurant by schema, so before the catalog these two rows could not be
+  // siblings at all — the flagship 火腿通粉-at-A-vs-B comparison was
+  // structurally unreachable. These pin that replay now reads the canonical
+  // link, that it composes with the identity fallback, and that a lookalike
+  // grouped-by-one-key implementation FAILS the mixed-pair case.
+
+  it('CROSS-VENUE: a passing sibling at another restaurant exonerates via canonical_dish_id', async () => {
+    const { replayProfile } = await import('../src/lib/replay');
+    duelData = [];
+    // Different venues => different (null) dish identities; only the catalog
+    // links them. 火腿通粉 botched at A, done justice at B.
+    ratingData = [
+      { dish_id: 'a', score: -0.9, execution_score: 2, voice_attributes: null,
+        created_at: '2026-07-01T00:00:00Z',
+        dishes: { attributes: macaroni, cuisine: 'cantonese', dish_identity_id: null, canonical_dish_id: 'ham-macaroni' } },
+      { dish_id: 'b', score: 0.6, execution_score: 8, voice_attributes: null,
+        created_at: '2026-07-02T00:00:00Z',
+        dishes: { attributes: macaroni, cuisine: 'cantonese', dish_identity_id: null, canonical_dish_id: 'ham-macaroni' } },
+    ];
+    const out = await replayProfile({ from: () => makeChain(ratingData) } as any, 'user-1');
+    expect(out!.confounded).toBe(1);               // A's plate is the kitchen's fault now
+    expect(out!.vector.creamy).toBeGreaterThan(0); // only B's honest rating taught
+    expect(out!.replayed).toBe(2);
+  });
+
+  it('different canonical dishes at different venues stay unrelated', async () => {
+    const { replayProfile } = await import('../src/lib/replay');
+    duelData = [];
+    ratingData = [
+      { dish_id: 'a', score: -0.9, execution_score: 2, voice_attributes: null,
+        created_at: '2026-07-01T00:00:00Z',
+        dishes: { attributes: macaroni, cuisine: 'cantonese', dish_identity_id: null, canonical_dish_id: 'ham-macaroni' } },
+      { dish_id: 'b', score: 0.6, execution_score: 9, voice_attributes: null,
+        created_at: '2026-07-02T00:00:00Z',
+        dishes: { attributes: { crispy: 0.9 }, cuisine: 'cantonese', dish_identity_id: null, canonical_dish_id: 'roast-goose' } },
+    ];
+    const out = await replayProfile({ from: () => makeChain(ratingData) } as any, 'user-1');
+    expect(out!.confounded).toBe(0);
+    expect(out!.vector.creamy).toBeLessThan(0);
+  });
+
+  it('MIXED PAIR: canonical and identity links compose — a partition by one key cannot pass this', async () => {
+    const { replayProfile } = await import('../src/lib/replay');
+    duelData = [];
+    // a↔b share a canonical dish (cross-venue); a↔c share a per-venue identity
+    // (same shop, second visit); b↔c share NOTHING. Sibling-ness is a graph,
+    // not a partition — grouping rows under a single merged key would either
+    // link b to c (wrong) or lose one of the real links.
+    ratingData = [
+      // The bad plate: fails at venue 1.
+      { dish_id: 'a', score: -0.9, execution_score: 2, voice_attributes: null,
+        created_at: '2026-07-01T00:00:00Z',
+        dishes: { attributes: macaroni, cuisine: 'cantonese', dish_identity_id: 'ident-venue1', canonical_dish_id: 'ham-macaroni' } },
+      // Venue 2's rendering passes — exonerates `a` via the canonical link.
+      { dish_id: 'b', score: 0.6, execution_score: 8, voice_attributes: null,
+        created_at: '2026-07-02T00:00:00Z',
+        dishes: { attributes: macaroni, cuisine: 'cantonese', dish_identity_id: null, canonical_dish_id: 'ham-macaroni' } },
+      // Venue 1 again, uncovered by the catalog, FAILING — must NOT be
+      // exonerated by b (they share nothing), but a's identity link sees it.
+      { dish_id: 'c', score: -0.5, execution_score: 3, voice_attributes: null,
+        created_at: '2026-07-03T00:00:00Z',
+        dishes: { attributes: macaroni, cuisine: 'cantonese', dish_identity_id: 'ident-venue1', canonical_dish_id: null } },
+    ];
+    const out = await replayProfile({ from: () => makeChain(ratingData) } as any, 'user-1');
+    // a: exonerated (b passed, canonical link). c: NOT exonerated — its only
+    // sibling is a (identity link), and a FAILED; b is not c's sibling.
+    expect(out!.confounded).toBe(1);
+    expect(out!.replayed).toBe(3);
   });
 });

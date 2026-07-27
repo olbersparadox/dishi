@@ -27,7 +27,7 @@
  */
 import { createClient } from '@supabase/supabase-js';
 import { callClaude, parseJsonResponse } from '../src/lib/openrouter';
-import { CATALOG } from './hk-dish-catalog';
+import { CATALOG } from '../src/lib/hkDishCatalog';
 import { CASES } from './eval-cross-venue-dish';
 
 const SYSTEM = `You map a dish name to an entry in a fixed catalog of common Hong Kong dishes.

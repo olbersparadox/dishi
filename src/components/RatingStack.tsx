@@ -359,13 +359,23 @@ export default function RatingStack({ photos, picks, userId, onExit }: {
       }
     } catch { /* a lost rating already shows as a failed card; don't mask it here */ }
   };
+  // Enrich can carry a LATE 佢哋整得點？ offer: canonical (cross-venue)
+  // resolution runs inside enrich, which lands AFTER the rating in this
+  // pipeline — so the first time a dish is recognised as "the same 乾炒牛河
+  // you rated at another shop", the comparison arrives here, not on the
+  // rating response. Queue it identically; the growth screen drains one queue.
+  const queueExecution = (j: any) => {
+    if (Array.isArray(j?.execution?.rows) && j.execution.rows.length) {
+      setExecutionQueue(cur => [...cur, j.execution.rows]);
+    }
+  };
   const enrich = (i: number, dishId: string) =>
     fetch('/api/dishes/enrich', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: dishId }) })
       .then(r => (r.ok ? r.json() : null))
       // Only overwrite ingredients when enrich actually produced some (the typed-name /
       // reclassify slow path) — never clobber vision's create-time list back to [] on the
       // photo fast-path (which returns the stored dish, no ingredients).
-      .then(j => { if (j?.dish) patch(i, { ...(Array.isArray(j.dish.ingredients) && j.dish.ingredients.length ? { ingredients: j.dish.ingredients } : {}), diet: j.dish.diet ?? [], heaviness: j.dish.heaviness ?? null, name_zh: j.dish.name_zh ?? undefined, enriched: true }); refreshBuddy(); })
+      .then(j => { if (j?.dish) patch(i, { ...(Array.isArray(j.dish.ingredients) && j.dish.ingredients.length ? { ingredients: j.dish.ingredients } : {}), diet: j.dish.diet ?? [], heaviness: j.dish.heaviness ?? null, name_zh: j.dish.name_zh ?? undefined, enriched: true }); queueExecution(j); refreshBuddy(); })
       .catch(() => {});
   // Post-rename RE-derivation — the REAL one (the 720ms chip animation used to be a
   // simulation restoring the OLD chips; see TasteGrowth). force:true makes the enrich
@@ -384,6 +394,7 @@ export default function RatingStack({ photos, picks, userId, onExit }: {
         if (renameGen.current[i] !== gen) return; // a newer rename superseded this response
         if (j?.dish) patch(i, { ingredients: j.dish.ingredients ?? [], diet: j.dish.diet ?? [], heaviness: j.dish.heaviness ?? null, name_zh: j.dish.name_zh ?? undefined, enriched: true, enrichGen: gen });
         else patch(i, { enrichGen: gen });
+        queueExecution(j); // a rename can newly resolve the dish and unlock a comparison
         refreshBuddy(); // force mode replays the profile server-side — reflect it
       })
       .catch(() => { if (renameGen.current[i] === gen) patch(i, { enrichGen: gen }); });

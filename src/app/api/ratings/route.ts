@@ -4,6 +4,7 @@ import { extractVoiceSignal } from '@/lib/voice';
 import { updateTaste, updateCuisineAffinity, bumpEvidence, emptyTaste, taughtDims, calibratedScore, executionRangeFor, type TasteVector } from '@/lib/taste';
 import { replayProfile } from '@/lib/replay';
 import { directionOf, outcomeOf } from '@/lib/seal';
+import { fetchRatedRows, findExecutionReference, type ExecRow } from '@/lib/executionOffer';
 
 export const maxDuration = 30;
 
@@ -25,7 +26,7 @@ export async function POST(req: NextRequest) {
 
   const { data: dish, error: dishErr } = await supabase
     .from('dishes')
-    .select('id, attributes, cuisine, dish_identity_id, name, name_zh, photo_url, restaurants(name)')
+    .select('id, attributes, cuisine, dish_identity_id, canonical_dish_id, name, name_zh, photo_url, restaurants(name)')
     .eq('id', dish_id).single();
   if (dishErr || !dish) return NextResponse.json({ error: 'Dish not found.' }, { status: 404 });
 
@@ -165,10 +166,6 @@ export async function POST(req: NextRequest) {
   // ever be exonerated.
   const WARMUP = 10;
   const ANCHOR_THRESHOLD = 0.35;
-  type ExecRow = {
-    dish: { id: string; name: string; name_zh: string | null; photo_url: string | null; restaurant: string | null };
-    min: number; max: number; value: number | null;
-  };
   let execution: { rows: ExecRow[] } | null = null;
   {
     const anyDish = dish as any;
@@ -183,34 +180,18 @@ export async function POST(req: NextRequest) {
     };
 
     // The most recent OTHER instance of the same dish the person has rated —
-    // the reference side of the comparison. Its own flick bounds its own scale,
-    // so revising it can never contradict how THAT meal was rated.
-    let reference: ExecRow | null = null;
-    if (dish.dish_identity_id) {
-      const { data: sib } = await supabase
-        .from('ratings')
-        .select('dish_id, score, execution_score, created_at, dishes!inner(dish_identity_id, name, name_zh, photo_url, restaurants(name))')
-        .eq('user_id', user.id)
-        .eq('dishes.dish_identity_id', dish.dish_identity_id)
-        .neq('dish_id', dish_id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (sib) {
-        const sd = (sib as any).dishes;
-        const sibPrior = (await supabase.from('ratings').select('score')
-          .eq('user_id', user.id).neq('dish_id', sib.dish_id)).data ?? [];
-        const sibRange = executionRangeFor(calibratedScore(sib.score as number, sibPrior.map(r => r.score as number)));
-        reference = {
-          dish: {
-            id: sib.dish_id as string, name: sd?.name, name_zh: sd?.name_zh ?? null,
-            photo_url: sd?.photo_url ?? null, restaurant: sd?.restaurants?.name ?? null,
-          },
-          ...sibRange,
-          value: (sib.execution_score ?? null) as number | null,
-        };
-      }
-    }
+    // the reference side of the comparison. "Same dish" is the ONE shared rule
+    // (isExecutionSibling: canonical_dish_id cross-venue, dish_identity_id
+    // same-venue fallback) applied by executionOffer.ts over the user's own
+    // rated rows, exactly as replay.ts applies it — the two paths must not
+    // drift. Note the row just upserted above is in the fetch; it never
+    // matches (the rule excludes self by dish_id).
+    const reference: ExecRow | null = (dish.canonical_dish_id || dish.dish_identity_id)
+      ? findExecutionReference(await fetchRatedRows(supabase, user.id), {
+          dish_id, canonical_dish_id: dish.canonical_dish_id ?? null,
+          dish_identity_id: dish.dish_identity_id ?? null,
+        })
+      : null;
 
     const strongOpinion = nextCount >= WARMUP && Math.abs(learnedScore) >= ANCHOR_THRESHOLD;
     // Reference FIRST — it is the thing being compared against.

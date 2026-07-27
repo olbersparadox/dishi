@@ -165,11 +165,39 @@ export const EXECUTION_PASS = 5;
  */
 export function isExecutionConfounded(
   executionScore: number | null | undefined,
-  /** Execution scores of the user's OTHER ratings of the same dish identity. */
+  /** Execution scores of the user's OTHER ratings of the same dish (see
+   * isExecutionSibling for what "same dish" means). */
   siblingScores: (number | null | undefined)[],
 ): boolean {
   if (executionScore == null || executionScore >= EXECUTION_PASS) return false;
   return siblingScores.some(s => s != null && s >= EXECUTION_PASS);
+}
+
+/** The identity fields the sibling rule reads, as they come off a `dishes` join. */
+export type ExecutionSiblingKey = {
+  dish_id: string;
+  canonical_dish_id?: string | null;
+  dish_identity_id?: string | null;
+};
+
+/**
+ * Are two rated dishes instances of the SAME dish, for execution comparison?
+ *
+ * THE one rule, used by replay.ts and /api/ratings both — the two learning
+ * paths must agree exactly or re-rating a dish would silently produce a
+ * different profile than rating it fresh (the standing divergence constraint).
+ *
+ * Primary key: `canonical_dish_id` — the cross-venue identity from the catalog
+ * (乾炒牛河 at shop A vs shop B, the comparison the whole mechanic exists for).
+ * Fallback: `dish_identity_id` — the per-venue identity, which still carries
+ * real signal (the same kitchen on a good day vs a bad day) and is the only
+ * link an uncovered dish can have. NOT symmetric-null-safe by design: two
+ * dishes with neither link are never siblings.
+ */
+export function isExecutionSibling(dish: ExecutionSiblingKey, other: ExecutionSiblingKey): boolean {
+  if (other.dish_id === dish.dish_id) return false;
+  return (dish.canonical_dish_id != null && other.canonical_dish_id === dish.canonical_dish_id)
+    || (dish.dish_identity_id != null && other.dish_identity_id === dish.dish_identity_id);
 }
 
 /**

@@ -6,6 +6,7 @@ import { scoreOneDish } from '@/lib/menuScan';
 import { replayProfile } from '@/lib/replay';
 import { resolveOrCreateRestaurant } from '@/lib/restaurant';
 import { directionOf } from '@/lib/seal';
+import { resolveAndStoreCanonicalDish } from '@/lib/dishCanonical';
 
 // The PATCH rename cascade runs reanalyzeAnchored (a vision call, ~15-20s) BEFORE it
 // writes the row, so the default ~10s window killed the function before the update
@@ -373,6 +374,16 @@ export async function PATCH(req: NextRequest) {
     .from('dishes').update(patch).eq('id', dishId)
     .select('id, name, name_zh, cuisine, attributes, restaurant_id, cooking_method, heaviness, diet, restaurants(name)').single();
   if (error || !data) return NextResponse.json({ error: 'Not found or not yours.' }, { status: 403 });
+
+  // A real rename invalidates the canonical (cross-venue) resolution the same
+  // way it invalidates the vision bundle: resolution READS the name, and the
+  // name just changed under it — an early misread must not stick after the
+  // person corrects it. Re-resolve from the final stored names. This writes
+  // only canonical_dish_id (resolution state); the name_edited_at stamp above
+  // is name authority and was already decided independently.
+  if (nameChanged) {
+    await resolveAndStoreCanonicalDish(supabase, dishId, data.name, data.name_zh);
+  }
 
   // If the person has RATED this dish, their profile learned from the old (wrong)
   // attributes — replay the whole rating history through the real engine against

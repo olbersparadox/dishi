@@ -4,7 +4,7 @@ import {
   thresholdVisionAttrs, LEARN_CUTOFF,
   similarity, contentScore, blendScores, toMatchPercent, toRelativeMatchPercent,
   MIN_SCORED_DIMS, neutralCenter, calibratedScore, PRIOR_CENTER, CENTER_PRIOR_K,
-  isExecutionConfounded, executionRangeFor, EXECUTION_PASS,
+  isExecutionConfounded, isExecutionSibling, executionRangeFor, EXECUTION_PASS,
 } from '../src/lib/taste';
 
 describe('updateTaste', () => {
@@ -628,6 +628,42 @@ describe('isExecutionConfounded — when a bad plate stops being about taste', (
   it('an unscored rating always teaches — skipping the slider costs nothing', () => {
     expect(isExecutionConfounded(null, [9])).toBe(false);
     expect(isExecutionConfounded(undefined, [9])).toBe(false);
+  });
+});
+
+describe('isExecutionSibling — the one shared "same dish" rule', () => {
+  // canonical_dish_id (cross-venue, from the catalog) is the primary link;
+  // dish_identity_id (per-venue) is the fallback. This rule is consumed by
+  // BOTH replay.ts and the /api/ratings offer path — a second copy of it is
+  // how the two learning paths start disagreeing.
+  const k = (dish_id: string, canonical: string | null, identity: string | null) =>
+    ({ dish_id, canonical_dish_id: canonical, dish_identity_id: identity });
+
+  it('same canonical id at two venues ARE siblings — the flagship comparison', () => {
+    expect(isExecutionSibling(k('a', 'beef-chow-fun', 'ident-A'), k('b', 'beef-chow-fun', 'ident-B'))).toBe(true);
+    expect(isExecutionSibling(k('a', 'beef-chow-fun', null), k('b', 'beef-chow-fun', null))).toBe(true);
+  });
+
+  it('same per-venue identity still works with no canonical id — the fallback', () => {
+    expect(isExecutionSibling(k('a', null, 'ident-1'), k('b', null, 'ident-1'))).toBe(true);
+  });
+
+  it('different canonical ids are not siblings, whatever the identities say nothing about', () => {
+    expect(isExecutionSibling(k('a', 'beef-chow-fun', null), k('b', 'wet-chow-fun', null))).toBe(false);
+  });
+
+  it('two dishes with NO links are never siblings — null must not match null', () => {
+    expect(isExecutionSibling(k('a', null, null), k('b', null, null))).toBe(false);
+  });
+
+  it('a dish is never its own sibling, even sharing both links', () => {
+    expect(isExecutionSibling(k('a', 'milk-tea', 'ident-1'), k('a', 'milk-tea', 'ident-1'))).toBe(false);
+  });
+
+  it('either link alone suffices — canonical on one side of a mixed pair', () => {
+    // Dish A resolved to the catalog, dish B did not but shares A's per-venue
+    // identity: still the same dish via the fallback.
+    expect(isExecutionSibling(k('a', 'milk-tea', 'ident-1'), k('b', null, 'ident-1'))).toBe(true);
   });
 });
 

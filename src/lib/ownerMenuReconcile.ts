@@ -26,6 +26,7 @@ import {
   type DishLike, type OwnerMenuLike,
 } from './dishIdentity';
 import { adjudicateSameDish } from './dishMatch';
+import { resolveCanonicalDishId, dishLabel } from './dishCanonical';
 
 type Identity = { id: string; name: string; name_zh: string | null; name_authority: number | null };
 
@@ -35,11 +36,21 @@ type Identity = { id: string; name: string; name_zh: string | null; name_authori
  * adopt, an owner rename). Not a human edit — name_edited_at is deliberately left
  * untouched, so this never demotes a menu-scan name to the human tier. Once a dish
  * is linked, its stored name is governed here, and the UI stops offering to edit it.
+ *
+ * Also RE-RESOLVES the canonical (cross-venue) dish id: resolution reads the
+ * name, and the authority ladder just changed it — a stale id must not survive
+ * a correction. One resolver call per propagation (every dish under the
+ * identity gets the same new name, so they share one answer), written in the
+ * same update. Resolution state only; the name-authority contract above is
+ * untouched.
  */
 export async function propagateIdentityNameToDishes(
   admin: any, identityId: string, name: string, nameZh: string | null,
 ): Promise<void> {
-  await admin.from('dishes').update({ name, name_zh: nameZh ?? null }).eq('dish_identity_id', identityId);
+  const canonical = await resolveCanonicalDishId(dishLabel(name, nameZh));
+  await admin.from('dishes')
+    .update({ name, name_zh: nameZh ?? null, canonical_dish_id: canonical })
+    .eq('dish_identity_id', identityId);
 }
 
 // A menu can be large; the LLM path is only taken for identities that (a) exist at

@@ -3,8 +3,8 @@ import { supabaseAdmin } from './supabase/server';
 import {
   emptyTaste, updateTaste, updateCuisineAffinity, bumpEvidence,
   updateTasteFromDuel, updateTasteFromDuelTie, bumpEvidenceFromDuel,
-  calibratedScore, isExecutionConfounded,
-  type TasteVector, type EvidenceMap,
+  calibratedScore, isExecutionConfounded, isExecutionSibling,
+  type TasteVector, type EvidenceMap, type ExecutionSiblingKey,
 } from './taste';
 
 /**
@@ -56,7 +56,7 @@ export async function replayProfile(
   const [{ data: rows, error }, { data: duelRows }] = await Promise.all([
     supabase
       .from('ratings')
-      .select('dish_id, score, execution_score, voice_attributes, created_at, dishes(attributes, cuisine, dish_identity_id)')
+      .select('dish_id, score, execution_score, voice_attributes, created_at, dishes(attributes, cuisine, dish_identity_id, canonical_dish_id)')
       .eq('user_id', userId)
       .order('created_at', { ascending: true }),
     supabaseAdmin()
@@ -78,18 +78,17 @@ export async function replayProfile(
   const events: Event[] = [];
   let confounded = 0; // ratings the engine can now blame on the kitchen
 
-  // Execution scores grouped by dish identity, so each rating can be tested
-  // against its SIBLINGS — the same dish rendered by another kitchen (or the
-  // same kitchen on another day). This is the whole basis of the confound rule:
-  // one bad plate is ambiguous, one bad plate next to a good one is a verdict.
-  const scoresByIdentity = new Map<string, number[]>();
-  for (const r of rows as any[]) {
-    const id = r.dishes?.dish_identity_id;
-    if (!id || r.execution_score == null) continue;
-    const list = scoresByIdentity.get(id) ?? [];
-    list.push(r.execution_score);
-    scoresByIdentity.set(id, list);
-  }
+  // Each rating is tested against its SIBLINGS — the same dish rendered by
+  // another kitchen (canonical_dish_id, cross-venue) or the same kitchen on
+  // another day (dish_identity_id, per-venue fallback). One shared rule,
+  // isExecutionSibling, decides "same dish" here AND in /api/ratings — the two
+  // paths must not drift. This is the whole basis of the confound rule: one
+  // bad plate is ambiguous, one bad plate next to a good one is a verdict.
+  const siblingKey = (r: any): ExecutionSiblingKey => ({
+    dish_id: r.dish_id,
+    canonical_dish_id: r.dishes?.canonical_dish_id ?? null,
+    dish_identity_id: r.dishes?.dish_identity_id ?? null,
+  });
 
   for (const r of rows as any[]) {
     const dish = r.dishes;
@@ -100,12 +99,12 @@ export async function replayProfile(
     // vector, no evidence, no affinity, and (below) no contribution to the
     // neutral point either. A flick that wasn't about taste must not calibrate
     // how taste flicks are read. It still counts as a rating; see `replayed`.
-    const identityId = dish.dish_identity_id;
-    const siblings = identityId
-      // Its own score is in the group too — drop one copy of it, not every equal
-      // value, or two instances that both scored 7 would cancel each other out.
-      ? dropOne(scoresByIdentity.get(identityId) ?? [], r.execution_score)
-      : [];
+    // (Self is excluded by dish_id inside the rule — ratings are unique per
+    // user+dish, so identity of the row is identity of the dish.)
+    const me = siblingKey(r);
+    const siblings = (rows as any[])
+      .filter(o => o.dishes && isExecutionSibling(me, siblingKey(o)))
+      .map(o => o.execution_score as number | null);
     if (isExecutionConfounded(r.execution_score, siblings)) { confounded++; continue; }
 
     const voice = r.voice_attributes && Object.keys(r.voice_attributes).length ? r.voice_attributes : null;
@@ -160,11 +159,4 @@ export async function replayProfile(
   // rate the dish, so gates built on rating_count (the seal gate, export
   // confidence) must still see it — only the palate ignores it.
   return { vector, evidence, cuisine_affinity: affinity, replayed: replayed + confounded, centers, confounded };
-}
-
-/** Remove a single occurrence of `value`, leaving other equal values in place. */
-function dropOne(list: number[], value: number | null | undefined): number[] {
-  if (value == null) return list;
-  const i = list.indexOf(value);
-  return i < 0 ? list : [...list.slice(0, i), ...list.slice(i + 1)];
 }

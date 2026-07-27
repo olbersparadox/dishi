@@ -30,7 +30,7 @@ import { readdirSync, readFileSync, existsSync, writeFileSync } from 'node:fs';
 import { join, extname } from 'node:path';
 import { scanMenuSkeleton } from '../src/lib/menuScan';
 import { callClaude, parseJsonResponse } from '../src/lib/openrouter';
-import { CATALOG } from './hk-dish-catalog';
+import { CATALOG } from '../src/lib/hkDishCatalog';
 
 const DIR = join(import.meta.dirname, 'menu-corpus');
 const CACHE = join(DIR, '_scanned.json');
