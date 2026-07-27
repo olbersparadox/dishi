@@ -5,7 +5,7 @@ import RestaurantPicker, { RestaurantChoice } from '@/components/RestaurantPicke
 import FlickRating from '@/components/FlickRating';
 import { cuisineLabel } from '@/lib/i18n';
 import { wordKeyFor } from '@/lib/flickWords';
-import { EditIcon, TrashIcon, MoreIcon } from './icons';
+import { EditIcon, TrashIcon, MoreIcon, CheckIcon, CloseIcon } from './icons';
 import { cookingBucket, type CookingMethod } from '@/lib/menuScan';
 import DishInfoDisplay from './DishInfoDisplay';
 import { normalizePhoto } from '@/lib/image';
@@ -538,19 +538,23 @@ export default function MyDishes({ t, lang }: { t: (k: string, p?: Record<string
                     </div>
                   )}
 
-                  <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
+                  <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                    <button className="icon-btn cancel" disabled={saving}
+                      onClick={() => setEditing(null)} aria-label={t('home.cancel')} title={t('home.cancel')}>
+                      <CloseIcon size={16} />
+                    </button>
                     {/* Vermillion once anything actually changed — a typed name or a
                         picked restaurant — so "unsaved edits" reads at a glance. */}
                     <button
-                      className={`btn primary small ${
+                      className={`icon-btn save ${
                         ((editedEn || editedZh) && (draftName.trim() || draftNameZh.trim())) ||
                         (changingRestaurant && draftRestaurant !== null)
                           ? 'dirty' : ''
                       }`}
-                      disabled={saving} onClick={() => rename(d.id)}>
-                      {saving ? t('home.saving') : t('home.save')}
+                      disabled={saving} onClick={() => rename(d.id)}
+                      aria-label={saving ? t('home.saving') : t('home.save')} title={t('home.save')}>
+                      {saving ? <span className="icon-btn-spinner" aria-hidden /> : <CheckIcon size={16} />}
                     </button>
-                    <button className="btn ghost small" disabled={saving} onClick={() => setEditing(null)}>{t('home.cancel')}</button>
                   </div>
                 </div>
               ) : (

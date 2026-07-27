@@ -460,9 +460,15 @@ export default function TasteGrowth({ live, engine, blobInputs, onExit, onCancel
                             </div>
                           )}
                           <div className="learn-editactions">
-                            <button className="btn ghost small" onClick={cancelEdit}>{t('home.cancel')}</button>
+                            <button className="icon-btn cancel" onClick={cancelEdit}
+                              aria-label={t('home.cancel')} title={t('home.cancel')}>
+                              <CloseIcon size={16} />
+                            </button>
                             {/* Vermillion once the name's actually been edited. */}
-                            <button className={`btn primary small ${edZh || edEn ? 'dirty' : ''}`} onClick={commitEdit}>{t('home.save')}</button>
+                            <button className={`icon-btn save ${edZh || edEn ? 'dirty' : ''}`} onClick={commitEdit}
+                              aria-label={t('home.save')} title={t('home.save')}>
+                              <CheckIcon size={16} />
+                            </button>
                           </div>
                         </div>
                       // The name is a "refine" tile — a rounded rectangle (like the thumb),
@@ -516,9 +522,15 @@ export default function TasteGrowth({ live, engine, blobInputs, onExit, onCancel
                               onChange={e => setAddName(e.target.value)}
                               onKeyDown={e => { if (e.key === 'Enter') commitAddPlace(i); }} />
                             <div className="learn-editactions">
-                              <button className="btn ghost small" onClick={() => { setAddingIdx(null); setAddName(''); }}>{t('home.cancel')}</button>
-                              <button className={`btn primary small ${addName.trim() ? 'dirty' : ''}`}
-                                disabled={!addName.trim()} onClick={() => commitAddPlace(i)}>{t('home.save')}</button>
+                              <button className="icon-btn cancel" onClick={() => { setAddingIdx(null); setAddName(''); }}
+                                aria-label={t('home.cancel')} title={t('home.cancel')}>
+                                <CloseIcon size={16} />
+                              </button>
+                              <button className={`icon-btn save ${addName.trim() ? 'dirty' : ''}`}
+                                disabled={!addName.trim()} onClick={() => commitAddPlace(i)}
+                                aria-label={t('home.save')} title={t('home.save')}>
+                                <CheckIcon size={16} />
+                              </button>
                             </div>
                           </div>
                         : d.placeError

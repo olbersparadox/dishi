@@ -229,6 +229,25 @@ button { font: inherit; cursor: pointer; }
 }
 .icon-btn.delete:hover, .icon-btn.delete:focus-visible { background: var(--line); color: var(--ink); }
 
+/* Save/Cancel circle-icon pair — replaces the old 儲存/取消 TEXT buttons at every
+   dish/restaurant name-edit site (Eat Journal, rating-review dish rename,
+   rating-review restaurant add). Fixes an inconsistency where those screens put
+   Save/Cancel in opposite left/right order; fixed everywhere now: Cancel (✕)
+   LEFT, Save (✓) RIGHT. Save borrows .btn.primary.dirty's EXACT ink→vermillion
+   swap rather than inventing a new color relationship — same "vermillion only
+   once something actually changed" rule, just on a circle instead of a pill. */
+.icon-btn.cancel { width: 38px; height: 38px; background: var(--paper-inset); color: var(--ink-soft); }
+.icon-btn.cancel:hover, .icon-btn.cancel:focus-visible { background: var(--line); color: var(--ink); }
+.icon-btn.save { width: 38px; height: 38px; background: var(--ink); color: var(--seal-ink); }
+.icon-btn.save:hover, .icon-btn.save:focus-visible { background: var(--clay); }
+.icon-btn.save.dirty { background: var(--seal); }
+.icon-btn.save:disabled { opacity: 0.5; cursor: default; }
+.icon-btn-spinner {
+  width: 15px; height: 15px; border: 2px solid currentColor; border-top-color: transparent;
+  border-radius: 50%; animation: ringSpin 0.7s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) { .icon-btn-spinner { animation: none; } }
+
 /* Tiny spinner beside a dish name that's still being translated (globe switch to a
    non-canonical language). Quiet ink, sized to the name via em, reuses ringSpin. */
 .dishname-spinner {
