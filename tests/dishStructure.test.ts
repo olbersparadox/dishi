@@ -6,9 +6,10 @@
 // must stay alive.
 import { describe, expect, it } from 'vitest';
 import {
-  slotConflicts, structureVetoes, isCategoryStructure, sanitizeStructure,
+  slotConflicts, structureVetoes, zhNameIsGenericCategory, sanitizeStructure,
   type DishStructure,
 } from '../src/lib/dishStructure';
+import { CATALOG, isCategoryEntry } from '../src/lib/hkDishCatalog';
 
 const s = (protein: string, method: string, base: string, parseable = true): DishStructure =>
   ({ protein, method, base, parseable });
@@ -76,18 +77,37 @@ describe('structureVetoes — the R&D pairs', () => {
   });
 });
 
-describe('isCategoryStructure — the empty-ingredient-slot signal', () => {
-  it('炒飯 (protein unspecified) IS a category — not a merge target', () => {
-    expect(isCategoryStructure(s('unspecified', 'stir_fried', 'rice'))).toBe(true);
+describe('zhNameIsGenericCategory — the residue rule', () => {
+  // Why not the empty-protein-slot signal the spec first proposed: measured
+  // over the full catalog (2026-07-28), 揚州炒飯 and 炒飯 decompose to the
+  // IDENTICAL structure, so slots cannot tell a named style from a bare
+  // category — that signal flagged 雲吞麵/星洲炒米/揚州炒飯 as categories,
+  // which would have excluded them from cross-venue comparison entirely.
+  it('names that are nothing but generic food words ARE categories', () => {
+    expect(zhNameIsGenericCategory('炒飯')).toBe(true);   // fry + rice
+    expect(zhNameIsGenericCategory('燉湯')).toBe(true);   // double-boil + soup
+    expect(zhNameIsGenericCategory('烏冬')).toBe(true);   // the bare base word
+    expect(zhNameIsGenericCategory('烤串')).toBe(true);   // grill + skewer
   });
-  it('a drink with protein ABSENT is a real dish, not a category (港式奶茶 must stay a merge target)', () => {
-    expect(isCategoryStructure(s('absent', 'unspecified', 'absent'))).toBe(false);
+
+  it('a distinguishing token makes a name specific — the false flags the slot signal raised', () => {
+    expect(zhNameIsGenericCategory('揚州炒飯')).toBe(false); // 揚州 remains
+    expect(zhNameIsGenericCategory('雲吞麵')).toBe(false);   // 雲吞 remains
+    expect(zhNameIsGenericCategory('星洲炒米')).toBe(false); // 星洲 remains
+    expect(zhNameIsGenericCategory('港式奶茶')).toBe(false); // the flagship merge target
+    expect(zhNameIsGenericCategory('醬油拉麵')).toBe(false); // 醬油 remains
+    expect(zhNameIsGenericCategory('燒肉')).toBe(false);     // 肉 is an ingredient word, deliberately not stripped
+    expect(zhNameIsGenericCategory('車仔麵')).toBe(false);   // the owner's own "a set is a dish" example
   });
-  it('an unparseable name is never a category — structure says nothing about it', () => {
-    expect(isCategoryStructure(s('unspecified', 'unspecified', 'unspecified', false))).toBe(false);
+
+  it('empty input is not a category', () => {
+    expect(zhNameIsGenericCategory('')).toBe(false);
+    expect(zhNameIsGenericCategory('  ')).toBe(false);
   });
-  it('a specific dish (protein named) is not a category', () => {
-    expect(isCategoryStructure(s('shellfish', 'stir_fried', 'rice'))).toBe(false);
+
+  it('PINS the exact derived set over the live catalog — drift must be a conscious edit here', () => {
+    const derived = CATALOG.filter(e => isCategoryEntry(e.id)).map(e => e.id).sort();
+    expect(derived).toEqual(['double-boiled-soup', 'fried-rice-generic', 'grilled-skewers', 'udon']);
   });
 });
 

@@ -24,7 +24,7 @@
 // derivation and every veto input are reviewable in a diff instead of being a
 // runtime surprise.
 import { STRUCTURES } from './hkDishCatalogStructures.gen';
-import { isCategoryStructure, type DishStructure } from './dishStructure';
+import { zhNameIsGenericCategory, type DishStructure } from './dishStructure';
 
 export type CatalogEntry = {
   id: string;
@@ -214,11 +214,11 @@ export function entryStructure(id: string): DishStructure | null {
 /**
  * Category entries (炒飯, 燉湯) are false-merge magnets — 揚州炒飯 and 帶子炒飯
  * must never both collapse onto 炒飯 — so they are never merge TARGETS.
- * Derived from the empty-ingredient-slot signal, not a hand-maintained
- * blocklist; see isCategoryStructure for why `absent` (drinks, plain dishes)
- * deliberately does not trigger it.
+ * Derived by the residue rule over the entry's own zh name (see
+ * zhNameIsGenericCategory for why the empty-protein-slot signal was measured
+ * and rejected), deterministically — no blocklist, no LLM dependence.
  */
 export function isCategoryEntry(id: string): boolean {
-  const s = STRUCTURES[id];
-  return !!s && isCategoryStructure(s);
+  const e = CATALOG_BY_ID.get(id);
+  return !!e && zhNameIsGenericCategory(e.zh);
 }

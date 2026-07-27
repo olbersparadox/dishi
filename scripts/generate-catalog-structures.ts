@@ -19,7 +19,7 @@ import { writeFileSync } from 'fs';
 import { join } from 'path';
 import { CATALOG } from '../src/lib/hkDishCatalog';
 import { decomposeDishNames } from '../src/lib/dishCanonical';
-import { isCategoryStructure } from '../src/lib/dishStructure';
+import { zhNameIsGenericCategory } from '../src/lib/dishStructure';
 
 (async () => {
   console.log(`Decomposing ${CATALOG.length} catalog entries (batch=2, reasoning model — this takes a few minutes)…`);
@@ -52,12 +52,13 @@ ${lines.join('\n')}
   writeFileSync(path, out);
   console.log(`\nWrote ${lines.length}/${CATALOG.length} structures to ${path}`);
 
-  const categories = CATALOG.filter((e, i) => {
-    const s = structures.get(i);
-    return s && isCategoryStructure(s);
-  });
-  console.log(`\n── CATEGORY entries (empty ingredient slot — will NOT be merge targets) ──`);
+  // Categories come from the residue rule over zh names — deterministic and
+  // independent of the decomposition above (which serves the VETO only). The
+  // empty-slot signal was tried here first and over-fired on 17/19 flags:
+  // 揚州炒飯 and 炒飯 decompose identically, so slots cannot make this call.
+  const categories = CATALOG.filter(e => zhNameIsGenericCategory(e.zh));
+  console.log(`\n── CATEGORY entries (residue rule — will NOT be merge targets) ──`);
   categories.forEach(e => console.log(`   ${e.id}  (${e.zh} / ${e.en})`));
-  console.log(`\nReview that list. Expected members: fried-rice-generic, double-boiled-soup.`);
-  console.log(`If milk-tea or another specific dish appears there, the decomposition is wrong — fix guidance and re-run.`);
+  console.log(`\nReview that list — every member must be a FAMILY (炒飯級), never a specific dish.`);
+  console.log(`The exact set is pinned in tests/dishStructure.test.ts; a new entry changing it must be a conscious edit there.`);
 })();

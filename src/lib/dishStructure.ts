@@ -45,20 +45,41 @@ export function structureVetoes(a: DishStructure, b: DishStructure): boolean {
 }
 
 /**
- * Is this the structure of a generic CATEGORY (炒飯, 燉湯) rather than a dish?
- * The empty-ingredient-slot signal, replacing any hand-maintained blocklist:
- * a parseable name whose key-ingredient slot is UNSPECIFIED names a family of
- * dishes, not a plate — 揚州炒飯 and 帶子炒飯 must never both collapse onto
- * 炒飯. Category entries stay in the catalog (the resolver needs them as
- * landing spots to recognise) but are never merge TARGETS: resolving onto one
- * yields no cross-venue identity.
+ * Is this zh name a generic CATEGORY (炒飯, 燉湯) rather than a dish? Category
+ * entries stay in the catalog (the resolver needs them as landing spots to
+ * recognise) but are never merge TARGETS: 揚州炒飯 and 帶子炒飯 must never
+ * both collapse onto 炒飯, so resolving onto a category yields no identity.
  *
- * `absent` deliberately does NOT trigger this: a drink (港式奶茶) or a plain
- * dish (白粥) genuinely lacks a key protein and is still one specific thing —
- * exactly the flagship 絲襪奶茶 = 港式奶茶 merge this must not break.
+ * THE RESIDUE RULE, not the empty-protein-slot signal the spec first proposed.
+ * That signal was generated and reviewed against the full catalog (2026-07-28)
+ * and over-fired on 17 of its 19 flags: slot decomposition gives 揚州炒飯 and
+ * 炒飯 the IDENTICAL structure ([unspecified/stir_fried/rice]), so it cannot
+ * tell a named style from a bare category — it would have excluded 雲吞麵,
+ * 星洲炒米 and 揚州炒飯 from cross-venue comparison entirely, the opposite of
+ * safe. What actually separates them is whether anything REMAINS once the
+ * generic cooking/base vocabulary is stripped: 炒飯 reduces to 炒+飯 and
+ * vanishes; 揚州炒飯 keeps 揚州; 雲吞麵 keeps 雲吞. A name that is nothing but
+ * generic food words names a family, not a plate.
+ *
+ * Still structural (a fixed generic-vocabulary lexicon, not a dish blocklist),
+ * deterministic, and independent of the LLM decomposition — a parse failure
+ * cannot un-categorise 燉湯. The derived set over the live catalog is pinned
+ * exactly in tests, so any drift is a conscious decision, never an accident.
  */
-export function isCategoryStructure(s: DishStructure): boolean {
-  return s.parseable && s.protein === 'unspecified';
+const GENERIC_ZH_TOKENS = [
+  // multi-char base words first, so their characters aren't half-stripped
+  '烏冬', '拉麵', '意粉', '米線', '通粉',
+  // cooking methods
+  '炒', '炸', '蒸', '燉', '燜', '炆', '滷', '燒', '烤', '焗', '煎', '灼', '滾', '煮', '拌',
+  // carb vehicles / serving forms (deliberately NOT 肉/蛋/魚 — an ingredient
+  // word is exactly what makes a name specific)
+  '湯', '飯', '麵', '粉', '河', '米', '粥', '包', '串', '鍋',
+];
+export function zhNameIsGenericCategory(zh: string): boolean {
+  let rest = zh.trim();
+  if (!rest) return false;
+  for (const t of GENERIC_ZH_TOKENS) rest = rest.split(t).join('');
+  return rest === '';
 }
 
 /** Coerce one LLM-emitted slot value into the enum; anything unrecognised

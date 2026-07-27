@@ -54,6 +54,7 @@ export async function POST(req: NextRequest) {
     // is retried here at no extra cost next time the dish is rated.
     if (dish.canonical_dish_id == null) {
       const canonical = await resolveAndStoreCanonicalDish(supabase, id, dish.name, dish.name_zh);
+      dish.canonical_dish_id = canonical;
       // Resolution landing AFTER the rating is the normal first-session order
       // (enrich runs last in the pipeline). The rating response could not
       // offer the cross-venue comparison — the id didn't exist yet — so the
@@ -61,7 +62,7 @@ export async function POST(req: NextRequest) {
       // as if /api/ratings had sent it.
       if (canonical) {
         const execution = await buildExecutionOfferForRatedDish(supabase, user.id, id);
-        if (execution) return NextResponse.json({ dish: { ...dish, canonical_dish_id: canonical }, execution });
+        if (execution) return NextResponse.json({ dish, execution });
       }
     }
     return NextResponse.json({ dish });
