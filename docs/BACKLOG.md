@@ -19,9 +19,10 @@ Development runs as three streams. Named here because their items are NOT
 independent — all three converge on one keystone:
 
 1. **Engine** — calibration + R&D toward authentic taste learning.
-   NEXT: the canonical dish catalog (KEYSTONE item under "Ready to build"),
-   then a DATA-acquisition move — recent R&D keeps returning "model fine,
-   data too thin"; the solo corpus is now the binding constraint.
+   The canonical dish catalog (KEYSTONE) SHIPPED 2026-07-28 — see
+   DECISIONS.md. NEXT: the DATA-acquisition move — recent R&D keeps
+   returning "model fine, data too thin"; the solo corpus is now the
+   binding constraint.
 2. **dishi.name** — identity, attachment, sharing (taste-rank + messenger
    share; there is NO social graph, settled). NEXT: the taste-only export
    rewrite (settled 2026-07-26, still unbuilt — the live export contradicts
@@ -81,59 +82,15 @@ catalog approach — GO". The build lives below as the KEYSTONE item under
 
 ## Ready to build — specs are decided, no open questions
 
-- [ ] **[F] KEYSTONE — canonical dish catalog (cross-venue dish identity) —
-  GO (owner sync 2026-07-28).** Full finding + R&D narrative in DECISIONS.md
-  ("Cross-venue dish identity: the catalog approach — GO"); evidence: 0 false
-  merges across every run, 84.9% corpus coverage, 100% on decided held-out
-  pairs (`docs/rnd/cross-venue-dish-phase0.md`). Schema design is the
-  remaining work, then the build. The consolidated spec:
-
-  - `canonical_dish_id` hangs off `dishes` directly, NOT off
-    `dish_identities` (starved by design: 3 rows total). Resolver runs once
-    per dish at enrichment — O(N) classification, no pairwise matching.
-  - An uncovered dish returns an honest "none" and simply has no cross-venue
-    identity. That is the safety property the design rests on, not a failure.
-  - Catalog growth policy: frequent "none" clusters surface for human review;
-    never auto-mint entries (auto-minting recreates the false-merge risk).
-  - Generic CATEGORY entries (炒飯, 燉湯) are false-merge magnets and must
-    not be merge targets; the structural empty-ingredient-slot signal
-    identifies them (veto component below) — no hand-maintained blocklist.
-  - **Structural veto component — only after the enum fix**
-    (`docs/rnd/dish-decomposition.md`). On the 30 held-out pairs the veto
-    blocked 4 wrong merges and 1 TRUE match. The false veto is precise:
-    `生滾魚片粥` vs `魚片粥` differ only because 生滾 names a standard method
-    the plain name omits. Root cause: the enum conflates "absent" with
-    "unspecified" — both become `none`, but base-`none` on 蝦仁炒蛋 is a real
-    property (no carb) while method-`none` on 魚片粥 just means the name is
-    silent. The naive fix ("`none` never conflicts") was checked and is
-    WRONG — it kills two of the four correct vetoes. Split into `absent` vs
-    `unspecified`; veto only when both sides are SPECIFIED and differ.
-    Structure stays a veto, never the sole rule: 36% of pairs (10/28) had an
-    unparseable side (絲襪奶茶, 西多士, 菠蘿油, 楊枝甘露) — shape is *catalog
-    proposes, structure vetoes*, silent when either side does not parse.
-  - **Repoint the execution slider — added 2026-07-28 review; do NOT ship
-    the catalog without this.** `isExecutionConfounded` (taste.ts) and the
-    execution-comparison path compare same-`dish_identity_id` siblings. Once
-    `canonical_dish_id` exists they must key off it (dish-identity remains
-    the same-venue fallback), or the flagship mechanic stays starved after
-    its blocker is gone. Part of the same build: where a cross-venue
-    comparison SURFACES (the 對決 chassis is the chassis; the entry point is
-    design work inside this item, not a separate feature).
-  - **Re-resolve on name-authority upgrades — added 2026-07-28 review.**
-    Resolution reads the dish's name, and the authority ladder can change
-    that name later (VISION → MENU/HUMAN/OWNER). A name edit or upgrade must
-    re-run resolution, or an early misread sticks forever even after the
-    owner corrects the name. Resolution writes its own column and must NOT
-    touch `name_edited_at` — that field is name authority, not resolution
-    state.
-  - Phase 2 base-rate eval remains open and does NOT gate the build:
-    `scripts/eval-menu-corpus-coverage.ts` is ready and needs only owner
-    menu PHOTOS in `scripts/menu-corpus/` (the menu-scan route persists
-    nothing, so the app cannot build this corpus itself).
-  - Real-data validation blocker stands: only 2 clear cross-venue true pairs
-    exist in 73 live dishes. The owner eating one common dish at 3–4 shops
-    creates the first ground truth (see the data-acquisition item under
-    "Later / standing").
+(KEYSTONE — canonical dish catalog (cross-venue dish identity): SHIPPED
+`80c0ff0` + `ea2d6be` + `493a314`, 2026-07-28, backfilled live — 61/70
+resolved, first genuine cross-venue groups exist (sushi-platter ×5 across 3
+venues). Full entry, the two build-time design corrections (category rule →
+residue rule; veto exemption for string-anchored landings), and open
+remainders moved to DECISIONS.md, "KEYSTONE build: canonical dish catalog —
+SHIPPED". The Phase 2 menu-corpus eval and the eat-one-dish-at-3-4-shops
+ground truth remain owner-side — both live in the data-acquisition item
+under "Later / standing".)
 
 - [ ] **[S] Persist `ingredients` on dishes — split out 2026-07-28 (was
   buried inside the protein/base item).** Enrichment already extracts up to

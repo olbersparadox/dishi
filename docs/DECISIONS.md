@@ -3454,3 +3454,164 @@ so the 書面化 pass doesn't flatten them; review's claim of a leftover
   live dishes, so this cannot be validated on real data yet. Eating one common
   dish at 3-4 shops and logging each would create the first ground truth —
   and one person can do that alone.
+
+---
+
+# KEYSTONE build: canonical dish catalog — SHIPPED `80c0ff0` + `ea2d6be` + `493a314`, 2026-07-28
+
+The BACKLOG entry as it stood at build time (the consolidated spec, verbatim):
+
+> - [ ] **[F] KEYSTONE — canonical dish catalog (cross-venue dish identity) —
+>   GO (owner sync 2026-07-28).** Full finding + R&D narrative in DECISIONS.md
+>   ("Cross-venue dish identity: the catalog approach — GO"); evidence: 0 false
+>   merges across every run, 84.9% corpus coverage, 100% on decided held-out
+>   pairs (`docs/rnd/cross-venue-dish-phase0.md`). Schema design is the
+>   remaining work, then the build. The consolidated spec:
+>
+>   - `canonical_dish_id` hangs off `dishes` directly, NOT off
+>     `dish_identities` (starved by design: 3 rows total). Resolver runs once
+>     per dish at enrichment — O(N) classification, no pairwise matching.
+>   - An uncovered dish returns an honest "none" and simply has no cross-venue
+>     identity. That is the safety property the design rests on, not a failure.
+>   - Catalog growth policy: frequent "none" clusters surface for human review;
+>     never auto-mint entries (auto-minting recreates the false-merge risk).
+>   - Generic CATEGORY entries (炒飯, 燉湯) are false-merge magnets and must
+>     not be merge targets; the structural empty-ingredient-slot signal
+>     identifies them (veto component below) — no hand-maintained blocklist.
+>   - **Structural veto component — only after the enum fix**
+>     (`docs/rnd/dish-decomposition.md`). On the 30 held-out pairs the veto
+>     blocked 4 wrong merges and 1 TRUE match. The false veto is precise:
+>     `生滾魚片粥` vs `魚片粥` differ only because 生滾 names a standard method
+>     the plain name omits. Root cause: the enum conflates "absent" with
+>     "unspecified" — both become `none`, but base-`none` on 蝦仁炒蛋 is a real
+>     property (no carb) while method-`none` on 魚片粥 just means the name is
+>     silent. The naive fix ("`none` never conflicts") was checked and is
+>     WRONG — it kills two of the four correct vetoes. Split into `absent` vs
+>     `unspecified`; veto only when both sides are SPECIFIED and differ.
+>     Structure stays a veto, never the sole rule: 36% of pairs (10/28) had an
+>     unparseable side (絲襪奶茶, 西多士, 菠蘿油, 楊枝甘露) — shape is *catalog
+>     proposes, structure vetoes*, silent when either side does not parse.
+>   - **Repoint the execution slider — added 2026-07-28 review; do NOT ship
+>     the catalog without this.** `isExecutionConfounded` (taste.ts) and the
+>     execution-comparison path compare same-`dish_identity_id` siblings. Once
+>     `canonical_dish_id` exists they must key off it (dish-identity remains
+>     the same-venue fallback), or the flagship mechanic stays starved after
+>     its blocker is gone. Part of the same build: where a cross-venue
+>     comparison SURFACES (the 對決 chassis is the chassis; the entry point is
+>     design work inside this item, not a separate feature).
+>   - **Re-resolve on name-authority upgrades — added 2026-07-28 review.**
+>     Resolution reads the dish's name, and the authority ladder can change
+>     that name later (VISION → MENU/HUMAN/OWNER). A name edit or upgrade must
+>     re-run resolution, or an early misread sticks forever even after the
+>     owner corrects the name. Resolution writes its own column and must NOT
+>     touch `name_edited_at` — that field is name authority, not resolution
+>     state.
+>   - Phase 2 base-rate eval remains open and does NOT gate the build:
+>     `scripts/eval-menu-corpus-coverage.ts` is ready and needs only owner
+>     menu PHOTOS in `scripts/menu-corpus/` (the menu-scan route persists
+>     nothing, so the app cannot build this corpus itself).
+>   - Real-data validation blocker stands: only 2 clear cross-venue true pairs
+>     exist in 73 live dishes. The owner eating one common dish at 3–4 shops
+>     creates the first ground truth (see the data-acquisition item under
+>     "Later / standing").
+
+## What shipped
+
+**Schema.** `dishes.canonical_dish_id text` (nullable, no FK — the catalog
+lives in code), applied live, recorded in
+`supabase/applied/dishes_canonical_dish_id.sql`. The catalog itself moved
+from scripts into `src/lib/hkDishCatalog.ts` (144 entries; the dead
+`comparable` column dropped per the 2026-07-27 settlement).
+
+**Resolution pipeline** (`src/lib/dishCanonical.ts`): the Phase 1 prompt
+VERBATIM (0 false merges measured; no confidence floor, because the measured
+result was floorless and an unvalidated floor could only kill true merges) →
+category exclusion → structural veto with the absent/unspecified enum split.
+Every failure degrades to null: an honest "no cross-venue identity" can never
+fuse two histories.
+
+**Lifecycle wiring.** Enrich resolves every creation path — photo and
+menu-pick dishes on its early-return branch (their only enrich pass; the
+client fires it in the background on every rating pipeline, so resolver
+latency is free), typed dishes on the full branch. Renames re-resolve in
+`/api/my/dishes` PATCH and enrich force; authority-ladder propagation
+re-resolves inside `propagateIdentityNameToDishes` (one funnel covers the
+identity link, owner reconcile, and owner menu publish). Resolution writes
+only its own column — never `name_edited_at` (test-pinned).
+
+**Execution siblings repointed.** ONE shared rule, `isExecutionSibling`
+(canonical cross-venue primary, dish-identity same-venue fallback), consumed
+by `replay.ts` and the `/api/ratings` offer path via `executionOffer.ts`.
+Sibling-ness is a GRAPH, not a partition — a dish can join one neighbour by
+canonical id and another by venue identity while those two share nothing —
+and the mixed-pair replay test fails any grouped-by-one-key lookalike.
+
+**The surfacing answer (v1).** No new UI. Enrich lands AFTER the rating in
+the client pipeline, so the first-session cross-venue offer rides the enrich
+response and RatingStack queues it into the SAME executionQueue the rating
+response feeds — the shipped slider card on the 對決 chassis, unchanged,
+just no longer starved. Richer surfacing (browsing past comparisons) stays
+future design.
+
+## Two build-time corrections to the spec, both measured
+
+**1. Category rule: empty-protein-slot signal REJECTED, residue rule
+shipped.** The generation run over all 144 entries was the review gate the
+design asked for, and it fired: the empty-slot signal flagged 19 entries of
+which 17 were specific dishes — it would have excluded 雲吞麵, 星洲炒米 and
+揚州炒飯 from cross-venue comparison entirely, and it MISSED 燉湯 (LLM parse
+failure). Root finding: 揚州炒飯 and 炒飯 decompose to the IDENTICAL
+structure ([unspecified/stir_fried/rice]); slot decomposition is structurally
+incapable of telling a named style from a bare category. What separates them
+is RESIDUE: strip the generic cooking/base vocabulary from the zh name — a
+true category has nothing left (炒飯 → 炒+飯 → ∅), a named dish keeps its
+proper token (揚州炒飯 → 揚州). Deterministic, LLM-independent, still
+structural (a generic-vocabulary lexicon, not a dish blocklist). Derived set
+over the live catalog: exactly {炒飯, 燉湯, 烤串, 烏冬}, pinned verbatim in
+tests so drift is a conscious edit. The generated structures serve the VETO
+only, where the enum split was actually validated.
+
+**2. Veto exemption for string-anchored landings.** First live backfill: two
+wrong "none"s — 烤豬肉串 missed its own EXACT catalog entry; 日式舒芙蕾鬆餅
+(a held-out TRUE pair the eval had passed) missed 舒芙蕾鬆餅. Near-identical
+names give decomposition noise room to manufacture conflicts ("grilled pork
+skewers" parses `grilled` off the English half against the entry's `roasted`
+— 烤 maps to roasted; same plate, synonym values). A landing where the
+entry's full zh string appears verbatim in the dish label is the resolver's
+qualifier-stripping case (招牌/日式/生滾…), not a semantic leap — the R&D's
+own wrong-veto shape (生滾魚片粥 ⊃ 魚片粥) generalised — so the veto now
+skips it. Category exclusion runs BEFORE the veto, so 揚州炒飯 → 炒飯 stays
+closed; fuzzy landings (絲襪奶茶 → 港式奶茶) keep the veto armed.
+
+## Backfill (live, 2026-07-28)
+
+61/70 unresolved dishes mapped (87%), 9 honest nones — each audited:
+genuinely uncovered dishes (茶粒螺, 魔鬼魚, 冬菇棉花雞, 芝士蝦意粉,
+酸甜醬烤魚), a set meal (蛇羹潤腸飯餐), a real composition change
+(鵝腸豬潤撈麵 adds 豬潤 to 鵝腸撈麵), the category exclusion working (烤串),
+and one borderline (通心粉配火腿煎蛋 vs 火腿通粉 — the 煎蛋 read as a plate
+change; a missed merge, the harmless class). Zero false merges on eyeball.
+
+The groups that now exist — the first cross-venue joins in the product's
+history: **sushi-platter ×5 across 3 venues (all rated)**, souffle-pancake
+×2 across 2 venues, egg-tart ×3, soy-chicken-rice ×2, unadon ×2. Includes a
+merge no string rule could make: 油雞髀腩仔飯 under two different vision
+English names ("Fried Chicken Thigh…" / "Soy-Poached Chicken Thigh…"). No
+grouped row carries an execution score yet, so the backfill changed no
+existing taste profile — the joins arm future comparisons without rewriting
+any learning.
+
+## Open remainders
+
+- Phase 2 menu-corpus eval + the eat-one-dish-at-3-4-shops ground truth:
+  owner-side, both live in the data-acquisition item.
+- 14/144 catalog entries have no generated structure (reasoning-model batch
+  flakes; fails safe — no veto for them). Re-run
+  `scripts/generate-catalog-structures.ts` opportunistically.
+- Dishes rated BEFORE this build surface their first cross-venue comparison
+  on the next rating of any sibling (the offer is a rating-moment mechanic
+  by design; nothing retro-fires).
+- Verification note: no pixels changed — the offer mounts the SHIPPED slider
+  card (對決 chassis) with cross-venue rows; visual verification of that card
+  was done when it shipped (`15a9399`). The data layer was verified live
+  instead: backfill audit above + the group query in the session log.
