@@ -40,6 +40,18 @@ const RESERVED = new Set([
 
 export type UsernameError = 'empty' | 'tooshort' | 'toolong' | 'shape' | 'reserved';
 
+/** Every code here has a `username.err.*` i18n key. Shared by every UI that runs
+ *  the debounced availability check (UsernameSheet, and the inline claim pill in
+ *  TasteFormCard) so the accepted-error vocabulary can't drift between them. */
+export const USERNAME_ERR_CODES = [
+  'empty', 'tooshort', 'toolong', 'shape', 'reserved', 'taken', 'nochangesleft', 'failed',
+] as const;
+export type UsernameErrCode = typeof USERNAME_ERR_CODES[number];
+/** Anything the server returns that ISN'T one of these must not reach t() — it
+ *  would look up a key that doesn't exist and render the raw string at the person. */
+export const asUsernameErrCode = (v: unknown): UsernameErrCode =>
+  (USERNAME_ERR_CODES as readonly string[]).includes(v as string) ? (v as UsernameErrCode) : 'failed';
+
 /** Lowercase + trim. Applied before validation AND before every read/write, so
  *  what the person typed and what is stored can never drift in case. */
 export function normalizeUsername(raw: string): string {

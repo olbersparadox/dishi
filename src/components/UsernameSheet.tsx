@@ -1,10 +1,13 @@
 'use client';
-// dishi.username — the naming moment at v1, and the one rename that follows it.
+// dishi.username — the RENAME sheet (the one change after the initial claim).
 //
-// One component for both because they are the same form with a different frame:
-// the claim leads with the milestone ("you built dishi v1"), the rename leads
-// with what it costs ("one change left, then it's permanent"). Splitting them
-// would duplicate the availability check, which is the only real logic here.
+// The claim itself (v1, unclaimed) no longer opens this: it types straight into
+// an inline pill under the taste blob (TasteFormCard), with its own copy of this
+// same debounced-check/save logic — the two diverged enough (the claim has no
+// `current`/`unchanged`/`spent` to track) that sharing one component meant
+// threading claim-only conditionals through a rename-shaped form. The validation
+// vocabulary (USERNAME_ERR_CODES et al.) stays shared via lib/username.ts so the
+// two can't drift on what counts as a valid name or a recognized error.
 //
 // Mounts inside the shared ExplainModal rather than a lookalike sheet — same
 // scrim, same paper card, same dismissal as every other explainer in the app.
@@ -13,44 +16,33 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLang } from '@/lib/i18n';
 import ExplainModal from './ExplainModal';
-import { normalizeUsername, validateUsername } from '@/lib/username';
+import {
+  normalizeUsername, validateUsername, asUsernameErrCode, type UsernameErrCode,
+} from '@/lib/username';
 
 type Status =
   | { kind: 'idle' }
   | { kind: 'checking' }
   | { kind: 'ok' }
-  | { kind: 'err'; code: ErrCode };
+  | { kind: 'err'; code: UsernameErrCode };
 
-/** Every code here has a `username.err.*` key. Anything else the server can
- *  return (a 401 body, an unexpected shape) must NOT reach t() — it would look
- *  up a key that doesn't exist and render the raw string at the person. */
-const ERR_CODES = [
-  'empty', 'tooshort', 'toolong', 'shape', 'reserved', 'taken', 'nochangesleft', 'failed',
-] as const;
-type ErrCode = typeof ERR_CODES[number];
-const asErrCode = (v: unknown): ErrCode =>
-  (ERR_CODES as readonly string[]).includes(v as string) ? (v as ErrCode) : 'failed';
-
-export default function UsernameSheet({ current, claimed, changesLeft, onClose, onSaved }: {
-  /** The name in profiles.handle today — auto-derived from the email until claimed. */
+export default function UsernameSheet({ current, changesLeft, onClose, onSaved }: {
+  /** The name in profiles.handle today. */
   current: string | null;
-  claimed: boolean;
   changesLeft: number;
   onClose: () => void;
   onSaved: (username: string, changesLeft: number) => void;
 }) {
   const { t } = useLang();
-  // A never-claimed handle is an email local part the person never chose, so the
-  // field starts EMPTY for a claim — prefilling it would quietly bless a name
-  // that leaks their address. A rename starts from what they actually picked.
-  const [value, setValue] = useState(claimed ? (current ?? '') : '');
+  // A rename starts from what the person actually picked — never derived/blank.
+  const [value, setValue] = useState(current ?? '');
   const [status, setStatus] = useState<Status>({ kind: 'idle' });
   const [saving, setSaving] = useState(false);
   const seq = useRef(0);
 
   const trimmed = normalizeUsername(value);
-  const unchanged = claimed && trimmed === normalizeUsername(current ?? '');
-  const spent = claimed && changesLeft <= 0;
+  const unchanged = trimmed === normalizeUsername(current ?? '');
+  const spent = changesLeft <= 0;
 
   // Debounced availability check. Every response carries its own sequence number
   // so a slow early check can't overwrite the verdict for what's in the box now.
@@ -66,7 +58,7 @@ export default function UsernameSheet({ current, claimed, changesLeft, onClose, 
         const json = await res.json();
         if (mine !== seq.current) return;
         if (!res.ok) { setStatus({ kind: 'err', code: 'failed' }); return; }
-        setStatus(json.available ? { kind: 'ok' } : { kind: 'err', code: asErrCode(json.error ?? 'taken') });
+        setStatus(json.available ? { kind: 'ok' } : { kind: 'err', code: asUsernameErrCode(json.error ?? 'taken') });
       } catch {
         if (mine === seq.current) setStatus({ kind: 'idle' });
       }
@@ -83,7 +75,7 @@ export default function UsernameSheet({ current, claimed, changesLeft, onClose, 
         body: JSON.stringify({ username: trimmed }),
       });
       const json = await res.json();
-      if (!res.ok) { setStatus({ kind: 'err', code: asErrCode(json.error) }); return; }
+      if (!res.ok) { setStatus({ kind: 'err', code: asUsernameErrCode(json.error) }); return; }
       onSaved(json.username, json.changesLeft);
       onClose();
     } catch {
@@ -96,21 +88,14 @@ export default function UsernameSheet({ current, claimed, changesLeft, onClose, 
   const note = status.kind === 'checking' ? t('username.checking')
     : status.kind === 'ok' ? t('username.available')
     : status.kind === 'err' ? t(`username.err.${status.code}`)
-    : ' '; // reserve the line so the card doesn't jump as the verdict lands
+    : ' '; // reserve the line so the card doesn't jump as the verdict lands
 
   return (
     <ExplainModal
-      title={claimed ? t('username.rename.title') : t('username.title')}
-      body={claimed
-        ? (spent ? t('username.rename.none') : t('username.rename.last'))
-        : t('username.blurb')}
+      title={t('username.rename.title')}
+      body={spent ? t('username.rename.none') : t('username.rename.last')}
       extra={
         <>
-          {/* The warning sits ABOVE the field on the claim: it is the reason the
-              one-change rule is fair, so it must be read before the typing starts. */}
-          {!claimed && (
-            <p className="explain-modal-body" style={{ fontWeight: 600 }}>{t('username.warn')}</p>
-          )}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12 }}>
             <span style={{ fontWeight: 700, flexShrink: 0 }}>dishi.</span>
             <input
@@ -132,11 +117,6 @@ export default function UsernameSheet({ current, claimed, changesLeft, onClose, 
       }
       footer={
         <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-          {!claimed && (
-            <button type="button" className="btn ghost large" onClick={onClose}>
-              {t('username.later')}
-            </button>
-          )}
           <button type="button"
             className={`btn primary large${status.kind === 'ok' ? ' dirty' : ''}`}
             disabled={spent || saving || status.kind !== 'ok'}

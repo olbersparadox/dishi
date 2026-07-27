@@ -419,7 +419,6 @@ export const dict: Record<string, { zh: string; en: string }> = {
   },
   'username.placeholder': { zh: '你的名字', en: 'your name' },
   'username.save': { zh: '就用這個名', en: 'Use this name' },
-  'username.later': { zh: '遲些再改', en: 'Later' },
   'username.checking': { zh: '檢查中…', en: 'Checking…' },
   'username.available': { zh: '可以用', en: 'Available' },
   'username.err.empty': { zh: '請先輸入名字', en: 'Type a name first' },

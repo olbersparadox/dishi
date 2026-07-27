@@ -26,6 +26,9 @@ import { PERSONAS, PERSONA_META, VOICES, type Persona } from '@/lib/persona';
 import { splitBoldKeywords } from '@/lib/textBold';
 import { CloseIcon, CopyIcon, CheckIcon } from './icons';
 import UsernameSheet from './UsernameSheet';
+import {
+  normalizeUsername, validateUsername, asUsernameErrCode, type UsernameErrCode,
+} from '@/lib/username';
 
 type BuddyState = {
   // The dishi version ladder (replaced Levels): v = ratcheted unlock history (what
@@ -67,12 +70,75 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
   // pre-feature state: every profile already carries an email-derived handle.
   const [identity, setIdentity] = useState<Identity | null>(null);
   const [namingOpen, setNamingOpen] = useState(false);
+  // The unclaimed naming pill under the blob: a REAL live input (not a trigger
+  // that hands off to a modal) — the explanation card it opens on first focus is
+  // purely informational (plain ExplainModal, no field of its own), so typing and
+  // saving both have to live here. Logic mirrors UsernameSheet's rename case
+  // (debounced check via the shared lib/username.ts vocabulary) but is simpler:
+  // a fresh claim has no `current`/`unchanged`/`spent` to track.
+  const [claimValue, setClaimValue] = useState('');
+  const [claimStatus, setClaimStatus] = useState<
+    { kind: 'idle' } | { kind: 'checking' } | { kind: 'ok' } | { kind: 'err'; code: UsernameErrCode }
+  >({ kind: 'idle' });
+  const [claimSaving, setClaimSaving] = useState(false);
+  const claimSeq = useRef(0);
+  // Shown once, on the pill's first focus — not every time, or re-focusing after
+  // tapping away mid-typing would interrupt with the same warning again.
+  const [claimExplainOpen, setClaimExplainOpen] = useState(false);
+  const [claimExplainSeen, setClaimExplainSeen] = useState(false);
   const [hadSpecies, setHadSpecies] = useState<string | null | 'loading'>('loading');
   const [showMigration, setShowMigration] = useState(false);
   // Which stat box's explainer is open — same tap-a-glyph-to-learn-more pattern as
   // the globe/notification icons (a scrim + an anchored paper sheet), applied to the
   // 4 stat boxes so each number can explain what it actually measures.
   const [openStat, setOpenStat] = useState<null | 'strength' | 'flicks' | 'cuisines' | 'senses'>(null);
+
+  // Debounced availability check for the inline claim pill — same shape as
+  // UsernameSheet's own (sequence-numbered so a slow early check can't overwrite
+  // the verdict for what's in the box now), just with no unchanged/spent case.
+  useEffect(() => {
+    const trimmed = normalizeUsername(claimValue);
+    if (!trimmed) { setClaimStatus({ kind: 'idle' }); return; }
+    const local = validateUsername(trimmed);
+    if (local) { setClaimStatus({ kind: 'err', code: local }); return; }
+    setClaimStatus({ kind: 'checking' });
+    const mine = ++claimSeq.current;
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/username?check=${encodeURIComponent(trimmed)}`);
+        const json = await res.json();
+        if (mine !== claimSeq.current) return;
+        if (!res.ok) { setClaimStatus({ kind: 'err', code: 'failed' }); return; }
+        setClaimStatus(json.available ? { kind: 'ok' } : { kind: 'err', code: asUsernameErrCode(json.error ?? 'taken') });
+      } catch {
+        if (mine === claimSeq.current) setClaimStatus({ kind: 'idle' });
+      }
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [claimValue]);
+
+  const claimSave = async () => {
+    if (claimSaving || claimStatus.kind !== 'ok') return;
+    setClaimSaving(true);
+    try {
+      const res = await fetch('/api/username', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: normalizeUsername(claimValue) }),
+      });
+      const json = await res.json();
+      if (!res.ok) { setClaimStatus({ kind: 'err', code: asUsernameErrCode(json.error) }); return; }
+      setIdentity({ username: json.username, claimed: true, changesLeft: json.changesLeft });
+    } catch {
+      setClaimStatus({ kind: 'err', code: 'failed' });
+    } finally {
+      setClaimSaving(false);
+    }
+  };
+
+  const claimNote = claimStatus.kind === 'checking' ? t('username.checking')
+    : claimStatus.kind === 'ok' ? t('username.available')
+    : claimStatus.kind === 'err' ? t(`username.err.${claimStatus.code}`)
+    : ' '; // reserve the line so the row doesn't jump as the verdict lands
 
   // ── Install flow (owner spec 2026-07-23) ──────────────────────────────────────
   // State B: this card morphed into the persona carousel. The carousel index is
@@ -261,14 +327,14 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
               dishi.{identity.username}
             </button>
           ) : (
-            /* Unclaimed reads as a PREVIEW of the claimed line, not a generic CTA:
-               the literal "dishi." in the claimed button's own type, then a field
-               previewing the pill to type the rest into. Focusing it opens the
-               same naming card the claimed button opens — the one-change warning
-               is the price of the name, so it can't be skipped. Focus fires (and
-               hands off to the card) before any keystroke can land in THIS field,
-               so it's intentionally uncontrolled — real typing happens in the
-               card's own field, which the person lands in with the same tap. */
+            /* Unclaimed reads as a PREVIEW of the claimed line, sized like a persona
+               name (.persona-name's own type) rather than a small CTA button: the
+               literal "dishi." followed by the SAME field the person types the rest
+               into — this one is real and live, not a trigger that hands off to a
+               modal. First focus opens a plain, informational ExplainModal (the
+               one-change warning) with no field of its own; the person keeps typing
+               HERE once it's dismissed, and Enter (or the availability check
+               landing "ok") is what actually saves it. */
             <span className="username-claim">
               <span className="username-claim-prefix">dishi.</span>
               <input
@@ -279,11 +345,18 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
                 spellCheck={false}
                 aria-label={t('username.title')}
                 placeholder={t('username.placeholder')}
-                onFocus={e => { e.currentTarget.blur(); setNamingOpen(true); }}
+                value={claimValue}
+                disabled={claimSaving}
+                onChange={e => setClaimValue(e.target.value)}
+                onFocus={() => { if (!claimExplainSeen) setClaimExplainOpen(true); }}
+                onKeyDown={e => { if (e.key === 'Enter') claimSave(); }}
               />
             </span>
           )}
         </div>
+      )}
+      {identity && !identity.claimed && state.version.v >= 1 && (
+        <p className="label" style={{ margin: '4px 0 0', minHeight: '1.2em' }}>{claimNote}</p>
       )}
 
       <div className="version-line">
@@ -493,10 +566,21 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
     {namingOpen && identity && (
       <UsernameSheet
         current={identity.username}
-        claimed={identity.claimed}
         changesLeft={identity.changesLeft}
         onClose={() => setNamingOpen(false)}
         onSaved={(username, changesLeft) => setIdentity({ username, claimed: true, changesLeft })}
+      />
+    )}
+
+    {/* First-focus explainer for the inline claim pill — plain and informational,
+        no field of its own (typing happens in the pill under the blob, not here):
+        just the title/blurb/warning and the shared default ok-circle to dismiss. */}
+    {claimExplainOpen && (
+      <ExplainModal
+        title={t('username.title')}
+        body={t('username.blurb')}
+        extra={<p className="explain-modal-body" style={{ fontWeight: 600 }}>{t('username.warn')}</p>}
+        onClose={() => { setClaimExplainOpen(false); setClaimExplainSeen(true); }}
       />
     )}
     </>
