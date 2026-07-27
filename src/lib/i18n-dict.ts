@@ -449,6 +449,7 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'profile.owner': { zh: '開餐廳？', en: 'Own a restaurant?' },
   'rate.preparing': { zh: '正在處理相片…', en: 'Preparing photos…' },
   'rate.skip': { zh: '跳', en: 'Skip' },
+  'rate.draghint': { zh: '上下拖曳評分', en: 'Drag to Rate' },
   // Progressive "watch your Taste AI learn" screen (merged reward + review)
   'grow.build.title': { zh: '建立個人化口味 AI', en: 'Building your personal taste AI' },
   // The version ladder (replaced Levels + the "Taste AI 1.0" naming): steady-state

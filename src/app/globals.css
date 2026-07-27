@@ -420,6 +420,18 @@ button { font: inherit; cursor: pointer; }
 .snap-hint-inner svg { display: block; }
 @keyframes snapHintBob { 0%, 100% { transform: translateY(-8px); } 50% { transform: translateY(8px); } }
 @media (prefers-reduced-motion: reduce) { .snap-hint-inner { animation: none; } }
+/* Persistent short caption below the card — unlike the first-card-only animated
+   touch-dot (.snap-hint), this is plain text, shown for every card, so the
+   gesture stays legible even after the touch-dot has stopped appearing. Positioned
+   with the SAME min() formula as .snap-card's own size (width min(60vw,270px),
+   height capped at 50vh) so it tracks the card's true bottom edge at any viewport
+   size without needing to restructure the overlay's row-flex centering. */
+.snap-draghint {
+  position: absolute; left: 50%; top: calc(50% + min(40vw, 180px, 25vh) + 14px);
+  transform: translateX(-50%); z-index: 4; pointer-events: none;
+  font-family: var(--font-display); font-weight: 600; font-size: var(--fs-subtitle-a);
+  color: var(--ink); text-align: center; white-space: nowrap;
+}
 .snap-close {
   position: absolute; top: 12px; right: 12px; z-index: 6;
   display: grid; place-items: center; width: 40px; height: 40px;

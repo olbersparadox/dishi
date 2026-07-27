@@ -243,6 +243,8 @@ export default function SnapRating({
         )}
       </div>
 
+      <div className="snap-draghint" aria-hidden>{t('rate.draghint')}</div>
+
       <div className="snap-rail" aria-hidden>
         {SLOTS.map((s, i) => <span key={i} className={`snap-tick ${!skip && locked === i ? 'on' : ''}`} />)}
       </div>
