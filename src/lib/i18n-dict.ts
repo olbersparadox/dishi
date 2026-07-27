@@ -408,14 +408,26 @@ export const dict: Record<string, { zh: string; en: string }> = {
   // dishi.username — claimed at the v1 unlock, then ONE change ever. The warning
   // is load-bearing copy, not decoration: it is the entire reason the scarcity is
   // fair, so it appears BEFORE the field, not as fine print under it.
-  'username.title': { zh: '為你的口味改個名', en: 'Name your taste' },
+  // Titled as a BIRTH, not a form: v1 is the first moment there is something
+  // real to name, and the blurb spends its length on what that thing will grow
+  // into (sharper with every rating → reads an unfamiliar menu → 植入 into the
+  // AI they already use) rather than on the mechanics of naming.
+  'username.title': { zh: '你的味覺 AI 誕生了', en: 'Your taste AI is born' },
+  // Separate from the title because the title is a headline ("誕生了") that would
+  // be a nonsense accessible name for a text field.
+  'username.field.label': { zh: '為你的味覺 AI 改個名', en: 'Name your taste AI' },
   'username.blurb': {
-    zh: '你已經建立了 dishi v1 — 屬於你自己的口味 AI。改個名，這就是你的口味身分。',
-    en: 'You’ve built dishi v1 — your own taste AI. Give it a name; this becomes your taste identity.',
+    zh: '你已經建立了 dishi v1 — 由你真正吃過的每一道菜煉成的味覺 AI。繼續評分，它會越來越懂你：在完全陌生的餐牌上，一眼認出適合你的菜；也可以植入你日常使用的 AI，連「今晚吃什麼」都答得中你的口味。\n先為它改個名 — 這就是你的味覺身分。',
+    en: 'You’ve built dishi v1 — a taste AI distilled from every dish you’ve actually eaten. Keep rating and it sharpens: picking out the right dish on a menu you’ve never seen, and — once implanted in the AI you already use — answering “what should I eat tonight?” in your own palate.\nName it first. That name is your taste identity.',
   },
+  // Counts the naming happening RIGHT NOW as the first of the two, because that
+  // is how the person experiences it — they are choosing a name, so telling them
+  // they get "one change" reads as "zero flexibility" and undersells the one
+  // rename they actually still hold. System-side this is unchanged:
+  // USERNAME_CHANGES_ALLOWED is still 1, and the claim itself still spends none.
   'username.warn': {
-    zh: '請認真選擇：改名的機會只有一次。',
-    en: 'Choose carefully — you can change it once, and once only.',
+    zh: '請認真選擇：改名的機會只有 2 次。',
+    en: 'Choose carefully — you only get 2 chances at this name.',
   },
   'username.placeholder': { zh: '你的名字', en: 'your name' },
   'username.save': { zh: '就用這個名', en: 'Use this name' },
@@ -450,7 +462,9 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'rate.skip': { zh: '跳', en: 'Skip' },
   'rate.draghint': { zh: '上下拖曳評分', en: 'Drag to Rate' },
   // Progressive "watch your Taste AI learn" screen (merged reward + review)
-  'grow.build.title': { zh: '建立個人化口味 AI', en: 'Building your personal taste AI' },
+  // 味覺 AI (the engine) vs 口味 (the preference it learns) — the split is
+  // deliberate and applied app-wide, so this matches username.title's framing.
+  'grow.build.title': { zh: '建立個人化味覺 AI', en: 'Building your personal taste AI' },
   // The version ladder (replaced Levels + the "Taste AI 1.0" naming): steady-state
   // unlocked line on the growth screen and anywhere else the ladder speaks.
   'version.unlocked': { zh: 'dishi v{n} 已經解鎖', en: 'dishi v{n} unlocked' },

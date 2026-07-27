@@ -346,7 +346,7 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
                   autoCapitalize="none"
                   autoCorrect="off"
                   spellCheck={false}
-                  aria-label={t('username.title')}
+                  aria-label={t('username.field.label')}
                   placeholder={t('username.placeholder')}
                   value={claimValue}
                   disabled={claimSaving}

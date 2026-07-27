@@ -151,6 +151,49 @@ reached it without fitting anything; full entry in DECISIONS.md.)
   dish at 3-4 shops and logging each would create the first ground truth —
   and one person can do that alone.
 
+- [ ] **[F] Protein + base taste axes — the engine throws this signal away
+  today.** Owner insight 2026-07-27: Chinese dish names decompose as
+  `[key ingredient] + [cooking method] + [base]`, and preference is readable
+  from the slots. Checked — R&D in `docs/rnd/dish-decomposition.md`:
+
+  - **Cooking method IS already modelled** (6 of the 18 dims), so that half of
+    the insight is live. But it is starved by construction: a method dim fires
+    once per dish while flavour dims fire on nearly all of them, so `fried` sits
+    at 6 ratings of evidence vs `rich` at 54.
+  - **Protein and base are modelled NOWHERE.** No dim, no affinity map. And
+    `ingredients` is already extracted during enrichment (with HK carb shorthand
+    expansion) then DISCARDED — no column on `dishes`, zero references in
+    `taste.ts`/`buddy.ts`/the ratings route. The signal is computed and dropped.
+
+  **Recommended shape:** a separate protein/base affinity map following the
+  existing `cuisine_affinity` precedent — NOT new vector dims. The framing is
+  comparative within a family ("beef over pork", "rice over noodles"), which is
+  a like-rate rather than an EMA presence value; and adding ~10 sparse dims to a
+  vector whose method dims already sit at 6-11 evidence would dilute it.
+  Cheapest first step is persisting `ingredients`, which is already computed.
+
+  **Cannot be validated yet:** 51 ratings over ~6 proteins / ~9 methods /
+  ~6 bases leaves every cell in single digits. Needs several hundred ratings
+  before the question is even askable — the R&D answer is "cannot tell", not
+  "no effect".
+
+- [ ] **[F] Structural veto on catalog merges — build AFTER an enum fix.**
+  Same R&D. On the 30 held-out identity pairs the veto blocked 4 wrong merges
+  correctly and 1 TRUE match wrongly. The false veto is precise and fixable:
+  `生滾魚片粥` vs `魚片粥` differ only because 生滾 names a standard method the
+  plain name omits. **Root cause: the enum conflates "absent" with
+  "unspecified"** — both become `none`, but base-`none` on 蝦仁炒蛋 is a real
+  property (no carb) while method-`none` on 魚片粥 just means the name is silent.
+  The naive fix ("`none` never conflicts") was checked and is WRONG: it kills two
+  of the four correct vetoes. Split the value into `absent` vs `unspecified` and
+  veto only when both sides are SPECIFIED and differ.
+
+  **Structure cannot be the sole rule — measured:** 36% of pairs (10/28) had an
+  unparseable side (絲襪奶茶, 西多士, 菠蘿油, 楊枝甘露). Shape is *catalog
+  proposes, structure vetoes*, with the veto silent whenever either side does not
+  parse. This is also the principled answer to the generic-CATEGORY problem
+  (炒飯 = unspecified ingredient) instead of a hand-maintained blocklist.
+
 ## Ready to build — specs are decided, no open questions
 
 (Carb-tripwire follow-up: honest vector re-score — SHIPPED 2026-07-22, see
