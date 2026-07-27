@@ -10,6 +10,7 @@ import {
   type DishStructure,
 } from '../src/lib/dishStructure';
 import { CATALOG, isCategoryEntry } from '../src/lib/hkDishCatalog';
+import { isStringAnchored } from '../src/lib/dishCanonical';
 
 const s = (protein: string, method: string, base: string, parseable = true): DishStructure =>
   ({ protein, method, base, parseable });
@@ -108,6 +109,26 @@ describe('zhNameIsGenericCategory — the residue rule', () => {
   it('PINS the exact derived set over the live catalog — drift must be a conscious edit here', () => {
     const derived = CATALOG.filter(e => isCategoryEntry(e.id)).map(e => e.id).sort();
     expect(derived).toEqual(['double-boiled-soup', 'fried-rice-generic', 'grilled-skewers', 'udon']);
+  });
+});
+
+describe('isStringAnchored — landings the veto must not touch', () => {
+  // The first live backfill's two wrong "none"s (2026-07-28): near-identical
+  // names give decomposition noise room to manufacture conflicts, so a
+  // landing already anchored by the entry's full zh string skips the veto.
+  it('an exact-name landing is anchored — 烤豬肉串 must reach its own entry', () => {
+    expect(isStringAnchored('烤豬肉串 / grilled pork skewers', '烤豬肉串')).toBe(true);
+  });
+  it('a qualifier on the underlying dish is anchored — 日式舒芙蕾鬆餅, 生滾魚片粥', () => {
+    expect(isStringAnchored('日式舒芙蕾鬆餅 / Japanese soufflé pancakes', '舒芙蕾鬆餅')).toBe(true);
+    expect(isStringAnchored('生滾魚片粥', '魚片粥')).toBe(true);
+  });
+  it('a fuzzy landing is NOT anchored — the veto stays armed where it belongs', () => {
+    // 絲襪奶茶 -> 港式奶茶 shares zero characters: exactly the semantic-leap
+    // class the veto exists to guard (it stays silent there only because the
+    // name is unparseable, which is a different, deliberate gate).
+    expect(isStringAnchored('絲襪奶茶', '港式奶茶')).toBe(false);
+    expect(isStringAnchored('椒鹽蝦', '白灼蝦')).toBe(false);
   });
 });
 

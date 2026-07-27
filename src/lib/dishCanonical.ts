@@ -86,6 +86,26 @@ export function dishLabel(name: string | null | undefined, nameZh: string | null
 }
 
 /**
+ * Is this landing STRING-ANCHORED — the entry's own zh name verbatim inside
+ * the dish label? Then the structural veto must NOT run.
+ *
+ * Found live on the first backfill (2026-07-28): 烤豬肉串 failed to land on
+ * its own exact catalog entry, and 日式舒芙蕾鬆餅 (a held-out TRUE pair) on
+ * 舒芙蕾鬆餅. Near-identical names give decomposition noise room to
+ * manufacture conflicts — "grilled pork skewers" parses `grilled` off the
+ * English half against the entry's `roasted` (烤 maps to roasted; same plate,
+ * synonym values). The veto was validated on genuinely DIFFERENT names; a
+ * landing already anchored by the entry's full zh string is the "qualifier on
+ * the underlying dish" case (招牌/日式/生滾…), not a semantic leap, and it is
+ * the R&D's own wrong-veto shape (生滾魚片粥 ⊃ 魚片粥) generalised. Category
+ * entries are excluded BEFORE the veto stage, so this exemption cannot
+ * reopen the 揚州炒飯 → 炒飯 collapse.
+ */
+export function isStringAnchored(label: string, entryZh: string): boolean {
+  return label.includes(entryZh);
+}
+
+/**
  * Decompose dish names into structures. Batched small with a high token
  * ceiling — measured on the reasoning model (see the R&D script): larger
  * batches exhaust the budget before emitting content. Missing/failed entries
@@ -127,11 +147,12 @@ export async function resolveCanonicalDishId(label: string): Promise<string | nu
   // Categories are recognisable landing spots but never merge targets.
   if (isCategoryEntry(id)) return null;
 
-  // Structural veto — only when the entry side has a parseable precomputed
-  // structure (else there is nothing to conflict with and decomposing the dish
-  // name would be a wasted call).
+  // Structural veto — only for landings the string itself doesn't anchor
+  // (see isStringAnchored), and only when the entry side has a parseable
+  // precomputed structure (else there is nothing to conflict with and
+  // decomposing the dish name would be a wasted call).
   const entrySide = entryStructure(id);
-  if (entrySide?.parseable) {
+  if (!isStringAnchored(label, CATALOG_BY_ID.get(id)!.zh) && entrySide?.parseable) {
     const dishSide = (await decomposeDishNames([label])).get(0);
     if (dishSide && structureVetoes(dishSide, entrySide)) return null;
   }
