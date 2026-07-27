@@ -56,7 +56,10 @@
   --fs-subtitle-b: 20px; /* looser dish-name rows, prominent lines — was 19/20 */
   --fs-title-a: 23px;    /* stat numbers, mid headlines — was 21/22/23/24/26 */
   --fs-title-b: 30px;    /* page titles, "dishi" — was 27/30/34, and (for now)
-                             the 52px seal-reveal face + 130px flick verdict word */
+                             the 52px seal-reveal face. The 130px flick verdict
+                             word was ALSO put on this token in the same pass but
+                             reverted 2026-07-27 (owner call) — see .snap-word,
+                             now a hardcoded exception like .btn.export. */
   /* Promoted alongside the type scale: 650 was never a one-off nudge — it's
    * carrying every .btn, the tabbar, and the owner-tabs, 9 uses. The other
    * off-ladder weights (550/750/1000) stay hardcoded; each is a genuine single-
@@ -393,17 +396,23 @@ button { font: inherit; cursor: pointer; }
 }
 .snap-tick.on { background: var(--seal); transform: scale(1.9); }
 
-/* rating verdict — small English over a big native word, bottom-left ~70% wide */
+/* rating verdict — small English over a big native word, bottom-left ~70% wide.
+   Both sizes are HARDCODED on purpose, not tokenized (a third deliberate
+   exception alongside .btn.export/.auth-wordmark, see the type-scale comment
+   above): the 2026-07-26 consolidation collapsed the big word from 130px onto
+   --fs-title-b (30px) "for now", which flattened the entire point of this
+   verdict — a small translation caption sitting over an oversized native word.
+   Reverted 2026-07-27 per owner call: keep it big. */
 .snap-verdict { position: absolute; left: 24px; bottom: 40px; max-width: 82%; z-index: 4; pointer-events: none; }
 .snap-word-en {
-  font-family: var(--font-display); font-weight: 700; font-size: var(--fs-title-a);
+  font-family: var(--font-display); font-weight: 700; font-size: 22px;
   color: #141210; letter-spacing: 0.04em; margin-bottom: 4px; text-transform: uppercase;
 }
 .snap-word-en.is-skip { color: #6d757a; }
 .snap-word {
   text-align: left; white-space: normal;
   font-family: var(--font-display); font-weight: 800;
-  font-size: var(--fs-title-b); line-height: 0.96; letter-spacing: -0.02em;
+  font-size: 130px; line-height: 0.96; letter-spacing: -0.02em;
   color: #141210;
 }
 .snap-word.is-skip { color: #6d757a; font-weight: 700; } /* dismiss reads neutral, not a verdict */
@@ -428,7 +437,7 @@ button { font: inherit; cursor: pointer; }
    height capped at 50vh) so it tracks the card's true bottom edge at any viewport
    size without needing to restructure the overlay's row-flex centering. */
 .snap-draghint {
-  position: absolute; left: 50%; top: calc(50% + min(40vw, 180px, 25vh) + 14px);
+  position: absolute; left: 50%; top: calc(50% + min(40vw, 180px, 25vh) + 24px);
   transform: translateX(-50%); z-index: 4; pointer-events: none;
   font-family: var(--font-display); font-weight: 600; font-size: var(--fs-subtitle-a);
   color: var(--ink); text-align: center; white-space: nowrap;
