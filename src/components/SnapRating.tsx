@@ -243,7 +243,10 @@ export default function SnapRating({
         )}
       </div>
 
-      <div className="snap-draghint" aria-hidden>{t('rate.draghint')}</div>
+      {/* Hidden while actively dragging: once the gesture is under way the verdict
+          word (.snap-verdict) is doing the talking, and the static caption sitting
+          near the card would just be visual noise competing with it. */}
+      {!active && <div className="snap-draghint" aria-hidden>{t('rate.draghint')}</div>}
 
       <div className="snap-rail" aria-hidden>
         {SLOTS.map((s, i) => <span key={i} className={`snap-tick ${!skip && locked === i ? 'on' : ''}`} />)}
