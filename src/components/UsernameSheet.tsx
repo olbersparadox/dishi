@@ -31,15 +31,11 @@ type ErrCode = typeof ERR_CODES[number];
 const asErrCode = (v: unknown): ErrCode =>
   (ERR_CODES as readonly string[]).includes(v as string) ? (v as ErrCode) : 'failed';
 
-export default function UsernameSheet({ current, claimed, changesLeft, initial, onClose, onSaved }: {
+export default function UsernameSheet({ current, claimed, changesLeft, onClose, onSaved }: {
   /** The name in profiles.handle today — auto-derived from the email until claimed. */
   current: string | null;
   claimed: boolean;
   changesLeft: number;
-  /** What the person already typed into the caller's own inline field, handed
-   * over once when this opens (claim only). It is THEIR typing, not a derived
-   * name, so seeding it is safe where prefilling `current` is not. */
-  initial?: string;
   onClose: () => void;
   onSaved: (username: string, changesLeft: number) => void;
 }) {
@@ -47,7 +43,7 @@ export default function UsernameSheet({ current, claimed, changesLeft, initial, 
   // A never-claimed handle is an email local part the person never chose, so the
   // field starts EMPTY for a claim — prefilling it would quietly bless a name
   // that leaks their address. A rename starts from what they actually picked.
-  const [value, setValue] = useState(claimed ? (current ?? '') : (initial ?? ''));
+  const [value, setValue] = useState(claimed ? (current ?? '') : '');
   const [status, setStatus] = useState<Status>({ kind: 'idle' });
   const [saving, setSaving] = useState(false);
   const seq = useRef(0);
