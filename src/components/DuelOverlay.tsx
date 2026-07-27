@@ -1,9 +1,12 @@
 'use client';
 // The floating 對決 card. Three outcomes: pick a dish (win/loss), 揀唔落 (a TIE — a
 // real "these two are equal for me" signal), or ✕ dismiss ("not now" — teaches
-// nothing, the duel stays available). On a pick the loser fades so the choice reads
-// (the winner is NOT enlarged); the sealed 印 result and what was learned then STAY
-// on screen until the user taps OK. First-pass visual — refine in Claude Design.
+// nothing, the duel stays available). On a win/loss the loser fades and the
+// winner expands to fill the card; a TIE keeps BOTH dishes side by side exactly
+// as in the pick state — neither reads as "the" answer. The header itself
+// becomes the verdict on reveal (own FACE emoji + duel.hit/miss/tieresult, no
+// more 印 stamp once resolved) and what was learned STAYS on screen until the
+// user taps OK. First-pass visual — refine in Claude Design.
 import { useState } from 'react';
 import { useLang } from '@/lib/i18n';
 import { CloseIcon, CheckIcon } from './icons';
@@ -49,6 +52,10 @@ export default function DuelOverlay({ duel, onClose }: { duel: Duel; onClose: (r
   }
 
   const resolving = !!reveal;
+  // A tie keeps BOTH dishes visible, side by side, exactly like the pick state —
+  // only a hit/miss enlarges the winner and fades the loser. "Resolving" as a
+  // layout mode (the grid→centered-flex collapse) therefore excludes ties.
+  const collapsing = resolving && !reveal?.tie;
 
   return (
     <div className={`duel-overlay ${closing ? 'closing' : ''}`} role="dialog" aria-modal="true" aria-label={t('duel.title')}>
@@ -56,20 +63,33 @@ export default function DuelOverlay({ duel, onClose }: { duel: Duel; onClose: (r
       <div className="card duel-card duel-floating">
         <div className="card-body">
           <div className="duel-head">
-            {/* Title + 印 centered as a unit; the ✕ is pulled out of flow (absolute,
-                see CSS) so it doesn't skew that centering. */}
+            {/* Pre-pick: title + 印 centered as a unit, ✕ pulled out of flow (absolute,
+                see CSS) so it doesn't skew that centering. Post-reveal: the header
+                itself BECOMES the verdict (moved up from a standalone line under the
+                photo pair) — the FACE emoji leads for a tie, trails for a hit/miss,
+                per the owner's exact wording for each. No more 印 once resolved. */}
             <div className="duel-head-center">
-              <span className="duel-title">{t('duel.title')}</span>
-              <SealStamp />
+              {!reveal ? (
+                <>
+                  <span className="duel-title">{t('duel.title')}</span>
+                  <SealStamp />
+                </>
+              ) : (
+                <span className="duel-title">
+                  {reveal.tie
+                    ? <>{FACE.near} {t('duel.tieresult')}</>
+                    : <>{t(reveal.predicted_correct ? 'duel.hit' : 'duel.miss')} {FACE[reveal.predicted_correct ? 'hit' : 'miss']}</>}
+                </span>
+              )}
             </div>
             {!reveal && <button className="duel-x" onClick={() => close(false)} aria-label={t('home.cancel')}><CloseIcon /></button>}
           </div>
 
-          <div className={`duel-pair ${resolving ? 'resolving' : ''}`}>
+          <div className={`duel-pair ${collapsing ? 'resolving' : ''}`}>
             {[duel.a, duel.b].map(dish => (
               <button
                 key={dish.id}
-                className={`duel-option ${chosen === dish.id ? 'won' : ''} ${resolving && chosen !== dish.id ? 'faded' : ''}`}
+                className={`duel-option ${chosen === dish.id ? 'won' : ''} ${collapsing && chosen !== dish.id ? 'faded' : ''}`}
                 disabled={busy || resolving}
                 onClick={() => resolve(dish.id, { winner_dish_id: dish.id })}
               >
@@ -79,23 +99,9 @@ export default function DuelOverlay({ duel, onClose }: { duel: Duel; onClose: (r
           </div>
 
           {!reveal ? (
-            <>
-              <p className="duel-q">{t('duel.q')}</p>
-              <button className="duel-tie" onClick={() => resolve('tie', { tie: true })}>{t('duel.tie')}</button>
-            </>
+            <button className="duel-tie" onClick={() => resolve('tie', { tie: true })}>{t('duel.tie')}</button>
           ) : (
             <div className="duel-reveal" role="status">
-              {/* The sealed result — stays put so it's actually readable. The FACE
-                  leads, exactly as it does on a rating's reveal: same three faces,
-                  same meaning, so a duel hit and a rating hit read identically.
-                  A tie takes the middle face — the engine was neither right nor
-                  wrong, which is precisely what 😉 says there. */}
-              <span className="seal-modal-face" aria-hidden>
-                {FACE[reveal.tie ? 'near' : reveal.predicted_correct ? 'hit' : 'miss']}
-              </span>
-              <div className="duel-verdict">
-                <span>{reveal.tie ? t('duel.tieresult') : reveal.predicted_correct ? t('duel.hit') : t('duel.miss')}</span>
-              </div>
               {reveal.learned.length > 0 && (
                 <span className="duel-learned">
                   {t('duel.learned', { dims: reveal.learned.map(x => `${t(`dim.${x.dim}`)} ${x.dir > 0 ? '↑' : '↓'}`).join(' · ') })}

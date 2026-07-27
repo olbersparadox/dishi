@@ -1803,6 +1803,4 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 .identity-result { font-size: var(--fs-body); line-height: 1.5; color: var(--ink); font-weight: var(--fw-btn); }
 /* Reveal STAYS on screen (no auto-close) so the result is readable; the ✓ closes. */
 .duel-reveal { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-top: 16px; text-align: center; }
-/* No longer wraps a stamp — the face above it carries the verdict now. */
-.duel-verdict { font-family: var(--font-display); font-weight: 700; font-size: var(--fs-title-b); color: var(--ink); text-align: center; }
 .duel-learned { font-size: var(--fs-body); line-height: 1.5; color: var(--ink); }

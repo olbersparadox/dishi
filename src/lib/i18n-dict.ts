@@ -164,14 +164,17 @@ export const dict: Record<string, { zh: string; en: string }> = {
   // 對決 (pairwise taste duels) — the 印 stamp signals a sealed prediction, same
   // honesty contract as the rating seal. 揀唔落 is a TIE (a real "these two are equal
   // for me" signal), distinct from the ✕ dismiss which teaches nothing.
-  'duel.title': { zh: '調校口味', en: 'Refining your taste' },
-  'duel.q': { zh: '憑直覺選一樣', en: 'Pick one — don’t overthink' },
-  'duel.tie': { zh: '難以取捨', en: 'Can’t separate them' },
+  // duel.title also doubles as the notification-bell row label for a pending
+  // duel (NotificationBell.tsx) — "如果要你揀" still reads fine there, paired
+  // with notif.duel.sub's own elaboration below it.
+  'duel.title': { zh: '如果要你揀', en: 'If you had to pick' },
+  'duel.tie': { zh: '揀唔到', en: 'Can’t decide' },
   'duel.hit': { zh: 'dishi 估中咗', en: 'dishi called it' },
   'duel.miss': { zh: 'dishi 估錯咗', en: 'dishi got that wrong' },
-  // Reassurance, not a verdict: a tie is a real answer, so the copy says so
-  // rather than making the person feel they gave the engine nothing.
-  'duel.tieresult': { zh: '無妨，任何回應都幫到我們調校你的口味', en: 'No worries — every answer helps tune your taste' },
+  // Now doubles as the reveal HEADER for a tie (moved up from a standalone
+  // line under the photo pair, owner call 2026-07-28) — kept short to fit
+  // next to its emoji at .duel-title's size, not the old --fs-title-b line.
+  'duel.tieresult': { zh: '唔緊要下次再試', en: 'No worries, try again next time' },
   'duel.learned': { zh: '學到：{dims}', en: 'Learned: {dims}' },
   'duel.ok': { zh: '好', en: 'OK' },
 

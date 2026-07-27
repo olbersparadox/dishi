@@ -6,6 +6,7 @@
 // it in a tappable button (tapping means "I prefer this"); the identity card
 // deliberately wraps it in a static div — identical tap affordances there
 // would let duel muscle memory merge two dishes by accident.
+import { useEffect, useRef } from 'react';
 import { useLang, type LangPair } from '@/lib/i18n';
 import DishName from './DishName';
 import { pickDistrict, type DistrictMap } from '@/lib/district';
@@ -32,11 +33,39 @@ export function duelLocation(d: DuelDish, lang: 'zh' | 'en'): string | null {
   return pickDistrict(d.district, lang);
 }
 
+// Two comparison cards side by side leaves each name column narrow, so a long
+// primary name (中文, per ZH_PRIMARY_PAIR) can wrap to 3+ lines — measured live,
+// 三文魚卵及海膽軍艦壽司 (11 characters) hits 3 at the base --fs-title-a size.
+// Clamped to 2 lines by SHRINKING the font (never truncating — the whole name
+// must still read), stepping down 1px at a time from the CSS default until the
+// rendered height fits, or a floor is hit. Content-length-aware, so it can't be
+// done with pure CSS (clamp() only reacts to viewport, not string length).
+function useShrinkPrimaryToFit(ref: React.RefObject<HTMLElement>, maxLines: number, dep: unknown) {
+  useEffect(() => {
+    const el = ref.current?.querySelector<HTMLElement>('.dishname-primary');
+    if (!el) return;
+    el.style.fontSize = ''; // reset to the CSS default before re-measuring
+    const cs = getComputedStyle(el);
+    const lineHeight = parseFloat(cs.lineHeight);
+    if (!lineHeight) return; // 'normal' or unparseable — skip rather than guess
+    const maxHeight = lineHeight * maxLines + 1; // +1px rounding slack
+    let size = parseFloat(cs.fontSize);
+    let guard = 0; // hard stop — never spin on a layout that won't settle
+    while (el.scrollHeight > maxHeight && size > 14 && guard < 10) {
+      size -= 1;
+      el.style.fontSize = `${size}px`;
+      guard++;
+    }
+  }, [dep, maxLines]);
+}
+
 /** The inner content of one side: photo (or blank block), the zh-pinned
  * dish-name treatment, and the location line. */
 export default function DuelSide({ dish }: { dish: DuelDish }) {
   const { lang } = useLang();
   const location = duelLocation(dish, lang);
+  const titleRef = useRef<HTMLDivElement>(null);
+  useShrinkPrimaryToFit(titleRef, 2, dish.name_zh ?? dish.name);
   return (
     <>
       {dish.photo_url
@@ -45,7 +74,7 @@ export default function DuelSide({ dish }: { dish: DuelDish }) {
         : <div className="duel-photo duel-photo-blank" aria-hidden />}
       {/* card-title: the exact journal/scan dish-name treatment (serif primary +
           small secondary), pinned to 中文/English regardless of the global pair. */}
-      <div className="card-title"><DishName name={dish.name} name_zh={dish.name_zh} pair={ZH_PRIMARY_PAIR} /></div>
+      <div className="card-title" ref={titleRef}><DishName name={dish.name} name_zh={dish.name_zh} pair={ZH_PRIMARY_PAIR} /></div>
       {location && <div className="duel-option-rest">{location}</div>}
     </>
   );
