@@ -442,7 +442,7 @@ export const dict: Record<string, { zh: string; en: string }> = {
   },
   'username.err.reserved': { zh: '這個名已被保留', en: 'That name is reserved' },
   'username.err.taken': { zh: '這個名已經有人用了', en: 'That name is taken' },
-  'username.err.nochangesleft': { zh: '改名機會已經用完', en: 'You’ve used your one change' },
+  'username.err.nochangesleft': { zh: '改名機會已經用完', en: 'You’re out of chances' },
   'username.err.failed': { zh: '改名失敗，請再試一次', en: 'Couldn’t save that — try again' },
   // Rename sheet, reached by tapping the name on the taste card.
   'username.rename.title': { zh: '改名', en: 'Change your name' },
@@ -452,7 +452,7 @@ export const dict: Record<string, { zh: string; en: string }> = {
   },
   'username.rename.none': {
     zh: '改名機會已經用完，這個名會一直跟著你。',
-    en: 'You’ve used your one change — this name is yours for good.',
+    en: 'You’re out of chances — this name is yours for good.',
   },
   'profile.helped': { zh: ' — 你的記錄曾幫助其他人做決定', en: ' — your logs helped other people decide' },
   'profile.cuisines': { zh: '菜系', en: 'Cuisines' },
