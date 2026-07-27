@@ -27,6 +27,13 @@
   --jade: #33705f;           /* owner dashboard only */
   --egg-tart: #e9b44c;       /* owner dashboard only */
   --clay: #262b24;
+  /* Narrow, owner-approved exception to the one-accent rule (2026-07-27):
+   * red/green for the username-claim availability circle ONLY — a check/✕ of
+   * the same ink color would be genuinely hard to tell apart at a glance,
+   * unlike the seal's vermillion (reserved) or jade (owner-dashboard-only).
+   * Not for reuse anywhere else without the same owner call. */
+  --taste-avail: #2e7d32;
+  --taste-taken: #c62828;
   --radius: 16px;            /* generic inner-card radius */
   --r-form: 20px;            /* taste-form card */
   --r-ai: 16px;              /* AI-export card, dropzone */
@@ -1105,10 +1112,28 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
   font-family: var(--font-display); font-weight: 800;
   font-size: var(--fs-title-a); color: var(--ink); flex-shrink: 0;
 }
+.username-claim-fieldwrap { position: relative; display: inline-flex; align-items: center; }
 .username-claim-field {
-  width: 8em; border-radius: 999px; padding: 8px 16px; font-size: var(--fs-subtitle-a);
+  width: 8em; border-radius: 999px; padding: 8px 34px 8px 16px; font-size: var(--fs-subtitle-a);
 }
 .username-claim-field::placeholder { color: var(--ink-faint); }
+/* The availability circle sits on the field's own right edge instead of a text
+   line below it (owner call, 2026-07-27) — spinner while checking, then red ✕
+   or green ✓. The ✓ is a real button: tapping it IS "use this name", same
+   action Enter already triggers. */
+.username-claim-status {
+  position: absolute; right: 5px; top: 50%; transform: translateY(-50%);
+  width: 22px; height: 22px; border-radius: 50%; border: none; padding: 0;
+  display: grid; place-items: center; flex-shrink: 0;
+}
+.username-claim-status.checking { background: var(--paper-inset); }
+.username-claim-status.ok { background: var(--taste-avail); color: #fff; cursor: pointer; }
+.username-claim-status.err { background: var(--taste-taken); color: #fff; }
+.username-claim-spinner {
+  width: 11px; height: 11px; border: 1.5px solid var(--ink-soft); border-top-color: transparent;
+  border-radius: 50%; animation: ringSpin 0.7s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) { .username-claim-spinner { animation: none; } }
 .version-now, .version-next {
   font-family: var(--font-display); font-weight: 800; font-size: var(--fs-body); color: var(--ink);
   letter-spacing: 0.02em; flex-shrink: 0;

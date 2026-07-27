@@ -82,6 +82,10 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
   >({ kind: 'idle' });
   const [claimSaving, setClaimSaving] = useState(false);
   const claimSeq = useRef(0);
+  // Dismissing the explainer doesn't naturally return focus anywhere (verified:
+  // it falls back to <body>) — refocus explicitly so the person can keep typing
+  // right away instead of needing a second tap on the pill.
+  const claimInputRef = useRef<HTMLInputElement>(null);
   // Shown once, on the pill's first focus — not every time, or re-focusing after
   // tapping away mid-typing would interrupt with the same warning again.
   const [claimExplainOpen, setClaimExplainOpen] = useState(false);
@@ -134,11 +138,6 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
       setClaimSaving(false);
     }
   };
-
-  const claimNote = claimStatus.kind === 'checking' ? t('username.checking')
-    : claimStatus.kind === 'ok' ? t('username.available')
-    : claimStatus.kind === 'err' ? t(`username.err.${claimStatus.code}`)
-    : ' '; // reserve the line so the row doesn't jump as the verdict lands
 
   // ── Install flow (owner spec 2026-07-23) ──────────────────────────────────────
   // State B: this card morphed into the persona carousel. The carousel index is
@@ -333,33 +332,51 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
                into — this one is real and live, not a trigger that hands off to a
                modal. First focus opens a plain, informational ExplainModal (the
                one-change warning) with no field of its own; the person keeps typing
-               HERE once it's dismissed, and Enter (or the availability check
-               landing "ok") is what actually saves it. */
+               HERE once it's dismissed. Status rides on a circle at the field's own
+               right edge instead of a text line below it — spinner while checking,
+               red ✕ if it can't be used, green ✓ once it can. The ✓ IS the confirm
+               action (tap it, or Enter — same claimSave either way). */
             <span className="username-claim">
               <span className="username-claim-prefix">dishi.</span>
-              <input
-                className="field username-claim-field"
-                maxLength={20}
-                autoCapitalize="none"
-                autoCorrect="off"
-                spellCheck={false}
-                aria-label={t('username.title')}
-                placeholder={t('username.placeholder')}
-                value={claimValue}
-                disabled={claimSaving}
-                onChange={e => setClaimValue(e.target.value)}
-                onFocus={() => { if (!claimExplainSeen) setClaimExplainOpen(true); }}
-                onKeyDown={e => { if (e.key === 'Enter') claimSave(); }}
-              />
+              <span className="username-claim-fieldwrap">
+                <input
+                  ref={claimInputRef}
+                  className="field username-claim-field"
+                  maxLength={20}
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  aria-label={t('username.title')}
+                  placeholder={t('username.placeholder')}
+                  value={claimValue}
+                  disabled={claimSaving}
+                  onChange={e => setClaimValue(e.target.value)}
+                  onFocus={() => { if (!claimExplainSeen) setClaimExplainOpen(true); }}
+                  onKeyDown={e => { if (e.key === 'Enter') claimSave(); }}
+                />
+                {claimStatus.kind === 'checking' && (
+                  <span className="username-claim-status checking" aria-label={t('username.checking')}>
+                    <span className="username-claim-spinner" />
+                  </span>
+                )}
+                {claimStatus.kind === 'ok' && (
+                  <button type="button" className="username-claim-status ok"
+                    disabled={claimSaving} onClick={claimSave} aria-label={t('username.save')}>
+                    <CheckIcon size={13} />
+                  </button>
+                )}
+                {claimStatus.kind === 'err' && (
+                  <span className="username-claim-status err" aria-label={t(`username.err.${claimStatus.code}`)}>
+                    <CloseIcon size={13} />
+                  </span>
+                )}
+              </span>
             </span>
           )}
         </div>
       )}
-      {identity && !identity.claimed && state.version.v >= 1 && (
-        <p className="label" style={{ margin: '4px 0 0', minHeight: '1.2em' }}>{claimNote}</p>
-      )}
 
-      <div className="version-line">
+      <div className="version-line" style={{ marginTop: 6 }}>
         <span className="version-now">V{state.version.v}</span>
         <div className="taste-form-legend" style={{ marginTop: 0 }}>
           <span><span className="dot dot-knows" />{t('buddy.knows.count', { n: state.knows.length })}</span>
@@ -580,7 +597,10 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
         title={t('username.title')}
         body={t('username.blurb')}
         extra={<p className="explain-modal-body" style={{ fontWeight: 600 }}>{t('username.warn')}</p>}
-        onClose={() => { setClaimExplainOpen(false); setClaimExplainSeen(true); }}
+        onClose={() => {
+          setClaimExplainOpen(false); setClaimExplainSeen(true);
+          claimInputRef.current?.focus();
+        }}
       />
     )}
     </>
