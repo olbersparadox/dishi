@@ -82,7 +82,8 @@ h1, h2, h3, .display { font-family: var(--font-display); font-weight: 500; lette
    set on the app root by Shell.tsx (`app-root lang-${lang}`) — real and live,
    not the dead literal-classname pattern the rest of this file avoids. */
 .lang-en h1, .lang-en h2, .lang-en h3, .lang-en .display,
-.lang-en .card-title, .lang-en .join-table-title { letter-spacing: -0.01em; }
+.lang-en .card-title, .lang-en .join-table-title,
+.lang-en .scan-benefit-name { letter-spacing: -0.01em; }
 /* The big section title (h1) is a light-weight 30px serif, so the -0.01em above
    still reads airy in Latin ("Journal" next to the denser Chinese 食記). Pull it in
    further. CJK titles keep the 0.06em base — they're only ever under .lang-zh. */
@@ -707,8 +708,11 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 .scan-caution { font-size: var(--fs-caption); margin-top: 4px; color: var(--ink-soft); font-weight: 550; }
 
 /* --- table mode --- */
+/* A join code (state.code) is always Latin/alphanumeric regardless of chrome
+   language — unlike bilingual text, there's no zh rendering to keep the 0.06em
+   base for, so this tightens unconditionally rather than via .lang-en. */
 .table-code {
-  font-family: var(--font-display); font-weight: 700; letter-spacing: 0.05em; color: var(--ink);
+  font-family: var(--font-display); font-weight: 700; letter-spacing: -0.01em; color: var(--ink);
   background: var(--paper-inset); border-radius: 10px; padding: 2px 10px;
 }
 .code-input {
