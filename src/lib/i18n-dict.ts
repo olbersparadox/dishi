@@ -533,10 +533,15 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'profile.owner.link': { zh: '開啟儀表板', en: 'Open the dashboard' },
   'profile.owner.blurb': { zh: '看看食客的口味如何回應你餐廳的菜式。', en: 'See how diners\u2019 palates respond to your menu.' },
   'buddy.xpto': { zh: '仲差 {n} XP 就到{name}', en: '{n} XP to {name}' },
-  'buddy.strength': { zh: '引擎強度', en: 'engine strength' },
+  // English shortened to one word (2026-07-27): "engine strength"/"senses tuned"
+  // wrapped to 2 lines while "reviews"/"cuisines" stayed 1, so the number above
+  // each label sat at a different height across the 4 stat boxes — zh labels are
+  // all naturally 1 line so this never showed there. Shortening keeps every
+  // English label to 1 line too, which realigns the numbers without any CSS change.
+  'buddy.strength': { zh: '引擎強度', en: 'Engine' },
   'buddy.flicks': { zh: '食評', en: 'reviews' },
   'buddy.cuisines': { zh: '菜系', en: 'cuisines' },
-  'buddy.senses': { zh: '味覺調校', en: 'senses tuned' },
+  'buddy.senses': { zh: '味覺調校', en: 'Senses' },
   // Tappable stat-box explainers. zh is Standard Written Chinese (書面語) — these are
   // reference/explanatory copy, deliberately more formal than the app's Cantonese
   // interactive voice. Grounded in the real /api/buddy computation (buddy.ts /

@@ -12,11 +12,18 @@ import { useLang } from '@/lib/i18n';
 
 type Demo = { zh: string; en: string; sub: string; chips: [string, string][] };
 
+// Ingredient chip WORDS (not the dish itself) are picked short enough that the
+// English chip row — 2 ingredient chips + the "✓ your match" chip — fits on one
+// line at the app's standard width. English words run longer than their zh/
+// original-script counterparts, so a pairing that's fine in zh (e.g. 蝦/香茅)
+// can overflow to a second line in en (prawn/lemongrass) even though the row is
+// the same flex-wrap container for both languages — each language just picks
+// its own two (still authentic) ingredients for the same dish.
 const DEMO: Demo[] = [
-  { zh: '豚骨拉麵', en: 'Tonkotsu ramen', sub: 'とんこつラーメン', chips: [['豬', 'pork'], ['蒜', 'garlic']] },
-  { zh: '冬蔭功湯', en: 'Tom yum goong', sub: 'ต้มยำกุ้ง', chips: [['蝦', 'prawn'], ['香茅', 'lemongrass']] },
-  { zh: '西班牙海鮮飯', en: 'Seafood paella', sub: 'Paella de marisco', chips: [['蜆', 'clam'], ['番紅花', 'saffron']] },
-  { zh: '部隊鍋', en: 'Army stew', sub: '부대찌개', chips: [['午餐肉', 'spam'], ['芝士', 'cheese']] },
+  { zh: '豚骨拉麵', en: 'Tonkotsu ramen', sub: 'とんこつラーメン', chips: [['豬', 'pork'], ['蛋', 'egg']] },
+  { zh: '冬蔭功湯', en: 'Tom yum goong', sub: 'ต้มยำกุ้ง', chips: [['青檸', 'lime'], ['辣椒', 'chili']] },
+  { zh: '西班牙海鮮飯', en: 'Seafood paella', sub: 'Paella de marisco', chips: [['飯', 'rice'], ['蜆', 'clam']] },
+  { zh: '部隊鍋', en: 'Army stew', sub: '부대찌개', chips: [['火腿', 'ham'], ['蛋', 'egg']] },
 ];
 
 const ROTATE_MS = 2800;
