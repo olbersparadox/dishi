@@ -24,7 +24,7 @@ import {
 } from '@/lib/tasteExport';
 import { PERSONAS, PERSONA_META, VOICES, type Persona } from '@/lib/persona';
 import { splitBoldKeywords } from '@/lib/textBold';
-import { CloseIcon, CopyIcon, CheckIcon } from './icons';
+import { CloseIcon, CopyIcon, CheckIcon, EditIcon } from './icons';
 import UsernameSheet from './UsernameSheet';
 import {
   normalizeUsername, validateUsername, asUsernameErrCode, type UsernameErrCode,
@@ -285,12 +285,24 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
 
   return (
     <>
-    <div className={`taste-form-card ${expanded ? 'persona-expand' : ''}`}>
+    <div className="taste-form-card">
       {/* State B's close — the same quiet top-right X the growth screen uses.
           Cancel restores State A with nothing saved. */}
       {expanded && (
         <button className="grow-close" onClick={closeExpand} aria-label={t('home.cancel')}>
           <CloseIcon size={18} />
+        </button>
+      )}
+      {/* Renaming used to be reached by tapping the dishi.{username} text itself —
+          now that label sits in the card's own big/black type (not a pill button
+          anymore, see the identity row below), so the tap target moves here: a
+          quiet pencil pinned to the card's top-right corner, matching .grow-close's
+          own weight/position pattern one corner over. */}
+      {!expanded && identity?.claimed && state.version.v >= 1 && (
+        <button type="button" className="taste-name-edit"
+          onClick={() => setNamingOpen(true)}
+          aria-label={t('username.rename.title')}>
+          <EditIcon size={16} />
         </button>
       )}
       {/* Per the design mock, the taste-form card shows: the blob, the 2-item
@@ -315,16 +327,15 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
           ladder is unbounded (see version.ts); Levels and their animal names are gone. */}
       {/* dishi.username. Unclaimed at v1+ = the naming moment, offered once the
           person has actually built something to name; claimed = the identity
-          itself, tappable for the one rename. Below v1 there is nothing to name
-          yet, so this renders nothing at all. */}
+          itself, in the SAME big/black type as the unclaimed preview (no pill,
+          no button chrome — it's a settled label now, not a CTA). The rename
+          entry point moved to the pencil icon pinned to the card's corner, since
+          the label itself no longer looks tappable. Below v1 there is nothing to
+          name yet, so this renders nothing at all. */}
       {identity && state.version.v >= 1 && (
         <div className="version-line" style={{ marginTop: 10 }}>
           {identity.claimed ? (
-            <button type="button" className="btn ghost small"
-              onClick={() => setNamingOpen(true)}
-              aria-label={t('username.rename.title')}>
-              dishi.{identity.username}
-            </button>
+            <span className="username-claim-prefix">dishi.{identity.username}</span>
           ) : (
             /* Unclaimed reads as a PREVIEW of the claimed line, sized like a persona
                name (.persona-name's own type) rather than a small CTA button: the
