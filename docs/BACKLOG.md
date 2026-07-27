@@ -80,12 +80,76 @@ reached it without fitting anything; full entry in DECISIONS.md.)
   users, more logging, or a bookmark mechanic would not produce a single
   cross-restaurant comparison.
 
-  **The decision needed:** whether to introduce a second, cross-venue dish
-  concept (a canonical dish above the per-restaurant identity), and if so how
-  it resolves — 乾炒牛河 is one dish nationally but the string appears with
-  dozens of spellings and qualifiers. This is entity resolution at a harder
-  altitude than the existing 3-gate pipeline, which had a restaurant's menu as
-  its bounding context. Do NOT build from this line; it needs a design session.
+  **R&D Phase 0 done 2026-07-27 — feasibility ANSWERED, see
+  `docs/rnd/cross-venue-dish-phase0.md`.** On 30 held-out hard pairs both
+  prompts score ~95-100% with **zero false merges** (the apparent gap between
+  them did NOT replicate — see the correction below). Adjudication is not the
+  problem. Two things moved:
+
+  - **The predicted failure did not happen.** The expectation was that the
+    shipped prompt's menu-item semantics ("items a restaurant prices
+    separately") would make it answer "different" to every cross-venue pair.
+    It scored 93.3%, and both misses fell below `CONFIDENCE_FLOOR`, i.e. failed
+    safe. The prompt is less load-bearing than assumed.
+  - **The real risk moved to CANDIDATE GENERATION (gate 1, not gate 2).** The
+    eval handed the model the right pairs; production must find them among all
+    dishes at all venues, and N² adjudication is unaffordable. The hardest true
+    pair (`絲襪奶茶`/`港式奶茶`) shares ZERO characters, so the existing
+    string-overlap prefilter would never surface it.
+
+  **Proposed (not built, needs sign-off):** a canonical dish catalog — resolve
+  each dish ONCE to a canonical entry, turning O(N²) pairwise matching into
+  O(N) classification. Hang `canonical_dish_id` off `dishes` directly, NOT off
+  `dish_identities`, which is starved (3 rows total; identities need two
+  lookalikes at ONE restaurant and the corpus averages ~2.5 dishes per venue).
+
+  **Product question raised here — now SETTLED 2026-07-27, see below.** The
+  proposal was a `comparable` flag, on the argument that `壽司拼盤` at two shops
+  shares a name but not a thing. The owner rejected the distinction.
+
+  **R&D Phase 1 DONE 2026-07-27 — the candidate-generation risk is RETIRED.**
+  A canonical dish catalog replaces retrieval entirely: each dish resolves ONCE
+  to a catalog entry, and two dishes are the same iff they land on the same id.
+  Measured (`scripts/eval-catalog-resolution.ts`, 141-entry catalog):
+  **84.9% coverage** of the live corpus, **100% correct (29/29)** on the
+  held-out pairs it could decide, **0 false merges, 0 hallucinated ids**.
+  `絲襪奶茶` and `港式奶茶` both land on `milk-tea` — the exact pair no string
+  prefilter could ever surface. O(N²) matching becomes O(N) classification.
+
+  Uncovered dishes returned an honest "none" rather than a stretched match,
+  which is the safety property the design rests on. Uncovered is not a failure:
+  a dish with no entry gets no cross-venue identity and does not need one.
+
+  **Also corrected:** the Phase 0 claim that the purpose-written prompt beat the
+  shipped one is WITHDRAWN — a second run reversed the ranking. At n=30 the
+  prompts are indistinguishable. Only the zero-false-merge result replicates.
+
+  **`comparable` is SETTLED 2026-07-27 — everything is comparable, and the flag
+  is NOT built.** Owner's rule: *if a dish is common enough that different
+  restaurants offer it, then a "set" is itself a dish in the customer's mind.*
+  A diner absolutely uses 壽司拼盤 or 車仔麵 to judge which shop is better, which
+  is exactly what execution comparison measures. All 14 `false` entries were
+  flipped; the column is now uniformly true, so **do not put it in the schema.**
+
+  It did surface a SEPARATE still-open problem: two of the 14 were not assorted
+  dishes but GENERIC CATEGORIES (`炒飯`, `燉湯`). A category entry is a
+  false-merge magnet — 揚州炒飯 and 帶子炒飯 could both collapse onto 炒飯.
+  Categories probably should not be catalog entries at all; decide during schema
+  design.
+
+  **Go/no-go now ~85-90%, GO on schema design.** Remaining, in order:
+  (1) catalog growth policy — frequent "none" clusters surface for human review,
+  never auto-mint, which would recreate the false-merge risk;
+  (2) generic-category entries (above);
+  (3) Phase 2 base rate — `scripts/eval-menu-corpus-coverage.ts` is ready and
+  needs only menu PHOTOS in `scripts/menu-corpus/` (no eating, no app change;
+  the menu-scan route persists nothing, so the app cannot build this corpus).
+  This tunes expectations rather than gating the build.
+
+  **Blocker R&D cannot remove:** 2 clear cross-venue true pairs exist in 73
+  live dishes, so this cannot be validated on real data yet. Eating one common
+  dish at 3-4 shops and logging each would create the first ground truth —
+  and one person can do that alone.
 
 ## Ready to build — specs are decided, no open questions
 

@@ -26,3 +26,7 @@ CLAUDE.local.md
 # locally when needed.
 scripts/rating-history.json
 scripts/seal-rows.json
+
+# R&D menu corpus: local menu photos + their cached scans (see scripts/menu-corpus/README.md)
+scripts/menu-corpus/*
+!scripts/menu-corpus/README.md
