@@ -52,7 +52,7 @@ export async function GET(req: NextRequest) {
   // render a single user post. Two queries, and the error is surfaced.
   const { data: rows, error: postsError } = await admin
     .from('dish_posts')
-    .select('id, reason, created_at, user_id, dish_id, dishes!inner(id, name, name_zh, cuisine, attributes, restaurant_id, photo_url, ingredients, restaurants(name))')
+    .select('id, reason, created_at, user_id, dish_id, dishes!inner(id, name, name_zh, cuisine, attributes, restaurant_id, photo_url, diet, heaviness, ingredients, restaurants(name))')
     .order('created_at', { ascending: false })
     .limit(120);
   if (postsError) {
@@ -64,7 +64,7 @@ export async function GET(req: NextRequest) {
     dishes: {
       id: string; name: string | null; name_zh: string | null; cuisine: string | null;
       attributes: Record<string, number> | null; photo_url: string | null;
-      ingredients: string[] | null;
+      diet: string[] | null; heaviness: string | null; ingredients: string[] | null;
       restaurants: { name: string | null } | null;
     };
   };
@@ -128,6 +128,8 @@ export async function GET(req: NextRequest) {
         // that stays null; browsing the feed and seeing the original is fine.
         photo_url: p.dishes.photo_url ?? null,
         attributes: (p.dishes.attributes ?? {}) as Record<string, number>,
+        diet: p.dishes.diet ?? [],
+        heaviness: p.dishes.heaviness ?? null,
         ingredients: p.dishes.ingredients ?? [],
       },
       verdict: wordKeyFor(scores.get(p.id)!),
@@ -145,7 +147,7 @@ export async function GET(req: NextRequest) {
       // not content — it reads as the app quoting you back to yourself. Own
       // POSTS are in the pool now (they are yours, deliberately published);
       // a persona repeating one is not the same thing, so this stays excluded.
-      .select('id, persona, dish_id, name, name_zh, cuisine, attributes, line_zh, line_en, created_at, dishes!inner(user_id, photo_url, ingredients), restaurants(name)')
+      .select('id, persona, dish_id, name, name_zh, cuisine, attributes, line_zh, line_en, created_at, dishes!inner(user_id, photo_url, diet, heaviness, ingredients), restaurants(name)')
       .eq('day', today)
       .neq('dishes.user_id', user.id),
     admin.from('persona_runs').select('status, item_count').eq('day', today).maybeSingle(),
@@ -166,6 +168,8 @@ export async function GET(req: NextRequest) {
         // picked — its photo carries the same publication as its name.
         photo_url: r.dishes?.photo_url ?? null,
         attributes: (r.attributes ?? {}) as Record<string, number>,
+        diet: r.dishes?.diet ?? [],
+        heaviness: r.dishes?.heaviness ?? null,
         ingredients: r.dishes?.ingredients ?? [],
       },
       // A persona asserts no verdict — it did not eat anything. The slot stays

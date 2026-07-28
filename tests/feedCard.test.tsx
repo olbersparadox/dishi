@@ -8,10 +8,10 @@
 //      card showing only the dish would read as a recommendation of it;
 //   3. persona content, which asserts no verdict, renders none (nothing is
 //      invented to fill the slot);
-//   4. every card carries the bookmark affordance, whatever the author —
-//      without it the feed is pure consumption and generates nothing — EXCEPT
-//      the viewer's own post, which cannot be bookmarked at all (the API
-//      refuses a dish you own), so the button would only ever error;
+//   4. every card carries the bookmark affordance, whatever the author,
+//      INCLUDING the viewer's own post — the count is social proof, not a
+//      personal affordance, so it stays visible; only the TAP is refused on
+//      an own post (disabled client-side, matching the API's own refusal);
 //   5. PHOTO-FORWARD FORMAT (owner, 2026-07-28): the card mounts the actual
 //      DuelSide component (large photo / name / location), not a lookalike —
 //      asserted here by checking for DuelSide's own .duel-photo img, which a
@@ -27,13 +27,14 @@ const base: FeedItem = {
   author: { kind: 'user', username: 'jerry' },
   dish: {
     id: 'd1', name: 'Beef chow fun', name_zh: '乾炒牛河', restaurant: '新記',
-    cuisine: 'cantonese', photo_url: null, attributes: { umami: 0.8 }, ingredients: [],
+    cuisine: 'cantonese', photo_url: null, attributes: { umami: 0.8 },
+    diet: [], heaviness: null, ingredients: [],
   },
   verdict: 'flick.never',
   reason: '鑊氣唔夠',
 };
 
-const card = (item: FeedItem & { bookmarked?: boolean }) => render(
+const card = (item: FeedItem & { bookmarked?: boolean; bookmarkCount?: number }) => render(
   <LanguageProvider>
     <FeedCard item={item} onBookmarked={() => {}} />
   </LanguageProvider>,
@@ -69,9 +70,11 @@ describe('FeedCard — one card, whatever the author', () => {
     expect(done.disabled).toBe(true);
   });
 
-  it("offers NO bookmark on the viewer's own post — the API would refuse it", () => {
-    card({ ...base, own: true });
-    expect(screen.queryByRole('button', { name: '想食' })).toBeNull();
+  it("disables the bookmark tap on the viewer's own post — the API would refuse it — but still shows it", () => {
+    card({ ...base, own: true, bookmarkCount: 3 });
+    const btn = screen.getByRole('button', { name: '想食' }) as HTMLButtonElement;
+    expect(btn.disabled).toBe(true);
+    expect(screen.getByText('3')).toBeTruthy();
     // Still a full card otherwise: it is in the pool, not a stub.
     expect(screen.getByText('dishi.jerry')).toBeTruthy();
     expect(screen.getByText('唔會再食')).toBeTruthy();

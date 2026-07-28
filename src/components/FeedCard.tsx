@@ -95,29 +95,34 @@ export default function FeedCard({ item, onBookmarked }: {
                 )}
               </>
             }
-            afterName={<DishInfoDisplay info={{ ingredients: item.dish.ingredients }} />}
+            afterName={
+              <div className="feed-chips">
+                <DishInfoDisplay info={{ diet: item.dish.diet, heaviness: item.dish.heaviness, ingredients: item.dish.ingredients }} />
+              </div>
+            }
+            // Shown to EVERY viewer, owner included — the count is social proof
+            // ("N people want this"), not a personal affordance, so hiding it on
+            // your own post would hide real information. Only the TAP is refused
+            // on your own dish (disabled below); /api/bookmarks would 400 it
+            // anyway, and a disabled control says so up front instead of erroring.
+            titleAside={
+              <div className="feed-bookmark-wrap">
+                <button
+                  type="button"
+                  className={`feed-bookmark-btn${item.bookmarked ? ' bookmarked' : ''}`}
+                  disabled={saving || !!item.bookmarked || !!item.own}
+                  onClick={bookmark}
+                  aria-label={t(item.bookmarked ? 'feed.bookmarked' : 'feed.bookmark')}
+                >
+                  <span className="feed-bookmark-count">{count}</span>
+                  <BookmarkIcon size={16} filled={!!item.bookmarked} />
+                </button>
+                {failed && <span className="feed-bookmark-failed">{t('feed.bookmark.failed')}</span>}
+              </div>
+            }
           />
         </div>
       </div>
-      {/* Your own post carries no bookmark: /api/bookmarks refuses a dish you
-          already own, so the button's only possible outcome would be an
-          error. The author row already reads dishi.<you>, which is the only
-          "this is yours" marker the card needs. */}
-      {!item.own && (
-        <div style={{ marginTop: 10, textAlign: 'center' }}>
-          <button
-            type="button"
-            className={`feed-bookmark-btn${item.bookmarked ? ' bookmarked' : ''}`}
-            disabled={saving || !!item.bookmarked}
-            onClick={bookmark}
-            aria-label={t(item.bookmarked ? 'feed.bookmarked' : 'feed.bookmark')}
-          >
-            <BookmarkIcon size={18} filled={!!item.bookmarked} />
-            <span className="feed-bookmark-count">{count}</span>
-          </button>
-          {failed && <span className="card-meta" style={{ marginLeft: 8 }}>{t('feed.bookmark.failed')}</span>}
-        </div>
-      )}
     </article>
   );
 }

@@ -68,7 +68,7 @@ function useShrinkPrimaryToFit(ref: React.RefObject<HTMLElement>, maxLines: numb
  * on it, so the default is unchanged. A single-dish card with no comparison to
  * anchor (a feed post, a public-page anchor) has no reason to override the
  * viewer's own language pair, so those callers pass the chrome pair through. */
-export default function DuelSide({ dish, pair = ZH_PRIMARY_PAIR, afterPhoto, afterName }: {
+export default function DuelSide({ dish, pair = ZH_PRIMARY_PAIR, afterPhoto, afterName, titleAside }: {
   dish: DuelDish; pair?: LangPair;
   /** Optional content between the photo and the dish name — the feed post
    * card's author row (chop + dishi.username + verdict) is the only current
@@ -80,6 +80,12 @@ export default function DuelSide({ dish, pair = ZH_PRIMARY_PAIR, afterPhoto, aft
    * mirroring MyDishes.tsx's own card-title-then-chips sibling layout. Other
    * callers pass nothing, so their anatomy is byte-for-byte unchanged. */
   afterName?: React.ReactNode;
+  /** Optional content INSIDE the card-title row, pushed to the far side of the
+   * dish name — the feed post card's bookmark count+icon is the only current
+   * user (needs to sit in the name's own row, not a sibling block above/below
+   * it). Only .feed-post makes card-title a flex row for this; every other
+   * caller renders nothing here, so their layout is byte-for-byte unchanged. */
+  titleAside?: React.ReactNode;
 }) {
   const { lang } = useLang();
   const location = duelLocation(dish, lang);
@@ -94,7 +100,10 @@ export default function DuelSide({ dish, pair = ZH_PRIMARY_PAIR, afterPhoto, aft
       {afterPhoto}
       {/* card-title: the exact journal/scan dish-name treatment (serif primary +
           small secondary). */}
-      <div className="card-title" ref={titleRef}><DishName name={dish.name} name_zh={dish.name_zh} pair={pair} /></div>
+      <div className="card-title" ref={titleRef}>
+        <DishName name={dish.name} name_zh={dish.name_zh} pair={pair} />
+        {titleAside}
+      </div>
       {afterName}
       {location && <div className="duel-option-rest">{location}</div>}
     </>

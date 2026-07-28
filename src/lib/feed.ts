@@ -44,9 +44,11 @@ export type FeedDish = {
   cuisine: string | null;
   photo_url: string | null;
   attributes: Record<string, number>;
-  /** Key ingredients, for the chip row under the secondary name (DishInfoDisplay).
-   * Diet/heaviness aren't carried here — the feed card asked for ingredient
-   * chips only, not the full scan-card info block. */
+  /** The same chip row MyDishes.tsx shows on 食自己 (DishInfoDisplay: diet +
+   * ingredients + heaviness) — a card on 大家食 for a dish that's ALSO in the
+   * owner's own journal must show the identical info, not a thinner subset. */
+  diet: string[];
+  heaviness: string | null;
   ingredients: string[];
 };
 
