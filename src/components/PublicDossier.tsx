@@ -41,14 +41,16 @@ export default function PublicDossier({ dossier, isOwner }: { dossier: Dossier; 
 
   return (
     <div>
-      {/* Entry from the feed's author chop/name (own decision) — router.back()
-          rather than a hardcoded link to "/" so it returns to whichever tab
-          (大家食) the visitor actually came from, not always the default
-          Private tab a plain "/" would land on. Sized/set to literally match
-          the page-title font (h1's own family/weight/letter-spacing/size —
-          --fs-title-b) rather than a small icon-btn, since it's the page's
-          only chrome. */}
-      <button type="button" className="dossier-back" onClick={() => router.back()} aria-label={t('dossier.back')}>
+      {/* Entry from the feed's author chop/name, but ALSO from a bare shared
+          link (messenger, sharing batch) with no in-app history to go back
+          to — router.back() there just no-ops or strands the visitor on a
+          host page outside the app. Always the same destination instead:
+          大家食, the one place every visitor (owner browsing their own
+          dossier included) actually wants to land. Sized/set to literally
+          match the page-title font (h1's own family/weight/letter-spacing/
+          size — --fs-title-b) rather than a small icon-btn, since it's the
+          page's only chrome. */}
+      <button type="button" className="dossier-back" onClick={() => router.push('/?tab=feed')} aria-label={t('dossier.back')}>
         <ArrowLeftIcon size={30} />
       </button>
       {/* The blob's OWN card shell (.taste-form-card + .taste-blob-anchor) —
@@ -60,7 +62,10 @@ export default function PublicDossier({ dossier, isOwner }: { dossier: Dossier; 
           skipped: renaming is an owner-authenticated action irrelevant to a
           visitor, and decision 3's hard rule 2 amendment forbids a copy-for-AI
           path on this page regardless of who's viewing. */}
-      <div className="taste-form-card card-reveal" onAnimationEnd={e => { e.currentTarget.style.animation = 'none'; }}>
+      {/* -15px: pulls the card up closer to the back arrow (own call — the
+          gap the arrow's own marginBottom left read as too loose here). */}
+      <div className="taste-form-card card-reveal" style={{ marginTop: -15 }}
+        onAnimationEnd={e => { e.currentTarget.style.animation = 'none'; }}>
         <div className="taste-blob-anchor">
           <TasteFormReveal
             inputs={{ vector: d.vector, evidence: d.evidence, ratingCount: d.ratingCount, seed: `${d.username}:v${d.version}` }}
@@ -130,7 +135,12 @@ export default function PublicDossier({ dossier, isOwner }: { dossier: Dossier; 
           none; a card-in-a-card double-border is not "the same card"). */}
       {d.anchors.length > 0 && (
         <div style={{ marginTop: 14 }}>
-          <p className="label" style={{ margin: '0 0 8px' }}>{t('dossier.anchors')}</p>
+          {/* .label's own weight/color, sized up one step (--fs-caption →
+              --fs-body) and centered — this is the section's own headline,
+              not a quiet meta caption anymore now that it names the person. */}
+          <p className="label" style={{ margin: '0 0 8px', textAlign: 'center', fontSize: 'var(--fs-body)' }}>
+            {t('dossier.anchors', { name: d.username })}
+          </p>
           {d.anchors.map(a => (
             <FeedCard
               key={a.id}
