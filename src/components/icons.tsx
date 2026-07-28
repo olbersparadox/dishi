@@ -242,20 +242,20 @@ export function GlobeIcon({ size = 22 }: IconProps) {
 }
 
 /** Globe, struck through — unpublish (go from public back to private). SAME
- *  globe as GlobeIcon (a slash on an unrelated glyph would read as "cancel",
- *  not specifically "take this off the public page"), plus one diagonal line
- *  run corner-to-corner of the viewBox — a proper "prohibition sign" slash,
- *  not a short mark limited to the globe's own circle. Render this one
- *  bigger than its sibling icon-btn icons (see PostSheet.tsx) so the line
- *  actually reaches the edges of the button it sits in. */
+ *  globe as GlobeIcon, same size and stroke as its icon-btn siblings — only
+ *  the slash is different: it deliberately runs PAST the icon's own 0..24
+ *  viewBox (overflow="visible", so it isn't clipped to that box) to read as
+ *  a proper "prohibition sign" crossing the WHOLE circle button around it,
+ *  not a short mark limited to the globe's own circle. Still the same thin
+ *  strokeWidth as the globe itself — only the line's length changes. */
 export function GlobeOffIcon({ size = 22 }: IconProps) {
   return (
     <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor"
-      strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" overflow="visible" aria-hidden="true">
       <circle cx="12" cy="12" r="9" />
       <path d="M3 12h18" />
       <path d="M12 3a14 14 0 010 18a14 14 0 010-18z" />
-      <path d="M1 1l22 22" />
+      <path d="M-8 -8l40 40" />
     </svg>
   );
 }
