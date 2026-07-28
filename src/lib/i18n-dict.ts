@@ -606,6 +606,18 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'auth.verifying': { zh: '核對緊…', en: 'Verifying…' },
   'auth.codefail': { zh: '數字碼不正確或已過期 — 請再試一次，或重新傳送。', en: 'That code is wrong or expired — try again, or resend.' },
   'auth.resend': { zh: '用另一個電郵 / 重新傳送', en: 'Different email / resend' },
+  // 食記's two tabs. 大家 is honest about what the second one is: posts from
+  // whoever the RANKING matched, not from anyone you follow — there is no
+  // follow anywhere in the product.
+  'home.tab.mine': { zh: '食記', en: 'Journal' },
+  'home.tab.feed': { zh: '大家', en: 'Everyone' },
+  'feed.loading': { zh: '搵緊…', en: 'Looking…' },
+  'feed.failed': { zh: '載入唔到，稍後再試', en: "Couldn't load — try again later" },
+  'feed.training': { zh: '再評多 {n} 道菜，這裡就會開始幫你揀。', en: 'Rate {n} more dishes and this starts picking for you.' },
+  'feed.empty': { zh: '今日未有啱你口味的貼文。', en: 'Nothing matching your taste today.' },
+  'feed.bookmark': { zh: '想食', en: 'Want to eat' },
+  'feed.bookmarked': { zh: '已加入待評', en: 'In your queue' },
+  'feed.bookmark.failed': { zh: '加唔到', en: "Couldn't add" },
   // 貼文 — publishing is per DISH, and the copy says 公開 (public), never
   // "share with friends": there is no friend concept in the product.
   'post.title': { zh: '公開這道菜', en: 'Publish this dish' },
