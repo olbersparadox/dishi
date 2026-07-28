@@ -1818,7 +1818,13 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
    not the chop: 10px (.feed-author-row's own left padding, above) + 28px
    (Chop size) + 8px (.feed-author-id's gap) = 46px indent. Shown, divider
    included, only when there IS a comment — see FeedCard.tsx. */
-.feed-comment { margin: 0 10px 0 46px; color: var(--ink); font-size: var(--fs-caption); line-height: 1.5; }
+.feed-comment {
+  margin: 0 10px 0 46px; color: var(--ink); font-size: var(--fs-caption); line-height: 1.5;
+  text-align: left; /* .duel-option sets center — the box sat at the right indent
+    already, but the TEXT inside it was still centering within that box instead
+    of sitting flush at its left edge. Verified via getComputedStyle, not just
+    the earlier (wrong) getBoundingClientRect check on the box's own position. */
+}
 .feed-comment-divider { border: none; border-top: 1px solid var(--line); margin: 8px 0 0; }
 .identity-answers { display: flex; justify-content: center; gap: 34px; margin-top: 16px; }
 .identity-answer {
