@@ -604,6 +604,14 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'auth.verifying': { zh: '核對緊…', en: 'Verifying…' },
   'auth.codefail': { zh: '數字碼不正確或已過期 — 請再試一次，或重新傳送。', en: 'That code is wrong or expired — try again, or resend.' },
   'auth.resend': { zh: '用另一個電郵 / 重新傳送', en: 'Different email / resend' },
+  // Sign-in asked for MID-ACTION (SignInSheet), not at the front door. The
+  // body names the thing the person just reached for, so the ask reads as the
+  // next step of their own intent rather than a wall in front of it.
+  'auth.sheet.title': { zh: '差一步', en: 'One step first' },
+  'auth.sheet.bookmark': {
+    zh: '用電郵登入，就可以將呢道菜加入你嘅待評清單 — 順便開始建立你自己嘅味覺。',
+    en: 'Sign in with your email to save this dish to your list — and start building your own palate while you are at it.',
+  },
   // 食記's two tabs. 大家 is honest about what the second one is: posts from
   // whoever the RANKING matched, not from anyone you follow — there is no
   // follow anywhere in the product. Private/Public (owner call 2026-07-28)

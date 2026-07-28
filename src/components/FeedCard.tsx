@@ -21,6 +21,7 @@ import DuelSide from './DuelSide';
 import Chop from './Chop';
 import DishInfoDisplay from './DishInfoDisplay';
 import ExplainModal from './ExplainModal';
+import SignInSheet from './SignInSheet';
 import { BookmarkIcon } from './icons';
 import { chopColorFor } from '@/lib/chop';
 import type { FeedItem } from '@/lib/feed';
@@ -33,6 +34,8 @@ export default function FeedCard({ item, onBookmarked }: {
   const [saving, setSaving] = useState(false);
   const [failed, setFailed] = useState(false);
   const [showOwnExplain, setShowOwnExplain] = useState(false);
+  // Open when a bookmark tap came back 401 — the tap is remembered, not lost.
+  const [signInOpen, setSignInOpen] = useState(false);
   // Seeded from the server count, then bumped locally on a successful tap —
   // the server isn't re-fetched just to reflect the viewer's own action back.
   const [count, setCount] = useState(item.bookmarkCount ?? 0);
@@ -49,6 +52,11 @@ export default function FeedCard({ item, onBookmarked }: {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ dish_id: item.dish.id }),
       });
+      // 401 is not a failure, it is a person without an account reaching for
+      // the highest-intent action on the public surface (sharing batch item
+      // 5). Ask them to sign in and RESUME — this used to land in `failed`
+      // and dead-end exactly the visitor a shared link is aimed at.
+      if (res.status === 401) { setSignInOpen(true); return; }
       if (!res.ok) { setFailed(true); return; }
       setCount(c => c + 1);
       onBookmarked(item.id);
@@ -144,6 +152,15 @@ export default function FeedCard({ item, onBookmarked }: {
           title={t('feed.bookmark.own.title')}
           body={t('feed.bookmark.own.body')}
           onClose={() => setShowOwnExplain(false)}
+        />
+      )}
+      {signInOpen && (
+        <SignInSheet
+          // Says what THIS tap was for, not "sign in" — the ask has to read as
+          // the next step of what they already chose to do.
+          reason={t('auth.sheet.bookmark')}
+          onSignedIn={() => { setSignInOpen(false); bookmark(); }}
+          onClose={() => setSignInOpen(false)}
         />
       )}
     </article>
