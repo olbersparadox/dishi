@@ -24,13 +24,13 @@ export default function FeedCard({ item, onBookmarked }: {
     : [item.dish.name, item.dish.name_zh].filter(Boolean).join(' / ');
 
   const bookmark = async () => {
-    if (saving || item.bookmarked) return;
+    if (saving || item.bookmarked || !item.dish.id) return;
     setSaving(true);
     setFailed(false);
     try {
       const res = await fetch('/api/bookmarks', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ post_id: item.id }),
+        body: JSON.stringify({ dish_id: item.dish.id }),
       });
       if (!res.ok) { setFailed(true); return; }
       onBookmarked(item.id);

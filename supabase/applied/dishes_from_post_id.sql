@@ -1,4 +1,8 @@
 -- Applied 2026-07-28 (stream 2 — the 食記 feed's bookmark).
+-- SUPERSEDED THE SAME DAY, before any row used it: see
+-- dishes_from_dish_id.sql, which drops this column. Kept because this WAS
+-- applied to the live database — the log records what happened, not only what
+-- survives.
 --
 -- dishes.from_post_id — which feed post a bookmarked 待評 row came from.
 -- Exact provenance, not a heuristic: without it "have I already bookmarked

@@ -98,7 +98,10 @@ export function rankFeed(
  *    it). Copying it would quietly re-attribute someone's photograph.
  */
 export function buildBookmarkRow(source: {
-  postId: string;
+  /** The dish being bookmarked — someone else's row. Provenance keys on the
+   * DISH, not the post: persona cards carry the same affordance and have no
+   * post, and both author types point at a real dishes row. */
+  dishId: string;
   userId: string;
   dish: {
     name: string | null; name_zh: string | null; cuisine: string | null;
@@ -109,7 +112,7 @@ export function buildBookmarkRow(source: {
   const d = source.dish;
   return {
     user_id: source.userId,
-    from_post_id: source.postId,
+    from_dish_id: source.dishId,
     restaurant_id: d.restaurant_id ?? null,
     name: (d.name ?? '').slice(0, 120),
     name_zh: d.name_zh ?? null,

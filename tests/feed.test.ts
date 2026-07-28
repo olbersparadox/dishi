@@ -49,7 +49,7 @@ describe('rankFeed', () => {
 
 describe('buildBookmarkRow', () => {
   const row = buildBookmarkRow({
-    postId: 'p1',
+    dishId: 'd1',
     userId: 'u1',
     dish: {
       name: 'Beef chow fun', name_zh: '乾炒牛河', cuisine: 'cantonese',
@@ -74,7 +74,8 @@ describe('buildBookmarkRow', () => {
     expect(row.attributes).toEqual({ umami: 0.8 });
     expect(row.cuisine).toBe('cantonese');
     expect(row.restaurant_id).toBe('r1');
-    expect(row.from_post_id).toBe('p1');
+    // Provenance is the DISH — persona cards have no post but do have a dish.
+    expect(row.from_dish_id).toBe('d1');
     expect(row.user_id).toBe('u1');
   });
 });

@@ -618,6 +618,9 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'feed.bookmark': { zh: '想食', en: 'Want to eat' },
   'feed.bookmarked': { zh: '已加入待評', en: 'In your queue' },
   'feed.bookmark.failed': { zh: '加唔到', en: "Couldn't add" },
+  // Said out loud on purpose: a broken daily job must never be indistinguishable
+  // from a genuinely quiet day.
+  'feed.persona.failed': { zh: '（今日的每日精選未更新到。）', en: "(Today's daily picks didn't update.)" },
   // 貼文 — publishing is per DISH, and the copy says 公開 (public), never
   // "share with friends": there is no friend concept in the product.
   'post.title': { zh: '公開這道菜', en: 'Publish this dish' },

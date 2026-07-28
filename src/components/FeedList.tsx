@@ -17,42 +17,65 @@ import type { RankedFeedItem } from '@/lib/feed';
 type Item = RankedFeedItem & { bookmarked?: boolean };
 type State =
   | { kind: 'loading' }
-  | { kind: 'training'; needed: number }
-  | { kind: 'ready'; items: Item[] }
+  | { kind: 'training'; needed: number; items: Item[]; personaStatus: string }
+  | { kind: 'ready'; items: Item[]; personaStatus: string }
   | { kind: 'failed' };
 
 export default function FeedList() {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const [state, setState] = useState<State>({ kind: 'loading' });
 
   useEffect(() => {
     let live = true;
-    fetch('/api/feed')
+    fetch(`/api/feed?lang=${lang}`)
       .then(r => r.json())
       .then(j => {
         if (!live) return;
+        const items = j.items ?? [];
+        const personaStatus = j.persona_status ?? 'missing';
         if (j.stage === 'training') {
-          setState({ kind: 'training', needed: Math.max(0, (j.needed ?? 0) - (j.rating_count ?? 0)) });
+          setState({
+            kind: 'training', items, personaStatus,
+            needed: Math.max(0, (j.needed ?? 0) - (j.rating_count ?? 0)),
+          });
         } else {
-          setState({ kind: 'ready', items: j.items ?? [] });
+          setState({ kind: 'ready', items, personaStatus });
         }
       })
       .catch(() => { if (live) setState({ kind: 'failed' }); });
     return () => { live = false; };
-  }, []);
+  }, [lang]);
 
   if (state.kind === 'loading') return <p className="card-meta">{t('feed.loading')}</p>;
   if (state.kind === 'failed') return <p className="card-meta">{t('feed.failed')}</p>;
-  if (state.kind === 'training') return <p className="card-meta">{t('feed.training', { n: state.needed })}</p>;
-  if (state.items.length === 0) return <p className="card-meta">{t('feed.empty')}</p>;
+
+  // The daily job breaking must not look like a quiet day. 'empty' is honest
+  // silence and says nothing extra; 'failed' and a missing run both say so.
+  const jobBroke = state.personaStatus === 'failed' || state.personaStatus === 'missing';
+
+  if (state.items.length === 0) {
+    return (
+      <>
+        {state.kind === 'training'
+          ? <p className="card-meta">{t('feed.training', { n: state.needed })}</p>
+          : <p className="card-meta">{t('feed.empty')}</p>}
+        {jobBroke && <p className="card-meta">{t('feed.persona.failed')}</p>}
+      </>
+    );
+  }
 
   return (
     <>
+      {state.kind === 'training' && (
+        // Persona cards claim no match, so they show under the bar — but the
+        // reason the rest is missing is stated rather than left as a short list.
+        <p className="card-meta" style={{ marginBottom: 10 }}>{t('feed.training', { n: state.needed })}</p>
+      )}
       {state.items.map(item => (
         <FeedCard
           key={item.id}
           item={item}
-          onBookmarked={id => setState(s => s.kind === 'ready'
+          onBookmarked={id => setState(s => (s.kind === 'ready' || s.kind === 'training')
             ? { ...s, items: s.items.map(i => i.id === id ? { ...i, bookmarked: true } : i) }
             : s)}
         />

@@ -1,8 +1,9 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { supabaseServer, supabaseAdmin } from '@/lib/supabase/server';
 import { emptyTaste, type TasteVector } from '@/lib/taste';
 import { wordKeyFor } from '@/lib/flickWords';
 import { rankFeed, FEED_TRAINING_THRESHOLD, type FeedItem } from '@/lib/feed';
+import { PERSONA_META, isPersona } from '@/lib/persona';
 
 /**
  * GET /api/feed — the 食記 feed's second tab.
@@ -20,10 +21,14 @@ import { rankFeed, FEED_TRAINING_THRESHOLD, type FeedItem } from '@/lib/feed';
  *  - 'ranked'   — ranked by contentScore, weak matches dropped rather than
  *    padded out.
  */
-export async function GET() {
+export async function GET(req: NextRequest) {
   const supabase = supabaseServer();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Sign in first.' }, { status: 401 });
+
+  // The reader's language, for the persona line's stored zh/en pair. A user's
+  // post is never translated — those are their own words.
+  const lang = req.nextUrl.searchParams.get('lang') === 'en' ? 'en' : 'zh';
 
   const admin = supabaseAdmin();
   const { data: me } = await admin
@@ -69,12 +74,12 @@ export async function GET() {
     }
   }
 
-  // Which of these the viewer has already bookmarked into 待評 — exact, via
-  // from_post_id, so a card can show its state instead of re-queueing on a
-  // second tap.
+  // Which dishes the viewer has already bookmarked into 待評 — exact, via
+  // from_dish_id, so a card can show its state instead of re-queueing on a
+  // second tap. Keyed by DISH so it covers persona cards too.
   const { data: mine } = await admin
-    .from('dishes').select('from_post_id').eq('user_id', user.id).not('from_post_id', 'is', null);
-  const bookmarked = new Set((mine ?? []).map(d => d.from_post_id as string));
+    .from('dishes').select('from_dish_id').eq('user_id', user.id).not('from_dish_id', 'is', null);
+  const bookmarked = new Set((mine ?? []).map(d => d.from_dish_id as string));
 
   const items: FeedItem[] = posts
     // A post whose rating vanished has no verdict to show. Dropped rather than
@@ -95,14 +100,56 @@ export async function GET() {
       reason: p.reason,
     }));
 
-  // Under the training bar a match claim would be a guess with a number on it.
-  // Personas (which claim no match) will still be served here when they exist.
-  const ranked = training ? [] : rankFeed(taste, affinity, items).slice(0, 30);
+  // Persona picks — the SAME pool, not a second feed. This is what keeps the
+  // tab non-empty before enough people post, which is the whole reason the
+  // three author types share one card.
+  const today = new Date().toISOString().slice(0, 10);
+  const [{ data: personaRows }, { data: runRow }] = await Promise.all([
+    admin.from('persona_items')
+      // dishes!inner(user_id): a persona telling you about your own dinner is
+      // not content, so the viewer's own dishes are excluded here the same way
+      // their own posts are above.
+      .select('id, persona, dish_id, name, name_zh, cuisine, attributes, line_zh, line_en, dishes!inner(user_id), restaurants(name)')
+      .eq('day', today)
+      .neq('dishes.user_id', user.id),
+    admin.from('persona_runs').select('status, item_count').eq('day', today).maybeSingle(),
+  ]);
+
+  const personaItems: FeedItem[] = ((personaRows ?? []) as any[])
+    .filter(r => isPersona(r.persona))
+    .map(r => ({
+      id: r.id as string,
+      author: { kind: 'persona' as const, username: PERSONA_META[r.persona as 'spoon' | 'ck' | 'kiki'][lang] },
+      dish: {
+        id: r.dish_id as string,
+        name: r.name ?? null, name_zh: r.name_zh ?? null,
+        restaurant: r.restaurants?.name ?? null,
+        cuisine: r.cuisine ?? null,
+        photo_url: null,
+        attributes: (r.attributes ?? {}) as Record<string, number>,
+      },
+      // A persona asserts no verdict — it did not eat anything. The slot stays
+      // empty rather than being filled with the rating it was sourced from,
+      // which belongs to the person who gave it.
+      verdict: null,
+      reason: (lang === 'en' ? r.line_en : r.line_zh) ?? null,
+    }));
+
+  // Under the training bar a match claim would be a guess with a number on it,
+  // so user posts wait — but persona items claim no match, and showing them
+  // unranked (newest first) is honest and keeps the tab alive on day one.
+  const ranked = training
+    ? personaItems
+    : rankFeed(taste, affinity, [...items, ...personaItems]).slice(0, 30);
 
   return NextResponse.json({
     stage: training ? 'training' : 'ranked',
     rating_count: ratingCount,
     needed: FEED_TRAINING_THRESHOLD,
-    items: ranked.map(i => ({ ...i, bookmarked: bookmarked.has(i.id) })),
+    // Told apart deliberately: 'empty' is a legitimate quiet day, 'failed' is
+    // the job breaking, and a missing row means it never ran today. The UI must
+    // never render the last two as silence.
+    persona_status: (runRow?.status as string | undefined) ?? 'missing',
+    items: ranked.map(i => ({ ...i, bookmarked: !!i.dish.id && bookmarked.has(i.dish.id) })),
   });
 }
