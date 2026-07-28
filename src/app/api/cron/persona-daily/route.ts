@@ -51,6 +51,9 @@ async function run(req: NextRequest) {
     const { data: posts, error } = await admin
       .from('dish_posts')
       .select('user_id, dish_id, dishes!inner(id, name, name_zh, cuisine, attributes, is_synthetic, restaurant_id, restaurants!inner(name, place_id))')
+      // ...and PUBLIC ones: a link-only post was sent to a person, not
+      // offered to the pool a persona picks from for everybody.
+      .eq('visibility', 'public')
       .limit(300);
     if (error) throw new Error(error.message);
 

@@ -123,7 +123,10 @@ export async function GET(req: NextRequest) {
   let seals = new Map<string, unknown>();
   // 貼文 state per dish, so the journal row can say whether it is public and
   // reopen the sheet on the reason already written. Absent = not posted.
-  let posts = new Map<string, string | null>();
+  // Carries the TIER as well: this row shows a globe for 'public' and a link
+  // glyph for 'link', and they must not look alike — "the world can find
+  // this" and "only people holding the link can" are different promises.
+  let posts = new Map<string, { reason: string | null; visibility: string }>();
 
   if (ids.length) {
     // locked_dish_ids batches what used to be one is_dish_locked RPC PER dish (the
@@ -148,9 +151,18 @@ export async function GET(req: NextRequest) {
       // User-scoped client: a post is the owner's own row and RLS is the right
       // fence for it (unlike sealed_predictions, which is locked against its
       // owner by design and must go through admin).
-      supabase.from('dish_posts').select('dish_id, reason').eq('user_id', user.id).in('dish_id', ids),
+      // DELIBERATELY UNFILTERED by visibility, unlike /api/feed, the dossier
+      // page and the persona cron: this is the owner looking at their OWN
+      // posts, where a link-only post is not hidden material — it is theirs,
+      // and hiding it here is how someone loses track of what they shared.
+      supabase.from('dish_posts').select('dish_id, reason, visibility').eq('user_id', user.id).in('dish_id', ids),
     ]);
-    for (const p of postRows ?? []) posts.set(p.dish_id, (p.reason as string | null) ?? null);
+    for (const p of postRows ?? []) {
+      posts.set(p.dish_id, {
+        reason: (p.reason as string | null) ?? null,
+        visibility: (p.visibility as string | null) ?? 'public',
+      });
+    }
     for (const m of marks ?? []) hearts.set(m.dish_id, (hearts.get(m.dish_id) ?? 0) + 1);
     for (const r of ratings ?? []) myScores.set(r.dish_id, r.score);
     for (const row of (lockedRows ?? []) as unknown[]) {
@@ -210,7 +222,8 @@ export async function GET(req: NextRequest) {
       companions: companions.get(d.id) ?? [], // 同檯 chop names for shared-meal dishes
       seal: seals.get(d.id) ?? null, // the BROKEN seal only — see the query above
       posted: posts.has(d.id),
-      post_reason: posts.get(d.id) ?? null,
+      post_visibility: posts.get(d.id)?.visibility ?? null,
+      post_reason: posts.get(d.id)?.reason ?? null,
 
       created_at: d.created_at, // used as the next page's `before` cursor
       eaten_at: d.eaten_at ?? null, // photo-EXIF when-eaten; shown (not ordered by) on the card

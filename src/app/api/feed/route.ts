@@ -53,6 +53,10 @@ export async function GET(req: NextRequest) {
   const { data: rows, error: postsError } = await admin
     .from('dish_posts')
     .select('id, reason, created_at, user_id, dish_id, dishes!inner(id, name, name_zh, cuisine, attributes, restaurant_id, photo_url, diet, heaviness, ingredients, restaurants(name))')
+    // PUBLIC TIER ONLY. A link-only post is consented publishing, but its
+    // consent was to one recipient — surfacing it here would hand it to
+    // everyone, which is the whole thing the tier exists to prevent.
+    .eq('visibility', 'public')
     .order('created_at', { ascending: false })
     .limit(120);
   if (postsError) {

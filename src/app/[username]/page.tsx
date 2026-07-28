@@ -87,6 +87,9 @@ async function resolveDossier(rawName: string) {
     .from('dish_posts')
     .select('reason, created_at, dishes!inner(id, name, name_zh, photo_url, diet, heaviness, ingredients, restaurants(name))')
     .eq('user_id', prof.id)
+    // PUBLIC TIER ONLY — this page IS the "everyone" audience. A dish shared
+    // to one friend must not appear here just because they own both.
+    .eq('visibility', 'public')
     .order('created_at', { ascending: false })
     .limit(24);
 

@@ -1,17 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase/server';
-import { normalizeReason } from '@/lib/posts';
+import { normalizeReason, mergeVisibility, asPostVisibility, type PostVisibility } from '@/lib/posts';
 
 /**
  * 貼文 — per-dish opt-in publishing (stream 2).
  *
- * GET    -> { posts: [{ dish_id, reason }] } for the caller (what 食記 marks
- *            as already public)
- * POST   { dish_id, reason? } -> publish, or update the reason of an existing
- *            post. Idempotent by (user_id, dish_id) — the unique index is the
- *            authority, so a double-tap can't mint two posts of one dish.
+ * GET    -> { posts: [{ dish_id, reason, visibility }] } for the caller (what
+ *            食記 marks as already public, and at which tier)
+ * POST   { dish_id, reason?, visibility? } -> publish, or update the reason of
+ *            an existing post. Idempotent by (user_id, dish_id) — the unique
+ *            index is the authority, so a double-tap can't mint two posts of
+ *            one dish. `visibility` defaults to 'public' and only ever
+ *            UPGRADES (see mergeVisibility).
  * DELETE ?dish_id=... -> unpublish. A real DELETE: revoking consent leaves no
- *            row behind.
+ *            row behind — and it is the ONLY way back down from 'public',
+ *            since sharing must never quietly demote a published dish.
  *
  * User-scoped client throughout — dish_posts is NOT one of the deliberately
  * RLS-locked-against-its-owner tables (that pattern is sealed_predictions);
@@ -32,7 +35,7 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from('dish_posts')
-    .select('dish_id, reason')
+    .select('dish_id, reason, visibility')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -60,11 +63,21 @@ export async function POST(req: NextRequest) {
     .from('ratings').select('id').eq('dish_id', dishId).eq('user_id', user.id).maybeSingle();
   if (!rating) return NextResponse.json({ error: 'Rate it first.' }, { status: 400 });
 
+  // Upgrade-only tier: a Share tap on an already-public dish must not write
+  // `link` over `public` and quietly pull it off the dossier and out of the
+  // feed. mergeVisibility owns that rule; read the current row to feed it.
+  const { data: existing } = await supabase
+    .from('dish_posts').select('visibility').eq('user_id', user.id).eq('dish_id', dishId).maybeSingle();
+  const visibility = mergeVisibility(
+    existing?.visibility as PostVisibility | undefined,
+    asPostVisibility(body?.visibility),
+  );
+
   const reason = normalizeReason(body?.reason);
   const { data, error } = await supabase
     .from('dish_posts')
-    .upsert({ user_id: user.id, dish_id: dishId, reason }, { onConflict: 'user_id,dish_id' })
-    .select('dish_id, reason')
+    .upsert({ user_id: user.id, dish_id: dishId, reason, visibility }, { onConflict: 'user_id,dish_id' })
+    .select('dish_id, reason, visibility')
     .maybeSingle();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ post: data });
