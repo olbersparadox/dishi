@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AuthGate from '@/components/AuthGate';
 import { supabaseBrowser } from '@/lib/supabase/client';
@@ -72,6 +72,20 @@ type RatedRow = {
   seal: SealResult | null;
 };
 
+/** /api/my/dishes' raw row -> RatedRow. Pulled out so the first page and
+ * every loadMoreRated page shape their rows identically. */
+function toRatedRow(d: any): RatedRow {
+  return {
+    id: d.id, name: d.name, name_zh: d.name_zh, restaurant: d.restaurant,
+    my_score: d.my_score, created_at: d.created_at,
+    eaten_at: d.eaten_at ?? null, source: d.source ?? null,
+    dish_identity_id: d.dish_identity_id ?? null,
+    identity_name: d.identity_name ?? null, identity_name_zh: d.identity_name_zh ?? null,
+    shared: (d.companions?.length ?? 0) > 0,
+    seal: d.seal ?? null,
+  };
+}
+
 function TasteProfile() {
   const { t } = useLang();
   const router = useRouter();
@@ -102,6 +116,13 @@ function TasteProfile() {
   const [points, setPoints] = useState(0);
   const [toRate, setToRate] = useState<ToRate[] | null>(null);
   const [ratedRows, setRatedRows] = useState<RatedRow[]>([]);
+  // 已評嘅菜 is paged the same way 食記's own journal is (MyDishes.tsx):
+  // a bounded first page from the server (PAGE_SIZE in /api/my/dishes),
+  // more loaded in on scroll rather than the API ever handing back
+  // everything at once.
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const ratedSentinelRef = useRef<HTMLDivElement | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [sealedIds, setSealedIds] = useState<Set<string>>(new Set());
   // The entry pill's album file input — ref'd so the locked export card can open
@@ -157,22 +178,41 @@ function TasteProfile() {
     }).catch(() => setToRate([]));
     // Concrete rated dishes: kept as full rows (id + identity link) so the
     // 已評嘅菜 list can group same-real-dish occasions; the AI-export evidence
-    // shape is derived from the same fetch rather than fetched twice.
+    // shape is derived from the same fetch rather than fetched twice. First
+    // page only — loadMoreRated below pages in the rest.
     fetch('/api/my/dishes?rated=1')
       .then(r => r.json())
-      .then(j => setRatedRows((j.dishes ?? [])
-        .filter((d: any) => d.my_score !== null)
-        .map((d: any) => ({
-          id: d.id, name: d.name, name_zh: d.name_zh, restaurant: d.restaurant,
-          my_score: d.my_score, created_at: d.created_at,
-          eaten_at: d.eaten_at ?? null, source: d.source ?? null,
-          dish_identity_id: d.dish_identity_id ?? null,
-          identity_name: d.identity_name ?? null, identity_name_zh: d.identity_name_zh ?? null,
-          shared: (d.companions?.length ?? 0) > 0,
-          seal: d.seal ?? null,
-        }))))
+      .then(j => {
+        setRatedRows((j.dishes ?? []).filter((d: any) => d.my_score !== null).map(toRatedRow));
+        setHasMore(!!j.has_more);
+      })
       .catch(() => setRatedRows([]));
   }, [refreshKey]);
+
+  const loadMoreRated = useCallback(async () => {
+    if (loadingMore || !hasMore || ratedRows.length === 0) return;
+    setLoadingMore(true);
+    try {
+      const cursor = ratedRows[ratedRows.length - 1].created_at;
+      const res = await fetch(`/api/my/dishes?rated=1&before=${encodeURIComponent(cursor)}`);
+      const json = await res.json();
+      const next = (json.dishes ?? []).filter((d: any) => d.my_score !== null).map(toRatedRow);
+      setRatedRows(prev => [...prev, ...next]);
+      setHasMore(!!json.has_more);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [ratedRows, hasMore, loadingMore]);
+
+  useEffect(() => {
+    const el = ratedSentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting) loadMoreRated();
+    }, { rootMargin: '400px' });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [loadMoreRated]);
 
   const exportDishes: ExportDish[] = ratedRows.map(d => ({
     name: d.name, name_zh: d.name_zh, score: d.my_score as number, restaurant: d.restaurant,
@@ -353,6 +393,11 @@ function TasteProfile() {
               verdict={t(wordKeyFor(d.my_score as number))}
               seal={d.seal} />
           ))}
+          {/* Same IntersectionObserver-triggered pagination as the 食記
+              journal (MyDishes.tsx) — a 1px sentinel 400px above the fold
+              so the next page loads before anyone actually hits the bottom. */}
+          <div ref={ratedSentinelRef} style={{ height: 1 }} aria-hidden />
+          {loadingMore && <p className="card-meta" style={{ textAlign: 'center', padding: '8px 0' }}>{t('home.loadingmore')}</p>}
         </div>
       )}
 
