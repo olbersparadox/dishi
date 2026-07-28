@@ -51,7 +51,7 @@ describe('buildBookmarkRow', () => {
     dish: {
       name: 'Beef chow fun', name_zh: '乾炒牛河', cuisine: 'cantonese',
       attributes: { umami: 0.8 }, restaurant_id: 'r1',
-      cooking_method: 'fried', heaviness: 'heavy', diet: ['beef'],
+      cooking_method: 'fried', heaviness: 'heavy', diet: ['beef'], ingredients: ['beef', 'rice noodle'],
     },
   });
 
@@ -74,5 +74,17 @@ describe('buildBookmarkRow', () => {
     // Provenance is the DISH — persona cards have no post but do have a dish.
     expect(row.from_dish_id).toBe('d1');
     expect(row.user_id).toBe('u1');
+  });
+
+  // Backlog: "[S] Persist ingredients on dishes" — same treatment as
+  // cooking_method/heaviness/diet just above: the source dish's ingredients
+  // travel into the queued row, not silently dropped.
+  it('carries the source dish\'s ingredients through, defaulting to empty', () => {
+    expect(row.ingredients).toEqual(['beef', 'rice noodle']);
+    const rowNoIngredients = buildBookmarkRow({
+      dishId: 'd2', userId: 'u1',
+      dish: { name: 'Congee', name_zh: null, cuisine: 'cantonese', attributes: {}, restaurant_id: null },
+    });
+    expect(rowNoIngredients.ingredients).toEqual([]);
   });
 });

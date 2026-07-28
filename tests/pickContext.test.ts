@@ -57,4 +57,23 @@ describe('buildPickRows — pick time IS the eaten time', () => {
     const tableRows = buildPickRows([{ name: 'A' }], { ...ctx, tableSessionId: 'ts1' });
     expect(tableRows[0].source).toBe('table');
   });
+
+  // Backlog: "[S] Persist ingredients on dishes" — the scan's own enrichment
+  // already produced these; a pick must carry them into the stored row instead
+  // of discarding them like the pre-fix client→server round trip did.
+  it('carries ingredients through, re-sanitized like diet/cooking_method/heaviness', () => {
+    const rows = buildPickRows(
+      [{ name: 'Char Siu', ingredients: ['pork', 'honey', 'not-a-real-one'.repeat(5), 'sugar', 'five'] }],
+      ctx,
+    );
+    // sanitizeIngredients caps at 4 and lowercases/truncates — same contract as
+    // the enrichment path, proven in menuScan.test.ts; this just pins re-use.
+    expect(rows[0].ingredients).toHaveLength(4);
+    expect(rows[0].ingredients).toContain('pork');
+  });
+
+  it('defaults ingredients to empty when the client sends none', () => {
+    const rows = buildPickRows([{ name: 'A' }], ctx);
+    expect(rows[0].ingredients).toEqual([]);
+  });
 });

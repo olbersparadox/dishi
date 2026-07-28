@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
 
   const { data: dish } = await supabase
     .from('dishes')
-    .select('id, user_id, name, name_zh, attributes, canonical_dish_id')
+    .select('id, user_id, name, name_zh, attributes, canonical_dish_id, ingredients')
     .eq('id', id)
     .maybeSingle();
   if (!dish || dish.user_id !== user.id) {
@@ -122,6 +122,7 @@ export async function POST(req: NextRequest) {
       cooking_method: enrichment?.cooking_method ?? null,
       heaviness: enrichment?.heaviness ?? null,
       diet: enrichment?.diet ?? [],
+      ingredients: enrichment?.ingredients ?? [],
     }),
   };
   // translateDishName auto-detects direction, so a Chinese seed yields English and
@@ -168,10 +169,10 @@ export async function POST(req: NextRequest) {
     ? await buildExecutionOfferForRatedDish(supabase, user.id, id)
     : null;
 
-  // ingredients aren't a stored column, but the client (the growth/refine screen)
-  // shows them as chips — pass them through on the response only.
+  // finalDish already carries ingredients (stored column, written in `update`
+  // above) for the client's growth/refine-screen chips — no override needed.
   return NextResponse.json({
-    dish: { ...finalDish, canonical_dish_id: canonical, ingredients: enrichment?.ingredients ?? [] },
+    dish: { ...finalDish, canonical_dish_id: canonical },
     ...(execution ? { execution } : {}),
   });
 }

@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
   const admin = supabaseAdmin();
   const { data: dish } = await admin
     .from('dishes')
-    .select('id, user_id, name, name_zh, cuisine, attributes, restaurant_id, cooking_method, heaviness, diet')
+    .select('id, user_id, name, name_zh, cuisine, attributes, restaurant_id, cooking_method, heaviness, diet, ingredients')
     .eq('id', dishId)
     .maybeSingle();
   if (!dish) return NextResponse.json({ error: 'That dish is gone.' }, { status: 404 });

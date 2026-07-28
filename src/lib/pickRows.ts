@@ -4,7 +4,7 @@
 // created row gets eaten_at stamped now. The photo path learns eaten_at from
 // EXIF; the pick path knows it precisely, and before this it wrote nothing,
 // which is why 食記 showed 某年某月某日 for a dish eaten an hour ago.
-import { sanitizeDietFlags, sanitizeCookingMethod, sanitizeHeaviness } from './menuScan';
+import { sanitizeDietFlags, sanitizeCookingMethod, sanitizeHeaviness, sanitizeIngredients } from './menuScan';
 
 export type PickRowContext = {
   userId: string;
@@ -36,6 +36,7 @@ export function buildPickRows(items: unknown[], ctx: PickRowContext) {
         cooking_method: sanitizeCookingMethod(raw?.cooking_method),
         heaviness: sanitizeHeaviness(raw?.heaviness),
         diet: sanitizeDietFlags(raw?.diet),
+        ingredients: sanitizeIngredients(raw?.ingredients),
         photo_url: null,
         source: ctx.tableSessionId ? 'table' : 'scan',
         // Which ranked candidate this came from — lets table-mode "who picked

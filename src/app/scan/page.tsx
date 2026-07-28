@@ -264,6 +264,7 @@ function Scanner() {
           items: chosen.map(i => ({
             name: i.name, name_zh: i.name_zh, cuisine: i.cuisine, attributes: i.attributes ?? {},
             cooking_method: i.cooking_method, heaviness: i.heaviness, diet: i.diet,
+            ingredients: i.ingredients,
             table_item_key: i.name_original,
           })),
         }),

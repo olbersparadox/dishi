@@ -88,6 +88,7 @@ export function buildBookmarkRow(source: {
     name: string | null; name_zh: string | null; cuisine: string | null;
     attributes: Record<string, number> | null; restaurant_id: string | null;
     cooking_method?: string | null; heaviness?: string | null; diet?: string[] | null;
+    ingredients?: string[] | null;
   };
 }) {
   const d = source.dish;
@@ -102,6 +103,7 @@ export function buildBookmarkRow(source: {
     cooking_method: d.cooking_method ?? null,
     heaviness: d.heaviness ?? null,
     diet: d.diet ?? [],
+    ingredients: d.ingredients ?? [],
     photo_url: null,
     eaten_at: null,
     source: 'post' as const,

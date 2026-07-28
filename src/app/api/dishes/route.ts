@@ -108,6 +108,7 @@ export async function POST(req: NextRequest) {
       cooking_method: vision.cooking_method,
       heaviness: vision.heaviness,
       diet: vision.diet,
+      ingredients: vision.ingredients,
       source,
       eaten_at: eatenAt,
       district,
@@ -120,10 +121,9 @@ export async function POST(req: NextRequest) {
     .single();
   if (dishErr) return NextResponse.json({ error: dishErr.message }, { status: 500 });
 
-  // ingredients isn't a stored column — pass vision's read-off list through on the
-  // response so the rating/growth screen shows chips + streams them into the taste
-  // blob immediately, no separate enrich round-trip needed.
-  return NextResponse.json({ dish: { ...dish, is_dish: vision.is_dish, vision_failed: vision.vision_failed ?? false, ingredients: vision.ingredients } });
+  // dish already carries ingredients (stored column, backfilled from vision's
+  // read-off list above) — no override needed for the rating/growth screen's chips.
+  return NextResponse.json({ dish: { ...dish, is_dish: vision.is_dish, vision_failed: vision.vision_failed ?? false } });
 }
 
 /**
