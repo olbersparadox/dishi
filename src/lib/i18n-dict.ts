@@ -567,7 +567,7 @@ export const dict: Record<string, { zh: string; en: string }> = {
   // Was "實際食過並喜愛的菜" when this section was the top-rated ratings. It is
   // posts now, and posts may be negative — a label promising love would make
   // the page misrepresent a published dislike.
-  'dossier.anchors': { zh: '「dishi.{name}」的特別推介', en: "dishi.{name}'s picks" },
+  'dossier.anchors': { zh: 'dishi.{name} 的特別推介', en: "dishi.{name}'s picks" },
   'dossier.cta': { zh: '建立你自己的味覺 AI →', en: 'Build your own taste AI →' },
   // The shared-dish permalink's way through to the whole palate behind it.
   'dossier.dish.more': { zh: '睇 dishi.{name} 嘅完整味覺 →', en: "See dishi.{name}'s full palate →" },
