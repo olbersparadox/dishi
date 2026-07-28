@@ -55,6 +55,39 @@ type Identity = { username: string | null; claimed: boolean; changesLeft: number
 
 const MIGRATION_SEEN_KEY = 'dishi_form_migration_seen';
 
+/** Placeholder for the card's own /api/buddy fetch (below) AND for the
+ * sign-in check that gates the whole Taste tab (AuthGate's fallback, see
+ * profile/page.tsx) — same shape either way, so the two waits read as one
+ * continuous load instead of a blank flash followed by a second placeholder.
+ * Exported: the public dossier's loading.tsx mounts this SAME skeleton for
+ * its own copy of this exact card (.taste-form-card, reused verbatim there
+ * too — see PublicDossier.tsx). */
+export function TasteCardSkeleton() {
+  return (
+    <div className="taste-form-card" aria-hidden>
+      <div className="taste-blob-anchor">
+        <div style={{ width: 190, height: 190, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <span className="skel-box" style={{ width: 180, height: 180, borderRadius: '50%' }} />
+        </div>
+      </div>
+      <div className="version-line" style={{ marginTop: 10, justifyContent: 'center' }}>
+        <span className="skel-box" style={{ width: 140, height: 24, borderRadius: 6 }} />
+      </div>
+      <div className="version-bar-row" style={{ marginTop: 14 }}>
+        <span className="skel-box" style={{ flex: 1, height: 8, borderRadius: 99 }} />
+      </div>
+      <div className="stat-row" style={{ marginTop: 20, marginBottom: 0 }}>
+        {[0, 1, 2, 3].map(i => (
+          <div className="stat taste-stat" key={i}>
+            <span className="skel-box" style={{ display: 'block', width: '60%', height: 22, borderRadius: 6, margin: '0 auto' }} />
+            <span className="skel-box" style={{ display: 'block', width: '80%', height: 12, borderRadius: 6, margin: '6px auto 0' }} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function TasteFormCard({ vector, affinity, count, dishes, userId, onAlbumPath }: {
   vector: Record<string, number>;
   affinity: Record<string, number>;
@@ -253,7 +286,7 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
     setShowMigration(false);
   }
 
-  if (!state) return null;
+  if (!state) return <TasteCardSkeleton />;
 
   // Top cuisine affinities — same derivation the old standalone 菜系 card on the
   // profile page used (moved here: it's now shown inside the 菜系 stat's own
@@ -310,7 +343,7 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
 
   return (
     <>
-    <div className="taste-form-card">
+    <div className="taste-form-card card-reveal" onAnimationEnd={e => { e.currentTarget.style.animation = 'none'; }}>
       {/* State B's close — the same quiet top-right X the growth screen uses.
           Cancel restores State A with nothing saved. */}
       {expanded && (

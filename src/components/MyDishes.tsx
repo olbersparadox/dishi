@@ -87,8 +87,11 @@ function toDateInputValue(iso: string): string {
 }
 
 /** Placeholder rows while the journal loads — pulsing photo + text stand-ins in the
- * real row layout, so the page has shape immediately instead of a blank flash. */
-function JournalSkeleton() {
+ * real row layout, so the page has shape immediately instead of a blank flash.
+ * Exported: page.tsx's AuthGate fallback reuses this SAME skeleton (not a
+ * lookalike) so the sign-in check and the data fetch read as one continuous
+ * loading state instead of two different placeholders back to back. */
+export function JournalSkeleton() {
   return (
     <div aria-hidden>
       {[0, 1, 2, 3, 4].map(i => (

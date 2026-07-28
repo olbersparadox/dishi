@@ -24,7 +24,10 @@ type State =
 // JournalSkeleton (MyDishes.tsx) uses, reusing its .skel-box pulse block,
 // just shaped for THIS card (big photo, then an avatar+name row, then a
 // dish-name-sized bar) instead of the journal row's thumbnail+lines.
-function FeedSkeleton() {
+// Exported: the public dossier's loading.tsx reuses this SAME skeleton for
+// its posted-dish anchors (it mounts FeedCard for the real thing, so it
+// mounts this for the wait).
+export function FeedSkeleton() {
   return (
     <div aria-hidden>
       {[0, 1].map(i => (

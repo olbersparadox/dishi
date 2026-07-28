@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AuthGate from '@/components/AuthGate';
 import { supabaseBrowser } from '@/lib/supabase/client';
-import TasteFormCard from '@/components/TasteFormCard';
+import TasteFormCard, { TasteCardSkeleton } from '@/components/TasteFormCard';
 import DishName from '@/components/DishName';
 import SealStamp from '@/components/SealStamp';
 import { type SealResult } from '@/components/SealRevealBadge';
@@ -18,9 +18,25 @@ import { clearJournalCache } from '@/lib/journalCache';
 import { wordKeyFor } from '@/lib/flickWords';
 import { useLang } from '@/lib/i18n';
 
+/** AuthGate's fallback while the session check is in flight — shape-only
+ * stand-ins for the entry pill (.log-src-merged, 112px, no data behind it so
+ * a plain skel-box is enough) and TasteCardSkeleton, the SAME skeleton
+ * TasteFormCard shows a moment later for its own /api/buddy fetch. Keeping
+ * both stages the same shape means no visible swap between "signed in" and
+ * "data loaded". */
+function ProfileGateSkeleton() {
+  return (
+    <div aria-hidden>
+      <span className="skel-box" style={{ display: 'block', width: 90, height: 28, borderRadius: 6, marginBottom: 18 }} />
+      <span className="skel-box" style={{ display: 'block', height: 112, borderRadius: 16, marginBottom: 26 }} />
+      <TasteCardSkeleton />
+    </div>
+  );
+}
+
 export default function ProfilePage() {
   return (
-    <AuthGate>
+    <AuthGate fallback={<ProfileGateSkeleton />}>
       <TasteProfile />
     </AuthGate>
   );
@@ -215,7 +231,10 @@ function TasteProfile() {
 
   return (
     <div>
-      <h1 style={{ marginBottom: 22 }}>{t('profile.title')}</h1>
+      {/* marginBottom matches Menu Scan's h1 (18px, scan/page.tsx) — the two
+          primary-action black cards below (.log-src-merged / .scan-dropzone-wrap,
+          both 112px tall by design) must sit at the same Y across pages. */}
+      <h1 style={{ marginBottom: 18 }}>{t('profile.title')}</h1>
 
       {/* +Log is no longer its own bottom-nav tab (nav is now Feed / Scan /
           Taste) — this is the bridge so photographing and rating a dish directly

@@ -60,7 +60,7 @@ export default function PublicDossier({ dossier, isOwner }: { dossier: Dossier; 
           skipped: renaming is an owner-authenticated action irrelevant to a
           visitor, and decision 3's hard rule 2 amendment forbids a copy-for-AI
           path on this page regardless of who's viewing. */}
-      <div className="taste-form-card">
+      <div className="taste-form-card card-reveal" onAnimationEnd={e => { e.currentTarget.style.animation = 'none'; }}>
         <div className="taste-blob-anchor">
           <TasteFormReveal
             inputs={{ vector: d.vector, evidence: d.evidence, ratingCount: d.ratingCount, seed: `${d.username}:v${d.version}` }}

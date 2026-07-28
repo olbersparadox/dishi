@@ -18,7 +18,15 @@ import OtpForm from '@/components/OtpForm';
  * the page exists to serve." Those pages sign people in at the moment they
  * reach for something (the bookmark), not on arrival.
  */
-export default function AuthGate({ children }: { children: React.ReactNode }) {
+export default function AuthGate({ children, fallback }: {
+  children: React.ReactNode;
+  /** Shown while the session check itself is in flight — a page's OWN
+   * skeleton (the same one it shows while its own data loads right after),
+   * not a generic "Loading…" text line. Defaults to nothing: the check is
+   * normally near-instant, and a page with no meaningful skeleton shape
+   * (nothing behind the gate reads better blank than with an invented one). */
+  fallback?: React.ReactNode;
+}) {
   const { t } = useLang();
   const [ready, setReady] = useState(false);
   const [signedIn, setSignedIn] = useState(false);
@@ -37,7 +45,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     return () => sub.subscription.unsubscribe();
   }, []);
 
-  if (!ready) return <p className="card-meta">{t('auth.loading')}</p>;
+  if (!ready) return <>{fallback ?? null}</>;
   if (signedIn) return <>{children}</>;
 
   return (

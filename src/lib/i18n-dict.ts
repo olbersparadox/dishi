@@ -144,7 +144,6 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'auth.placeholder': { zh: 'you@example.com', en: 'you@example.com' },
   'auth.send': { zh: '傳送數字碼', en: 'Send code' },
   'auth.sent': { zh: '已將 6 位數字碼寄到你的 email', en: 'We emailed you a 6-digit code' },
-  'auth.loading': { zh: '載入中…', en: 'Loading…' },
 
   // ---- home ----
   'home.title': { zh: '食記', en: 'Journal' },

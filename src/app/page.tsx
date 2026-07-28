@@ -2,9 +2,27 @@
 import { Fragment, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import AuthGate from '@/components/AuthGate';
-import MyDishes from '@/components/MyDishes';
+import MyDishes, { JournalSkeleton } from '@/components/MyDishes';
 import FeedList from '@/components/FeedList';
 import { useLang } from '@/lib/i18n';
+
+/** AuthGate's fallback while the session check is in flight — the SAME
+ * skeleton rows MyDishes shows a moment later for its own data fetch (not a
+ * second, different-looking placeholder), under a shape-only stand-in for
+ * the tab heading (no translated text yet this early — a skeleton represents
+ * shape, not copy). */
+function JournalGateSkeleton() {
+  return (
+    <div aria-hidden>
+      <div style={{ marginBottom: 17, display: 'flex', alignItems: 'center', gap: 16 }}>
+        <span className="skel-box" style={{ width: 52, height: 28, borderRadius: 6 }} />
+        <span aria-hidden className="home-tab-divider" />
+        <span className="skel-box" style={{ width: 68, height: 28, borderRadius: 6 }} />
+      </div>
+      <JournalSkeleton />
+    </div>
+  );
+}
 
 /**
  * 食記 — the food journal. Replaces the old recommendation feed (為你推介),
@@ -31,7 +49,7 @@ import { useLang } from '@/lib/i18n';
  */
 export default function Home() {
   return (
-    <AuthGate>
+    <AuthGate fallback={<JournalGateSkeleton />}>
       <Journal />
     </AuthGate>
   );

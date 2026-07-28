@@ -1062,6 +1062,15 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 .rated-dish-row .card-title { font-family: var(--font-display); font-size: var(--fs-subtitle-a); font-weight: 700; }
 @media (prefers-reduced-motion: reduce) { .rated-dish-row { animation: none; } }
 
+/* Same fade/rise-in as .rated-dish-row, on the taste-form-card itself — the
+   moment real content (blob + stats) replaces its own skeleton (Taste AI's
+   own /api/buddy fetch, or the dossier's loading.tsx) it should arrive the
+   same way a journal row does, not just pop in. `both` + the onAnimationEnd
+   reset (TasteFormCard.tsx, PublicDossier.tsx) mirror .rated-dish-row's own
+   fix for the same fill-mode containing-block gotcha. */
+.card-reveal { animation: learnIn 320ms ease-out both; }
+@media (prefers-reduced-motion: reduce) { .card-reveal { animation: none; } }
+
 /* Hairline separating 食自己 / 大家食 in the page.tsx heading-as-tabs row. */
 .home-tab-divider { display: inline-block; width: 1px; height: 0.9em; background: var(--line); }
 

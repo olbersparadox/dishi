@@ -58,6 +58,24 @@ type ScanResponse = {
   restaurant_guess: string | null; mock: boolean; items: ScannedItem[];
 };
 
+/** AuthGate's fallback while the session check is in flight — shape-only
+ * stand-ins for the capture screen (Scanner's own initial state is entirely
+ * static/session-restored, no fetch of its own to wait on), so this is the
+ * one loading state this page actually needs: the sign-in check itself. */
+function ScanGateSkeleton() {
+  return (
+    <div aria-hidden>
+      <span className="skel-box" style={{ display: 'block', width: 100, height: 28, borderRadius: 6, marginBottom: 18 }} />
+      <span className="skel-box" style={{ display: 'block', height: 112, borderRadius: 16 }} />
+      <div style={{ borderTop: '1px solid var(--line)', marginTop: 20, paddingTop: 20 }}>
+        <span className="skel-box" style={{ display: 'block', width: 130, height: 20, borderRadius: 6 }} />
+        <span className="skel-box" style={{ display: 'block', width: '85%', height: 14, borderRadius: 6, marginTop: 10 }} />
+        <span className="skel-box" style={{ display: 'block', height: 48, borderRadius: 12, marginTop: 14 }} />
+      </div>
+    </div>
+  );
+}
+
 const SCAN_STAGE_KEYS = ['scan.stage.0', 'scan.stage.1', 'scan.stage.2', 'scan.stage.3', 'scan.stage.4'];
 // Concurrency cap for parallel per-dish calls (both enrichment and scoring):
 // fast enough that total wait is close to "one dish's worth of latency,"
@@ -69,7 +87,7 @@ const SCORE_CONCURRENCY = 6;
 
 export default function ScanPage() {
   return (
-    <AuthGate>
+    <AuthGate fallback={<ScanGateSkeleton />}>
       <Scanner />
     </AuthGate>
   );
