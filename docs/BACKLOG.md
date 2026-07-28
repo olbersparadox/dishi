@@ -593,6 +593,28 @@ requires, before any code):**
 
 # Batch: sharing — messenger share + per-dish links (owner design session, 2026-07-28)
 
+**STATUS 2026-07-28: items 1, 2, 3, 5, 6 and HALF of 4 SHIPPED** (`d9f26b7`,
+`ee619ed`, `810f776`, `8a3ffbc`, `3515ba4`, `98492e9`). Full entries move to
+DECISIONS.md when the batch closes. ONE thing remains open:
+
+- [ ] **4b. The Taste AI second swipe — sharing the PROFILE.** *(Fable — new
+  visible surface.)* Blocked on four brand assets in `public/msg-logos/`
+  (WhatsApp, Telegram, WeChat, Line), which must come from each brand's own
+  official resources — do NOT generate approximations of real trademarks.
+  Everything else it needs exists: `lib/share.ts` (item 1) and the settled
+  design below (one rounded-rect wrapper, four logos inside, any tap opens
+  the OS share sheet). Gate on a claimed username; unclaimed sees the claim
+  prompt, which already lives on that card.
+
+Two build-time corrections worth carrying into DECISIONS.md, both recorded in
+the commits: the permalink is keyed on the DISH id, not the post id (it still
+404s on unpublish, since the lookup goes through dish_posts, and the dish id
+is what the anchor, the bookmark API and FeedCard all already speak); and
+SignInSheet must NOT resume off `onAuthStateChange` — GoTrue emits SIGNED_IN
+for an already-existing session, which looped one tap into three POSTs until
+OtpForm learned to report its own verify.
+
+
 The last link in the stream-2 chain: taste-only export ✅ → public page ✅ →
 posts / 食記 feed ✅ → **messenger share (this batch)**. Designed with the
 owner 2026-07-28 against the live surfaces; the settled inputs below are
