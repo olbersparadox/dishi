@@ -599,10 +599,10 @@ All six items shipped (`d9f26b7`, `ee619ed`, `810f776`, `8a3ffbc`, `3515ba4`,
 pool-starvation risk, and the three build-time corrections — moved verbatim to
 DECISIONS.md under the same heading.
 
-ONE follow-up, not a blocker: the four messenger brand logos
-(`public/msg-logos/logo-{whatsapp,telegram,wechat,line}.webp`) are still
-absent. They must come from each brand's official brand-resource page, exactly
-as `public/ai-logos/` was supplied — do NOT generate approximations of
-registered trademarks. The share row SHIPS AND WORKS without them (label-only;
-each mark hides itself on error), so dropping the files in is a pure
-file-copy with no code change. See `src/lib/messengers.ts`.
+The messenger brand marks are IN (`public/msg-logos/*.svg`, official glyphs
+extracted from simple-icons, no runtime dep) — the earlier "assets still
+absent" follow-up is closed. Corrections applied on owner review, recorded
+here because each was a real defect and not a preference: the row had shipped
+as a text label instead of the agreed four marks; the identity line was
+re-labelling itself per panel instead of staying fixed; and the dots' touch
+targets overlapped, so tapping back to panel 1 silently did nothing.
