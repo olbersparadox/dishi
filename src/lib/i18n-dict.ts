@@ -556,8 +556,6 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'dossier.cuisines': { zh: '常回味的菜系：{list}', en: 'Keeps returning to: {list}' },
   'dossier.anchors': { zh: '實際食過並喜愛的菜', en: 'Dishes really eaten and loved' },
   'dossier.hide.restaurants': { zh: '隱藏餐廳名稱', en: 'Hide restaurant names' },
-  'dossier.copy.blurb': { zh: '複製 {name} 的口味檔，交給你的 AI，替他們挑選合口味的菜', en: "Copy {name}'s taste dossier for your own AI — so it can help you choose for them" },
-  'dossier.copy': { zh: '複製口味檔', en: 'Copy dossier' },
   'dossier.cta': { zh: '建立你自己的味覺 AI →', en: 'Build your own taste AI →' },
   'copied.short': { zh: '已複製', en: 'Copied' },
   'profile.owner.link': { zh: '開啟儀表板', en: 'Open the dashboard' },

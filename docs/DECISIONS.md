@@ -3760,3 +3760,72 @@ artifact"). What shipped and the calls made:
 Verified: 705 tests passing (tests/dossier.test.ts pins the privacy
 contract), tsc clean, live page screenshotted on REAL data (dishi.jerry, 50
 ratings) in both toggle states, guards curled, zero console errors.
+
+
+---
+
+# Amendment to decision 3 — the public page is a PUBLISHING surface, not a rating dump (owner, 2026-07-28)
+
+Raised by the owner the day the dossier shipped, on seeing it: "If user's
+ratings are private, and only those opt-in to post are sharable, this page
+supposedly be just that? And also, why have a copy to AI button here. If a
+friend import this into his AI, would that confuse his own taste profile? If a
+friend trust user's taste, i rather have him able to find what he shares as
+posts."
+
+Both halves land. Decision 3 authorized what was built; seeing it is what
+produced the objection. Recorded as an amendment, not drift.
+
+## 1. The copy-for-AI affordance is REMOVED — the guardrail was unenforceable
+
+The dossier emitted third-person text for a friend's own AI, carrying one line
+asking that AI not to fold it into what it knows about its reader. That line
+is a **standing behavioural instruction** — precisely the category Phase 0.5
+measured hosts REFUSING while accepting the data. So the payload lands and the
+protection is the part that doesn't. This contradicts the app's own evidence,
+the same evidence the taste-only export rewrite rests on.
+
+Hard rule 1 ("a dossier NEVER enters the recipient's taste engine") is
+enforceable inside Dishi — no import path exists — and unenforceable inside
+someone else's host. Shipping a nominal guard there was worse than shipping
+nothing, because it reads as a protection.
+
+The owner's alternative is also simply better: a friend who trusts this palate
+should reach its POSTS. A post is a dish someone chose to publish, with a
+reason attached — more useful than a taste-vector dump, and it carries no
+contamination risk. `buildDossierText` is DELETED (not left importable), its
+i18n keys removed, and `tests/dossier.test.ts` pins the absence broadly —
+any `text`/`prompt`/`export` surface added to `lib/dossier.ts` fails, because
+re-adding the affordance under a new name is the regression worth catching.
+
+## 2. The anchors section is a PLACEHOLDER — its source changes to posts
+
+Decision 3's "anchors and restaurant names yes" published six rated dishes on
+the strength of ONE blanket event: claiming a username. Everywhere else in the
+product the consent unit is the DISH ("posts are per-dish opt-in", CLAUDE.md).
+The page is therefore a coarser consent grain than the rest of the app.
+
+The section is not deleted — its SOURCE changes, when posts exist, from
+"top-rated private ratings" to "dishes you posted." Same section, same
+decision-3 rationale (the restaurants are the credibility; dimensions alone
+read as a horoscope), consent-gated per dish. The blob + version + dimension
+chips stay public: they are aggregate, and reveal no specific meal or place.
+On their own they ARE the horoscope decision 3 warned about — posts underneath
+them are what stops that.
+
+Left in place meanwhile because nothing links to the page (verified: only doc
+comments reference the route), so it leaks nothing today. Marked PLACEHOLDER
+in `lib/dossier.ts` and at the render site so the next session doesn't read it
+as settled.
+
+## 3. Consequence: the stream-2 chain REORDERS
+
+The page's real form depends on posts existing. The recorded chain was
+export → public page → messenger share → 食記 feed. Building the share
+(S2-3/S2-4) next would mean building distribution for an artifact whose
+contents are still in question. Corrected order:
+
+**taste-only export ✅ → public page (placeholder ✅) → posts / 食記 feed →
+page's real form → messenger share.**
+
+This is the substantive cost of the amendment: share moves BEHIND posts.

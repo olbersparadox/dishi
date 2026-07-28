@@ -25,9 +25,14 @@ independent — all three converge on one keystone:
    binding constraint.
 2. **dishi.name** — identity, attachment, sharing (taste-rank + messenger
    share; there is NO social graph, settled). Taste-only export SHIPPED
-   2026-07-28; `dishi.me/[username]` public dossier SHIPPED 2026-07-28.
-   NEXT: messenger share of the dossier URL, plus the [S] chop-wiring fix.
-   Chain: taste-only export ✅ → public page ✅ → messenger share → 食記 feed.
+   2026-07-28; `dishi.me/[username]` shipped 2026-07-28 as a PLACEHOLDER —
+   its anchors section is sourced from private ratings and must become
+   opt-in posts (owner amendment to decision 3, same day; copy-for-AI already
+   removed). NEXT: **posts / 食記 feed**, which the page's real form depends
+   on — NOT the messenger share, which moved behind it.
+   Chain: taste-only export ✅ → public page (placeholder ✅) → posts / 食記
+   feed → page's real form → messenger share. Plus the [S] chop-wiring fix,
+   independent of all of it.
 3. **UX/UI** — polish + the 書面化 register shift. No open corrections from
    the 2026-07-28 review.
 

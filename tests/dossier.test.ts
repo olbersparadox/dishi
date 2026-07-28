@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { projectDossier, buildDossierText, DOSSIER_KNOWS_AT } from '../src/lib/dossier';
+import { projectDossier, DOSSIER_KNOWS_AT } from '../src/lib/dossier';
 import { MEANINGFUL_THRESHOLD, STRONG_THRESHOLD } from '../src/lib/tasteExport';
 
 // The public dossier's privacy contract (decision 3). These tests pin what the
@@ -86,42 +86,23 @@ describe('projectDossier — the privacy contract', () => {
   });
 });
 
-describe('buildDossierText — third-person reference, one artifact two readers', () => {
-  const label = (k: string) => k.toUpperCase();
-  const cuisine = (k: string) => k.toUpperCase();
-
-  it('is ABOUT the person, addressed to the reader\'s AI — never first-person taste', () => {
-    const txt = buildDossierText(projectDossier(raw), label, cuisine);
-    expect(txt).toContain('# dishi.jerry_c — a taste dossier (reference only)');
-    expect(txt).toContain("dishi.jerry_c's taste profile");
-    expect(txt).toContain('What dishi.jerry_c loves');
-    // The palate export's first-person voice must not leak in here.
-    expect(txt).not.toContain('my AI palate');
-    expect(txt).not.toContain('What I love');
-  });
-
-  it('states hard rule 1 in the text itself — the recipient\'s AI is where Dishi cannot enforce it structurally', () => {
-    const txt = buildDossierText(projectDossier(raw), label, cuisine);
-    expect(txt).toMatch(/read-only reference/);
-    expect(txt).toMatch(/don't fold any of it into what you know about me/);
-  });
-
-  it('carries anchors with restaurants, and honors the hidden variant', () => {
-    const shown = buildDossierText(projectDossier(raw), label, cuisine);
-    expect(shown).toContain('Beef chow fun / 乾炒牛河 (新記)');
-    const hidden = buildDossierText(projectDossier({ ...raw, hideRestaurants: true }), label, cuisine);
-    expect(hidden).toContain('Beef chow fun / 乾炒牛河');
-    expect(hidden).not.toContain('新記');
-  });
-
-  it('no dates, no companions — by construction, at the text level too', () => {
-    const txt = buildDossierText(projectDossier(raw), label, cuisine);
-    expect(txt).not.toMatch(/2026|Jun|Jul/);
-    expect(txt).not.toMatch(/companion|eat with/i);
-  });
-
-  it('closes on unknown-not-neutral — the dossier\'s twin of the epistemic line', () => {
-    const txt = buildDossierText(projectDossier(raw), label, cuisine);
-    expect(txt).toMatch(/genuinely unknown about dishi\.jerry_c, not neutral/);
+describe('no copy-for-AI path (owner call 2026-07-28, amending decision 3)', () => {
+  it('exposes NO text-builder — the guardrail on that text was unenforceable', async () => {
+    // The dossier briefly emitted third-person text for a friend's own AI,
+    // carrying one line asking that AI not to fold it into what it knows about
+    // its reader. That is a standing behavioural instruction — the exact
+    // category Phase 0.5 measured hosts REFUSING while accepting the data, so
+    // the payload would land and the protection wouldn't. Hard rule 1 is
+    // enforceable inside Dishi (no import path exists) and not inside someone
+    // else's host. A friend who trusts this palate should reach its POSTS,
+    // which are per-dish opt-in and carry a reason.
+    //
+    // Deliberately broader than the old name: any text/prompt/export surface
+    // added to this module trips this, because re-adding the affordance under
+    // a new name is the regression worth catching. Read DECISIONS.md before
+    // deleting this test.
+    const mod = await import('../src/lib/dossier');
+    expect(Object.keys(mod)).not.toContain('buildDossierText');
+    expect(Object.keys(mod).filter(k => /text|prompt|export/i.test(k))).toEqual([]);
   });
 });

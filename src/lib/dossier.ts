@@ -11,6 +11,18 @@
 // per-user collides with the never-sell-trust restaurant relationship in a
 // way abstract avoid-dimensions don't.
 //
+// NO COPY-FOR-AI PATH (owner call 2026-07-28, amending decision 3). This
+// module briefly emitted third-person text for a friend's own AI. It carried
+// one line asking that AI not to fold the dossier into what it knows about
+// its owner — which is a standing behavioural instruction, precisely the
+// category Phase 0.5 measured hosts REFUSING while accepting the data. The
+// payload would land and the protection wouldn't. Hard rule 1 (a dossier
+// never enters the recipient's taste engine) is enforceable inside Dishi —
+// there is no import path — and unenforceable inside someone else's host, so
+// the affordance is gone rather than nominally guarded. A friend who trusts
+// this palate should reach its POSTS, which are per-dish opt-in and carry a
+// reason. Do not re-add an export/copy path here; see DECISIONS.md.
+//
 // Resolution rule (enforced at the route, restated here because it's easy to
 // get wrong): only profiles with username_set_at non-null resolve publicly.
 // Every legacy profile carries an email-derived handle — resolving those
@@ -84,6 +96,15 @@ export function projectDossier(raw: {
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5)
       .map(([c]) => c),
+    // PROVISIONAL SOURCE (owner call 2026-07-28): these are top-rated dishes
+    // drawn from ratings that are otherwise private, published on the strength
+    // of one blanket event — claiming a username. Everywhere else in the
+    // product the consent unit is the DISH (posts are per-dish opt-in), so
+    // this section is a coarser grain than the rest of the app and is a
+    // PLACEHOLDER. When posts ship, this list's source becomes "dishes you
+    // posted" — same section, same decision-3 rationale (the restaurants are
+    // the credibility), consent-gated per dish. Nothing links to this page yet.
+    //
     // Positive anchors ONLY (see the module comment), strongest first, capped —
     // and the eaten_at a raw row may carry ends here, never in the output.
     // Deduped by (name, restaurant): re-rating a dish appends rating rows (the
@@ -116,52 +137,4 @@ function dedupeAnchors<T extends { name: string | null; name_zh: string | null; 
     seen.add(key);
     return true;
   });
-}
-
-/**
- * The "copy for AI" text — decision 3: "emits the third-person text a friend
- * can hand to their own AI. One artifact, two readers." THIRD person
- * throughout: this is reference material ABOUT someone, handed to a reader
- * whose own palate it must never contaminate — hard rule 1 (a dossier never
- * enters the recipient's taste engine) is stated IN the text, because the
- * recipient's AI is the one place Dishi can't enforce it structurally.
- * English-only for the same reason the export doc is: the reader is a model.
- * Built from the SAME projection the page renders — no second data path.
- */
-export function buildDossierText(d: PublicDossier, dimLabel: (k: string) => string, cuisineLabel: (k: string) => string): string {
-  const who = `dishi.${d.username}`;
-  const out: string[] = [];
-  out.push(`# ${who} — a taste dossier (reference only)`);
-  out.push(`v${d.version} · learned from ${d.ratingCount} dishes they really ate and rated · dishi.me/${d.username}`);
-  out.push('');
-  out.push(`This is ${who}'s taste profile, learned by Dishi (dishi.me) from dishes they actually ate and rated — evidence, not a self-description. I'm sharing it with you so you can help ME pick food FOR THEM or WITH THEM (a meal together, a gift, a recommendation).`);
-  out.push(`Treat it as read-only reference about ${who} — it says nothing about MY taste, so please don't fold any of it into what you know about me.`);
-  out.push('');
-  if (d.loves.length) {
-    out.push(`## What ${who} loves`);
-    if (d.strongLoves.length) out.push(`Strongly: ${d.strongLoves.map(dimLabel).join(', ')}`);
-    out.push(`Overall: ${d.loves.map(dimLabel).join(', ')}`);
-    out.push('');
-  }
-  if (d.avoids.length) {
-    out.push(`## What ${who} avoids`);
-    out.push(d.avoids.map(dimLabel).join(', '));
-    out.push('');
-  }
-  if (d.cuisines.length) {
-    out.push(`## Cuisines ${who} keeps returning to`);
-    out.push(d.cuisines.map(cuisineLabel).join(', '));
-    out.push('');
-  }
-  if (d.anchors.length) {
-    out.push(`## Dishes ${who} has loved`);
-    for (const a of d.anchors) {
-      const name = [a.name, a.name_zh].filter(Boolean).join(' / ');
-      out.push(`- ${name}${a.restaurant ? ` (${a.restaurant})` : ''}`);
-    }
-    out.push('Reason by comparison to these real dishes when suggesting for them.');
-    out.push('');
-  }
-  out.push(`Anything not listed is genuinely unknown about ${who}, not neutral — say so rather than guessing.`);
-  return out.join('\n');
 }

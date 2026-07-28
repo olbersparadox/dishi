@@ -5,33 +5,24 @@
 // action), never lookalikes: a visitor should see the same object the owner
 // sees on their taste tab, because it IS the same taste.
 //
-// The copy circle emits buildDossierText — third-person reference for the
-// visitor's own AI (decision 3: "one artifact, two readers"). It is NOT the
-// palate export: no POST, no export event, no delta baseline — nothing about
-// the OWNER moves when a visitor copies their dossier.
+// There is NO copy-for-AI action here (owner call 2026-07-28, amending
+// decision 3's "one artifact, two readers"): the guardrail on that text was a
+// standing behavioural instruction, the category Phase 0.5 measured hosts
+// refusing — see lib/dossier.ts. A friend who trusts this palate should reach
+// its posts. Do not add a copy/share-to-AI button to this page.
 import { useState } from 'react';
 import { TasteFormReveal } from './TasteForm';
 import { useLang, cuisineLabel } from '@/lib/i18n';
-import { buildDossierText, type PublicDossier as Dossier } from '@/lib/dossier';
-import { CopyIcon, CheckIcon } from './icons';
+import { type PublicDossier as Dossier } from '@/lib/dossier';
 
 export default function PublicDossier({ dossier, isOwner }: { dossier: Dossier; isOwner: boolean }) {
   const { t, lang } = useLang();
-  const [copied, setCopied] = useState(false);
   const [hide, setHide] = useState(dossier.hideRestaurants);
   const [saving, setSaving] = useState(false);
 
   const d = dossier;
   const label = (k: string) => t(`dim.${k}`);
   const cuisine = (k: string) => cuisineLabel(k, lang) || k;
-
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(buildDossierText(d, label, cuisine));
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2500);
-    } catch { /* clipboard can be blocked; no fake feedback */ }
-  };
 
   // The one owner control (decision 3): hide restaurant names, accepting a
   // weaker page. Optimistic; reverts on failure.
@@ -102,6 +93,9 @@ export default function PublicDossier({ dossier, isOwner }: { dossier: Dossier; 
         )}
       </div></div>
 
+      {/* PLACEHOLDER SECTION — sourced from otherwise-private top ratings today;
+          becomes "dishes you posted" when posts ship (per-dish opt-in, matching
+          the product's consent grain). See lib/dossier.ts and DECISIONS.md. */}
       {anchors.length > 0 && (
         <div className="card" style={{ marginTop: 14 }}><div className="card-body">
           <p className="label">{t('dossier.anchors')}</p>
@@ -124,18 +118,6 @@ export default function PublicDossier({ dossier, isOwner }: { dossier: Dossier; 
           )}
         </div></div>
       )}
-
-      {/* One artifact, two readers: the visitor hands this to THEIR AI. Explicitly
-          reference-only — hard rule 1 lives in the emitted text itself. */}
-      <div className="card" style={{ marginTop: 14 }}><div className="card-body" style={{ textAlign: 'center' }}>
-        <p className="card-meta">{t('dossier.copy.blurb', { name: `dishi.${d.username}` })}</p>
-        <div className="install-copy-wrap" style={{ marginTop: 10 }}>
-          <button className="ok-circle" onClick={copy} aria-label={t('dossier.copy')}>
-            {copied ? <CheckIcon size={26} /> : <CopyIcon size={24} />}
-          </button>
-          {copied && <p className="card-meta">{t('copied.short')}</p>}
-        </div>
-      </div></div>
 
       {/* The acquisition line the page exists to serve — quiet, not a wall. */}
       {!isOwner && (
