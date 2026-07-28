@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import AuthGate from '@/components/AuthGate';
 import MyDishes from '@/components/MyDishes';
 import FeedList from '@/components/FeedList';
@@ -43,20 +43,28 @@ function Journal() {
   return (
     <div>
       {/* The two tabs ARE the heading — same display type, the inactive one
-          dimmed. No new tab chrome: the page keeps one title-sized line. */}
-      <h1 style={{ marginBottom: 17, display: 'flex', gap: 16 }}>
-        {(['mine', 'feed'] as const).map(key => (
-          <span
-            key={key}
-            role="tab"
-            aria-selected={tab === key}
-            tabIndex={0}
-            onClick={() => setTab(key)}
-            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') setTab(key); }}
-            style={{ cursor: 'pointer', color: tab === key ? 'var(--ink)' : 'var(--ink-soft)' }}
-          >
-            {t(`home.tab.${key}`)}
-          </span>
+          dimmed. No new tab chrome: the page keeps one title-sized line. A
+          hairline divider separates them; 大家食 dims further than 食自己 when
+          inactive (--ink-faint vs --ink-soft) — it's the secondary surface, so
+          it should read quieter at rest, not just equally muted. */}
+      <h1 style={{ marginBottom: 17, display: 'flex', alignItems: 'center', gap: 16 }}>
+        {(['mine', 'feed'] as const).map((key, i) => (
+          <Fragment key={key}>
+            {i === 1 && <span aria-hidden className="home-tab-divider" />}
+            <span
+              role="tab"
+              aria-selected={tab === key}
+              tabIndex={0}
+              onClick={() => setTab(key)}
+              onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') setTab(key); }}
+              style={{
+                cursor: 'pointer',
+                color: tab === key ? 'var(--ink)' : key === 'feed' ? 'var(--ink-faint)' : 'var(--ink-soft)',
+              }}
+            >
+              {t(`home.tab.${key}`)}
+            </span>
+          </Fragment>
         ))}
       </h1>
       {tab === 'mine' ? <MyDishes t={t} lang={lang} /> : <FeedList />}

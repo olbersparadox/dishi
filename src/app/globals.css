@@ -1050,6 +1050,9 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 .rated-dish-row .card-title { font-family: var(--font-display); font-size: var(--fs-subtitle-a); font-weight: 700; }
 @media (prefers-reduced-motion: reduce) { .rated-dish-row { animation: none; } }
 
+/* Hairline separating 食自己 / 大家食 in the page.tsx heading-as-tabs row. */
+.home-tab-divider { display: inline-block; width: 1px; height: 0.9em; background: var(--line); }
+
 /* Journal row: [photo + verdict] | [date/name/meta/chips] | [kebab] */
 .journal-row { display: flex; gap: 14px; align-items: flex-start; padding: 4px 2px; }
 .journal-photo-col {
@@ -1604,6 +1607,7 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 .dish-public-badge {
   display: inline-flex; align-items: center; justify-content: center;
   width: 38px; height: 38px; color: var(--ink-soft); flex-shrink: 0;
+  margin-right: -15px; /* pull 15px closer to the kebab, past the row's own 8px gap */
 }
 /* Larger tap targets for the icon actions (the 30px ones were genuinely fiddly on
    a phone, and these are the primary way to fix a wrong dish). */
