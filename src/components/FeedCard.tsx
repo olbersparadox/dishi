@@ -15,6 +15,7 @@
 // Sits inside .rated-dish-row so the list still divides the same way the
 // first tab's journal rows do; only the anatomy INSIDE each row changed.
 import { useState } from 'react';
+import Link from 'next/link';
 import { useLang } from '@/lib/i18n';
 import DuelSide from './DuelSide';
 import Chop from './Chop';
@@ -78,10 +79,20 @@ export default function FeedCard({ item, onBookmarked }: {
             afterPhoto={
               <>
                 <div className="feed-author-row">
-                  <div className="feed-author-id">
-                    <Chop name={item.author.username} color={chopColor} size={28} />
-                    <span className="feed-author-name">dishi.{item.author.username}</span>
-                  </div>
+                  {/* A persona (dishi.Spoon et al) has no real profile to link
+                      to — only a claimed user's chop/name goes to their
+                      dishi.me/[username] dossier (own decision). */}
+                  {item.author.kind === 'user' ? (
+                    <Link href={`/${item.author.username}`} className="feed-author-id">
+                      <Chop name={item.author.username} color={chopColor} size={28} />
+                      <span className="feed-author-name">dishi.{item.author.username}</span>
+                    </Link>
+                  ) : (
+                    <div className="feed-author-id">
+                      <Chop name={item.author.username} color={chopColor} size={28} />
+                      <span className="feed-author-name">dishi.{item.author.username}</span>
+                    </div>
+                  )}
                   {/* The verdict is never optional dressing on a user's post: posts
                       may be negative, and a card that showed only the dish would
                       read as a recommendation of it. */}

@@ -122,6 +122,14 @@ h3 { font-size: var(--fs-body); }
 .card-meta.auth-longcopy { margin-top: -17px; font-size: var(--fs-body); }
 .auth-title { font-weight: 600; }
 
+/* Public dossier's return-to-feed — sized to read as a page heading (h1's own
+   --fs-title-b), not a small icon-btn, since it's the page's only chrome. */
+.dossier-back {
+  display: inline-flex; align-items: center; justify-content: center;
+  border: none; background: none; padding: 0; margin-bottom: 16px;
+  color: var(--ink); font-size: var(--fs-title-b);
+}
+.dossier-back:hover, .dossier-back:focus-visible { color: var(--ink-soft); }
 .card {
   background: var(--paper-raised); border: 1px solid var(--line); border-radius: var(--radius);
   overflow: hidden; margin-bottom: 20px;
@@ -1812,7 +1820,7 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
    2026-07-28) — the chop sits 10px further from the card's left edge, the
    verdict word 10px further from its right edge. */
 .feed-author-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 10px 0 -4px; padding: 0 10px; }
-.feed-author-id { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.feed-author-id { display: flex; align-items: center; gap: 8px; min-width: 0; text-decoration: none; color: inherit; }
 .feed-author-name {
   font-family: var(--font-display); font-weight: 800; font-size: var(--fs-title-a); color: var(--ink);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;

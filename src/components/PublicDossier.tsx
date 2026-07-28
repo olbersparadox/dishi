@@ -11,13 +11,16 @@
 // refusing — see lib/dossier.ts. A friend who trusts this palate should reach
 // its posts. Do not add a copy/share-to-AI button to this page.
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { TasteFormReveal } from './TasteForm';
 import DuelSide from './DuelSide';
+import { ArrowLeftIcon } from './icons';
 import { useLang, cuisineLabel } from '@/lib/i18n';
 import { type PublicDossier as Dossier } from '@/lib/dossier';
 
 export default function PublicDossier({ dossier, isOwner }: { dossier: Dossier; isOwner: boolean }) {
   const { t, lang, pair } = useLang();
+  const router = useRouter();
   const [hide, setHide] = useState(dossier.hideRestaurants);
   const [saving, setSaving] = useState(false);
 
@@ -53,6 +56,13 @@ export default function PublicDossier({ dossier, isOwner }: { dossier: Dossier; 
 
   return (
     <div>
+      {/* Entry from the feed's author chop/name (own decision) — router.back()
+          rather than a hardcoded link to "/" so it returns to whichever tab
+          (大家食) the visitor actually came from, not always the default
+          Private tab a plain "/" would land on. */}
+      <button type="button" className="dossier-back" onClick={() => router.back()} aria-label={t('dossier.back')}>
+        <ArrowLeftIcon size={28} />
+      </button>
       <div className="card"><div className="card-body" style={{ textAlign: 'center' }}>
         <TasteFormReveal
           inputs={{ vector: d.vector, evidence: d.evidence, ratingCount: d.ratingCount, seed: `${d.username}:v${d.version}` }}

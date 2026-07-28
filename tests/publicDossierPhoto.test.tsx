@@ -5,11 +5,16 @@
 // built for this page. Pinned the same way tests/feedCard.test.tsx pins it:
 // checking for DuelSide's own .duel-photo img, which a hand-rolled copy of
 // the layout would not produce ("sameness tests assert identity").
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 import { LanguageProvider } from '../src/lib/i18n';
 import PublicDossier from '../src/components/PublicDossier';
 import type { PublicDossier as Dossier } from '../src/lib/dossier';
+
+// The page's own back button (router.back()) needs an app-router context
+// these unit tests don't mount — stubbed the same way any router-dependent
+// component would be, not part of what these tests are pinning.
+vi.mock('next/navigation', () => ({ useRouter: () => ({ back: () => {} }) }));
 
 const dossier: Dossier = {
   username: 'jerry',

@@ -19,6 +19,17 @@ export function ArrowRightIcon({ size = 20 }: IconProps) {
   );
 }
 
+/** Left arrow — back navigation (e.g. a public dossier's return-to-feed). */
+export function ArrowLeftIcon({ size = 20 }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor"
+      strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M19 12H5" />
+      <path d="M11 18l-6-6 6-6" />
+    </svg>
+  );
+}
+
 /** Vertical three dots — "more actions" (edit/delete) on a rated-dish row. */
 export function MoreIcon({ size = 16 }: IconProps) {
   return (

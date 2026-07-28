@@ -1,5 +1,6 @@
 'use client';
 import { Fragment, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import AuthGate from '@/components/AuthGate';
 import MyDishes from '@/components/MyDishes';
 import FeedList from '@/components/FeedList';
@@ -38,7 +39,21 @@ export default function Home() {
 
 function Journal() {
   const { t, lang } = useLang();
-  const [tab, setTab] = useState<'mine' | 'feed'>('mine');
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  // The tab lives in the URL too (not just local state), so a visit to a
+  // feed author's dishi.me/[username] dossier and back RESTORES 大家食
+  // instead of resetting to the default Private tab — before this, switching
+  // tabs never touched the URL, so there was no history entry to return to
+  // and router.back() just landed on the bare "/" default.
+  const [tab, setTab] = useState<'mine' | 'feed'>(searchParams.get('tab') === 'feed' ? 'feed' : 'mine');
+
+  const selectTab = (key: 'mine' | 'feed') => {
+    setTab(key);
+    // replace, not push — clicking between tabs shouldn't pile up back-stack
+    // entries; only leaving the page (e.g. to a dossier) does that.
+    router.replace(key === 'feed' ? '/?tab=feed' : '/', { scroll: false });
+  };
 
   return (
     <div>
@@ -57,8 +72,8 @@ function Journal() {
               role="tab"
               aria-selected={tab === key}
               tabIndex={0}
-              onClick={() => setTab(key)}
-              onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') setTab(key); }}
+              onClick={() => selectTab(key)}
+              onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') selectTab(key); }}
               style={{ cursor: 'pointer', color: tab === key ? 'var(--ink)' : 'var(--ink-faint)' }}
             >
               {t(`home.tab.${key}`)}

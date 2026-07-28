@@ -13,7 +13,10 @@
 // (dots, etc.); hasClaimedUsername is the real gate.
 //
 // Hard rule 2 (never visible during a rating flow): nothing links here from
-// any rating surface — this page is reached by shared URL only.
+// a RATING surface (duel, seal reveal, rating stack) — seeing a friend's
+// verdict before you flick contaminates the rating at source. 大家食's
+// FeedCard now links here from a claimed user's chop/name (owner decision) —
+// that is browsing, not rating, so it doesn't touch this rule.
 import { notFound } from 'next/navigation';
 import { unstable_noStore as noStore } from 'next/cache';
 import type { Metadata } from 'next';
