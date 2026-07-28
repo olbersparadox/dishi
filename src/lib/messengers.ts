@@ -9,29 +9,28 @@
 // that quietly behaved differently from the other three. Do not "improve"
 // this into four separate buttons — see BACKLOG, "Settled inputs".
 //
-// ── ASSET CONTRACT ────────────────────────────────────────────────────────
-// These files are deliberately NOT in the repo. They are registered
-// trademarks and must come from each brand's own official brand-resource
-// page — do NOT draw approximations, which would be both wrong-looking and
-// an infringement. The same rule produced public/ai-logos/, which the owner
-// supplied the same way.
+// ── THE MARKS ────────────────────────────────────────────────────────────
+// public/msg-logos/*.svg are the OFFICIAL brand glyphs, extracted from the
+// simple-icons collection (CC0 icon data; the marks themselves remain each
+// owner's trademark, used here nominatively to name a share destination —
+// the same use every OS share sheet makes). They are committed as plain
+// files, so there is no runtime dependency; simple-icons was installed to
+// extract them and removed again.
 //
-// Dropping the files in is the ONLY step: each <img> hides itself on error
-// (see TasteFormCard), so today the row renders label-only and fully works,
-// a partial set degrades cleanly, and a complete set appears with no code
-// change. If a file you have is a different format, edit its `logo` line
-// here — the path is the contract, not the extension.
+// Do NOT hand-draw replacements: an approximated brand mark looks wrong and
+// is an infringement. To refresh or add one, re-extract from simple-icons
+// rather than editing the path data by hand.
 export type MessengerMark = {
   id: string;
   /** Accessible name; also the alt text if the mark ever needs one. */
   label: string;
-  /** Public path. Missing file = the mark silently doesn't render. */
+  /** Public path to the committed brand glyph. */
   logo: string;
 };
 
 export const MESSENGER_MARKS: MessengerMark[] = [
-  { id: 'whatsapp', label: 'WhatsApp', logo: '/msg-logos/logo-whatsapp.webp' },
-  { id: 'telegram', label: 'Telegram', logo: '/msg-logos/logo-telegram.webp' },
-  { id: 'wechat', label: 'WeChat', logo: '/msg-logos/logo-wechat.webp' },
-  { id: 'line', label: 'LINE', logo: '/msg-logos/logo-line.webp' },
+  { id: 'whatsapp', label: 'WhatsApp', logo: '/msg-logos/logo-whatsapp.svg' },
+  { id: 'telegram', label: 'Telegram', logo: '/msg-logos/logo-telegram.svg' },
+  { id: 'wechat', label: 'WeChat', logo: '/msg-logos/logo-wechat.svg' },
+  { id: 'line', label: 'LINE', logo: '/msg-logos/logo-line.svg' },
 ];

@@ -13,6 +13,8 @@
 //  2. The share is gated on a CLAIMED username, because only claimed names
 //     resolve publicly; a legacy email-derived handle would mint a link that
 //     404s, which is worse than no link.
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it, vi, afterEach } from 'vitest';
 import { cleanup, render, screen, fireEvent, waitFor } from '@testing-library/react';
 import TasteFormCard from '../src/components/TasteFormCard';
@@ -70,12 +72,18 @@ describe('two panels, one surface — an AI or a person', () => {
     // panel, from a single definition so the two cannot drift apart.
     expect(document.querySelectorAll('.persona-divider-wrap')).toHaveLength(2);
     expect(screen.getByText('將你的口味植入你日常用的 AI')).toBeTruthy();
-    expect(screen.getByText('將你的公開味覺頁面傳給朋友')).toBeTruthy();
+    expect(screen.getByText('將你的頁面傳給朋友')).toBeTruthy();
   });
 
-  it('the share panel headlines the URL the friend actually receives', async () => {
+  it('the identity line is FIXED — one name, not one per panel', async () => {
+    // It is the same palate either way; only the recipient changes. A name
+    // that re-labelled itself per panel would have implied otherwise.
     await openStateB();
-    expect(screen.getByText('dishi.me/jerry')).toBeTruthy();
+    const names = document.querySelectorAll('.persona-name');
+    expect(names).toHaveLength(1);
+    expect(names[0].textContent).toBe('dishi.jerry');
+    // Outside the scroll container, so it cannot slide away with a panel.
+    expect(document.querySelector('.persona-swipe .persona-name')).toBeNull();
   });
 });
 
@@ -91,16 +99,24 @@ describe('the messenger row is ONE button, never four', () => {
     expect(rows[0].querySelectorAll('button')).toHaveLength(0);
   });
 
-  it('a missing brand asset costs nothing — the mark hides, the row still works', async () => {
-    // The assets are deliberately absent from the repo (trademarks, owner-
-    // supplied like public/ai-logos/). The row must be fully functional
-    // today and gain the logos on a pure file drop, so each img hides ITSELF
-    // on error rather than the row depending on them.
+  it('the marks ARE the label — four brand glyphs, no text', async () => {
     await openStateB();
-    const img = document.querySelector('.msg-logos img') as HTMLImageElement;
-    fireEvent.error(img);
-    expect(img.style.display).toBe('none');
-    expect(document.querySelector('.msg-share-row')).toBeTruthy();
+    const row = document.querySelector('.msg-share-row')!;
+    const imgs = Array.from(row.querySelectorAll('.msg-logos img'));
+    expect(imgs.map(i => i.getAttribute('src'))).toEqual(MESSENGER_MARKS.map(m => m.logo));
+    // The glyphs carry the meaning in every language; aria-label carries the
+    // accessible name. A text label here was a regression, not a design.
+    expect(row.textContent).toBe('');
+    expect(row.getAttribute('aria-label')).toBe('傳給朋友');
+  });
+
+  it('every mark resolves to a file that actually exists', () => {
+    // The row once pointed at four absent files and silently degraded to a
+    // text label — the surface lied and nothing failed. Paths are checked
+    // against the filesystem so a missing asset breaks the build instead.
+    for (const m of MESSENGER_MARKS) {
+      expect(existsSync(join(process.cwd(), 'public', m.logo))).toBe(true);
+    }
   });
 
   it('tapping it shares the public page URL', async () => {
@@ -112,6 +128,24 @@ describe('the messenger row is ONE button, never four', () => {
     fireEvent.click(document.querySelector('.msg-share-row')!);
     await waitFor(() => expect(share).toHaveBeenCalled());
     expect(share.mock.calls[0][0].url).toMatch(/\/jerry$/);
+  });
+});
+
+describe('the dots are actually tappable', () => {
+  it('touch targets cannot overlap — inset-x stays within half the gap', () => {
+    // A 5px dot is unhittable by a thumb, so ::before grows the target. But
+    // growing it PAST half the gap makes neighbouring targets overlap, and
+    // the later dot (painting on top) then silently swallows taps meant for
+    // the earlier one — which is exactly how "tap back to panel 1" shipped
+    // broken. jsdom computes no layout, so the invariant is checked on the
+    // stylesheet itself rather than on geometry.
+    const css = readFileSync(join(process.cwd(), 'src/app/globals.css'), 'utf8');
+    const gap = Number(/\.persona-dots\s*\{[^}]*gap:\s*(\d+)px/.exec(css)?.[1]);
+    const insetX = Number(/\.persona-dot::before\s*\{[^}]*inset:\s*-?\d+px\s+-(\d+)px/.exec(css)?.[1]);
+    expect(Number.isFinite(gap) && Number.isFinite(insetX)).toBe(true);
+    expect(insetX).toBeLessThanOrEqual(gap / 2);
+    // ...and still big enough to be worth having.
+    expect(5 + insetX * 2).toBeGreaterThanOrEqual(20);
   });
 });
 

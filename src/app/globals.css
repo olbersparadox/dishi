@@ -1615,31 +1615,39 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 }
 .persona-swipe::-webkit-scrollbar { display: none; }
 .persona-panel { min-width: 100%; scroll-snap-align: start; }
-.persona-dots { display: flex; justify-content: center; gap: 6px; margin-top: 16px; }
+/* 16px gap, not 6: the gap is what BUDGETS the dots' touch targets below, and
+   at 6px there was no room to grow them without the two overlapping. */
+.persona-dots { display: flex; justify-content: center; gap: 16px; margin-top: 16px; }
 .persona-dot {
+  position: relative;
   width: 5px; height: 5px; border-radius: 50%; padding: 0;
   border: none; background: var(--line); cursor: pointer;
   transition: background 160ms ease;
 }
+/* The dot is 5px because the design wants it nearly invisible; 5px is also far
+   too small to hit with a thumb. This grows the TOUCH TARGET to 21x29 without
+   changing the dot's size or spacing.
+   The horizontal inset is exactly half the gap: any more and the two targets
+   OVERLAP, and since the later dot paints on top it silently swallows taps
+   meant for the earlier one — which is precisely how "tap back to the first
+   panel" broke. Keep `inset-x <= gap/2`. */
+.persona-dot::before { content: ''; position: absolute; inset: -12px -8px; }
 .persona-dot.on { background: var(--ink-soft); }
 
 /* The messenger row: ONE button wrapping all four marks (settled design —
    the marks are illustrative of the destination, never per-app buttons; see
-   lib/messengers.ts). Height matches .persona-host-btn so the two panels'
-   rows sit on the same line as you swipe between them. */
+   lib/messengers.ts). Height and border match .persona-host-btn so the two
+   panels' rows sit on the same line as you swipe between them — this row is
+   one wide rounded-rect where the AI panel has four square ones. */
 .msg-share-row {
-  display: flex; align-items: center; justify-content: center; gap: 12px;
-  margin: 0 auto; padding: 0 18px; min-height: 54px;
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto; padding: 0 22px; min-height: 54px;
   border: 1px solid var(--line); border-radius: 14px;
   background: transparent; cursor: pointer;
 }
 .msg-share-row:hover, .msg-share-row:focus-visible { border-color: var(--ink); }
-.msg-logos { display: flex; align-items: center; gap: 8px; }
-/* No assets yet (or none resolved) — the row collapses to its label and still
-   works, rather than showing a gap where marks would be. */
-.msg-logos:empty { display: none; }
+.msg-logos { display: flex; align-items: center; gap: 16px; }
 .msg-logos img { object-fit: contain; }
-.msg-share-label { font-size: var(--fs-body); color: var(--ink-soft); letter-spacing: 0.04em; }
 .msg-share-note { font-size: var(--fs-body); color: var(--ink-soft); text-align: center; line-height: 1.55; margin: 0 12px; }
 
 /* --- rated dish row: "more actions" kebab menu (edit/delete) --- */

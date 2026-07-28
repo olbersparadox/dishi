@@ -473,6 +473,14 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
          name the person will type into their host — so naming your taste AI and
          installing it read as one chain, not two features. */
       <div className="persona-pick">
+        {/* The identity is FIXED above the swipe — it does not move with the
+            panels. It is the same palate either way; what changes is only who
+            receives it, so re-labelling this line per panel would have implied
+            the thing itself changed. */}
+        <div className="persona-slide">
+          <div className="persona-name">{containerName}</div>
+        </div>
+
         {/* TWO panels, one surface: the same palate going to an AI (left) or
             to a person (right). Native scroll-snap — see .persona-swipe. */}
         <div className="persona-swipe" ref={swipeRef}
@@ -482,7 +490,6 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
           }}>
           <div className="persona-panel">
             <div className="persona-slide">
-              <div className="persona-name">{containerName}</div>
               <p className="persona-blurb">{t('export.install.blurb')}</p>
             </div>
             {personaDivider}
@@ -502,13 +509,6 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
 
           <div className="persona-panel">
             <div className="persona-slide">
-              {/* The URL, not the container name: this panel sends a PAGE, and
-                  showing what the friend will actually receive is both more
-                  informative and what makes the swipe legible — two identical
-                  headings would read as nothing having moved. */}
-              <div className="persona-name">
-                {identity?.claimed ? `dishi.me/${identity.username}` : 'dishi.me'}
-              </div>
               <p className="persona-blurb">{t('export.share.blurb')}</p>
             </div>
             {personaDivider}
@@ -518,20 +518,19 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
                 it rather than a dead button. */}
             {identity?.claimed ? (
               <div style={{ display: 'grid', justifyItems: 'center', gap: 8 }}>
+                {/* ONE button, four illustrative marks — never four buttons
+                    (see lib/messengers.ts). The marks ARE the label: four
+                    messenger logos say "this goes to a person on a messenger"
+                    faster and in every language, which is why the row carries
+                    no text. Its accessible name comes from aria-label. */}
                 <button type="button" className="msg-share-row"
                   onClick={shareProfile} aria-label={t('export.share.messengers')}>
-                  {/* ONE button, four illustrative marks — never four buttons.
-                      Each mark hides itself if its file is absent, so the row
-                      works today and gains the logos the moment the brand
-                      assets land (lib/messengers.ts carries the contract). */}
                   <span className="msg-logos">
                     {MESSENGER_MARKS.map(m => (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img key={m.id} src={m.logo} alt="" width={26} height={26}
-                        onError={e => { e.currentTarget.style.display = 'none'; }} />
+                      <img key={m.id} src={m.logo} alt="" width={26} height={26} />
                     ))}
                   </span>
-                  <span className="msg-share-label">{t('export.share.messengers')}</span>
                 </button>
                 {shareCopied && <p className="card-meta">{t('export.share.copied')}</p>}
               </div>

@@ -515,7 +515,7 @@ export const dict: Record<string, { zh: string; en: string }> = {
   // The second swipe: the SAME palate, sent to a person instead of an AI.
   // The blurb says what the friend actually receives (the public page), so
   // the swipe is not mistaken for sending the export document itself.
-  'export.share.blurb': { zh: '將你的公開味覺頁面傳給朋友', en: 'Send your public taste page to a friend' },
+  'export.share.blurb': { zh: '將你的頁面傳給朋友', en: 'Send your page to a friend' },
   'export.share.messengers': { zh: '傳給朋友', en: 'Send to a friend' },
   'export.share.copied': { zh: '已複製連結', en: 'Link copied' },
   // Unclaimed: only a claimed name resolves publicly, so there is no page to
