@@ -3936,3 +3936,61 @@ whoever is doing the surfacing.
   no verdict invented for personas, bookmark on every card).
 - Stream 2's chain now reads: taste-only export ✅ → public page ✅ (real form,
   post-sourced) → posts / 食記 feed ✅ → **messenger share (next)**.
+
+## Amendment same day — the pool is CHRONOLOGICAL, and own posts are in it (owner, 2026-07-28) — ✅ `887b9c5`
+
+Raised by the owner within hours of the ship, on finding 大家 empty after
+publishing a dish. Two separate things came out of it.
+
+### 1. A bug that made the tab impossible, not just empty
+
+`dish_posts.user_id` references `auth.users`, not `public.profiles`, so the
+feed's `profiles!inner(handle, username_set_at)` embed had no foreign key to
+resolve. PostgREST errored, the route ignored the returned `error`, and the
+empty list rendered as "nobody has posted". **The tab could never have shown a
+user post at all** — the owner's own or anyone else's.
+
+It shipped "verified" because the own-posts exclusion meant there was never a
+row to return: empty was indistinguishable from broken. That is the lesson
+worth keeping — a filter that guarantees an empty result also guarantees the
+verification proves nothing. The public page was fine throughout (it joins
+`dishes`, whose FK does exist), which is why publishing looked half-working.
+
+Fixed with a second query keyed on `user_id`, and the posts query's error is
+now surfaced instead of swallowed.
+
+### 2. Ranking is parked until the pool can support it
+
+The tab shipped ranking every card by `contentScore` and dropping weak matches.
+The owner's call: right at scale, wrong now. "There just won't be too many
+people rate dishes AND turn them into posts during trial and initial launch.
+Out of those that matches your taste only would work when the pool gets much
+larger." **A filter over a near-empty pool doesn't select — it hides.**
+
+Decision 2 (no social graph; distribution is taste-rank) is NOT reversed —
+this is an interim ordering, and taste-rank is still what the edge rests on.
+`rankFeed` was deleted rather than left unwired, with the five-line re-entry
+point named in `lib/feed.ts`; `contentScore` is untouched and still ranks
+menus, duels and seals.
+
+Consequences, all deliberate:
+- **Own posts are in the pool.** Excluding them was defensible under ranking
+  (your own dishes would rank top and mirror your journal back at you); with
+  one claimed user it made the tab permanently empty for the only person who
+  could see it. Their card carries NO bookmark — `/api/bookmarks` refuses a
+  dish you own, so the button's only outcome would be an error.
+- **The training stage is gone.** It existed because claiming a match under 5
+  ratings is dishonest; nothing claims a match now, so a new account sees the
+  pool on its first visit. `FEED_TRAINING_THRESHOLD` deleted with it.
+- `feed.empty` copy no longer says "nothing matching your taste" — copy
+  claiming a filter the code isn't running is the worst kind of stale.
+- A persona repeating your own dish stays excluded: that reads as the app
+  quoting you back to yourself, which publishing your own post does not.
+
+Tests pin the ABSENCES (no `rankFeed`, no `contentScore` call, no
+`taste_profiles` read, no `user_id` neq), because the tempting fix for a thin
+feed is to quietly reintroduce scoring in the route.
+
+**One open remainder is now closed:** the populated feed has pixel proof — the
+owner's post renders as a card with author, restaurant, verdict and reason. A
+SECOND author still doesn't exist, so cross-user ordering remains unproven.
