@@ -695,13 +695,10 @@ lines pass through the SAME validator — the contract holds regardless of who
 
 ## Items
 
-1. **Schema + validator + in-feed review + 6 samples — ship now.**
-   `persona_posts` (pending|published, grounding pack, image attribution),
-   `dishes.from_persona_post_id` so the bookmark amendment holds on editorial
-   cards (bookmark = build the 待評 row from the post itself), feed union
-   (published for all, pending for editor), approve/discard via guarded API.
-   2 samples per persona on their beats, Commons images license-verified via
-   API, packs recorded.
+1. **Schema + validator + in-feed review + 6 samples — ✅ SHIPPED 2026-07-29**
+   (`e1e5e66`, `40bf26e` — full entry moved to DECISIONS.md, "dishi.persona
+   editorial", including the live-verified publish flow and what was left
+   pending for the owner's own review pass.)
 2. **Daily automation — LATER, owner flips it on when the product stage is
    ready.** Harvest script (Commons category walk + trend signal), LLM voice
    pass behind the validator, cron publish at stagger times. Do NOT build

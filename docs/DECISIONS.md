@@ -4381,3 +4381,46 @@ intended recipient, who is the whole point.
 
 Items 3–5 are the acquisition loop and are worth more than items 1–2; but
 2 must precede 3 or the permalink has no tier to render.
+
+
+---
+
+# dishi.persona editorial — columnists in 大家食, item 1 SHIPPED 2026-07-29
+
+(Design batch recorded in BACKLOG the same day; items 2–3 — daily automation
+and the disclosure-marker decision — remain open there.)
+
+**Shipped** (`e1e5e66` schema+validator, `40bf26e` feed+review+samples):
+
+- `persona_posts` (pending|published, grounding pack jsonb, image
+  attribution/license/source), RLS-locked with no policies — drafts are
+  invisible to clients by construction; all access via admin client.
+- `dishes.from_persona_post_id` + partial unique index: the binding
+  every-card-bookmarks amendment holds on cards with NO dishes row — the
+  bookmark builds the 待評 row from the post itself, with the same two honest
+  NULLs (eaten_at, photo_url) and an empty attribute vector (absence is
+  unknown, never neutral). ON DELETE SET NULL: retracting a post never claws
+  back someone's queue entry.
+- `personaEditorial.ts` — the grounding gate: a line may REPHRASE its pack,
+  never extend it (currency banned outright, digits and Latin proper nouns
+  must exist in the pack, venue-speak rejected) + register enforcement (CK
+  zero emoji, Kiki 2–4 counted as GRAPHEMES, Spoon no exclamation clusters).
+  Hand-authored samples pass the same gate a future LLM pass will.
+- In-feed review: pending drafts render in the REAL FeedCard, editor-only
+  (profiles.is_persona_editor — a DB flag, deliberately not a Vercel env
+  var), with 待刊 bar → 刊出 (PATCH; bar drops, card stays) / 棄用 (DELETE;
+  card leaves). Publication stamp = feed clock.
+- 6 samples, 2 per persona on their beats, images license-re-verified via the
+  Commons API at seed time and re-hosted with credit rendered on the card.
+
+**Verified live 2026-07-29:** all 9 cards (6 drafts + 3 user posts) in one
+chronological pool on the owner's session; tanghulu published through the
+real in-feed bar — row stamped published, bar gone, card intact. Five drafts
+left pending DELIBERATELY: the owner's first real use of the review flow is
+their own editorial pass, and 棄用→reseed is one script run if any image or
+line isn't right (the tanghulu shot is a street scene — a taste call the
+review exists to make).
+
+**One UX wart, accepted:** the editor's own bookmark tap on a still-pending
+draft 404s server-side (only published posts are bookmarkable). Editor-only
+surface, one-tap-from-published — not worth the complexity.
