@@ -655,6 +655,8 @@ export const dict: Record<string, { zh: string; en: string }> = {
   // via MyDishes.tsx's shareDish/sendDishLink).
   'post.share.title': { zh: '分享畀朋友', en: 'Share with a friend' },
   'post.share.cta': { zh: '分享', en: 'Share' },
+  // Status glyph beside the kebab — non-interactive, just "this is posted".
+  'post.linkonly': { zh: '只限連結', en: 'Link only' },
   // Share needs a URL, and only a CLAIMED username mints one.
   'post.share.needname.title': { zh: '先改個名', en: 'Claim your name first' },
   'post.share.needname.body': {

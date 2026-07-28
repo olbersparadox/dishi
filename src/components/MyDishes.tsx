@@ -5,7 +5,7 @@ import RestaurantPicker, { RestaurantChoice } from '@/components/RestaurantPicke
 import FlickRating from '@/components/FlickRating';
 import { cuisineLabel } from '@/lib/i18n';
 import { wordKeyFor } from '@/lib/flickWords';
-import { EditIcon, TrashIcon, MoreIcon, CheckIcon, CloseIcon, GlobeIcon, ShareIcon } from './icons';
+import { EditIcon, TrashIcon, MoreIcon, CheckIcon, CloseIcon, GlobeIcon, LinkIcon, ShareIcon } from './icons';
 import { shareLink } from '@/lib/share';
 import { cookingBucket, type CookingMethod } from '@/lib/menuScan';
 import DishInfoDisplay from './DishInfoDisplay';
@@ -714,14 +714,30 @@ export default function MyDishes({ t, lang }: { t: (k: string, p?: Record<string
             </div>
 
             {/* Kebab, pinned top-right of the row: tap opens a small menu to
-                choose edit or delete. Hidden while editing or when the dish
-                is locked (someone else has rated it). No status badge beside
-                it (owner call: simplified sharing removed the only thing
-                that made it tappable, so the icon itself goes too — the
-                kebab's own 已公開/公開 menu item still says whether it's
-                posted). */}
+                choose edit or delete. Hidden while editing or when the dish is
+                locked (someone else has rated it). The globe/link badge is a
+                PURE STATUS glyph — non-interactive, no onClick — telling you
+                this dish is posted to 大家食 without opening anything. It must
+                never be tappable-to-copy again: that conflated "this is
+                published" with the Share act, which is its own separate thing
+                (the kebab's own "分享" item, simplified to go straight to the
+                OS share sheet with no card). */}
             {editing !== d.id && !d.locked && (
               <div className="dish-actions">
+                {d.posted && (
+                  /* "The world can find this" and "only people holding the
+                     link can" are different promises and must not render
+                     alike (sharing batch item 2). */
+                  d.post_visibility === 'link' ? (
+                    <span className="dish-public-badge" aria-label={t('post.linkonly')} title={t('post.linkonly')}>
+                      <LinkIcon size={16} />
+                    </span>
+                  ) : (
+                    <span className="dish-public-badge" aria-label={t('post.public')} title={t('post.public')}>
+                      <GlobeIcon size={16} />
+                    </span>
+                  )
+                )}
                 <button className="icon-btn lg" onClick={() => setMenuOpenId(v => v === d.id ? null : d.id)}
                   aria-label={t('home.more')} title={t('home.more')} aria-haspopup="menu" aria-expanded={menuOpenId === d.id}>
                   <MoreIcon size={20} />
