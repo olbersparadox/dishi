@@ -68,8 +68,14 @@ function useShrinkPrimaryToFit(ref: React.RefObject<HTMLElement>, maxLines: numb
  * on it, so the default is unchanged. A single-dish card with no comparison to
  * anchor (a feed post, a public-page anchor) has no reason to override the
  * viewer's own language pair, so those callers pass the chrome pair through. */
-export default function DuelSide({ dish, pair = ZH_PRIMARY_PAIR, afterPhoto, afterName, titleAside }: {
+export default function DuelSide({ dish, pair = ZH_PRIMARY_PAIR, photoOverlay, afterPhoto, afterName, titleAside }: {
   dish: DuelDish; pair?: LangPair;
+  /** Optional content absolutely positioned ON TOP of the photo itself (the
+   * photo's own wrapper is always position:relative, harmless when nothing
+   * is passed) — the feed post card's Share button is the only current user,
+   * corner-badged over the food shot. Every other caller renders nothing
+   * here, so their photo is byte-for-byte unchanged. */
+  photoOverlay?: React.ReactNode;
   /** Optional content between the photo and the dish name — the feed post
    * card's author row (chop + dishi.username + verdict) is the only current
    * user. Duel/identity-confirm callers pass nothing, so their anatomy is
@@ -94,10 +100,13 @@ export default function DuelSide({ dish, pair = ZH_PRIMARY_PAIR, afterPhoto, aft
   useShrinkPrimaryToFit(titleRef, 2, dish.name_zh ?? dish.name);
   return (
     <>
-      {dish.photo_url
-        // eslint-disable-next-line @next/next/no-img-element
-        ? <img src={dish.photo_url} alt="" className="duel-photo" />
-        : <div className="duel-photo duel-photo-blank" aria-hidden />}
+      <div className="duel-photo-wrap">
+        {dish.photo_url
+          // eslint-disable-next-line @next/next/no-img-element
+          ? <img src={dish.photo_url} alt="" className="duel-photo" />
+          : <div className="duel-photo duel-photo-blank" aria-hidden />}
+        {photoOverlay}
+      </div>
       {afterPhoto}
       {/* card-title: the exact journal/scan dish-name treatment (serif primary +
           small secondary). */}

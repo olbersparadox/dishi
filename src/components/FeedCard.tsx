@@ -22,8 +22,9 @@ import Chop from './Chop';
 import DishInfoDisplay from './DishInfoDisplay';
 import ExplainModal from './ExplainModal';
 import SignInSheet from './SignInSheet';
-import { BookmarkIcon } from './icons';
+import { BookmarkIcon, ShareIcon } from './icons';
 import { chopColorFor } from '@/lib/chop';
+import { shareLink } from '@/lib/share';
 import type { FeedItem } from '@/lib/feed';
 
 export default function FeedCard({ item, onBookmarked }: {
@@ -67,6 +68,18 @@ export default function FeedCard({ item, onBookmarked }: {
     }
   };
 
+  // Share this post — the permalink needs no identity fetch the way
+  // MyDishes.tsx's own Share does (that one shares the VIEWER's dish and has
+  // to look up their username first; here the author's claimed username
+  // already rides on the item). OS share sheet first, clipboard second
+  // (lib/share.ts) — same pattern, just a known URL going in.
+  const shareThisDish = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!item.dish.id || item.author.kind !== 'user') return;
+    const url = `${window.location.origin}/${item.author.username}/d/${item.dish.id}`;
+    if (await shareLink({ title: t('post.share.title'), url }) === 'copied') alert(t('table.copied'));
+  };
+
   // Chop color has no user_id to key off here (FeedAuthor carries only a
   // username — personas like dishi.Spoon have no real user_id at all), so it
   // seeds off the username instead. Same fallback MyDishes.tsx already uses
@@ -89,6 +102,15 @@ export default function FeedCard({ item, onBookmarked }: {
               photo_url: item.dish.photo_url, restaurant: item.dish.restaurant,
             }}
             pair={pair}
+            // Persona posts (dishi.Spoon et al) have no real profile to link
+            // to, so no permalink to share — same gate as the chop/name link
+            // below.
+            photoOverlay={item.author.kind === 'user' && (
+              <button type="button" className="feed-photo-share-btn" onClick={shareThisDish}
+                aria-label={t('post.share.cta')} title={t('post.share.cta')}>
+                <ShareIcon size={20} />
+              </button>
+            )}
             afterPhoto={
               <>
                 <div className="feed-author-row">

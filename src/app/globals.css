@@ -1817,8 +1817,27 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
    normal pick the winner is unfaded and still sets the height, so this is inert
    there. */
 .duel-option.faded { opacity: 0; max-width: 0; max-height: 0; flex-basis: 0; padding: 0; margin: 0; border-width: 0; overflow: hidden; }
+/* Always position:relative (harmless — no offset — when nothing overlays
+   the photo); DuelSide's photoOverlay slot anchors against this, not the
+   photo <img> itself, so a caller's corner badge survives whichever of
+   .duel-photo/.duel-photo-blank actually rendered. */
+.duel-photo-wrap { position: relative; }
 .duel-photo { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 10px; display: block; }
 .duel-photo-blank { background: var(--line); }
+/* Feed post's Share badge, corner-overlaid on the food shot itself (owner
+   call) — right-aligned with the bookmark control's own right:8px further
+   down the card (both measured from the same .duel-option 8px padding), same
+   icon width (20px, matching BookmarkIcon). A dark circular backdrop is
+   needed here specifically because, unlike the bookmark control which sits
+   on plain card background, this icon sits on a PHOTO of unpredictable
+   brightness/colour — currentColor alone would vanish against some shots. */
+.feed-photo-share-btn {
+  position: absolute; top: 10px; right: 8px;
+  display: flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px; border-radius: 50%;
+  background: rgba(0, 0, 0, 0.1); color: #fff; border: none;
+}
+.feed-photo-share-btn:hover, .feed-photo-share-btn:focus-visible { background: rgba(0, 0, 0, 0.2); }
 /* Dish names: the journal/scan .card-title treatment, but bigger + centred here (the
    dish IS the choice on this screen), and a tighter gap between the two name lines. */
 .duel-option .card-title .dishname-primary { font-size: var(--fs-title-a); }
