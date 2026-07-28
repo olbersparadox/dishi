@@ -142,23 +142,45 @@ export default function MyDishes({ t, lang }: { t: (k: string, p?: Record<string
   // placeholder can show a "saving" state instead of silently doing nothing.
   const [photoUploadingId, setPhotoUploadingId] = useState<string | null>(null);
 
-  /** Send the permalink for one dish. The username comes from /api/buddy's
+  /** Resolve one dish's public permalink. The username comes from /api/buddy's
    * identity block (where it already rides, rather than on its own endpoint)
    * and is fetched at tap time — this list has no reason to hold identity
    * state for an action most rows never take.
    *
    * Only a CLAIMED username resolves publicly, so an unclaimed person has no
-   * link to send; they get told, rather than handed a URL that 404s. */
-  async function sendDishLink(dishId: string) {
+   * link to send; null tells the caller to say so rather than hand out a URL
+   * that 404s. Shared by the kebab's full Share action and the badge's quick
+   * copy — both need the exact same link. */
+  async function resolveDishUrl(dishId: string): Promise<string | null> {
     let username: string | null = null;
     try {
       const res = await fetch('/api/buddy');
       const json = await res.json().catch(() => null);
       if (json?.identity?.claimed) username = json.identity.username ?? null;
     } catch { /* offline — handled as "no name" below */ }
-    if (!username) { setShareNeedsName(true); return; }
-    const url = `${window.location.origin}/${username}/d/${dishId}`;
+    return username ? `${window.location.origin}/${username}/d/${dishId}` : null;
+  }
+
+  /** Send the permalink for one dish — the kebab's "分享" action, OS share
+   * sheet first, clipboard second (lib/share.ts). */
+  async function sendDishLink(dishId: string) {
+    const url = await resolveDishUrl(dishId);
+    if (!url) { setShareNeedsName(true); return; }
     if (await shareLink({ title: t('post.share.title'), url }) === 'copied') alert(t('table.copied'));
+  }
+
+  /** The public/link-only badge beside the kebab — tapping it is a quick
+   * "copy the link" shortcut for a dish that's already posted, always
+   * clipboard (no OS share-sheet detour), with a quiet inline confirmation
+   * instead of a native alert(). */
+  async function copyDishLink(dishId: string) {
+    const url = await resolveDishUrl(dishId);
+    if (!url) { setShareNeedsName(true); return; }
+    try {
+      await navigator.clipboard.writeText(url);
+      setLinkCopiedId(dishId);
+      setTimeout(() => setLinkCopiedId(prev => (prev === dishId ? null : prev)), 2500);
+    } catch { /* clipboard blocked — quiet, nothing honest to say beyond that */ }
   }
 
   /** Attach a photo to a rated dish that never had one (a pick rated off a menu).
@@ -197,6 +219,7 @@ export default function MyDishes({ t, lang }: { t: (k: string, p?: Record<string
   const [draftRestaurant, setDraftRestaurant] = useState<RestaurantChoice>(null);
   const [changingRating, setChangingRating] = useState(false);
   const [ratingSaved, setRatingSaved] = useState<string | null>(null); // dish id, transient
+  const [linkCopiedId, setLinkCopiedId] = useState<string | null>(null); // dish id, transient
 
   // Retro dish-identity check. The live ask happens at LOG time now (the growth
   // screen's 係咪同一味 card, via RatingStack) — this sweep covers everything
@@ -674,6 +697,9 @@ export default function MyDishes({ t, lang }: { t: (k: string, p?: Record<string
               {ratingSaved === d.id && (
                 <p className="card-meta" style={{ color: 'var(--ink)', fontSize: 12.5, marginTop: 4 }}>{t('home.ratingsaved')}</p>
               )}
+              {linkCopiedId === d.id && (
+                <p className="card-meta" style={{ color: 'var(--ink)', fontSize: 12.5, marginTop: 4 }}>{t('post.link.copied')}</p>
+              )}
               {editing === d.id && saveError && (
                 <p style={{ color: 'var(--lacquer)', fontSize: 12.5, marginTop: 4 }}>{saveError}</p>
               )}
@@ -685,7 +711,10 @@ export default function MyDishes({ t, lang }: { t: (k: string, p?: Record<string
                 separate "已公開" line under the meta text; it's now this quiet
                 globe glyph sitting left of the kebab instead — legible on the
                 row itself without opening anything, same as before, just
-                folded into the action row rather than its own line. */}
+                folded into the action row rather than its own line. Now a
+                real button (owner call): tapping it again copies the link
+                straight to the clipboard — a quick shortcut beside the
+                kebab's own fuller "分享" (OS share sheet first). */}
             {editing !== d.id && !d.locked && (
               <div className="dish-actions">
                 {d.posted && (
@@ -693,13 +722,15 @@ export default function MyDishes({ t, lang }: { t: (k: string, p?: Record<string
                      link can" are different promises and must not render
                      alike (sharing batch item 2). */
                   d.post_visibility === 'link' ? (
-                    <span className="dish-public-badge" aria-label={t('post.linkonly')} title={t('post.linkonly')}>
+                    <button type="button" className="dish-public-badge" onClick={() => copyDishLink(d.id)}
+                      aria-label={t('post.linkonly')} title={t('post.linkonly')}>
                       <LinkIcon size={16} />
-                    </span>
+                    </button>
                   ) : (
-                    <span className="dish-public-badge" aria-label={t('post.public')} title={t('post.public')}>
+                    <button type="button" className="dish-public-badge" onClick={() => copyDishLink(d.id)}
+                      aria-label={t('post.public')} title={t('post.public')}>
                       <GlobeIcon size={16} />
-                    </span>
+                    </button>
                   )
                 )}
                 <button className="icon-btn lg" onClick={() => setMenuOpenId(v => v === d.id ? null : d.id)}

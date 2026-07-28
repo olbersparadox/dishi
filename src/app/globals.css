@@ -698,6 +698,13 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
 }
 .ok-circle:hover { transform: translateY(-1px); }
+/* PostSheet's publish circle only — vermillion the moment an already-
+   published post's reason actually changes, the same "unsaved edit on a save
+   action" exception .btn.primary.dirty carries everywhere else (CLAUDE.md:
+   wired app-wide at every dish-edit site). Every other .ok-circle usage
+   (dismiss/confirm) never gets this class, so this is inert elsewhere. */
+.ok-circle.dirty { background: var(--seal); }
+.ok-circle:disabled { opacity: 0.6; cursor: default; }
 .ok-circle-wrap { display: flex; justify-content: center; margin: 20px 0 4px; }
 .grow-okwrap { display: flex; justify-content: center; margin: 26px 0 4px; }
 @media (prefers-reduced-motion: reduce) {
@@ -1680,7 +1687,11 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
   display: inline-flex; align-items: center; justify-content: center;
   width: 38px; height: 38px; color: var(--ink-soft); flex-shrink: 0;
   margin-right: -15px; /* pull 15px closer to the kebab, past the row's own 8px gap */
+  /* Now a real <button> (owner call — tapping copies the link), so the UA's
+     own button chrome needs undoing same as .icon-btn does. */
+  border: none; background: none; padding: 0; cursor: pointer;
 }
+.dish-public-badge:hover, .dish-public-badge:focus-visible { color: var(--ink); }
 /* Larger tap targets for the icon actions (the 30px ones were genuinely fiddly on
    a phone, and these are the primary way to fix a wrong dish). */
 .icon-btn.lg { width: 38px; height: 38px; }

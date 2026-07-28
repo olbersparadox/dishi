@@ -12,6 +12,8 @@
 import { useState } from 'react';
 import { useLang } from '@/lib/i18n';
 import ExplainModal from './ExplainModal';
+import DishName from './DishName';
+import { GlobeIcon } from './icons';
 import { wordKeyFor } from '@/lib/flickWords';
 import { POST_REASON_MAX, normalizeReason } from '@/lib/posts';
 
@@ -31,14 +33,12 @@ export default function PostSheet({ dish, mode = 'publish', onClose, onSaved }: 
   /** posted=false means the dish was unpublished. */
   onSaved: (dishId: string, posted: boolean, reason: string | null, visibility?: 'public' | 'link') => void;
 }) {
-  const { t, lang } = useLang();
+  const { t } = useLang();
   const [reason, setReason] = useState(dish.reason ?? '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const name = lang === 'zh'
-    ? [dish.name_zh, dish.name].filter(Boolean).join(' / ')
-    : [dish.name, dish.name_zh].filter(Boolean).join(' / ');
+  const verdict = t(wordKeyFor(dish.score));
   const cleaned = normalizeReason(reason);
   const dirty = cleaned !== (dish.reason ?? null);
 
@@ -89,8 +89,14 @@ export default function PostSheet({ dish, mode = 'publish', onClose, onSaved }: 
       body={t(mode === 'share' ? 'post.share.body' : 'post.body')}
       extra={
         <>
-          <p style={{ margin: '12px 0 0', fontWeight: 600 }}>{name}</p>
-          <p className="label" style={{ margin: '4px 0 0' }}>{t(wordKeyFor(dish.score))}</p>
+          {/* Same dish-name treatment 食自己 uses — .card-title + DishName,
+              not a hand-rolled bold <p> — and the SAME verdict styling
+              (.journal-verdict) rather than a plain .label, so what's about
+              to publish reads exactly like the row it came from. */}
+          <div className="card-title" style={{ marginTop: 12 }}>
+            <DishName name={dish.name} name_zh={dish.name_zh} />
+          </div>
+          <div className="journal-verdict" style={{ textAlign: 'left', marginTop: 2 }}>{verdict}</div>
           {dish.score < 0 && (
             // Said out loud rather than left to be discovered on the page: the
             // person is publishing a bad verdict about a real restaurant.
@@ -100,7 +106,7 @@ export default function PostSheet({ dish, mode = 'publish', onClose, onSaved }: 
             className="field"
             style={{ marginTop: 12, width: '100%', minHeight: 64, resize: 'none' }}
             maxLength={POST_REASON_MAX}
-            placeholder={t('post.reason.placeholder')}
+            placeholder={t('post.reason.placeholder', { verdict })}
             value={reason}
             onChange={e => setReason(e.target.value)}
           />
@@ -108,20 +114,22 @@ export default function PostSheet({ dish, mode = 'publish', onClose, onSaved }: 
         </>
       }
       footer={
-        <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-          {/* Vermillion ONLY when an already-published post has an edited
-              reason — that is the app's "you have unsaved edits on a save
-              action" exception (.btn.primary.dirty), and nothing more. A first
-              publish is an ordinary ink CTA: the reserved colour belongs to the
-              seal and the export, not to every important button. */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, marginTop: 16 }}>
+          {/* Black circle publish icon (owner call) — replaces the old
+              .btn.primary.large text button, same shell every other
+              ExplainModal action uses (.ok-circle). Vermillion ONLY when an
+              already-published post has an edited reason — the app's "you
+              have unsaved edits on a save action" exception (CLAUDE.md:
+              wired at every dish-edit site), not a general publish colour. */}
           <button type="button"
-            className={`btn primary large${dish.posted && dirty ? ' dirty' : ''}`}
+            className={`ok-circle${dish.posted && dirty ? ' dirty' : ''}`}
             disabled={saving}
-            onClick={publish}>
-            {dish.posted ? t('post.update') : t(mode === 'share' ? 'post.share.cta' : 'post.publish')}
+            onClick={publish}
+            aria-label={dish.posted ? t('post.update') : t(mode === 'share' ? 'post.share.cta' : 'post.publish')}>
+            <GlobeIcon size={26} />
           </button>
           {dish.posted && (
-            <button type="button" className="btn large" disabled={saving} onClick={unpublish}>
+            <button type="button" className="btn ghost small" disabled={saving} onClick={unpublish}>
               {t('post.unpublish')}
             </button>
           )}
