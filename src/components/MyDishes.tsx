@@ -94,7 +94,7 @@ function toDateInputValue(iso: string): string {
 export function JournalSkeleton() {
   return (
     <div aria-hidden>
-      {[0, 1, 2, 3, 4].map(i => (
+      {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(i => (
         <article className="rated-dish-row" key={`skel-${i}`}>
           <div className="card-body journal-row">
             <div className="journal-photo skel-box" />
