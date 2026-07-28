@@ -4390,7 +4390,7 @@ Items 3–5 are the acquisition loop and are worth more than items 1–2; but
 (Design batch recorded in BACKLOG the same day; items 2–3 — daily automation
 and the disclosure-marker decision — remain open there.)
 
-**Shipped** (`e1e5e66` schema+validator, `40bf26e` feed+review+samples):
+**Shipped** (`1827108` schema+validator, `6bc679c` feed+review+samples):
 
 - `persona_posts` (pending|published, grounding pack jsonb, image
   attribution/license/source), RLS-locked with no policies — drafts are

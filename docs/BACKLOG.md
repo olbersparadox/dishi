@@ -696,7 +696,7 @@ lines pass through the SAME validator — the contract holds regardless of who
 ## Items
 
 1. **Schema + validator + in-feed review + 6 samples — ✅ SHIPPED 2026-07-29**
-   (`e1e5e66`, `40bf26e` — full entry moved to DECISIONS.md, "dishi.persona
+   (`1827108`, `6bc679c` — full entry moved to DECISIONS.md, "dishi.persona
    editorial", including the live-verified publish flow and what was left
    pending for the owner's own review pass.)
 2. **Daily automation — LATER, owner flips it on when the product stage is
