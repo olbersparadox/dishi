@@ -68,7 +68,14 @@ function useShrinkPrimaryToFit(ref: React.RefObject<HTMLElement>, maxLines: numb
  * on it, so the default is unchanged. A single-dish card with no comparison to
  * anchor (a feed post, a public-page anchor) has no reason to override the
  * viewer's own language pair, so those callers pass the chrome pair through. */
-export default function DuelSide({ dish, pair = ZH_PRIMARY_PAIR }: { dish: DuelDish; pair?: LangPair }) {
+export default function DuelSide({ dish, pair = ZH_PRIMARY_PAIR, afterPhoto }: {
+  dish: DuelDish; pair?: LangPair;
+  /** Optional content between the photo and the dish name — the feed post
+   * card's author row (chop + dishi.username + verdict) is the only current
+   * user. Duel/identity-confirm callers pass nothing, so their anatomy is
+   * byte-for-byte unchanged. */
+  afterPhoto?: React.ReactNode;
+}) {
   const { lang } = useLang();
   const location = duelLocation(dish, lang);
   const titleRef = useRef<HTMLDivElement>(null);
@@ -79,6 +86,7 @@ export default function DuelSide({ dish, pair = ZH_PRIMARY_PAIR }: { dish: DuelD
         // eslint-disable-next-line @next/next/no-img-element
         ? <img src={dish.photo_url} alt="" className="duel-photo" />
         : <div className="duel-photo duel-photo-blank" aria-hidden />}
+      {afterPhoto}
       {/* card-title: the exact journal/scan dish-name treatment (serif primary +
           small secondary). */}
       <div className="card-title" ref={titleRef}><DishName name={dish.name} name_zh={dish.name_zh} pair={pair} /></div>

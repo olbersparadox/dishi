@@ -17,6 +17,8 @@
 import { useState } from 'react';
 import { useLang } from '@/lib/i18n';
 import DuelSide from './DuelSide';
+import Chop from './Chop';
+import { chopColorFor } from '@/lib/chop';
 import type { FeedItem } from '@/lib/feed';
 
 export default function FeedCard({ item, onBookmarked }: {
@@ -45,11 +47,16 @@ export default function FeedCard({ item, onBookmarked }: {
     }
   };
 
+  // Chop color has no user_id to key off here (FeedAuthor carries only a
+  // username — personas like dishi.Spoon have no real user_id at all), so it
+  // seeds off the username instead. Same fallback MyDishes.tsx already uses
+  // for a companion chop with no id (chopColorFor(c.user_id ?? c.name)).
+  const chopColor = chopColorFor(item.author.username);
+
   return (
     <article className="rated-dish-row">
-      <p className="card-meta" style={{ margin: '0 0 8px' }}>dishi.{item.author.username}</p>
       <div className="duel-pair resolving">
-        <div className="duel-option feed-side">
+        <div className="duel-option feed-side feed-post">
           <DuelSide
             dish={{
               id: item.dish.id ?? item.id,
@@ -57,17 +64,25 @@ export default function FeedCard({ item, onBookmarked }: {
               photo_url: item.dish.photo_url, restaurant: item.dish.restaurant,
             }}
             pair={pair}
+            afterPhoto={
+              <div className="feed-author-row">
+                <div className="feed-author-id">
+                  <Chop name={item.author.username} color={chopColor} size={28} />
+                  <span className="feed-author-name">dishi.{item.author.username}</span>
+                </div>
+                {/* The verdict is never optional dressing on a user's post: posts
+                    may be negative, and a card that showed only the dish would
+                    read as a recommendation of it. */}
+                {item.verdict && <span className="feed-author-verdict">{t(item.verdict)}</span>}
+              </div>
+            }
           />
         </div>
       </div>
-      {/* The verdict is never optional dressing on a user's post: posts may be
-          negative, and a card that showed only the dish would read as a
-          recommendation of it. */}
-      {item.verdict && <p className="card-meta" style={{ margin: '8px 0 0', textAlign: 'center' }}>{t(item.verdict)}</p>}
-      {item.reason && <p style={{ margin: '4px 0 0', fontSize: 13.5, textAlign: 'center' }}>{item.reason}</p>}
+      {item.reason && <div className="feed-reason-box">{item.reason}</div>}
       {/* Your own post carries no bookmark: /api/bookmarks refuses a dish you
           already own, so the button's only possible outcome would be an
-          error. The author line already reads dishi.<you>, which is the only
+          error. The author row already reads dishi.<you>, which is the only
           "this is yours" marker the card needs. */}
       {!item.own && (
         <div style={{ marginTop: 10, textAlign: 'center' }}>

@@ -1794,6 +1794,29 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
    .resolving so the single side fills the row's width, matching the duel
    reveal's "one winner, full width" look (FeedCard.tsx, PublicDossier.tsx). */
 .feed-side { cursor: default; }
+/* FeedCard.tsx ONLY (not PublicDossier's own .feed-side anchors, which stay on
+   the shared .duel-option-rest size) — the restaurant/district line one step
+   bigger than the shared default, owner call 2026-07-28. */
+.feed-post .duel-option-rest { font-size: var(--fs-subtitle-a); }
+/* The author row DuelSide's afterPhoto slot renders between the photo and the
+   dish name (owner call 2026-07-28: chop + dishi.username at the same big/
+   bold type the claimed username uses on the taste card — .username-claim-
+   prefix — with the flick verdict word at the row's other end). Dish name
+   drops to the row below as a direct result of this row's insertion. */
+.feed-author-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 10px 0 4px; }
+.feed-author-id { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.feed-author-name {
+  font-family: var(--font-display); font-weight: 800; font-size: var(--fs-title-a); color: var(--ink);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.feed-author-verdict { font-size: var(--fs-caption); font-weight: 500; color: var(--ink); flex-shrink: 0; }
+/* The poster's own comment, boxed so it reads as a quoted aside rather than
+   part of the card's own copy — shown only when there IS one (FeedCard.tsx
+   renders nothing at all, box included, when item.reason is empty). */
+.feed-reason-box {
+  margin-top: 8px; padding: 10px 12px; border-radius: 10px;
+  background: var(--paper-inset); color: var(--ink); font-size: var(--fs-caption); line-height: 1.5;
+}
 .identity-answers { display: flex; justify-content: center; gap: 34px; margin-top: 16px; }
 .identity-answer {
   display: flex; flex-direction: column; align-items: center; gap: 6px;

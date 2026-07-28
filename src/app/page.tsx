@@ -44,9 +44,11 @@ function Journal() {
     <div>
       {/* The two tabs ARE the heading — same display type, the inactive one
           dimmed. No new tab chrome: the page keeps one title-sized line. A
-          hairline divider separates them; 大家食 dims further than 食自己 when
-          inactive (--ink-faint vs --ink-soft) — it's the secondary surface, so
-          it should read quieter at rest, not just equally muted. */}
+          hairline divider separates them; whichever tab is INACTIVE reads
+          --ink-faint — symmetric on purpose (owner call 2026-07-28): 食自己
+          dimming to --ink-faint when 大家食 is picked is the same lightness
+          大家食 itself gets when 食自己 is picked, not a permanently-quieter
+          secondary tab. */}
       <h1 style={{ marginBottom: 17, display: 'flex', alignItems: 'center', gap: 16 }}>
         {(['mine', 'feed'] as const).map((key, i) => (
           <Fragment key={key}>
@@ -57,10 +59,7 @@ function Journal() {
               tabIndex={0}
               onClick={() => setTab(key)}
               onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') setTab(key); }}
-              style={{
-                cursor: 'pointer',
-                color: tab === key ? 'var(--ink)' : key === 'feed' ? 'var(--ink-faint)' : 'var(--ink-soft)',
-              }}
+              style={{ cursor: 'pointer', color: tab === key ? 'var(--ink)' : 'var(--ink-faint)' }}
             >
               {t(`home.tab.${key}`)}
             </span>
