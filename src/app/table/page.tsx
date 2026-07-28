@@ -12,6 +12,7 @@ import { sumPrices } from '@/lib/price';
 import { normalizePhoto } from '@/lib/image';
 import { mapWithConcurrency } from '@/lib/concurrency';
 import { mergeFinalScanItems } from '@/lib/tableMenuItems';
+import { shareLink } from '@/lib/share';
 import { supabaseBrowser } from '@/lib/supabase/client';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { stampsFromPicks, pickMatchesItem, mergeStamps, applyStampEvent, type StampOverlay, type StampEvent } from '@/lib/tableStamps';
@@ -417,11 +418,10 @@ function Session({ code, onLeave }: { code: string; onLeave: () => void }) {
 
   async function share() {
     const url = `${window.location.origin}/table?code=${code}`;
-    if (navigator.share) {
-      try { await navigator.share({ title: t('table.sharetitle'), url }); return; } catch { /* fallthrough */ }
-    }
-    await navigator.clipboard.writeText(url);
-    alert(t('table.copied'));
+    // Behaviour change, deliberate: dismissing the OS sheet used to fall
+    // through to the clipboard and alert about it. shareLink treats a
+    // dismissal as the answer (see its AbortError note).
+    if (await shareLink({ title: t('table.sharetitle'), url }) === 'copied') alert(t('table.copied'));
   }
 
   if (error) return (

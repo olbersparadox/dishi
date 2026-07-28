@@ -10,6 +10,7 @@ import ExplainModal from '@/components/ExplainModal';
 import RestaurantPicker, { RestaurantChoice } from '@/components/RestaurantPicker';
 import { mapWithConcurrency } from '@/lib/concurrency';
 import { mergeFinalScanItems } from '@/lib/tableMenuItems';
+import { shareLink } from '@/lib/share';
 import DishInfoDisplay from '@/components/DishInfoDisplay';
 import DishListRow from '@/components/DishListRow';
 import TableBar from '@/components/TableBar';
@@ -160,11 +161,9 @@ function Scanner() {
   async function copyTableLink() {
     if (!tableSession) return;
     const url = `${window.location.origin}/table?code=${tableSession.code}`;
-    try {
-      if (navigator.share) { await navigator.share({ title: t('table.sharetitle'), url }); return; }
-      await navigator.clipboard.writeText(url);
-      alert(t('table.copied'));
-    } catch { /* share/clipboard can be cancelled or unavailable — not an error */ }
+    // shareLink owns the sheet-then-clipboard chain (lib/share.ts); only the
+    // "it's on your clipboard" feedback is this screen's to give.
+    if (await shareLink({ title: t('table.sharetitle'), url }) === 'copied') alert(t('table.copied'));
   }
 
   // Poll the same endpoint /table itself polls, at the same interval — this is
