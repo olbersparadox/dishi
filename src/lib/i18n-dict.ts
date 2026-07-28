@@ -650,17 +650,11 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'feed.persona.failed': { zh: '（今日的每日精選未更新到。）', en: "(Today's daily picks didn't update.)" },
   // 貼文 — publishing is per DISH, and the copy says 公開 (public), never
   // "share with friends": there is no friend concept in the product.
-  // Share mode of the SAME sheet (sharing batch): a link-only post. The body
-  // is deliberately plain about what a link is — anyone holding it can see
-  // this — because the tier's honesty rests on the person understanding that,
-  // not on the word "private" doing work it cannot do.
+  // Share (simplified, owner call): no sheet, no card — 'post.share.title'
+  // still rides in the OS share-sheet payload's own title field (lib/share.ts
+  // via MyDishes.tsx's shareDish/sendDishLink).
   'post.share.title': { zh: '分享畀朋友', en: 'Share with a friend' },
-  'post.share.body': {
-    zh: '會產生一條淨係得呢道菜嘅連結。有連結嘅人就睇到；唔會出現喺你嘅公開頁面或者大家。',
-    en: 'Creates a link to this one dish. Anyone with the link can see it; it will not appear on your public page or in 大家.',
-  },
   'post.share.cta': { zh: '分享', en: 'Share' },
-  'post.linkonly': { zh: '只限連結', en: 'Link only' },
   // Share needs a URL, and only a CLAIMED username mints one.
   'post.share.needname.title': { zh: '先改個名', en: 'Claim your name first' },
   'post.share.needname.body': {
@@ -673,7 +667,6 @@ export const dict: Record<string, { zh: string; en: string }> = {
     en: 'Private by default. Once published it goes public. But to protect your privacy, who you ate with and when are removed.',
   },
   'post.reason.placeholder': { zh: '形容一下怎樣 "{verdict}"（可以唔寫）', en: 'Describe how it’s "{verdict}" (optional)' },
-  'post.link.copied': { zh: '連結已複製', en: 'Link copied' },
   'post.negative.note': { zh: '負評一樣可以公開；頁面會照樣顯示你的評價。', en: 'A bad verdict can be published too; the page shows it as it is.' },
   'post.publish': { zh: '公開', en: 'Publish' },
   'post.update': { zh: '更新', en: 'Update' },

@@ -2,6 +2,13 @@
 // 貼文 — the publish sheet. One dish, one deliberate act: this is the consent
 // event that puts a dish on dishi.<name>, and unpublishing here deletes it.
 //
+// PUBLISH ONLY (owner call — simplified sharing): this used to also serve
+// Share in a 'share' mode (same card, framed as a link-only post). Share no
+// longer opens any sheet at all — MyDishes.tsx's shareDish() silently
+// upgrades an unposted dish to link-only and hands the permalink straight to
+// the OS share sheet, no comment prompt. This sheet is now the ONE deliberate
+// act left: going public (and everything that implies — see post.body).
+//
 // Mounts inside the shared ExplainModal (same scrim, same paper card, same
 // dismissal as UsernameSheet and every other explainer) and styles with
 // existing classes only — .field, .label, and (owner call) the EXACT
@@ -19,21 +26,11 @@ import { GlobeIcon, GlobeOffIcon } from './icons';
 import { wordKeyFor } from '@/lib/flickWords';
 import { POST_REASON_MAX, normalizeReason } from '@/lib/posts';
 
-export default function PostSheet({ dish, mode = 'publish', onClose, onSaved }: {
+export default function PostSheet({ dish, onClose, onSaved }: {
   dish: {
     id: string; name: string; name_zh: string | null; score: number; posted: boolean; reason: string | null;
     photo_url?: string | null;
   };
-  /** 'publish' — the globe: goes on the dossier, the feed and the persona pool.
-   *  'share'   — the Share item: creates a LINK-ONLY post, reachable at its
-   *              permalink and nowhere else (sharing batch item 2).
-   *
-   *  Same sheet either way, deliberately. Sharing to one friend is still a
-   *  publication carrying a verdict about a real restaurant, so the person
-   *  must see that verdict word before consenting — the rule that made this
-   *  sheet exist does not weaken because the audience is smaller. Only the
-   *  framing and the tier differ. */
-  mode?: 'publish' | 'share';
   onClose: () => void;
   /** posted=false means the dish was unpublished. */
   onSaved: (dishId: string, posted: boolean, reason: string | null, visibility?: 'public' | 'link') => void;
@@ -47,8 +44,6 @@ export default function PostSheet({ dish, mode = 'publish', onClose, onSaved }: 
   const cleaned = normalizeReason(reason);
   const dirty = cleaned !== (dish.reason ?? null);
 
-  const visibility = mode === 'share' ? 'link' : 'public';
-
   const publish = async () => {
     if (saving) return;
     setSaving(true);
@@ -56,14 +51,15 @@ export default function PostSheet({ dish, mode = 'publish', onClose, onSaved }: 
     try {
       const res = await fetch('/api/posts', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dish_id: dish.id, reason: cleaned, visibility }),
+        body: JSON.stringify({ dish_id: dish.id, reason: cleaned, visibility: 'public' }),
       });
       if (!res.ok) { setError(t('post.failed')); return; }
-      // The server's answer, not the request: visibility only ever upgrades
-      // (mergeVisibility), so sharing an already-public dish comes back
-      // 'public' and the row must not redraw itself as link-only.
+      // The server's answer, not the request: a dish shared as link-only
+      // first (Share, simplified — no sheet) still comes back correctly once
+      // this same act upgrades it to public (mergeVisibility never
+      // downgrades, only the response says which tier actually landed).
       const saved = await res.json().catch(() => null);
-      onSaved(dish.id, true, cleaned, saved?.post?.visibility ?? visibility);
+      onSaved(dish.id, true, cleaned, saved?.post?.visibility ?? 'public');
       onClose();
     } catch {
       setError(t('post.failed'));
@@ -90,8 +86,8 @@ export default function PostSheet({ dish, mode = 'publish', onClose, onSaved }: 
 
   return (
     <ExplainModal
-      title={t(mode === 'share' ? 'post.share.title' : 'post.title')}
-      body={t(mode === 'share' ? 'post.share.body' : 'post.body')}
+      title={t('post.title')}
+      body={t('post.body')}
       extra={
         <>
           {/* Same dish-name treatment 食自己 uses — .card-title + DishName,
@@ -145,8 +141,8 @@ export default function PostSheet({ dish, mode = 'publish', onClose, onSaved }: 
             className={`icon-btn save${dish.posted && dirty ? ' dirty' : ''}`}
             disabled={saving}
             onClick={publish}
-            aria-label={dish.posted ? t('post.update') : t(mode === 'share' ? 'post.share.cta' : 'post.publish')}
-            title={dish.posted ? t('post.update') : t(mode === 'share' ? 'post.share.cta' : 'post.publish')}>
+            aria-label={dish.posted ? t('post.update') : t('post.publish')}
+            title={dish.posted ? t('post.update') : t('post.publish')}>
             {saving ? <span className="icon-btn-spinner" aria-hidden /> : <GlobeIcon size={16} />}
           </button>
         </div>

@@ -5,7 +5,7 @@ import RestaurantPicker, { RestaurantChoice } from '@/components/RestaurantPicke
 import FlickRating from '@/components/FlickRating';
 import { cuisineLabel } from '@/lib/i18n';
 import { wordKeyFor } from '@/lib/flickWords';
-import { EditIcon, TrashIcon, MoreIcon, CheckIcon, CloseIcon, GlobeIcon, LinkIcon, ShareIcon } from './icons';
+import { EditIcon, TrashIcon, MoreIcon, CheckIcon, CloseIcon, GlobeIcon, ShareIcon } from './icons';
 import { shareLink } from '@/lib/share';
 import { cookingBucket, type CookingMethod } from '@/lib/menuScan';
 import DishInfoDisplay from './DishInfoDisplay';
@@ -131,10 +131,9 @@ export default function MyDishes({ t, lang }: { t: (k: string, p?: Record<string
   // per the decided design; at most one row's menu is open at a time.
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   // Which dish's 貼文 sheet is open. Publishing is a deliberate, separate act —
-  // never a side effect of rating or editing.
+  // never a side effect of rating or editing. The sheet only ever serves the
+  // publish act now — Share (owner call: simplified) no longer opens it.
   const [posting, setPosting] = useState<MyDish | null>(null);
-  // Which act the sheet is serving — the globe (public) or Share (link-only).
-  const [postMode, setPostMode] = useState<'publish' | 'share'>('publish');
   // Shown when Share is tapped by someone who never claimed a username: the
   // link is dishi.me/<name>/d/<dish>, so there is no URL to send without one.
   const [shareNeedsName, setShareNeedsName] = useState(false);
@@ -149,8 +148,7 @@ export default function MyDishes({ t, lang }: { t: (k: string, p?: Record<string
    *
    * Only a CLAIMED username resolves publicly, so an unclaimed person has no
    * link to send; null tells the caller to say so rather than hand out a URL
-   * that 404s. Shared by the kebab's full Share action and the badge's quick
-   * copy — both need the exact same link. */
+   * that 404s. */
   async function resolveDishUrl(dishId: string): Promise<string | null> {
     let username: string | null = null;
     try {
@@ -161,27 +159,33 @@ export default function MyDishes({ t, lang }: { t: (k: string, p?: Record<string
     return username ? `${window.location.origin}/${username}/d/${dishId}` : null;
   }
 
-  /** Send the permalink for one dish — the kebab's "分享" action, OS share
-   * sheet first, clipboard second (lib/share.ts). */
+  /** Send the permalink for one dish — OS share sheet first, clipboard second
+   * (lib/share.ts). */
   async function sendDishLink(dishId: string) {
     const url = await resolveDishUrl(dishId);
     if (!url) { setShareNeedsName(true); return; }
     if (await shareLink({ title: t('post.share.title'), url }) === 'copied') alert(t('table.copied'));
   }
 
-  /** The public/link-only badge beside the kebab — tapping it is a quick
-   * "copy the link" shortcut for a dish that's already posted, always
-   * clipboard (no OS share-sheet detour). Confirmation is the SAME small
-   * rounded-rect popup the kebab's own menu uses (.row-menu +
-   * .row-menu-backdrop), not a native alert() — dismissed by tapping
-   * anywhere, same as that menu, so no auto-timeout here either. */
-  async function copyDishLink(dishId: string) {
-    const url = await resolveDishUrl(dishId);
-    if (!url) { setShareNeedsName(true); return; }
-    try {
-      await navigator.clipboard.writeText(url);
-      setLinkCopiedId(dishId);
-    } catch { /* clipboard blocked — quiet, nothing honest to say beyond that */ }
+  /** The kebab's "分享" — simplified (owner call): no consent card, no
+   * comment prompt. An unposted dish is silently upgraded to a link-only
+   * post first (mergeVisibility server-side never downgrades an already-
+   * public one), then the permalink goes straight to the OS share sheet. */
+  async function shareDish(d: MyDish) {
+    if (!d.posted) {
+      try {
+        const res = await fetch('/api/posts', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ dish_id: d.id, reason: null, visibility: 'link' }),
+        });
+        if (!res.ok) return;
+        const saved = await res.json().catch(() => null);
+        setDishes(prev => prev?.map(x => x.id === d.id
+          ? { ...x, posted: true, post_reason: null, post_visibility: saved?.post?.visibility ?? 'link' }
+          : x) ?? null);
+      } catch { return; }
+    }
+    sendDishLink(d.id);
   }
 
   /** Attach a photo to a rated dish that never had one (a pick rated off a menu).
@@ -220,7 +224,6 @@ export default function MyDishes({ t, lang }: { t: (k: string, p?: Record<string
   const [draftRestaurant, setDraftRestaurant] = useState<RestaurantChoice>(null);
   const [changingRating, setChangingRating] = useState(false);
   const [ratingSaved, setRatingSaved] = useState<string | null>(null); // dish id, transient
-  const [linkCopiedId, setLinkCopiedId] = useState<string | null>(null); // dish id — cleared by the popup's own backdrop tap, not a timer
 
   // Retro dish-identity check. The live ask happens at LOG time now (the growth
   // screen's 係咪同一味 card, via RatingStack) — this sweep covers everything
@@ -517,15 +520,11 @@ export default function MyDishes({ t, lang }: { t: (k: string, p?: Record<string
             score: posting.my_score, posted: !!posting.posted, reason: posting.post_reason ?? null,
             photo_url: posting.photo_url,
           }}
-          mode={postMode}
           onClose={() => setPosting(null)}
           onSaved={(id, posted, reason, visibility) => {
             setDishes(prev => prev?.map(x => x.id === id
               ? { ...x, posted, post_reason: reason, post_visibility: posted ? (visibility ?? 'public') : null }
               : x) ?? null);
-            // Consent first, THEN the send — the share sheet only opens once
-            // a post actually exists, so a cancelled publish shares nothing.
-            if (posted && postMode === 'share') sendDishLink(id);
           }}
         />
       )}
@@ -715,54 +714,18 @@ export default function MyDishes({ t, lang }: { t: (k: string, p?: Record<string
             </div>
 
             {/* Kebab, pinned top-right of the row: tap opens a small menu to
-                choose edit or delete. Hidden while editing or when the dish is
-                locked (someone else has rated it). Public state used to be a
-                separate "已公開" line under the meta text; it's now this quiet
-                globe glyph sitting left of the kebab instead — legible on the
-                row itself without opening anything, same as before, just
-                folded into the action row rather than its own line. Now a
-                real button (owner call): tapping it again copies the link
-                straight to the clipboard — a quick shortcut beside the
-                kebab's own fuller "分享" (OS share sheet first). */}
+                choose edit or delete. Hidden while editing or when the dish
+                is locked (someone else has rated it). No status badge beside
+                it (owner call: simplified sharing removed the only thing
+                that made it tappable, so the icon itself goes too — the
+                kebab's own 已公開/公開 menu item still says whether it's
+                posted). */}
             {editing !== d.id && !d.locked && (
               <div className="dish-actions">
-                {d.posted && (
-                  /* "The world can find this" and "only people holding the
-                     link can" are different promises and must not render
-                     alike (sharing batch item 2). */
-                  d.post_visibility === 'link' ? (
-                    <button type="button" className="dish-public-badge" onClick={() => copyDishLink(d.id)}
-                      aria-label={t('post.linkonly')} title={t('post.linkonly')}>
-                      <LinkIcon size={16} />
-                    </button>
-                  ) : (
-                    <button type="button" className="dish-public-badge" onClick={() => copyDishLink(d.id)}
-                      aria-label={t('post.public')} title={t('post.public')}>
-                      <GlobeIcon size={16} />
-                    </button>
-                  )
-                )}
                 <button className="icon-btn lg" onClick={() => setMenuOpenId(v => v === d.id ? null : d.id)}
                   aria-label={t('home.more')} title={t('home.more')} aria-haspopup="menu" aria-expanded={menuOpenId === d.id}>
                   <MoreIcon size={20} />
                 </button>
-                {/* Link-copied confirmation — the SAME small rounded-rect
-                    popup the kebab's own menu uses (.row-menu +
-                    .row-menu-backdrop), not a native alert(): dismissed by
-                    tapping anywhere, just like that menu. */}
-                {linkCopiedId === d.id && (
-                  <>
-                    <div className="row-menu-backdrop" onClick={() => setLinkCopiedId(null)} aria-hidden />
-                    {/* min-width:0 override — .row-menu's own 140px is sized
-                        for a menu of icon+label rows, not this one short
-                        line, so it left a lot of empty card around the text. */}
-                    <div className="row-menu" role="status" style={{ minWidth: 0 }}>
-                      <p style={{ margin: 0, padding: '11px 14px', fontSize: 'var(--fs-caption)', color: 'var(--ink-soft)', fontWeight: 500, whiteSpace: 'nowrap' }}>
-                        {t('post.link.copied')}
-                      </p>
-                    </div>
-                  </>
-                )}
                 {menuOpenId === d.id && (
                   <>
                     <div className="row-menu-backdrop" onClick={() => setMenuOpenId(null)} aria-hidden />
@@ -773,21 +736,16 @@ export default function MyDishes({ t, lang }: { t: (k: string, p?: Record<string
                       {/* Only a RATED dish can be published — a post asserts a
                           verdict, and an unrated dish has none to assert. */}
                       {d.my_score !== null && (
-                        <button role="menuitem" onClick={() => { setMenuOpenId(null); setPostMode('publish'); setPosting(d); }}>
+                        <button role="menuitem" onClick={() => { setMenuOpenId(null); setPosting(d); }}>
                           <GlobeIcon size={16} /> {d.posted ? t('post.public') : t('post.publish')}
                         </button>
                       )}
-                      {/* Share: an ALREADY-posted dish has a link to send, so
-                          it goes straight out; an unposted one opens the same
-                          consent sheet in share mode first, because a
-                          link-only post is still a publication carrying a
-                          verdict about a real restaurant. */}
+                      {/* Share: simplified (owner call) — no consent card, no
+                          comment prompt. Straight to the OS share sheet;
+                          shareDish silently upgrades an unposted dish to a
+                          link-only post first. */}
                       {d.my_score !== null && (
-                        <button role="menuitem" onClick={() => {
-                          setMenuOpenId(null);
-                          if (d.posted) sendDishLink(d.id);
-                          else { setPostMode('share'); setPosting(d); }
-                        }}>
+                        <button role="menuitem" onClick={() => { setMenuOpenId(null); shareDish(d); }}>
                           <ShareIcon size={16} /> {t('post.share.cta')}
                         </button>
                       )}

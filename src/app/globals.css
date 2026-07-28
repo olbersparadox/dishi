@@ -1672,19 +1672,6 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
   margin-right: -10px; /* nudge the kebab 10px toward the row's right edge */
   margin-top: -10px; /* nudge up 10px off .journal-row's flex-start baseline */
 }
-/* Replaces the old "已公開" text line: a quiet, non-interactive status glyph
-   sitting left of the kebab in the same row — same info, no separate line.
-   Matches .icon-btn.lg's footprint for tidy alignment but carries no
-   background/hover, since (unlike the kebab) it isn't tappable. */
-.dish-public-badge {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 38px; height: 38px; color: var(--ink-soft); flex-shrink: 0;
-  margin-right: -15px; /* pull 15px closer to the kebab, past the row's own 8px gap */
-  /* Now a real <button> (owner call — tapping copies the link), so the UA's
-     own button chrome needs undoing same as .icon-btn does. */
-  border: none; background: none; padding: 0; cursor: pointer;
-}
-.dish-public-badge:hover, .dish-public-badge:focus-visible { color: var(--ink); }
 /* Larger tap targets for the icon actions (the 30px ones were genuinely fiddly on
    a phone, and these are the primary way to fix a wrong dish). */
 .icon-btn.lg { width: 38px; height: 38px; }
