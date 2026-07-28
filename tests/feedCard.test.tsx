@@ -9,14 +9,16 @@
 //   3. persona content, which asserts no verdict, renders none (nothing is
 //      invented to fill the slot);
 //   4. every card carries the bookmark affordance, whatever the author —
-//      without it the feed is pure consumption and generates nothing.
+//      without it the feed is pure consumption and generates nothing — EXCEPT
+//      the viewer's own post, which cannot be bookmarked at all (the API
+//      refuses a dish you own), so the button would only ever error.
 import { afterEach, describe, expect, it } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 import { LanguageProvider } from '../src/lib/i18n';
 import FeedCard from '../src/components/FeedCard';
-import type { RankedFeedItem } from '../src/lib/feed';
+import type { FeedItem } from '../src/lib/feed';
 
-const base: RankedFeedItem = {
+const base: FeedItem = {
   id: 'p1',
   author: { kind: 'user', username: 'jerry' },
   dish: {
@@ -25,10 +27,9 @@ const base: RankedFeedItem = {
   },
   verdict: 'flick.never',
   reason: '鑊氣唔夠',
-  match: 0.2,
 };
 
-const card = (item: RankedFeedItem & { bookmarked?: boolean }) => render(
+const card = (item: FeedItem & { bookmarked?: boolean }) => render(
   <LanguageProvider>
     <FeedCard item={item} onBookmarked={() => {}} />
   </LanguageProvider>,
@@ -62,5 +63,13 @@ describe('FeedCard — one card, whatever the author', () => {
     card({ ...base, bookmarked: true });
     const done = screen.getByRole('button', { name: '已加入待評' }) as HTMLButtonElement;
     expect(done.disabled).toBe(true);
+  });
+
+  it("offers NO bookmark on the viewer's own post — the API would refuse it", () => {
+    card({ ...base, own: true });
+    expect(screen.queryByRole('button', { name: '想食' })).toBeNull();
+    // Still a full card otherwise: it is in the pool, not a stub.
+    expect(screen.getByText('dishi.jerry')).toBeTruthy();
+    expect(screen.getByText('唔會再食')).toBeTruthy();
   });
 });

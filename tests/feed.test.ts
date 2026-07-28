@@ -1,49 +1,37 @@
 import { describe, it, expect } from 'vitest';
-import { rankFeed, buildBookmarkRow, FEED_TRAINING_THRESHOLD, type FeedItem } from '../src/lib/feed';
+import { readFileSync } from 'node:fs';
+import { buildBookmarkRow } from '../src/lib/feed';
 
-// Taste-rank IS the distribution (no social graph, decision 2). These tests pin
-// the two rules that decide whether a post reaches anyone at all.
+// The feed pool is CHRONOLOGICAL (owner, 2026-07-28): while almost nobody has
+// both rated and published a dish, a taste filter over that pool hides rather
+// than selects. rankFeed is gone rather than left unwired — these tests pin
+// that it stayed gone, since the tempting "fix" for a thin feed is to quietly
+// reintroduce scoring in the route.
 
-const item = (id: string, attributes: Record<string, number>, over: Partial<FeedItem> = {}): FeedItem => ({
-  id,
-  author: { kind: 'user', username: 'jerry' },
-  dish: { id: `d-${id}`, name: id, name_zh: null, restaurant: null, cuisine: null, photo_url: null, attributes },
-  verdict: 'flick.loved',
-  reason: null,
-  ...over,
-});
+describe('no ranking in the feed read path (interim, owner 2026-07-28)', () => {
+  const lib = readFileSync(new URL('../src/lib/feed.ts', import.meta.url), 'utf8');
+  const route = readFileSync(new URL('../src/app/api/feed/route.ts', import.meta.url), 'utf8');
 
-// contentScore divides by MIN_SCORED_DIMS, so give each dish enough dims to
-// score like a real one rather than a two-attribute fixture.
-const dims = (v: number) => Object.fromEntries(
-  ['umami', 'rich', 'sweet', 'salty', 'sour', 'bitter', 'spicy', 'tender', 'crisp', 'fresh'].map(d => [d, v]),
-);
-
-describe('rankFeed', () => {
-  it('ranks by taste match, strongest first', () => {
-    const taste = { umami: 0.8, rich: 0.8, sweet: 0.8, salty: 0.8, sour: 0.8, bitter: 0.8, spicy: 0.8, tender: 0.8, crisp: 0.8, fresh: 0.8 };
-    const ranked = rankFeed(taste, {}, [item('weak', dims(0.6)), item('strong', dims(1))]);
-    expect(ranked.map(r => r.id)).toEqual(['strong', 'weak']);
-    expect(ranked[0].match).toBeGreaterThan(ranked[1].match);
+  it('lib/feed.ts exports no ranking function', () => {
+    expect(lib).not.toMatch(/export function rankFeed/);
+    expect(lib).not.toMatch(/FEED_TRAINING_THRESHOLD/);
   });
 
-  it('DROPS what the engine does not like for you — no rec is better than an irrelevant one', () => {
-    const taste = { umami: 0.9, rich: 0.9, sweet: 0.9, salty: 0.9, sour: 0.9, bitter: 0.9, spicy: 0.9, tender: 0.9, crisp: 0.9, fresh: 0.9 };
-    // Every dim well below the midpoint the score is measured from: a real
-    // mismatch, not a near-miss.
-    const ranked = rankFeed(taste, {}, [item('mismatch', dims(0))]);
-    expect(ranked).toHaveLength(0);
+  // Calls and imports, not the word: the route's comments name contentScore
+  // precisely because they record where ranking goes when it returns.
+  it('the route scores nothing — no contentScore call, no taste vector read', () => {
+    expect(route).not.toMatch(/contentScore\(/);
+    expect(route).not.toMatch(/from '@\/lib\/taste'/);
+    expect(route).not.toMatch(/\.from\('taste_profiles'\)/);
   });
 
-  it('a NEGATIVE verdict never disqualifies a post — relevance is the dish, the verdict is the content', () => {
-    const taste = { umami: 0.8, rich: 0.8, sweet: 0.8, salty: 0.8, sour: 0.8, bitter: 0.8, spicy: 0.8, tender: 0.8, crisp: 0.8, fresh: 0.8 };
-    const ranked = rankFeed(taste, {}, [item('bad-somewhere', dims(1), { verdict: 'flick.never' })]);
-    expect(ranked.map(r => r.id)).toEqual(['bad-somewhere']);
-    expect(ranked[0].verdict).toBe('flick.never'); // and it still travels with the card
+  it('the route orders the merged pool by time, newest first', () => {
+    expect(route).toMatch(/b\.at\.localeCompare\(a\.at\)/);
   });
 
-  it('the honesty bar is the same one recommendations have always used', () => {
-    expect(FEED_TRAINING_THRESHOLD).toBe(5);
+  it("the viewer's own posts are IN the pool (the neq that emptied the tab is gone)", () => {
+    expect(route).not.toMatch(/\.neq\('user_id', user\.id\)/);
+    expect(route).toMatch(/own: p\.user_id === user\.id/);
   });
 });
 

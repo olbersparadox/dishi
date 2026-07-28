@@ -9,10 +9,10 @@
 // reads as the same object family as the first.
 import { useState } from 'react';
 import { useLang } from '@/lib/i18n';
-import type { RankedFeedItem } from '@/lib/feed';
+import type { FeedItem } from '@/lib/feed';
 
 export default function FeedCard({ item, onBookmarked }: {
-  item: RankedFeedItem & { bookmarked?: boolean };
+  item: FeedItem & { bookmarked?: boolean };
   onBookmarked: (id: string) => void;
 }) {
   const { t, lang } = useLang();
@@ -52,12 +52,18 @@ export default function FeedCard({ item, onBookmarked }: {
             recommendation of it. */}
         {item.verdict && <p className="card-meta" style={{ margin: '4px 0 0' }}>{t(item.verdict)}</p>}
         {item.reason && <p style={{ margin: '4px 0 0', fontSize: 13.5 }}>{item.reason}</p>}
-        <div style={{ marginTop: 10 }}>
-          <button type="button" className="btn small" disabled={saving || !!item.bookmarked} onClick={bookmark}>
-            {item.bookmarked ? t('feed.bookmarked') : t('feed.bookmark')}
-          </button>
-          {failed && <span className="card-meta" style={{ marginLeft: 8 }}>{t('feed.bookmark.failed')}</span>}
-        </div>
+        {/* Your own post carries no bookmark: /api/bookmarks refuses a dish you
+            already own, so the button's only possible outcome would be an
+            error. The author line already reads dishi.<you>, which is the only
+            "this is yours" marker the card needs. */}
+        {!item.own && (
+          <div style={{ marginTop: 10 }}>
+            <button type="button" className="btn small" disabled={saving || !!item.bookmarked} onClick={bookmark}>
+              {item.bookmarked ? t('feed.bookmarked') : t('feed.bookmark')}
+            </button>
+            {failed && <span className="card-meta" style={{ marginLeft: 8 }}>{t('feed.bookmark.failed')}</span>}
+          </div>
+        )}
       </div>
     </article>
   );

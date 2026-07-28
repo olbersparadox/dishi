@@ -7,23 +7,26 @@
 // rank. Personas are what make it non-empty before enough people post.
 //
 // Distribution is taste-rank (settled 2026-07-27, decision 2). There is no
-// follow graph, no friends, and nothing here reads a relationship — a post
-// reaches whoever the ranking matches. That means the RANKING IS THE
-// DISTRIBUTION: if it is weak, posts reach nobody. Which is why the two rules
-// below are conservative rather than generous.
+// follow graph, no friends, and nothing here reads a relationship.
 //
-// No LLM in the read path, ever (binding amendment): ranking is contentScore
-// over attributes the dish already carries.
-
-import { contentScore, type TasteVector } from './taste';
-
-/** Below this many ratings a taste vector is mostly noise — the EMA's learning
- * rate is steepest over exactly these first flicks. /api/recommendations has
- * refused to rank under the same bar since it shipped ("recommendations begin
- * when they can be honest"); a feed that ranked at 2 ratings would be dressing
- * a guess as a match. Under it, the feed shows personas only — content that
- * does not claim to be matched to you. */
-export const FEED_TRAINING_THRESHOLD = 5;
+// CHRONOLOGICAL FOR NOW (owner, 2026-07-28). The tab shipped ranking every card
+// by contentScore and dropping weak matches. That is right at scale and wrong
+// today: through trial and early launch, few people will rate a dish AND choose
+// to publish it, so "of those, the ones matching your taste" filters a pool of
+// almost nothing down to nothing. Ranking a thin pool doesn't select — it just
+// hides. So the pool is now the whole pool, newest first, and it INCLUDES the
+// viewer's own posts (see the route: excluding them made the tab structurally
+// empty for the only user who exists).
+//
+// This is an interim, not a reversal of decision 2 — taste-rank is still the
+// intended distribution and returns when the pool is large enough for a filter
+// to be selecting rather than concealing. The re-entry point is one function:
+// score with contentScore(taste, dish.attributes, affinity, dish.cuisine),
+// drop <= 0, sort descending. It was deleted rather than left dangling
+// unwired; contentScore itself is untouched and still ranks menus, duels and
+// seals. See DECISIONS.md for the amendment.
+//
+// No LLM in the read path, ever (binding amendment) — that holds either way.
 
 export type FeedAuthor = {
   /** 'persona' = dishi.Spoon et al (precomputed daily). 'user' = someone's
@@ -52,34 +55,12 @@ export type FeedItem = {
    * they thought); absent on persona content, which asserts no verdict. */
   verdict: string | null;
   reason: string | null;
+  /** The viewer's own post. Their posts belong in the pool (they are public
+   * material like anyone else's), but the card drops its bookmark affordance:
+   * /api/bookmarks refuses a dish you already own, so offering it would put a
+   * button on screen whose only outcome is an error. */
+  own?: boolean;
 };
-
-export type RankedFeedItem = FeedItem & { match: number };
-
-/**
- * Rank a mixed pool for one viewer. Descending by contentScore, input order
- * breaking ties (callers pass newest-first).
- *
- * ITEMS THE ENGINE DOESN'T LIKE FOR YOU ARE DROPPED, not ranked last. "No rec
- * is better than an irrelevant one" is the standing product rule, and a feed
- * is the surface most tempted to pad — a short feed is the honest outcome of a
- * thin pool, and an empty one is a legitimate state the UI must be able to say.
- *
- * A negative VERDICT never disqualifies an item: a post saying a dish was bad
- * is about how one place cooked it, and it is exactly as relevant to someone
- * who likes that kind of dish as a rave is. Relevance is the dish; the verdict
- * is the content.
- */
-export function rankFeed(
-  taste: TasteVector,
-  affinity: Record<string, number>,
-  items: FeedItem[],
-): RankedFeedItem[] {
-  return items
-    .map(item => ({ ...item, match: contentScore(taste, item.dish.attributes, affinity, item.dish.cuisine) }))
-    .filter(item => item.match > 0)
-    .sort((a, b) => b.match - a.match);
-}
 
 /**
  * The 待評 row a bookmark creates — the one affordance every card carries,

@@ -1,25 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseServer, supabaseAdmin } from '@/lib/supabase/server';
-import { emptyTaste, type TasteVector } from '@/lib/taste';
 import { wordKeyFor } from '@/lib/flickWords';
-import { rankFeed, FEED_TRAINING_THRESHOLD, type FeedItem } from '@/lib/feed';
+import { type FeedItem } from '@/lib/feed';
 import { PERSONA_META, isPersona } from '@/lib/persona';
 
 /**
  * GET /api/feed — the 食記 feed's second tab.
  *
- * One card type, author always a dishi.X (lib/feed.ts). Today the pool is
- * other people's opt-in posts; persona items join the SAME pool and the same
- * ranking when they ship — this route is where they merge, not a second one.
+ * One card type, author always a dishi.X (lib/feed.ts). Posts and persona items
+ * merge into ONE pool here — not two lists that happen to render alike.
  *
- * Taste-rank IS the distribution (no social graph, decision 2), so this route
- * is the whole reach mechanism for a post. No LLM anywhere in it.
+ * NEWEST FIRST, WHOLE POOL (owner, 2026-07-28 — replacing the contentScore
+ * ranking this shipped with). Rationale in lib/feed.ts: while almost nobody has
+ * both rated and published a dish, a taste filter over a near-empty pool hides
+ * rather than selects. Taste-rank remains the intended distribution and comes
+ * back when the pool can support it.
  *
- * Returns `stage`:
- *  - 'training' — the viewer has too few ratings for a match to be honest.
- *    Personas still show (they claim no match); user posts do not.
- *  - 'ranked'   — ranked by contentScore, weak matches dropped rather than
- *    padded out.
+ * Two consequences of that, both deliberate:
+ *  - the viewer's OWN posts are in the pool. They were excluded while ranking
+ *    was on (your own dishes would rank top and mirror your journal back at
+ *    you); with one claimed user in the database that exclusion made the tab
+ *    permanently empty for the only person who could see it.
+ *  - there is no training stage. It existed because claiming a match under ~5
+ *    ratings is dishonest; nothing here claims a match now, so a new account
+ *    sees the pool from its first visit instead of an explanation.
+ *
+ * No LLM anywhere in it.
  */
 export async function GET(req: NextRequest) {
   const supabase = supabaseServer();
@@ -31,36 +37,51 @@ export async function GET(req: NextRequest) {
   const lang = req.nextUrl.searchParams.get('lang') === 'en' ? 'en' : 'zh';
 
   const admin = supabaseAdmin();
-  const { data: me } = await admin
-    .from('taste_profiles').select('vector, cuisine_affinity, rating_count')
-    .eq('user_id', user.id).maybeSingle();
-  const taste: TasteVector = (me?.vector as TasteVector) ?? emptyTaste();
-  const affinity = (me?.cuisine_affinity ?? {}) as Record<string, number>;
-  const ratingCount = (me?.rating_count as number) ?? 0;
-  const training = ratingCount < FEED_TRAINING_THRESHOLD;
 
-  // Other people's posts. Own posts are excluded on principle, not for tidiness:
-  // this tab exists to carry a palate to someone ELSE, and your own journal is
-  // already the first tab.
-  const { data: rows } = await admin
+  // NOTE: the viewer's taste vector is deliberately not read here any more.
+  // Nothing in this route consumes it while the order is chronological, and
+  // fetching it "just in case" would imply a personalization that isn't
+  // happening. It comes back with the ranking.
+
+  // Everyone's posts, the viewer's included.
+  //
+  // The author is NOT joined in this select. dish_posts.user_id references
+  // auth.users, not public.profiles, so there is no foreign key for PostgREST
+  // to embed `profiles!inner(...)` through — it errors, and an ignored error
+  // here reads as "nobody has posted", which is how this tab shipped unable to
+  // render a single user post. Two queries, and the error is surfaced.
+  const { data: rows, error: postsError } = await admin
     .from('dish_posts')
-    .select('id, reason, created_at, user_id, dish_id, profiles!inner(handle, username_set_at), dishes!inner(id, name, name_zh, cuisine, attributes, restaurant_id, restaurants(name))')
-    .neq('user_id', user.id)
+    .select('id, reason, created_at, user_id, dish_id, dishes!inner(id, name, name_zh, cuisine, attributes, restaurant_id, restaurants(name))')
     .order('created_at', { ascending: false })
     .limit(120);
+  if (postsError) {
+    return NextResponse.json({ error: postsError.message }, { status: 500 });
+  }
 
   type Row = {
-    id: string; reason: string | null; user_id: string; dish_id: string;
-    profiles: { handle: string | null; username_set_at: string | null };
+    id: string; reason: string | null; created_at: string; user_id: string; dish_id: string;
     dishes: {
       id: string; name: string | null; name_zh: string | null; cuisine: string | null;
       attributes: Record<string, number> | null; restaurants: { name: string | null } | null;
     };
   };
+  const rawPosts = (rows ?? []) as unknown as Row[];
+
   // CLAIMED usernames only, the same gate the public page gets right: every
   // legacy profile has an email-derived handle, and surfacing those would put
-  // address local parts on a card as an identity.
-  const posts = ((rows ?? []) as unknown as Row[]).filter(r => !!r.profiles?.username_set_at);
+  // address local parts on a card as an identity. A post by someone who hasn't
+  // claimed a name has no author to print, so it does not appear.
+  const handles = new Map<string, string>();
+  if (rawPosts.length > 0) {
+    const { data: authors } = await admin
+      .from('profiles').select('id, handle, username_set_at')
+      .in('id', Array.from(new Set(rawPosts.map(r => r.user_id))));
+    for (const a of authors ?? []) {
+      if (a.username_set_at && a.handle) handles.set(a.id as string, a.handle as string);
+    }
+  }
+  const posts = rawPosts.filter(r => handles.has(r.user_id));
 
   // Current verdicts, batched — read live, never snapshotted (see lib/posts.ts).
   const scores = new Map<string, number>();
@@ -81,13 +102,18 @@ export async function GET(req: NextRequest) {
     .from('dishes').select('from_dish_id').eq('user_id', user.id).not('from_dish_id', 'is', null);
   const bookmarked = new Set((mine ?? []).map(d => d.from_dish_id as string));
 
-  const items: FeedItem[] = posts
+  // `at` orders the merged pool and is stripped before the response — a card
+  // shows no timestamp, the same way the public page publishes no dates.
+  type Timed = FeedItem & { at: string };
+
+  const items: Timed[] = posts
     // A post whose rating vanished has no verdict to show. Dropped rather than
     // rendered verdictless — the same rule the public page applies.
     .filter(p => scores.has(p.id))
     .map(p => ({
       id: p.id,
-      author: { kind: 'user' as const, username: p.profiles.handle as string },
+      at: p.created_at,
+      author: { kind: 'user' as const, username: handles.get(p.user_id)! },
       dish: {
         id: p.dishes.id,
         name: p.dishes.name, name_zh: p.dishes.name_zh,
@@ -98,6 +124,7 @@ export async function GET(req: NextRequest) {
       },
       verdict: wordKeyFor(scores.get(p.id)!),
       reason: p.reason,
+      own: p.user_id === user.id,
     }));
 
   // Persona picks — the SAME pool, not a second feed. This is what keeps the
@@ -107,18 +134,20 @@ export async function GET(req: NextRequest) {
   const [{ data: personaRows }, { data: runRow }] = await Promise.all([
     admin.from('persona_items')
       // dishes!inner(user_id): a persona telling you about your own dinner is
-      // not content, so the viewer's own dishes are excluded here the same way
-      // their own posts are above.
-      .select('id, persona, dish_id, name, name_zh, cuisine, attributes, line_zh, line_en, dishes!inner(user_id), restaurants(name)')
+      // not content — it reads as the app quoting you back to yourself. Own
+      // POSTS are in the pool now (they are yours, deliberately published);
+      // a persona repeating one is not the same thing, so this stays excluded.
+      .select('id, persona, dish_id, name, name_zh, cuisine, attributes, line_zh, line_en, created_at, dishes!inner(user_id), restaurants(name)')
       .eq('day', today)
       .neq('dishes.user_id', user.id),
     admin.from('persona_runs').select('status, item_count').eq('day', today).maybeSingle(),
   ]);
 
-  const personaItems: FeedItem[] = ((personaRows ?? []) as any[])
+  const personaItems: Timed[] = ((personaRows ?? []) as any[])
     .filter(r => isPersona(r.persona))
     .map(r => ({
       id: r.id as string,
+      at: r.created_at as string,
       author: { kind: 'persona' as const, username: PERSONA_META[r.persona as 'spoon' | 'ck' | 'kiki'][lang] },
       dish: {
         id: r.dish_id as string,
@@ -135,21 +164,21 @@ export async function GET(req: NextRequest) {
       reason: (lang === 'en' ? r.line_en : r.line_zh) ?? null,
     }));
 
-  // Under the training bar a match claim would be a guess with a number on it,
-  // so user posts wait — but persona items claim no match, and showing them
-  // unranked (newest first) is honest and keeps the tab alive on day one.
-  const ranked = training
-    ? personaItems
-    : rankFeed(taste, affinity, [...items, ...personaItems]).slice(0, 30);
+  // One pool, newest first. Both author types sort on the same clock, so a
+  // fresh post appears above the morning's persona picks rather than in a
+  // block behind them.
+  const pool = [...items, ...personaItems]
+    .sort((a, b) => b.at.localeCompare(a.at))
+    .slice(0, 30);
 
   return NextResponse.json({
-    stage: training ? 'training' : 'ranked',
-    rating_count: ratingCount,
-    needed: FEED_TRAINING_THRESHOLD,
     // Told apart deliberately: 'empty' is a legitimate quiet day, 'failed' is
     // the job breaking, and a missing row means it never ran today. The UI must
     // never render the last two as silence.
     persona_status: (runRow?.status as string | undefined) ?? 'missing',
-    items: ranked.map(i => ({ ...i, bookmarked: !!i.dish.id && bookmarked.has(i.dish.id) })),
+    items: pool.map(({ at: _at, ...i }) => ({
+      ...i,
+      bookmarked: !!i.dish.id && bookmarked.has(i.dish.id),
+    })),
   });
 }

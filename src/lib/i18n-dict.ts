@@ -613,8 +613,10 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'home.tab.feed': { zh: '大家', en: 'Everyone' },
   'feed.loading': { zh: '搵緊…', en: 'Looking…' },
   'feed.failed': { zh: '載入唔到，稍後再試', en: "Couldn't load — try again later" },
-  'feed.training': { zh: '再評多 {n} 道菜，這裡就會開始幫你揀。', en: 'Rate {n} more dishes and this starts picking for you.' },
-  'feed.empty': { zh: '今日未有啱你口味的貼文。', en: 'Nothing matching your taste today.' },
+  // Says what is actually true of a chronological pool. The old line ("nothing
+  // matching your taste today") described a ranking that no longer runs — copy
+  // that claims a filter the code isn't applying is the worst kind of stale.
+  'feed.empty': { zh: '未有人公開過菜式。', en: 'No one has published a dish yet.' },
   'feed.bookmark': { zh: '想食', en: 'Want to eat' },
   'feed.bookmarked': { zh: '已加入待評', en: 'In your queue' },
   'feed.bookmark.failed': { zh: '加唔到', en: "Couldn't add" },
