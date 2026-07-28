@@ -25,9 +25,9 @@ independent — all three converge on one keystone:
    binding constraint.
 2. **dishi.name** — identity, attachment, sharing (taste-rank + messenger
    share; there is NO social graph, settled). Taste-only export SHIPPED
-   2026-07-28. NEXT: the `dishi.me/[username]` public page, plus the [S]
-   chop-wiring fix. Chain: taste-only export ✅ → public page → messenger
-   share → 食記 feed.
+   2026-07-28; `dishi.me/[username]` public dossier SHIPPED 2026-07-28.
+   NEXT: messenger share of the dossier URL, plus the [S] chop-wiring fix.
+   Chain: taste-only export ✅ → public page ✅ → messenger share → 食記 feed.
 3. **UX/UI** — polish + the 書面化 register shift. No open corrections from
    the 2026-07-28 review.
 

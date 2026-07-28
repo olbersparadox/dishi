@@ -3707,3 +3707,56 @@ it entirely.
 Related and still open: item 4 of the Phase 0.5 batch (owner manual re-test)
 now narrows to the ChatGPT custom GPT with the post-fix doc — the one surface
 never retested. Claude Project and Gemini Gem both passed.
+
+
+---
+
+# dishi.me/[username] — the public taste dossier ✅ SHIPPED 2026-07-28
+
+Decision 3 built ("the dossier IS the public taste page — there is no third
+artifact"). What shipped and the calls made:
+
+- **The privacy contract is a pure module** (`src/lib/dossier.ts`), and the
+  page can only render what passes through it. The projection's OUTPUT TYPE
+  carries no field for eaten dates or companions — decision 3's exclusions
+  are structural, not remembered. Tests pin: dates die at the projection,
+  restaurants strip under the toggle, thresholds match the export doc's.
+- **Negative anchors are excluded by construction** — a judgment call beyond
+  the letter of decision 3 (its contents list only names positive anchors): a
+  public per-user "this dish was bad HERE" is a statement about the
+  restaurant, and publishing it collides with the restaurant-side trust
+  posture in a way abstract avoid-dimensions don't. Avoid-DIMENSIONS render;
+  disliked DISHES never do. Revisit deliberately if ever wanted.
+- **Resolution: claimed usernames only** (`username_set_at` non-null; exact
+  match on the stored lowercase handle). Legacy email-derived handles must
+  never mint public URLs — verified live: /wool.hk and /mosuko-i47v 404,
+  /jerry and /Jerry resolve.
+- **Re-rated dishes dedupe** by (name, restaurant), strongest kept — found on
+  the live page, not in review: 壽司拼盤 @ Tsumura rendered twice because
+  re-ratings append rating rows (the engine's replay design). Test added.
+- **Copy-for-AI is third person** (`buildDossierText`) — "one artifact, two
+  readers." Hard rule 1 (a dossier never enters the recipient's engine) is
+  stated IN the emitted text, because the recipient's AI is the one place it
+  can't be enforced structurally. No POST fires: a visitor copying a dossier
+  moves nothing about the owner (not an export event).
+- **The hide-restaurants toggle** is the page's one owner control:
+  `profiles.public_hide_restaurants` (migration applied live + recorded),
+  PATCH `/api/dossier` via the user-scoped client (profiles is
+  own-row-writable under RLS — verified against live policies). Verified
+  end-to-end live: on → DB true → server render hides; off → restored.
+- **Next 14 Data Cache gotcha, found live:** the supabase REST GETs inside
+  the RSC render were cached EVEN on a force-dynamic page — the PATCH landed
+  in the DB while reloads kept serving the stale read. `unstable_noStore()`
+  at the top of the resolver is the fix. Any future public server-rendered
+  page reading supabase must do the same or it will serve stale data.
+- **The page renders inside the normal Shell** (topbar + tab bar) rather than
+  a bare layout: the tabs ARE the acquisition path for a visitor, and
+  restructuring the root layout into route groups wasn't worth it for one
+  page. A quiet 建立你自己的味覺 AI CTA shows to non-owners. Revisit if the
+  owner wants a chromeless share page.
+- Reuse, not imitation: TasteFormReveal (the real blob), .persona-name
+  identity type, .version-line, .chip, .ok-circle — no new CSS.
+
+Verified: 705 tests passing (tests/dossier.test.ts pins the privacy
+contract), tsc clean, live page screenshotted on REAL data (dishi.jerry, 50
+ratings) in both toggle states, guards curled, zero console errors.

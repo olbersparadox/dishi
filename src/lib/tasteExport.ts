@@ -17,9 +17,11 @@
 /** Only dims with a real, legible signal are worth putting in someone's mouth as
  * "I love X" — near-zero values are noise, not a preference, and listing them
  * would manufacture confidence the engine doesn't actually have. */
-const MEANINGFUL_THRESHOLD = 0.25;
-/** Above this, a preference is strong enough to state as a headline, not just list. */
-const STRONG_THRESHOLD = 0.55;
+export const MEANINGFUL_THRESHOLD = 0.25;
+/** Above this, a preference is strong enough to state as a headline, not just list.
+ * Both thresholds are exported for the public dossier (lib/dossier.ts), whose
+ * chips must agree with the export doc about what counts as a preference. */
+export const STRONG_THRESHOLD = 0.55;
 /** A dim counts as "explored" (the engine has a real read on it) past this — same
  * noise floor buddy.ts uses, kept here so evidenceConfidence needs no import. */
 const EXPLORED_THRESHOLD = 0.15;

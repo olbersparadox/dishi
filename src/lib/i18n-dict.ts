@@ -548,6 +548,17 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'seal.direction.like': { zh: '幾中意', en: 'like it' },
   'seal.direction.meh': { zh: '麻麻地', en: 'meh' },
   'seal.direction.dislike': { zh: '不喜歡', en: 'not for you' },
+  // Public dossier — dishi.me/[username] (decision 3). 書面 register; the
+  // page is an acquisition surface, so the CTA is quiet, never a wall.
+  'dossier.fed': { zh: '學自 {n} 道菜', en: 'learned from {n} dishes' },
+  'dossier.loves': { zh: '偏愛', en: 'Loves' },
+  'dossier.avoids': { zh: '避開', en: 'Avoids' },
+  'dossier.cuisines': { zh: '常回味的菜系：{list}', en: 'Keeps returning to: {list}' },
+  'dossier.anchors': { zh: '實際食過並喜愛的菜', en: 'Dishes really eaten and loved' },
+  'dossier.hide.restaurants': { zh: '隱藏餐廳名稱', en: 'Hide restaurant names' },
+  'dossier.copy.blurb': { zh: '複製 {name} 的口味檔，交給你的 AI，替他們挑選合口味的菜', en: "Copy {name}'s taste dossier for your own AI — so it can help you choose for them" },
+  'dossier.copy': { zh: '複製口味檔', en: 'Copy dossier' },
+  'dossier.cta': { zh: '建立你自己的味覺 AI →', en: 'Build your own taste AI →' },
   'copied.short': { zh: '已複製', en: 'Copied' },
   'profile.owner.link': { zh: '開啟儀表板', en: 'Open the dashboard' },
   'profile.owner.blurb': { zh: '看看食客的口味如何回應你餐廳的菜式。', en: 'See how diners\u2019 palates respond to your menu.' },
