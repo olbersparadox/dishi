@@ -15,12 +15,15 @@ import { useState } from 'react';
 import { useLang } from '@/lib/i18n';
 import ExplainModal from './ExplainModal';
 import DishName from './DishName';
-import { GlobeIcon, CloseIcon } from './icons';
+import { GlobeIcon, GlobeOffIcon } from './icons';
 import { wordKeyFor } from '@/lib/flickWords';
 import { POST_REASON_MAX, normalizeReason } from '@/lib/posts';
 
 export default function PostSheet({ dish, mode = 'publish', onClose, onSaved }: {
-  dish: { id: string; name: string; name_zh: string | null; score: number; posted: boolean; reason: string | null };
+  dish: {
+    id: string; name: string; name_zh: string | null; score: number; posted: boolean; reason: string | null;
+    photo_url?: string | null;
+  };
   /** 'publish' — the globe: goes on the dossier, the feed and the persona pool.
    *  'share'   — the Share item: creates a LINK-ONLY post, reachable at its
    *              permalink and nowhere else (sharing batch item 2).
@@ -93,11 +96,18 @@ export default function PostSheet({ dish, mode = 'publish', onClose, onSaved }: 
         <>
           {/* Same dish-name treatment 食自己 uses — .card-title + DishName,
               not a hand-rolled bold <p> — so what's about to publish reads
-              exactly like the row it came from. The verdict word itself
-              isn't shown here (owner call) — it still drives the reason
+              exactly like the row it came from, now with the SAME photo
+              thumbnail (.journal-photo) beside it (owner call). The verdict
+              word itself isn't shown here — it still drives the reason
               placeholder below. */}
-          <div className="card-title" style={{ marginTop: 12 }}>
-            <DishName name={dish.name} name_zh={dish.name_zh} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 12 }}>
+            {dish.photo_url && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={dish.photo_url} alt="" className="journal-photo" style={{ width: 48, height: 48, flexShrink: 0 }} />
+            )}
+            <div className="card-title">
+              <DishName name={dish.name} name_zh={dish.name_zh} />
+            </div>
           </div>
           {dish.score < 0 && (
             // Said out loud rather than left to be discovered on the page: the
@@ -123,9 +133,12 @@ export default function PostSheet({ dish, mode = 'publish', onClose, onSaved }: 
         // there's something posted to take back.
         <div style={{ display: 'flex', gap: 8, marginTop: 16, justifyContent: 'center' }}>
           {dish.posted && (
+            // GlobeOffIcon, not a generic ✕ (owner call) — the action is
+            // specifically "take this off the public page", not a plain
+            // cancel, so the icon says so.
             <button type="button" className="icon-btn cancel" disabled={saving}
               onClick={unpublish} aria-label={t('post.unpublish')} title={t('post.unpublish')}>
-              <CloseIcon size={16} />
+              <GlobeOffIcon size={16} />
             </button>
           )}
           <button type="button"

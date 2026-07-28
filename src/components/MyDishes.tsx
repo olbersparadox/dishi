@@ -515,6 +515,7 @@ export default function MyDishes({ t, lang }: { t: (k: string, p?: Record<string
           dish={{
             id: posting.id, name: posting.name, name_zh: posting.name_zh,
             score: posting.my_score, posted: !!posting.posted, reason: posting.post_reason ?? null,
+            photo_url: posting.photo_url,
           }}
           mode={postMode}
           onClose={() => setPosting(null)}
@@ -752,8 +753,11 @@ export default function MyDishes({ t, lang }: { t: (k: string, p?: Record<string
                 {linkCopiedId === d.id && (
                   <>
                     <div className="row-menu-backdrop" onClick={() => setLinkCopiedId(null)} aria-hidden />
-                    <div className="row-menu" role="status">
-                      <p style={{ margin: 0, padding: '11px 14px', fontSize: 'var(--fs-caption)', color: 'var(--ink-soft)', fontWeight: 500 }}>
+                    {/* min-width:0 override — .row-menu's own 140px is sized
+                        for a menu of icon+label rows, not this one short
+                        line, so it left a lot of empty card around the text. */}
+                    <div className="row-menu" role="status" style={{ minWidth: 0 }}>
+                      <p style={{ margin: 0, padding: '11px 14px', fontSize: 'var(--fs-caption)', color: 'var(--ink-soft)', fontWeight: 500, whiteSpace: 'nowrap' }}>
                         {t('post.link.copied')}
                       </p>
                     </div>

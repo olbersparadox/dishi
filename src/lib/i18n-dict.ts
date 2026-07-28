@@ -669,8 +669,8 @@ export const dict: Record<string, { zh: string; en: string }> = {
   },
   'post.title': { zh: '食自己 > 大家食', en: 'Private > Public' },
   'post.body': {
-    zh: '本身預設為私人，公開之後會貼出公海，但誰和你一齊以及用餐時間會為了保障私隱而被移除。',
-    en: 'Private by default. Once published it goes public — but who you ate with and when are removed to protect your privacy.',
+    zh: '本身預設為私人，公開之後會貼出公海。但為了保障你的私隱，誰和你一齊以及用餐時間會被移除。',
+    en: 'Private by default. Once published it goes public. But to protect your privacy, who you ate with and when are removed.',
   },
   'post.reason.placeholder': { zh: '形容一下怎樣 "{verdict}"（可以唔寫）', en: 'Describe how it’s "{verdict}" (optional)' },
   'post.link.copied': { zh: '連結已複製', en: 'Link copied' },
