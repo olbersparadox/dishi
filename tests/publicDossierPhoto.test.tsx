@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 //
-// The public page's anchors are photo-forward now too (owner, 2026-07-28) —
-// same DuelSide component the 大家 feed card mounts, not a second lookalike
-// built for this page. Pinned the same way tests/feedCard.test.tsx pins it:
-// checking for DuelSide's own .duel-photo img, which a hand-rolled copy of
-// the layout would not produce ("sameness tests assert identity").
+// The public page's anchors mount the EXACT 大家食 FeedCard (owner correction)
+// — not a second lookalike built for this page. Pinned the same way
+// tests/feedCard.test.tsx pins it: checking for DuelSide's own .duel-photo
+// img, which a hand-rolled copy of the layout would not produce ("sameness
+// tests assert identity").
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 import { LanguageProvider } from '../src/lib/i18n';
@@ -25,12 +25,11 @@ const dossier: Dossier = {
   strongLoves: [],
   avoids: [],
   cuisines: [],
-  hideRestaurants: false,
   vector: { umami: 0.6 },
   evidence: { umami: 5 },
   anchors: [{
-    name: 'Goose Intestine Noodles', name_zh: '鵝腸豬潤撈麵', restaurant: '三多麵食',
-    photo_url: 'https://example.com/goose.jpg',
+    id: 'd1', name: 'Goose Intestine Noodles', name_zh: '鵝腸豬潤撈麵', restaurant: '三多麵食',
+    photo_url: 'https://example.com/goose.jpg', diet: [], heaviness: null, ingredients: [],
     verdict: 'flick.never', reason: '鑊氣唔夠',
   }],
 };

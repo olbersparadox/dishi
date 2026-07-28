@@ -33,16 +33,15 @@ type Params = { params: { username: string } };
 
 async function resolveDossier(rawName: string) {
   // Next 14 Data-Caches the supabase REST GETs inside an RSC render even on a
-  // force-dynamic page — verified live: the hide-restaurants PATCH landed in
-  // the DB while reloads kept serving the cached read. A public page must
-  // always reflect the stored flag, so opt this render out of the Data Cache.
+  // force-dynamic page — a public page must always reflect the live posted
+  // list, so opt this render out of the Data Cache.
   noStore();
   const u = normalizeUsername(decodeURIComponent(rawName));
   if (validateUsername(u)) return null; // wrong shape can't be a claimed name
   const admin = supabaseAdmin();
   const { data: prof } = await admin
     .from('profiles')
-    .select('id, handle, username_set_at, public_hide_restaurants')
+    .select('id, handle, username_set_at')
     .eq('handle', u)
     .maybeSingle();
   if (!prof || !hasClaimedUsername(prof.username_set_at)) return null;
@@ -71,7 +70,7 @@ async function resolveDossier(rawName: string) {
   // verdict its owner has since abandoned is worse than one that lags.
   const { data: posts } = await admin
     .from('dish_posts')
-    .select('reason, created_at, dishes!inner(id, name, name_zh, photo_url, restaurants(name))')
+    .select('reason, created_at, dishes!inner(id, name, name_zh, photo_url, diet, heaviness, ingredients, restaurants(name))')
     .eq('user_id', prof.id)
     .order('created_at', { ascending: false })
     .limit(24);
@@ -81,6 +80,7 @@ async function resolveDossier(rawName: string) {
     posted_at: p.created_at as string,
     dish: p.dishes as unknown as {
       id: string; name: string | null; name_zh: string | null; photo_url: string | null;
+      diet: string[] | null; heaviness: string | null; ingredients: string[] | null;
       restaurants: { name: string | null } | null;
     },
   }));
@@ -102,10 +102,14 @@ async function resolveDossier(rawName: string) {
   const anchors: DossierRawAnchor[] = postRows
     .filter(p => scores.has(p.dish.id))
     .map(p => ({
+      id: p.dish.id,
       name: p.dish.name ?? null,
       name_zh: p.dish.name_zh ?? null,
       restaurant: p.dish.restaurants?.name ?? null,
       photo_url: p.dish.photo_url ?? null,
+      diet: p.dish.diet ?? [],
+      heaviness: p.dish.heaviness ?? null,
+      ingredients: p.dish.ingredients ?? [],
       reason: p.reason,
       posted_at: p.posted_at,
       score: scores.get(p.dish.id)!,
@@ -121,7 +125,6 @@ async function resolveDossier(rawName: string) {
       evidence: (taste.evidence ?? {}) as Record<string, number>,
       affinity,
       anchors,
-      hideRestaurants: !!prof.public_hide_restaurants,
     }),
   };
 }
@@ -135,9 +138,11 @@ export default async function PublicDossierPage({ params }: Params) {
   const resolved = await resolveDossier(params.username);
   if (!resolved) notFound();
 
-  // Owner check (for the hide-restaurants toggle): the page itself needs no
-  // session, but IF the viewer is this dossier's owner, they get its one
-  // control. supabaseServer respects cookies; absent session = plain visitor.
+  // Owner check: the page itself needs no session, but a viewer who IS this
+  // dossier's owner sees no "build your own" CTA, and their own posted-dish
+  // anchors render as their own (FeedCard's item.own — no bookmark affordance
+  // on your own post). supabaseServer respects cookies; absent session =
+  // plain visitor.
   let isOwner = false;
   try {
     const { data: { user } } = await supabaseServer().auth.getUser();

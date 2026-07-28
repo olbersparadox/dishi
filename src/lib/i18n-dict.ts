@@ -559,7 +559,6 @@ export const dict: Record<string, { zh: string; en: string }> = {
   // posts now, and posts may be negative — a label promising love would make
   // the page misrepresent a published dislike.
   'dossier.anchors': { zh: '公開的菜式', en: 'Dishes published' },
-  'dossier.hide.restaurants': { zh: '隱藏餐廳名稱', en: 'Hide restaurant names' },
   'dossier.cta': { zh: '建立你自己的味覺 AI →', en: 'Build your own taste AI →' },
   'copied.short': { zh: '已複製', en: 'Copied' },
   'profile.owner.link': { zh: '開啟儀表板', en: 'Open the dashboard' },

@@ -49,8 +49,8 @@ import { wordKeyFor } from './flickWords';
 export const DOSSIER_KNOWS_AT = 3;
 
 /** A public anchor is a posted dish: what, (optionally) where, the verdict in
- * the app's own flick vocabulary, and the line the person wrote. No dates, no
- * numeric scores, no ids: the type is the fence.
+ * the app's own flick vocabulary, and the line the person wrote. No eaten/posted
+ * dates, no numeric scores: the type is the fence.
  *
  * `verdict` is a flick word KEY (client renders t(key)), not a number — the
  * same six-band vocabulary the person rated in. It is here because posts may
@@ -60,11 +60,17 @@ export const DOSSIER_KNOWS_AT = 3;
  * `photo_url` (owner call 2026-07-28, photo-forward post cards): the dish's
  * own photo, already public storage (getPublicUrl — /api/dishes/photo), and
  * exactly as consented as the name/reason beside it: posting a dish IS
- * publishing the photo of it, not a lesser act. Unlike restaurant, it does NOT
- * strip under hideRestaurants — a food photo names no place. */
+ * publishing the photo of it, not a lesser act.
+ *
+ * `id` (owner call: anchors mount FeedCard, the exact 大家食 card, not a
+ * lookalike) — the dish id lets that card's bookmark control target the real
+ * row; `diet`/`heaviness`/`ingredients` let it show the same chip row 大家食
+ * does. All food attributes, not personal/location data. */
 export type DossierAnchor = {
+  id: string;
   name: string | null; name_zh: string | null; restaurant: string | null;
   photo_url: string | null;
+  diet: string[]; heaviness: string | null; ingredients: string[];
   verdict: string; reason: string | null;
 };
 
@@ -80,7 +86,6 @@ export type PublicDossier = {
   /** Cuisine keys, positive affinity only, strongest first. */
   cuisines: string[];
   anchors: DossierAnchor[];
-  hideRestaurants: boolean;
   /** Blob inputs — the same vector/evidence the dimensions above are read
    * from, so the form can never disagree with the chips beside it. */
   vector: Record<string, number>;
@@ -88,8 +93,10 @@ export type PublicDossier = {
 };
 
 export type DossierRawAnchor = {
+  id: string;
   name: string | null; name_zh: string | null;
   restaurant?: string | null;
+  diet?: string[] | null; heaviness?: string | null; ingredients?: string[] | null;
   /** Deliberately accepted-and-dropped: callers may hand the projection rows
    * that still carry dates; the projection is where they die. `posted_at`
    * orders the list and then dies with them — a post's date is as private as
@@ -111,7 +118,6 @@ export function projectDossier(raw: {
   evidence: Record<string, number>;
   affinity: Record<string, number>;
   anchors: DossierRawAnchor[];
-  hideRestaurants: boolean;
 }): PublicDossier {
   const entries = Object.entries(raw.vector).filter(([, v]) => Math.abs(v) >= MEANINGFUL_THRESHOLD);
   const pos = entries.filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
@@ -152,14 +158,17 @@ export function projectDossier(raw: {
     )
       .slice(0, 12)
       .map(a => ({
+        id: a.id,
         name: a.name ?? null,
         name_zh: a.name_zh ?? null,
-        restaurant: raw.hideRestaurants ? null : (a.restaurant ?? null),
+        restaurant: a.restaurant ?? null,
         photo_url: a.photo_url ?? null,
+        diet: a.diet ?? [],
+        heaviness: a.heaviness ?? null,
+        ingredients: a.ingredients ?? [],
         verdict: wordKeyFor(a.score),
         reason: a.reason ?? null,
       })),
-    hideRestaurants: raw.hideRestaurants,
     vector: raw.vector,
     evidence: raw.evidence,
   };

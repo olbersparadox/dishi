@@ -122,12 +122,16 @@ h3 { font-size: var(--fs-body); }
 .card-meta.auth-longcopy { margin-top: -17px; font-size: var(--fs-body); }
 .auth-title { font-weight: 600; }
 
-/* Public dossier's return-to-feed — sized to read as a page heading (h1's own
-   --fs-title-b), not a small icon-btn, since it's the page's only chrome. */
+/* Public dossier's return-to-feed — the SAME font and font size as the page
+   title (h1's own family/weight/letter-spacing/size), not a small icon-btn,
+   since it's the page's only chrome. The icon itself is sized to --fs-title-b
+   (30px) via its own `size` prop to match, since font-size alone doesn't
+   resize an SVG's width/height attributes. */
 .dossier-back {
   display: inline-flex; align-items: center; justify-content: center;
   border: none; background: none; padding: 0; margin-bottom: 16px;
-  color: var(--ink); font-size: var(--fs-title-b);
+  color: var(--ink); font-family: var(--font-display); font-size: var(--fs-title-b);
+  font-weight: 500; letter-spacing: 0.06em;
 }
 .dossier-back:hover, .dossier-back:focus-visible { color: var(--ink-soft); }
 .card {

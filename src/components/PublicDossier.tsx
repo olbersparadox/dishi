@@ -1,9 +1,10 @@
 'use client';
 // The public dossier's render half (decision 3). Server page resolves + projects;
-// this renders — REUSING the taste card's own pieces (TasteFormReveal blob,
-// .persona-name identity type, .version-line, .chip rows, .ok-circle copy
-// action), never lookalikes: a visitor should see the same object the owner
-// sees on their taste tab, because it IS the same taste.
+// this renders — REUSING the taste card's own pieces (TasteFormReveal blob in
+// its OWN .taste-form-card shell, .persona-name identity type, .version-line,
+// .chip rows, FeedCard for every posted dish), never lookalikes: a visitor
+// should see the same objects the owner sees on their own Taste AI / 大家食
+// tabs, because they ARE the same taste and the same posts.
 //
 // There is NO copy-for-AI action here (owner call 2026-07-28, amending
 // decision 3's "one artifact, two readers"): the guardrail on that text was a
@@ -13,63 +14,50 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { TasteFormReveal } from './TasteForm';
-import DuelSide from './DuelSide';
+import FeedCard from './FeedCard';
 import { ArrowLeftIcon } from './icons';
 import { useLang, cuisineLabel } from '@/lib/i18n';
 import { type PublicDossier as Dossier } from '@/lib/dossier';
 
 export default function PublicDossier({ dossier, isOwner }: { dossier: Dossier; isOwner: boolean }) {
-  const { t, lang, pair } = useLang();
+  const { t, lang } = useLang();
   const router = useRouter();
-  const [hide, setHide] = useState(dossier.hideRestaurants);
-  const [saving, setSaving] = useState(false);
+  // Local-only: which anchors THIS visitor has bookmarked this load, mirroring
+  // FeedList.tsx's own pattern (FeedCard reports back via onBookmarked).
+  const [bookmarked, setBookmarked] = useState<Set<string>>(new Set());
 
   const d = dossier;
   const label = (k: string) => t(`dim.${k}`);
   const cuisine = (k: string) => cuisineLabel(k, lang) || k;
-
-  // The one owner control (decision 3): hide restaurant names, accepting a
-  // weaker page. Optimistic; reverts on failure.
-  const toggleHide = async () => {
-    if (saving) return;
-    const next = !hide;
-    setHide(next);
-    setSaving(true);
-    try {
-      const res = await fetch('/api/dossier', {
-        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ hide_restaurants: next }),
-      });
-      if (!res.ok) setHide(!next);
-    } catch {
-      setHide(!next);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // A live toggle by the owner should be reflected immediately — the server
-  // already stripped restaurants when the stored flag was on, so this only
-  // ever needs to hide, never to reveal (a projection with hideRestaurants
-  // true carries no restaurant strings to reveal).
-  const anchors = d.anchors.map(a => ({ ...a, restaurant: hide ? null : a.restaurant }));
 
   return (
     <div>
       {/* Entry from the feed's author chop/name (own decision) — router.back()
           rather than a hardcoded link to "/" so it returns to whichever tab
           (大家食) the visitor actually came from, not always the default
-          Private tab a plain "/" would land on. */}
+          Private tab a plain "/" would land on. Sized/set to literally match
+          the page-title font (h1's own family/weight/letter-spacing/size —
+          --fs-title-b) rather than a small icon-btn, since it's the page's
+          only chrome. */}
       <button type="button" className="dossier-back" onClick={() => router.back()} aria-label={t('dossier.back')}>
-        <ArrowLeftIcon size={28} />
+        <ArrowLeftIcon size={30} />
       </button>
-      <div className="card"><div className="card-body" style={{ textAlign: 'center' }}>
-        <TasteFormReveal
-          inputs={{ vector: d.vector, evidence: d.evidence, ratingCount: d.ratingCount, seed: `${d.username}:v${d.version}` }}
-          size={190}
-          vector={d.vector}
-          labelFor={label}
-        />
+      {/* The blob's OWN card shell (.taste-form-card + .taste-blob-anchor) —
+          the exact container Taste AI's TasteFormCard uses, not .card/.card-body
+          restyled to look similar (owner correction). The interactive
+          strength/flicks/cuisines/senses stat grid stays on Taste AI only:
+          those numbers aren't in the public projection (lib/dossier.ts) and
+          decision 3's exposed-field list doesn't include them — this keeps
+          the loves/avoids/cuisines summary that IS in the public contract. */}
+      <div className="taste-form-card">
+        <div className="taste-blob-anchor">
+          <TasteFormReveal
+            inputs={{ vector: d.vector, evidence: d.evidence, ratingCount: d.ratingCount, seed: `${d.username}:v${d.version}` }}
+            size={190}
+            vector={d.vector}
+            labelFor={label}
+          />
+        </div>
         <div className="version-line" style={{ marginTop: 10, justifyContent: 'center' }}>
           <span className="username-claim-prefix">dishi.{d.username}</span>
         </div>
@@ -102,38 +90,34 @@ export default function PublicDossier({ dossier, isOwner }: { dossier: Dossier; 
             {t('dossier.cuisines', { list: d.cuisines.map(cuisine).join('、') })}
           </p>
         )}
-      </div></div>
+      </div>
 
-      {/* The posted dishes — every card here is something this person chose to
-          publish (lib/dossier.ts). Posts may be negative, so the VERDICT rides
-          under the photo: without it a published dislike reads as a
-          recommendation, which is the one way this section could lie.
-          PHOTO-FORWARD FORMAT (owner, 2026-07-28): same DuelSide anatomy as
-          the 大家 feed card — mounted, not imitated (see FeedCard.tsx). */}
-      {anchors.length > 0 && (
-        <div className="card" style={{ marginTop: 14 }}><div className="card-body">
-          <p className="label">{t('dossier.anchors')}</p>
-          {anchors.map((a, i) => (
-            <div key={i} style={{ margin: '14px 0' }}>
-              <div className="duel-pair resolving">
-                <div className="duel-option feed-side">
-                  <DuelSide
-                    dish={{ id: `${a.name_zh ?? a.name ?? 'anchor'}-${i}`, name: a.name ?? '', name_zh: a.name_zh, photo_url: a.photo_url, restaurant: a.restaurant }}
-                    pair={pair}
-                  />
-                </div>
-              </div>
-              <p className="card-meta" style={{ margin: '6px 0 0', textAlign: 'center' }}>{t(a.verdict)}</p>
-              {a.reason && <p style={{ margin: '3px 0 0', fontSize: 13.5, textAlign: 'center' }}>{a.reason}</p>}
-            </div>
+      {/* The posted dishes — every one is something this person chose to
+          publish (lib/dossier.ts). PHOTO-FORWARD FORMAT (owner, 2026-07-28):
+          FeedCard, the EXACT 大家食 card — mounted directly (own correction:
+          no card/card-body wrapper around it either, since 大家食 itself has
+          none; a card-in-a-card double-border is not "the same card"). */}
+      {d.anchors.length > 0 && (
+        <div style={{ marginTop: 14 }}>
+          <p className="label" style={{ margin: '0 0 8px' }}>{t('dossier.anchors')}</p>
+          {d.anchors.map(a => (
+            <FeedCard
+              key={a.id}
+              item={{
+                id: a.id,
+                author: { kind: 'user', username: d.username },
+                dish: {
+                  id: a.id, name: a.name, name_zh: a.name_zh, restaurant: a.restaurant,
+                  cuisine: null, photo_url: a.photo_url, attributes: {},
+                  diet: a.diet, heaviness: a.heaviness, ingredients: a.ingredients,
+                },
+                verdict: a.verdict, reason: a.reason, own: isOwner,
+                bookmarked: bookmarked.has(a.id),
+              }}
+              onBookmarked={id => setBookmarked(s => new Set(s).add(id))}
+            />
           ))}
-          {isOwner && (
-            <label className="card-meta" style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, cursor: 'pointer' }}>
-              <input type="checkbox" checked={hide} disabled={saving} onChange={toggleHide} />
-              {t('dossier.hide.restaurants')}
-            </label>
-          )}
-        </div></div>
+        </div>
       )}
 
       {/* The acquisition line the page exists to serve — quiet, not a wall. */}
