@@ -5,9 +5,11 @@ import RestaurantPicker, { RestaurantChoice } from '@/components/RestaurantPicke
 import FlickRating from '@/components/FlickRating';
 import { cuisineLabel } from '@/lib/i18n';
 import { wordKeyFor } from '@/lib/flickWords';
-import { EditIcon, TrashIcon, MoreIcon, CheckIcon, CloseIcon, GlobeIcon } from './icons';
+import { EditIcon, TrashIcon, MoreIcon, CheckIcon, CloseIcon, GlobeIcon, LinkIcon, ShareIcon } from './icons';
+import { shareLink } from '@/lib/share';
 import { cookingBucket, type CookingMethod } from '@/lib/menuScan';
 import DishInfoDisplay from './DishInfoDisplay';
+import ExplainModal from './ExplainModal';
 import { normalizePhoto } from '@/lib/image';
 import { getJournalCache, setJournalCache } from '@/lib/journalCache';
 import { pickDistrict, type DistrictMap } from '@/lib/district';
@@ -37,6 +39,7 @@ export type MyDish = {
   /** 貼文 state: whether this dish is public, and the line published with it.
    * Per-dish opt-in is the product's consent unit — see lib/posts.ts. */
   posted?: boolean;
+  post_visibility?: 'public' | 'link' | null;
   post_reason?: string | null;
 };
 
@@ -130,9 +133,33 @@ export default function MyDishes({ t, lang }: { t: (k: string, p?: Record<string
   // Which dish's 貼文 sheet is open. Publishing is a deliberate, separate act —
   // never a side effect of rating or editing.
   const [posting, setPosting] = useState<MyDish | null>(null);
+  // Which act the sheet is serving — the globe (public) or Share (link-only).
+  const [postMode, setPostMode] = useState<'publish' | 'share'>('publish');
+  // Shown when Share is tapped by someone who never claimed a username: the
+  // link is dishi.me/<name>/d/<dish>, so there is no URL to send without one.
+  const [shareNeedsName, setShareNeedsName] = useState(false);
   // Which photoless row is currently uploading a just-picked photo — so its
   // placeholder can show a "saving" state instead of silently doing nothing.
   const [photoUploadingId, setPhotoUploadingId] = useState<string | null>(null);
+
+  /** Send the permalink for one dish. The username comes from /api/buddy's
+   * identity block (where it already rides, rather than on its own endpoint)
+   * and is fetched at tap time — this list has no reason to hold identity
+   * state for an action most rows never take.
+   *
+   * Only a CLAIMED username resolves publicly, so an unclaimed person has no
+   * link to send; they get told, rather than handed a URL that 404s. */
+  async function sendDishLink(dishId: string) {
+    let username: string | null = null;
+    try {
+      const res = await fetch('/api/buddy');
+      const json = await res.json().catch(() => null);
+      if (json?.identity?.claimed) username = json.identity.username ?? null;
+    } catch { /* offline — handled as "no name" below */ }
+    if (!username) { setShareNeedsName(true); return; }
+    const url = `${window.location.origin}/${username}/d/${dishId}`;
+    if (await shareLink({ title: t('post.share.title'), url }) === 'copied') alert(t('table.copied'));
+  }
 
   /** Attach a photo to a rated dish that never had one (a pick rated off a menu).
    * Same endpoint /log uses; updates the row in place on success. */
@@ -452,15 +479,29 @@ export default function MyDishes({ t, lang }: { t: (k: string, p?: Record<string
           onDone={identityAskDone}
         />
       )}
+      {shareNeedsName && (
+        <ExplainModal
+          title={t('post.share.needname.title')}
+          body={t('post.share.needname.body')}
+          onClose={() => setShareNeedsName(false)}
+        />
+      )}
       {posting && posting.my_score !== null && (
         <PostSheet
           dish={{
             id: posting.id, name: posting.name, name_zh: posting.name_zh,
             score: posting.my_score, posted: !!posting.posted, reason: posting.post_reason ?? null,
           }}
+          mode={postMode}
           onClose={() => setPosting(null)}
-          onSaved={(id, posted, reason) =>
-            setDishes(prev => prev?.map(x => x.id === id ? { ...x, posted, post_reason: reason } : x) ?? null)}
+          onSaved={(id, posted, reason, visibility) => {
+            setDishes(prev => prev?.map(x => x.id === id
+              ? { ...x, posted, post_reason: reason, post_visibility: posted ? (visibility ?? 'public') : null }
+              : x) ?? null);
+            // Consent first, THEN the send — the share sheet only opens once
+            // a post actually exists, so a cancelled publish shares nothing.
+            if (posted && postMode === 'share') sendDishLink(id);
+          }}
         />
       )}
       {groups.map(group => {
@@ -648,9 +689,18 @@ export default function MyDishes({ t, lang }: { t: (k: string, p?: Record<string
             {editing !== d.id && !d.locked && (
               <div className="dish-actions">
                 {d.posted && (
-                  <span className="dish-public-badge" aria-label={t('post.public')} title={t('post.public')}>
-                    <GlobeIcon size={16} />
-                  </span>
+                  /* "The world can find this" and "only people holding the
+                     link can" are different promises and must not render
+                     alike (sharing batch item 2). */
+                  d.post_visibility === 'link' ? (
+                    <span className="dish-public-badge" aria-label={t('post.linkonly')} title={t('post.linkonly')}>
+                      <LinkIcon size={16} />
+                    </span>
+                  ) : (
+                    <span className="dish-public-badge" aria-label={t('post.public')} title={t('post.public')}>
+                      <GlobeIcon size={16} />
+                    </span>
+                  )
                 )}
                 <button className="icon-btn lg" onClick={() => setMenuOpenId(v => v === d.id ? null : d.id)}
                   aria-label={t('home.more')} title={t('home.more')} aria-haspopup="menu" aria-expanded={menuOpenId === d.id}>
@@ -666,8 +716,22 @@ export default function MyDishes({ t, lang }: { t: (k: string, p?: Record<string
                       {/* Only a RATED dish can be published — a post asserts a
                           verdict, and an unrated dish has none to assert. */}
                       {d.my_score !== null && (
-                        <button role="menuitem" onClick={() => { setMenuOpenId(null); setPosting(d); }}>
+                        <button role="menuitem" onClick={() => { setMenuOpenId(null); setPostMode('publish'); setPosting(d); }}>
                           <GlobeIcon size={16} /> {d.posted ? t('post.public') : t('post.publish')}
+                        </button>
+                      )}
+                      {/* Share: an ALREADY-posted dish has a link to send, so
+                          it goes straight out; an unposted one opens the same
+                          consent sheet in share mode first, because a
+                          link-only post is still a publication carrying a
+                          verdict about a real restaurant. */}
+                      {d.my_score !== null && (
+                        <button role="menuitem" onClick={() => {
+                          setMenuOpenId(null);
+                          if (d.posted) sendDishLink(d.id);
+                          else { setPostMode('share'); setPosting(d); }
+                        }}>
+                          <ShareIcon size={16} /> {t('post.share.cta')}
                         </button>
                       )}
                       <button role="menuitem" onClick={() => { setMenuOpenId(null); remove(d.id); }}>

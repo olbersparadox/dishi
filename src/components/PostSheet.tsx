@@ -15,11 +15,21 @@ import ExplainModal from './ExplainModal';
 import { wordKeyFor } from '@/lib/flickWords';
 import { POST_REASON_MAX, normalizeReason } from '@/lib/posts';
 
-export default function PostSheet({ dish, onClose, onSaved }: {
+export default function PostSheet({ dish, mode = 'publish', onClose, onSaved }: {
   dish: { id: string; name: string; name_zh: string | null; score: number; posted: boolean; reason: string | null };
+  /** 'publish' — the globe: goes on the dossier, the feed and the persona pool.
+   *  'share'   — the Share item: creates a LINK-ONLY post, reachable at its
+   *              permalink and nowhere else (sharing batch item 2).
+   *
+   *  Same sheet either way, deliberately. Sharing to one friend is still a
+   *  publication carrying a verdict about a real restaurant, so the person
+   *  must see that verdict word before consenting — the rule that made this
+   *  sheet exist does not weaken because the audience is smaller. Only the
+   *  framing and the tier differ. */
+  mode?: 'publish' | 'share';
   onClose: () => void;
   /** posted=false means the dish was unpublished. */
-  onSaved: (dishId: string, posted: boolean, reason: string | null) => void;
+  onSaved: (dishId: string, posted: boolean, reason: string | null, visibility?: 'public' | 'link') => void;
 }) {
   const { t, lang } = useLang();
   const [reason, setReason] = useState(dish.reason ?? '');
@@ -32,6 +42,8 @@ export default function PostSheet({ dish, onClose, onSaved }: {
   const cleaned = normalizeReason(reason);
   const dirty = cleaned !== (dish.reason ?? null);
 
+  const visibility = mode === 'share' ? 'link' : 'public';
+
   const publish = async () => {
     if (saving) return;
     setSaving(true);
@@ -39,10 +51,14 @@ export default function PostSheet({ dish, onClose, onSaved }: {
     try {
       const res = await fetch('/api/posts', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dish_id: dish.id, reason: cleaned }),
+        body: JSON.stringify({ dish_id: dish.id, reason: cleaned, visibility }),
       });
       if (!res.ok) { setError(t('post.failed')); return; }
-      onSaved(dish.id, true, cleaned);
+      // The server's answer, not the request: visibility only ever upgrades
+      // (mergeVisibility), so sharing an already-public dish comes back
+      // 'public' and the row must not redraw itself as link-only.
+      const saved = await res.json().catch(() => null);
+      onSaved(dish.id, true, cleaned, saved?.post?.visibility ?? visibility);
       onClose();
     } catch {
       setError(t('post.failed'));
@@ -69,8 +85,8 @@ export default function PostSheet({ dish, onClose, onSaved }: {
 
   return (
     <ExplainModal
-      title={t('post.title')}
-      body={t('post.body')}
+      title={t(mode === 'share' ? 'post.share.title' : 'post.title')}
+      body={t(mode === 'share' ? 'post.share.body' : 'post.body')}
       extra={
         <>
           <p style={{ margin: '12px 0 0', fontWeight: 600 }}>{name}</p>
@@ -102,7 +118,7 @@ export default function PostSheet({ dish, onClose, onSaved }: {
             className={`btn primary large${dish.posted && dirty ? ' dirty' : ''}`}
             disabled={saving}
             onClick={publish}>
-            {dish.posted ? t('post.update') : t('post.publish')}
+            {dish.posted ? t('post.update') : t(mode === 'share' ? 'post.share.cta' : 'post.publish')}
           </button>
           {dish.posted && (
             <button type="button" className="btn large" disabled={saving} onClick={unpublish}>

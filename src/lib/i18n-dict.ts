@@ -636,6 +636,23 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'feed.persona.failed': { zh: '（今日的每日精選未更新到。）', en: "(Today's daily picks didn't update.)" },
   // 貼文 — publishing is per DISH, and the copy says 公開 (public), never
   // "share with friends": there is no friend concept in the product.
+  // Share mode of the SAME sheet (sharing batch): a link-only post. The body
+  // is deliberately plain about what a link is — anyone holding it can see
+  // this — because the tier's honesty rests on the person understanding that,
+  // not on the word "private" doing work it cannot do.
+  'post.share.title': { zh: '分享畀朋友', en: 'Share with a friend' },
+  'post.share.body': {
+    zh: '會產生一條淨係得呢道菜嘅連結。有連結嘅人就睇到；唔會出現喺你嘅公開頁面或者大家。',
+    en: 'Creates a link to this one dish. Anyone with the link can see it; it will not appear on your public page or in 大家.',
+  },
+  'post.share.cta': { zh: '分享', en: 'Share' },
+  'post.linkonly': { zh: '只限連結', en: 'Link only' },
+  // Share needs a URL, and only a CLAIMED username mints one.
+  'post.share.needname.title': { zh: '先改個名', en: 'Claim your name first' },
+  'post.share.needname.body': {
+    zh: '分享連結係 dishi.你個名／道菜 — 要先喺「味 AI」度改咗個名，先有得分享。',
+    en: 'A share link looks like dishi.yourname/dish — claim your name on the 味 AI tab first, then you can share.',
+  },
   'post.title': { zh: '公開這道菜', en: 'Publish this dish' },
   'post.body': { zh: '公開之後，這道菜、你的評價，同你寫的一句，會出現在你的公開頁面。', en: 'Once published, this dish, your verdict, and your line appear on your public page.' },
   'post.reason.placeholder': { zh: '一句話：點解值得知？（可以唔寫）', en: 'One line: why is it worth knowing? (optional)' },
