@@ -1595,6 +1595,15 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
   position: relative; flex-shrink: 0;
   display: flex; gap: 8px; justify-content: flex-end;
   margin-right: -10px; /* nudge the kebab 10px toward the row's right edge */
+  margin-top: -10px; /* nudge up 10px off .journal-row's flex-start baseline */
+}
+/* Replaces the old "已公開" text line: a quiet, non-interactive status glyph
+   sitting left of the kebab in the same row — same info, no separate line.
+   Matches .icon-btn.lg's footprint for tidy alignment but carries no
+   background/hover, since (unlike the kebab) it isn't tappable. */
+.dish-public-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 38px; height: 38px; color: var(--ink-soft); flex-shrink: 0;
 }
 /* Larger tap targets for the icon actions (the 30px ones were genuinely fiddly on
    a phone, and these are the primary way to fix a wrong dish). */

@@ -608,9 +608,10 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'auth.resend': { zh: '用另一個電郵 / 重新傳送', en: 'Different email / resend' },
   // 食記's two tabs. 大家 is honest about what the second one is: posts from
   // whoever the RANKING matched, not from anyone you follow — there is no
-  // follow anywhere in the product.
-  'home.tab.mine': { zh: '食記', en: 'Journal' },
-  'home.tab.feed': { zh: '大家', en: 'Everyone' },
+  // follow anywhere in the product. Private/Public (owner call 2026-07-28)
+  // name the actual visibility split more plainly than Journal/Everyone did.
+  'home.tab.mine': { zh: '食自己', en: 'Private' },
+  'home.tab.feed': { zh: '大家食', en: 'Public' },
   'feed.loading': { zh: '搵緊…', en: 'Looking…' },
   'feed.failed': { zh: '載入唔到，稍後再試', en: "Couldn't load — try again later" },
   // Says what is actually true of a chronological pool. The old line ("nothing

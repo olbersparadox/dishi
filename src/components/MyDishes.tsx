@@ -627,12 +627,6 @@ export default function MyDishes({ t, lang }: { t: (k: string, p?: Record<string
                 </>
               )}
 
-              {/* Public state is legible on the row itself, not only inside the
-                  sheet: a person must be able to see what they've published by
-                  reading their journal, without opening anything. */}
-              {d.posted && (
-                <p className="card-meta" style={{ fontSize: 12.5, marginTop: 4 }}>{t('post.public')}</p>
-              )}
               {relearnedId === d.id && (
                 <p className="card-meta" style={{ color: 'var(--ink)', fontSize: 12.5, marginTop: 4 }}>{t('log.relearned')}</p>
               )}
@@ -646,9 +640,18 @@ export default function MyDishes({ t, lang }: { t: (k: string, p?: Record<string
 
             {/* Kebab, pinned top-right of the row: tap opens a small menu to
                 choose edit or delete. Hidden while editing or when the dish is
-                locked (someone else has rated it). */}
+                locked (someone else has rated it). Public state used to be a
+                separate "已公開" line under the meta text; it's now this quiet
+                globe glyph sitting left of the kebab instead — legible on the
+                row itself without opening anything, same as before, just
+                folded into the action row rather than its own line. */}
             {editing !== d.id && !d.locked && (
               <div className="dish-actions">
+                {d.posted && (
+                  <span className="dish-public-badge" aria-label={t('post.public')} title={t('post.public')}>
+                    <GlobeIcon size={16} />
+                  </span>
+                )}
                 <button className="icon-btn lg" onClick={() => setMenuOpenId(v => v === d.id ? null : d.id)}
                   aria-label={t('home.more')} title={t('home.more')} aria-haspopup="menu" aria-expanded={menuOpenId === d.id}>
                   <MoreIcon size={20} />
