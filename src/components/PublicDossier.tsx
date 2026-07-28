@@ -62,9 +62,9 @@ export default function PublicDossier({ dossier, isOwner }: { dossier: Dossier; 
           skipped: renaming is an owner-authenticated action irrelevant to a
           visitor, and decision 3's hard rule 2 amendment forbids a copy-for-AI
           path on this page regardless of who's viewing. */}
-      {/* -15px: pulls the card up closer to the back arrow (own call — the
+      {/* -10px: pulls the card up closer to the back arrow (own call — the
           gap the arrow's own marginBottom left read as too loose here). */}
-      <div className="taste-form-card card-reveal" style={{ marginTop: -15 }}
+      <div className="taste-form-card card-reveal" style={{ marginTop: -10 }}
         onAnimationEnd={e => { e.currentTarget.style.animation = 'none'; }}>
         <div className="taste-blob-anchor">
           <TasteFormReveal
