@@ -76,6 +76,19 @@ describe('every not-the-owner read path filters to the public tier', () => {
     });
   }
 
+  it('/api/bookmarks requires the dish to be published at all', () => {
+    // Not a visibility filter — an EXISTENCE check. Before the share batch
+    // this was absent and safe only by accident (every dish id a client could
+    // obtain came from the feed). The permalink puts dish ids in URLs, so
+    // without this, knowing an id would be enough to copy a stranger's
+    // unpublished dish into your own queue. A link-only post DOES pass: its
+    // intended audience is whoever holds the link, and bookmarking is what
+    // the link exists to invite.
+    const src = read('../src/app/api/bookmarks/route.ts');
+    expect(src).toMatch(/from\('dish_posts'\)/);
+    expect(src).not.toMatch(/\.eq\('visibility'/);
+  });
+
   it("/api/my/dishes does NOT filter — the owner's own view of their own posts", () => {
     // The inverse assertion, and it matters: hiding a link-only post from the
     // person who made it is how someone loses track of what they shared.

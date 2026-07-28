@@ -39,6 +39,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'That is your own dish.' }, { status: 400 });
   }
 
+  // The dish must actually have been PUBLISHED by its owner. Until the share
+  // batch this check was absent and safe only by accident: every dish id a
+  // client could obtain came from the feed, which serves published material
+  // only. The per-dish permalink ends that — ids now travel in URLs — so
+  // without this, knowing any dish's id would be enough to copy a stranger's
+  // unpublished dish into your own queue.
+  //
+  // EXISTENCE, not tier: a link-only post is a real publication whose
+  // intended audience is exactly the person holding the link, and bookmarking
+  // is the thing that link exists to invite.
+  const { data: post } = await admin
+    .from('dish_posts').select('dish_id').eq('dish_id', dishId).maybeSingle();
+  if (!post) {
+    return NextResponse.json({ error: 'That dish is not published.' }, { status: 403 });
+  }
+
   const row = buildBookmarkRow({
     dishId,
     userId: user.id,
