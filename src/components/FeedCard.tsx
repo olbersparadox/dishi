@@ -36,8 +36,8 @@ export default function FeedCard({ item, onBookmarked }: {
   // the server isn't re-fetched just to reflect the viewer's own action back.
   const [count, setCount] = useState(item.bookmarkCount ?? 0);
 
-  // On your own post the tap isn't a no-op — it explains why (the API would
-  // 400 it anyway), same as tapping anywhere else on your own card.
+  // On your own post the bookmark tap isn't a no-op — it explains why (the
+  // API would 400 it anyway) rather than sitting dead or erroring.
   const bookmark = async () => {
     if (item.own) { setShowOwnExplain(true); return; }
     if (saving || item.bookmarked || !item.dish.id) return;
@@ -65,14 +65,7 @@ export default function FeedCard({ item, onBookmarked }: {
   const chopColor = chopColorFor(item.author.username);
 
   return (
-    <article
-      className="rated-dish-row"
-      // The whole card is a shortcut to the same explainer the bookmark icon
-      // opens — only on your own post; every other post stays non-tappable
-      // (DuelSide's static-div convention, unchanged).
-      onClick={item.own ? () => setShowOwnExplain(true) : undefined}
-      style={item.own ? { cursor: 'pointer' } : undefined}
-    >
+    <article className="rated-dish-row">
       <div className="duel-pair resolving">
         <div className="duel-option feed-side feed-post">
           <DuelSide
@@ -114,9 +107,9 @@ export default function FeedCard({ item, onBookmarked }: {
             }
             // Shown to EVERY viewer, owner included — the count is social proof
             // ("N people want this"), not a personal affordance, so hiding it on
-            // your own post would hide real information. Only the TAP is refused
-            // on your own dish (disabled below); /api/bookmarks would 400 it
-            // anyway, and a disabled control says so up front instead of erroring.
+            // your own post would hide real information. Tapping it on your own
+            // dish stays enabled but opens the ExplainModal (bookmark() checks
+            // item.own first) instead of calling an API that would 400 it.
             titleAside={
               <div className="feed-bookmark-wrap">
                 <button

@@ -620,10 +620,10 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'feed.bookmark': { zh: '想食', en: 'Want to eat' },
   'feed.bookmarked': { zh: '已加入待評', en: 'In your queue' },
   'feed.bookmark.failed': { zh: '加唔到', en: "Couldn't add" },
-  'feed.bookmark.own.title': { zh: '無法收藏自己發佈的菜式', en: 'Can’t bookmark your own post' },
+  'feed.bookmark.own.title': { zh: '係你自己碟菜', en: 'That’s your own dish' },
   'feed.bookmark.own.body': {
-    zh: '這個數字代表其他人想試這道菜；你已經吃過了，不用再加入自己的待評清單。',
-    en: 'This count is other people wanting to try it — you already have, so it doesn’t need to go in your own queue.',
+    zh: '收藏其他人推介的菜式才有意思。收藏後可以在 Taste AI 的 待評清單找到。',
+    en: 'Bookmarking makes sense for dishes other people recommend. Once bookmarked, find it in Taste AI’s dishes-to-rate queue.',
   },
   // Said out loud on purpose: a broken daily job must never be indistinguishable
   // from a genuinely quiet day.

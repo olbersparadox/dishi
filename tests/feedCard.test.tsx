@@ -77,7 +77,7 @@ describe('FeedCard — one card, whatever the author', () => {
     expect(btn.disabled).toBe(false); // tappable — it opens the explainer, not a dead control
     expect(screen.getByText('3')).toBeTruthy();
     fireEvent.click(btn);
-    expect(screen.getByText('無法收藏自己發佈的菜式')).toBeTruthy();
+    expect(screen.getByText('係你自己碟菜')).toBeTruthy();
     // Still a full card otherwise: it is in the pool, not a stub.
     expect(screen.getByText('dishi.jerry')).toBeTruthy();
     expect(screen.getByText('唔會再食')).toBeTruthy();
