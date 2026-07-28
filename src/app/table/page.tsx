@@ -30,7 +30,10 @@ type ScanPageItem = {
 };
 const SCORE_CONCURRENCY = 6; // matches scan/page.tsx's own cap for the same two per-dish endpoints
 
-type Member = { user_id: string; handle: string; display_name: string | null; has_profile: boolean; rating_count: number };
+type Member = {
+  user_id: string; handle: string; display_name: string | null;
+  username_claimed: boolean; has_profile: boolean; rating_count: number;
+};
 type RankedItem = {
   key: string; name: string; name_zh?: string | null; name_original?: string; price?: string | null;
   cuisine: string | null; photo_url?: string | null;
@@ -539,8 +542,12 @@ function Session({ code, onLeave }: { code: string; onLeave: () => void }) {
 
       {/* One-time 名印 setup: only for the viewer's own row, only once per device
           (see CHOP_PROMPT_DISMISSED_KEY) — a genuinely optional identity touch,
-          never a blocking gate on using the table. */}
-      {!chopDismissed && state.members.find(m => m.user_id === state.you && !m.display_name) && (
+          never a blocking gate on using the table. Suppressed once the username
+          is claimed (username_claimed, keyed off username_set_at) even if
+          display_name is still empty — a claimed dishi.username already answers
+          "what should we call you"; asking again would contradict the claim.
+          NEVER key this off handle non-emptiness — every legacy profile has one. */}
+      {!chopDismissed && state.members.find(m => m.user_id === state.you && !m.display_name && !m.username_claimed) && (
         <div className="card" style={{ marginBottom: 14 }}><div className="card-body">
           <p style={{ fontWeight: 700, marginBottom: 6, fontSize: 14 }}>{t('table.chop.title')}</p>
           <p className="card-meta" style={{ marginBottom: 10 }}>{t('table.chop.blurb')}</p>

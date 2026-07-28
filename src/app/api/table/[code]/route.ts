@@ -3,6 +3,7 @@ import { supabaseServer, supabaseAdmin } from '@/lib/supabase/server';
 import { rankForGroup, GroupMember } from '@/lib/group';
 import { DishVector } from '@/lib/taste';
 import { shapeTableMenuItems, scanCandidateKey } from '@/lib/tableMenuItems';
+import { hasClaimedUsername } from '@/lib/username';
 
 // Total menu_items a session can ever hold — matches the cap POST /api/table's
 // own initial create already uses, so appending pages can't grow a session
@@ -44,11 +45,17 @@ export async function GET(_req: NextRequest, { params }: { params: { code: strin
     // display_name kept OUT of GroupMember below (rankForGroup has no use for it,
     // and the type is the group-consensus engine's own contract) — carried
     // separately and attached only to the response members[].
-    admin.from('profiles').select('id, handle, display_name').in('id', memberIds),
+    admin.from('profiles').select('id, handle, display_name, username_set_at').in('id', memberIds),
     admin.from('taste_profiles').select('user_id, vector, cuisine_affinity, rating_count').in('user_id', memberIds),
   ]);
   const tasteById = new Map((tastes ?? []).map(t => [t.user_id, t]));
   const displayNameById = new Map((profiles ?? []).map(p => [p.id, p.display_name as string | null]));
+  // Claimed-username flag, keyed the same way as the display-name map above —
+  // the chop card must suppress off THIS, never off handle non-emptiness
+  // (see hasClaimedUsername's own comment: every legacy profile has a handle).
+  const usernameClaimedById = new Map(
+    (profiles ?? []).map(p => [p.id, hasClaimedUsername(p.username_set_at as string | null)]),
+  );
   const members: GroupMember[] = (profiles ?? []).map(p => {
     const t = tasteById.get(p.id);
     return {
@@ -153,6 +160,7 @@ export async function GET(_req: NextRequest, { params }: { params: { code: strin
       user_id: m.user_id,
       handle: m.handle,
       display_name: displayNameById.get(m.user_id) ?? null,
+      username_claimed: usernameClaimedById.get(m.user_id) ?? false,
       has_profile: !!m.vector && m.rating_count > 0,
       rating_count: m.rating_count,
     })),
