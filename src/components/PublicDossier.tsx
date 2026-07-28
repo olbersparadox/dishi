@@ -15,6 +15,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { TasteFormReveal } from './TasteForm';
 import FeedCard from './FeedCard';
+import ExplainModal from './ExplainModal';
 import { ArrowLeftIcon } from './icons';
 import { useLang, cuisineLabel } from '@/lib/i18n';
 import { type PublicDossier as Dossier } from '@/lib/dossier';
@@ -25,10 +26,15 @@ export default function PublicDossier({ dossier, isOwner }: { dossier: Dossier; 
   // Local-only: which anchors THIS visitor has bookmarked this load, mirroring
   // FeedList.tsx's own pattern (FeedCard reports back via onBookmarked).
   const [bookmarked, setBookmarked] = useState<Set<string>>(new Set());
+  // Which stat box's explainer is open — same tap-a-glyph-to-learn-more
+  // pattern TasteFormCard's own stat-row uses.
+  const [openStat, setOpenStat] = useState<null | 'strength' | 'flicks' | 'cuisines' | 'senses'>(null);
 
   const d = dossier;
   const label = (k: string) => t(`dim.${k}`);
-  const cuisine = (k: string) => cuisineLabel(k, lang) || k;
+  // Top cuisine affinities for the cuisines stat's explainer — the SAME
+  // derivation TasteFormCard's own openStat==='cuisines' extra uses.
+  const topCuisines = Object.entries(d.affinity).sort((a, b) => b[1] - a[1]).slice(0, 5);
 
   return (
     <div>
@@ -44,11 +50,13 @@ export default function PublicDossier({ dossier, isOwner }: { dossier: Dossier; 
       </button>
       {/* The blob's OWN card shell (.taste-form-card + .taste-blob-anchor) —
           the exact container Taste AI's TasteFormCard uses, not .card/.card-body
-          restyled to look similar (owner correction). The interactive
-          strength/flicks/cuisines/senses stat grid stays on Taste AI only:
-          those numbers aren't in the public projection (lib/dossier.ts) and
-          decision 3's exposed-field list doesn't include them — this keeps
-          the loves/avoids/cuisines summary that IS in the public contract. */}
+          restyled to look similar. EXACTLY Taste AI's card now, stat grid and
+          version bar included (owner call: these are food-engine numbers, no
+          more privacy weight than the vector/evidence already public for the
+          blob) — only the rename pencil and the install/export section are
+          skipped: renaming is an owner-authenticated action irrelevant to a
+          visitor, and decision 3's hard rule 2 amendment forbids a copy-for-AI
+          path on this page regardless of who's viewing. */}
       <div className="taste-form-card">
         <div className="taste-blob-anchor">
           <TasteFormReveal
@@ -58,38 +66,58 @@ export default function PublicDossier({ dossier, isOwner }: { dossier: Dossier; 
             labelFor={label}
           />
         </div>
-        <div className="version-line" style={{ marginTop: 10, justifyContent: 'center' }}>
+        <div className="version-line" style={{ marginTop: 10 }}>
           <span className="username-claim-prefix">dishi.{d.username}</span>
         </div>
-        <div className="version-line" style={{ marginTop: 6, justifyContent: 'center' }}>
+        <div className="version-line" style={{ marginTop: 6 }}>
           <span className="version-now">V{d.version}</span>
-          <span className="card-meta">{t('buddy.knows.count', { n: d.knowsCount })}</span>
-          <span className="card-meta">{t('dossier.fed', { n: d.ratingCount })}</span>
+          <div className="taste-form-legend" style={{ marginTop: 0 }}>
+            <span><span className="dot dot-knows" />{t('buddy.knows.count', { n: d.knowsCount })}</span>
+            <span><span className="dot dot-learning" />{t('buddy.learning.count', { n: d.learningCount })}</span>
+          </div>
         </div>
 
-        {(d.strongLoves.length > 0 || d.loves.length > 0) && (
-          <div style={{ marginTop: 16 }}>
-            <p className="label">{t('dossier.loves')}</p>
-            <div className="explain-modal-chips" style={{ justifyContent: 'center' }}>
-              {d.loves.slice(0, 6).map(k => (
-                <span className={`chip ${d.strongLoves.includes(k) ? 'on' : ''}`} key={k}>{label(k)}</span>
-              ))}
-            </div>
+        <div className="version-bar-row">
+          <div className="xp-bar" role="progressbar" aria-valuenow={Math.round(d.versionProgress * 100)}
+            aria-valuemin={0} aria-valuemax={100}
+            aria-label={`dishi v${d.version} → v${d.version + 1}`}
+            style={{ flex: 1 }}>
+            <div className="xp-fill" style={{ width: `${d.versionProgress * 100}%` }} />
           </div>
-        )}
-        {d.avoids.length > 0 && (
-          <div style={{ marginTop: 12 }}>
-            <p className="label">{t('dossier.avoids')}</p>
-            <div className="explain-modal-chips" style={{ justifyContent: 'center' }}>
-              {d.avoids.slice(0, 4).map(k => <span className="chip" key={k}>{label(k)}</span>)}
-            </div>
-          </div>
-        )}
-        {d.cuisines.length > 0 && (
-          <p className="card-meta" style={{ marginTop: 12 }}>
-            {t('dossier.cuisines', { list: d.cuisines.map(cuisine).join('、') })}
-          </p>
-        )}
+          <span className="version-next">V{d.version + 1}</span>
+        </div>
+
+        <div className="stat-row stat-row-tappable" style={{ marginTop: 20, marginBottom: 0 }}>
+          {([
+            { key: 'strength' as const, num: `${d.strength}%`, label: t('buddy.strength') },
+            { key: 'flicks' as const, num: `${d.ratingCount}`, label: t('buddy.flicks') },
+            { key: 'cuisines' as const, num: `${d.cuisineCount}`, label: t('buddy.cuisines') },
+            { key: 'senses' as const, num: `${d.dimsExplored}/${d.dimsTotal}`, label: t('buddy.senses') },
+          ]).map(s => (
+            <button key={s.key} type="button" className="stat taste-stat stat-tap"
+              onClick={() => setOpenStat(v => (v === s.key ? null : s.key))}
+              aria-expanded={openStat === s.key} aria-label={`${s.label}: ${t(`buddy.explain.${s.key}`, { total: d.dimsTotal })}`}>
+              <div className="stat-num">{s.num}</div>
+              <div className="stat-label">{s.label}</div>
+            </button>
+          ))}
+          {openStat && (
+            <ExplainModal
+              title={t(`buddy.${openStat}`)}
+              body={t(`buddy.explain.${openStat}`, { total: d.dimsTotal })}
+              onClose={() => setOpenStat(null)}
+              extra={openStat === 'cuisines' && topCuisines.length > 0 ? (
+                <div className="explain-modal-chips">
+                  {topCuisines.map(([c, v]) => (
+                    <span className={`chip ${v > 0 ? 'on' : ''}`} key={c}>
+                      {cuisineLabel(c, lang) || c} {v > 0 ? '↑' : '↓'}
+                    </span>
+                  ))}
+                </div>
+              ) : undefined}
+            />
+          )}
+        </div>
       </div>
 
       {/* The posted dishes — every one is something this person chose to

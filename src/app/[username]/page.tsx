@@ -55,13 +55,28 @@ async function resolveDossier(rawName: string) {
 
   // Density gate is the claim itself (no username before v1), but compute the
   // live version the same ratcheted way the app does so the number agrees.
+  // The SAME call's .progress feeds the public page's version bar too (owner
+  // call: match Taste AI's card exactly) — captured once rather than
+  // re-derived from a second formula.
   const vector = (taste.vector ?? {}) as Record<string, number>;
   const affinity = (taste.cuisine_affinity ?? {}) as Record<string, number>;
   const ratingCount = taste.rating_count ?? 0;
-  const version = ratchetVersion(
-    taste.version_unlocked ?? 0,
-    versionForProfile(confidenceInputsFrom(vector, affinity, ratingCount)).version,
-  );
+  const liveVersion = versionForProfile(confidenceInputsFrom(vector, affinity, ratingCount));
+  const version = ratchetVersion(taste.version_unlocked ?? 0, liveVersion.version);
+
+  // Distinct real cuisines actually RATED (not just posted) — the same input
+  // /api/buddy's own engineConfidence/versionForProfile use for the strength
+  // stat and version substrate. A public admin-client join since this page
+  // has no session to scope an RLS-respecting read to.
+  const { data: myRatings } = await admin.from('ratings').select('dish_id').eq('user_id', prof.id);
+  const ratedDishIds = (myRatings ?? []).map(r => r.dish_id as string);
+  let distinctCuisines = 0;
+  if (ratedDishIds.length > 0) {
+    const { data: ratedDishes } = await admin.from('dishes').select('cuisine').in('id', ratedDishIds);
+    distinctCuisines = new Set(
+      (ratedDishes ?? []).map(d => d.cuisine).filter(c => c && c !== 'unknown'),
+    ).size;
+  }
 
   // Anchors = POSTS (2026-07-28). Every row here is a dish this person chose
   // to publish; nothing reaches the page off the strength of a rating alone.
@@ -120,7 +135,9 @@ async function resolveDossier(rawName: string) {
     dossier: projectDossier({
       username: prof.handle as string,
       version,
+      versionProgress: liveVersion.progress,
       ratingCount,
+      distinctCuisines,
       vector,
       evidence: (taste.evidence ?? {}) as Record<string, number>,
       affinity,

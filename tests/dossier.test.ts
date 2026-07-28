@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { projectDossier, DOSSIER_KNOWS_AT } from '../src/lib/dossier';
-import { MEANINGFUL_THRESHOLD, STRONG_THRESHOLD } from '../src/lib/tasteExport';
+import { engineConfidence, exploredDims } from '../src/lib/buddy';
 
 // The public dossier's privacy contract (decision 3). These tests pin what the
 // page may NEVER show; the projection is the single gate every rendered field
@@ -9,7 +9,9 @@ import { MEANINGFUL_THRESHOLD, STRONG_THRESHOLD } from '../src/lib/tasteExport';
 const raw = {
   username: 'jerry_c',
   version: 2,
+  versionProgress: 0.42,
   ratingCount: 30,
+  distinctCuisines: 8,
   vector: { umami: 0.7, rich: 0.6, tender: 0.3, sweet: -0.3, bitter: -0.6, fresh: 0.1 },
   evidence: { umami: 5, rich: 4, tender: 2, sweet: 3, bitter: 1 },
   affinity: { cantonese: 0.8, sichuan: 0.4, thai: -0.2 },
@@ -78,14 +80,29 @@ describe('projectDossier — the privacy contract', () => {
     expect(byName.get('Beef chow fun')!.photo_url).toBeNull(); // fixture carries none
   });
 
-  it('dimension chips use the SAME thresholds as the export doc — one definition of "a preference"', () => {
+  it('strength and senses use the SAME formulas as Taste AI\'s own stat row — one definition each', () => {
     const d = projectDossier(raw);
-    expect(d.loves).toEqual(['umami', 'rich', 'tender']);   // >= 0.25, desc
-    expect(d.strongLoves).toEqual(['umami', 'rich']);       // >= 0.55
-    expect(d.avoids).toEqual(['bitter', 'sweet']);          // <= -0.25, most-avoided first
-    expect(d.loves).not.toContain('fresh');                 // 0.1 = noise, not preference
-    expect(MEANINGFUL_THRESHOLD).toBe(0.25);
-    expect(STRONG_THRESHOLD).toBe(0.55);
+    // Owner call: the public card matches Taste AI's stat grid exactly, so
+    // these must be the SAME functions on the SAME inputs, not a re-derived
+    // approximation that could quietly drift from the in-app numbers.
+    expect(d.strength).toBe(Math.round(engineConfidence({
+      ratingCount: raw.ratingCount, distinctCuisines: raw.distinctCuisines,
+      vector: raw.vector, cuisineAffinity: raw.affinity,
+    }) * 100));
+    expect(d.dimsExplored).toBe(exploredDims(raw.vector).length);
+    expect(d.dimsExplored).toBe(5); // umami/rich/tender/sweet/bitter clear 0.15; fresh (0.1) doesn't
+    expect(d.dimsTotal).toBe(18);
+  });
+
+  it('version progress and cuisine count pass through from the caller\'s own live computation', () => {
+    const d = projectDossier(raw);
+    expect(d.versionProgress).toBe(0.42);
+    expect(d.cuisineCount).toBe(8);
+  });
+
+  it('學 vs 摸緊 split matches the buddy card\'s own bar (evidence >= 3 = known, > 0 = learning)', () => {
+    const d = projectDossier(raw);
+    expect(d.learningCount).toBe(2); // tender (2) and bitter (1) — sweet (3) already counts as known
   });
 
   it('識 N 味 uses the buddy card\'s own bar (evidence >= 3) so the two surfaces agree', () => {
@@ -109,10 +126,10 @@ describe('projectDossier — the privacy contract', () => {
     expect(d.anchors[1].restaurant).toBe('Ok Sushi');
   });
 
-  it('positive-affinity cuisines only, capped', () => {
+  it('full affinity passes through (unfiltered) — feeds the cuisines stat\'s explainer chips, negatives included', () => {
     const d = projectDossier(raw);
-    expect(d.cuisines).toEqual(['cantonese', 'sichuan']);
-    expect(d.cuisines).not.toContain('thai');
+    expect(d.affinity).toEqual(raw.affinity);
+    expect(d.affinity.thai).toBe(-0.2); // owner call: no privacy filter here — food data, not personal
   });
 });
 

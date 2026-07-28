@@ -551,10 +551,6 @@ export const dict: Record<string, { zh: string; en: string }> = {
   // Public dossier — dishi.me/[username] (decision 3). 書面 register; the
   // page is an acquisition surface, so the CTA is quiet, never a wall.
   'dossier.back': { zh: '返回', en: 'Back' },
-  'dossier.fed': { zh: '學自 {n} 道菜', en: 'learned from {n} dishes' },
-  'dossier.loves': { zh: '偏愛', en: 'Loves' },
-  'dossier.avoids': { zh: '避開', en: 'Avoids' },
-  'dossier.cuisines': { zh: '常回味的菜系：{list}', en: 'Keeps returning to: {list}' },
   // Was "實際食過並喜愛的菜" when this section was the top-rated ratings. It is
   // posts now, and posts may be negative — a label promising love would make
   // the page misrepresent a published dislike.

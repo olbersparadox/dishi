@@ -39,8 +39,8 @@
 // would mint public URLs out of address local-parts, the exact leak the
 // claim exists to end. hasClaimedUsername() (lib/username.ts) is the gate.
 
-import { MEANINGFUL_THRESHOLD, STRONG_THRESHOLD } from './tasteExport';
 import { wordKeyFor } from './flickWords';
+import { engineConfidence, exploredDims } from './buddy';
 
 /** Same bar the buddy card's 識 N 味 uses (/api/buddy: evidence >= 3 ratings
  * taught the dim). Duplicated as a named constant rather than imported from
@@ -77,17 +77,31 @@ export type DossierAnchor = {
 export type PublicDossier = {
   username: string;
   version: number;
+  /** 0..1 toward the NEXT version — the SAME live number Taste AI's own
+   * progress bar reads (versionForProfile), not re-derived here from a
+   * different formula. */
+  versionProgress: number;
   ratingCount: number;
   knowsCount: number;
-  /** Dim KEYS (client renders t(`dim.${k}`)) — strongest first. */
-  loves: string[];
-  strongLoves: string[];
-  avoids: string[];
-  /** Cuisine keys, positive affinity only, strongest first. */
-  cuisines: string[];
+  learningCount: number;
+  /** 0-100 — the SAME engine-confidence number Taste AI's own strength stat
+   * reads (engineConfidence). Owner call: matching Taste AI's card EXACTLY,
+   * stats included — these are food-engine numbers, not personal/location
+   * data, so they carry no more privacy weight than the vector/evidence
+   * already exposed below for the blob. */
+  strength: number;
+  /** Distinct real cuisines actually rated (not just posted) — the same
+   * "cuisines" stat Taste AI shows, not the affinity-filtered list the old
+   * loves/avoids/cuisines summary used. */
+  cuisineCount: number;
+  dimsExplored: number;
+  dimsTotal: number;
+  /** Full cuisine affinity (not filtered to positive-only) — feeds the
+   * cuisines stat's explainer chips exactly like Taste AI's own. */
+  affinity: Record<string, number>;
   anchors: DossierAnchor[];
-  /** Blob inputs — the same vector/evidence the dimensions above are read
-   * from, so the form can never disagree with the chips beside it. */
+  /** Blob inputs — the same vector/evidence the stats above are read from,
+   * so the form can never disagree with them. */
   vector: Record<string, number>;
   evidence: Record<string, number>;
 };
@@ -113,29 +127,37 @@ export type DossierRawAnchor = {
 export function projectDossier(raw: {
   username: string;
   version: number;
+  /** Live progress toward the next version (versionForProfile's own .progress)
+   * — the caller already runs that call to ratchet `version`, so it's passed
+   * through rather than re-derived here from a second formula. */
+  versionProgress: number;
   ratingCount: number;
+  /** Distinct real cuisines actually rated (not 'unknown') — the SAME input
+   * engineConfidence/versionForProfile use, computed by the caller (a DB join
+   * this module has no connection to run). */
+  distinctCuisines: number;
   vector: Record<string, number>;
   evidence: Record<string, number>;
   affinity: Record<string, number>;
   anchors: DossierRawAnchor[];
 }): PublicDossier {
-  const entries = Object.entries(raw.vector).filter(([, v]) => Math.abs(v) >= MEANINGFUL_THRESHOLD);
-  const pos = entries.filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
-  const neg = entries.filter(([, v]) => v < 0).sort((a, b) => a[1] - b[1]);
+  const learningCount = Object.values(raw.evidence).filter(n => n > 0 && n < DOSSIER_KNOWS_AT).length;
 
   return {
     username: raw.username,
     version: Math.max(1, raw.version),
+    versionProgress: raw.versionProgress,
     ratingCount: raw.ratingCount,
     knowsCount: Object.values(raw.evidence).filter(n => n >= DOSSIER_KNOWS_AT).length,
-    loves: pos.map(([d]) => d),
-    strongLoves: pos.filter(([, v]) => v >= STRONG_THRESHOLD).map(([d]) => d),
-    avoids: neg.map(([d]) => d),
-    cuisines: Object.entries(raw.affinity)
-      .filter(([, v]) => v > 0)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 5)
-      .map(([c]) => c),
+    learningCount,
+    strength: Math.round(engineConfidence({
+      ratingCount: raw.ratingCount, distinctCuisines: raw.distinctCuisines,
+      vector: raw.vector, cuisineAffinity: raw.affinity,
+    }) * 100),
+    cuisineCount: raw.distinctCuisines,
+    dimsExplored: exploredDims(raw.vector).length,
+    dimsTotal: 18,
+    affinity: raw.affinity,
     // POSTED dishes — every one of them an explicit publish (see the module
     // comment). NO score filter: filtering would silently swallow a post the
     // person deliberately made, which is the same disrespect for the consent
