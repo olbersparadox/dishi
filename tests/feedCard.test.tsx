@@ -27,7 +27,7 @@ const base: FeedItem = {
   author: { kind: 'user', username: 'jerry' },
   dish: {
     id: 'd1', name: 'Beef chow fun', name_zh: '乾炒牛河', restaurant: '新記',
-    cuisine: 'cantonese', photo_url: null, attributes: { umami: 0.8 },
+    cuisine: 'cantonese', photo_url: null, attributes: { umami: 0.8 }, ingredients: [],
   },
   verdict: 'flick.never',
   reason: '鑊氣唔夠',

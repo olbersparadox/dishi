@@ -14,7 +14,7 @@ import { useLang } from '@/lib/i18n';
 import FeedCard from './FeedCard';
 import type { FeedItem } from '@/lib/feed';
 
-type Item = FeedItem & { bookmarked?: boolean };
+type Item = FeedItem & { bookmarked?: boolean; bookmarkCount?: number };
 type State =
   | { kind: 'loading' }
   | { kind: 'ready'; items: Item[]; personaStatus: string }

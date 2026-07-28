@@ -241,6 +241,18 @@ export function BellIcon({ size = 22 }: IconProps) {
   );
 }
 
+/** Bookmark ribbon — add a feed dish to 待評 ("dishes to be rated"). Outline
+ *  when not yet bookmarked, solid ink when it is — same idle/filled language
+ *  as .picker-confirm-circle. */
+export function BookmarkIcon({ size = 18, filled = false }: IconProps & { filled?: boolean }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} aria-hidden="true">
+      <path d="M6 3.5h12a1 1 0 011 1V21l-7-4-7 4V4.5a1 1 0 011-1z"
+        fill={filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 /** Door + outward arrow — leave a table session. */
 export function LeaveIcon({ size = 20 }: IconProps) {
   return (

@@ -52,7 +52,7 @@ export async function GET(req: NextRequest) {
   // render a single user post. Two queries, and the error is surfaced.
   const { data: rows, error: postsError } = await admin
     .from('dish_posts')
-    .select('id, reason, created_at, user_id, dish_id, dishes!inner(id, name, name_zh, cuisine, attributes, restaurant_id, photo_url, restaurants(name))')
+    .select('id, reason, created_at, user_id, dish_id, dishes!inner(id, name, name_zh, cuisine, attributes, restaurant_id, photo_url, ingredients, restaurants(name))')
     .order('created_at', { ascending: false })
     .limit(120);
   if (postsError) {
@@ -64,6 +64,7 @@ export async function GET(req: NextRequest) {
     dishes: {
       id: string; name: string | null; name_zh: string | null; cuisine: string | null;
       attributes: Record<string, number> | null; photo_url: string | null;
+      ingredients: string[] | null;
       restaurants: { name: string | null } | null;
     };
   };
@@ -127,6 +128,7 @@ export async function GET(req: NextRequest) {
         // that stays null; browsing the feed and seeing the original is fine.
         photo_url: p.dishes.photo_url ?? null,
         attributes: (p.dishes.attributes ?? {}) as Record<string, number>,
+        ingredients: p.dishes.ingredients ?? [],
       },
       verdict: wordKeyFor(scores.get(p.id)!),
       reason: p.reason,
@@ -143,7 +145,7 @@ export async function GET(req: NextRequest) {
       // not content — it reads as the app quoting you back to yourself. Own
       // POSTS are in the pool now (they are yours, deliberately published);
       // a persona repeating one is not the same thing, so this stays excluded.
-      .select('id, persona, dish_id, name, name_zh, cuisine, attributes, line_zh, line_en, created_at, dishes!inner(user_id, photo_url), restaurants(name)')
+      .select('id, persona, dish_id, name, name_zh, cuisine, attributes, line_zh, line_en, created_at, dishes!inner(user_id, photo_url, ingredients), restaurants(name)')
       .eq('day', today)
       .neq('dishes.user_id', user.id),
     admin.from('persona_runs').select('status, item_count').eq('day', today).maybeSingle(),
@@ -164,6 +166,7 @@ export async function GET(req: NextRequest) {
         // picked — its photo carries the same publication as its name.
         photo_url: r.dishes?.photo_url ?? null,
         attributes: (r.attributes ?? {}) as Record<string, number>,
+        ingredients: r.dishes?.ingredients ?? [],
       },
       // A persona asserts no verdict — it did not eat anything. The slot stays
       // empty rather than being filled with the rating it was sourced from,
@@ -179,6 +182,21 @@ export async function GET(req: NextRequest) {
     .sort((a, b) => b.at.localeCompare(a.at))
     .slice(0, 30);
 
+  // Bookmark counts, EVERYONE's — the count on a card is "how many people
+  // want to eat this", not just the viewer's own state, so it's a separate
+  // query over the same from_dish_id column with no user_id filter, scoped to
+  // just the dishes actually rendered.
+  const poolDishIds = Array.from(new Set(pool.map(i => i.dish.id).filter((id): id is string => !!id)));
+  const bookmarkCounts = new Map<string, number>();
+  if (poolDishIds.length > 0) {
+    const { data: allBookmarks } = await admin
+      .from('dishes').select('from_dish_id').in('from_dish_id', poolDishIds);
+    for (const b of allBookmarks ?? []) {
+      const id = b.from_dish_id as string;
+      bookmarkCounts.set(id, (bookmarkCounts.get(id) ?? 0) + 1);
+    }
+  }
+
   return NextResponse.json({
     // Told apart deliberately: 'empty' is a legitimate quiet day, 'failed' is
     // the job breaking, and a missing row means it never ran today. The UI must
@@ -187,6 +205,7 @@ export async function GET(req: NextRequest) {
     items: pool.map(({ at: _at, ...i }) => ({
       ...i,
       bookmarked: !!i.dish.id && bookmarked.has(i.dish.id),
+      bookmarkCount: i.dish.id ? (bookmarkCounts.get(i.dish.id) ?? 0) : 0,
     })),
   });
 }

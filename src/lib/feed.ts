@@ -44,6 +44,10 @@ export type FeedDish = {
   cuisine: string | null;
   photo_url: string | null;
   attributes: Record<string, number>;
+  /** Key ingredients, for the chip row under the secondary name (DishInfoDisplay).
+   * Diet/heaviness aren't carried here — the feed card asked for ingredient
+   * chips only, not the full scan-card info block. */
+  ingredients: string[];
 };
 
 export type FeedItem = {

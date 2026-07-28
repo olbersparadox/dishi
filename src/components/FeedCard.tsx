@@ -18,16 +18,21 @@ import { useState } from 'react';
 import { useLang } from '@/lib/i18n';
 import DuelSide from './DuelSide';
 import Chop from './Chop';
+import DishInfoDisplay from './DishInfoDisplay';
+import { BookmarkIcon } from './icons';
 import { chopColorFor } from '@/lib/chop';
 import type { FeedItem } from '@/lib/feed';
 
 export default function FeedCard({ item, onBookmarked }: {
-  item: FeedItem & { bookmarked?: boolean };
+  item: FeedItem & { bookmarked?: boolean; bookmarkCount?: number };
   onBookmarked: (id: string) => void;
 }) {
   const { t, pair } = useLang();
   const [saving, setSaving] = useState(false);
   const [failed, setFailed] = useState(false);
+  // Seeded from the server count, then bumped locally on a successful tap —
+  // the server isn't re-fetched just to reflect the viewer's own action back.
+  const [count, setCount] = useState(item.bookmarkCount ?? 0);
 
   const bookmark = async () => {
     if (saving || item.bookmarked || !item.dish.id) return;
@@ -39,6 +44,7 @@ export default function FeedCard({ item, onBookmarked }: {
         body: JSON.stringify({ dish_id: item.dish.id }),
       });
       if (!res.ok) { setFailed(true); return; }
+      setCount(c => c + 1);
       onBookmarked(item.id);
     } catch {
       setFailed(true);
@@ -89,6 +95,7 @@ export default function FeedCard({ item, onBookmarked }: {
                 )}
               </>
             }
+            afterName={<DishInfoDisplay info={{ ingredients: item.dish.ingredients }} />}
           />
         </div>
       </div>
@@ -98,8 +105,15 @@ export default function FeedCard({ item, onBookmarked }: {
           "this is yours" marker the card needs. */}
       {!item.own && (
         <div style={{ marginTop: 10, textAlign: 'center' }}>
-          <button type="button" className="btn small" disabled={saving || !!item.bookmarked} onClick={bookmark}>
-            {item.bookmarked ? t('feed.bookmarked') : t('feed.bookmark')}
+          <button
+            type="button"
+            className={`feed-bookmark-btn${item.bookmarked ? ' bookmarked' : ''}`}
+            disabled={saving || !!item.bookmarked}
+            onClick={bookmark}
+            aria-label={t(item.bookmarked ? 'feed.bookmarked' : 'feed.bookmark')}
+          >
+            <BookmarkIcon size={18} filled={!!item.bookmarked} />
+            <span className="feed-bookmark-count">{count}</span>
           </button>
           {failed && <span className="card-meta" style={{ marginLeft: 8 }}>{t('feed.bookmark.failed')}</span>}
         </div>

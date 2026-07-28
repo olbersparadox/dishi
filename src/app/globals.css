@@ -1797,7 +1797,8 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 /* FeedCard.tsx ONLY (not PublicDossier's own .feed-side anchors, which stay on
    the shared .duel-option-rest size) — the restaurant/district line one step
    bigger than the shared default, owner call 2026-07-28. */
-.feed-post .duel-option-rest { font-size: var(--fs-subtitle-a); }
+.feed-post .duel-option-rest { font-size: var(--fs-subtitle-a); margin-bottom: 15px; }
+.feed-post .card-title { margin-top: 15px; }
 /* The author row DuelSide's afterPhoto slot renders between the photo and the
    dish name (owner call 2026-07-28: chop + dishi.username at the same big/
    bold type the claimed username uses on the taste card — .username-claim-
@@ -1806,7 +1807,7 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
    padding-left/right ADD 10px past .duel-option's own 8px padding (owner call
    2026-07-28) — the chop sits 10px further from the card's left edge, the
    verdict word 10px further from its right edge. */
-.feed-author-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 10px 0 4px; padding: 0 10px; }
+.feed-author-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 10px 0 -4px; padding: 0 10px; }
 .feed-author-id { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .feed-author-name {
   font-family: var(--font-display); font-weight: 800; font-size: var(--fs-title-a); color: var(--ink);
@@ -1826,6 +1827,17 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
     the earlier (wrong) getBoundingClientRect check on the box's own position. */
 }
 .feed-comment-divider { border: none; border-top: 1px solid var(--line); margin: 8px 0 0; }
+/* Bookmark: outline/muted when not yet saved, solid ink once it is — same
+   idle/filled language as .picker-confirm-circle, never vermillion (that's
+   reserved for the seal + export CTA + dirty-save button only). */
+.feed-bookmark-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  border: none; border-radius: 999px; padding: 7px 16px;
+  background: var(--paper-inset); color: var(--ink-soft); font-size: var(--fs-caption);
+}
+.feed-bookmark-btn:hover, .feed-bookmark-btn:focus-visible { background: var(--line); color: var(--ink); }
+.feed-bookmark-btn.bookmarked { color: var(--ink); }
+.feed-bookmark-btn:disabled { cursor: default; }
 .identity-answers { display: flex; justify-content: center; gap: 34px; margin-top: 16px; }
 .identity-answer {
   display: flex; flex-direction: column; align-items: center; gap: 6px;
