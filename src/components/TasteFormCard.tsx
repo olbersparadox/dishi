@@ -360,7 +360,7 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
         <button type="button" className="taste-name-edit"
           onClick={() => setNamingOpen(true)}
           aria-label={t('username.rename.title')}>
-          <EditIcon size={16} />
+          <EditIcon size={19} />
         </button>
       )}
       {/* Per the design mock, the taste-form card shows: the blob, the 2-item
