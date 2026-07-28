@@ -81,7 +81,7 @@ function Journal() {
           </Fragment>
         ))}
       </h1>
-      {tab === 'mine' ? <MyDishes t={t} lang={lang} /> : <FeedList />}
+      {tab === 'mine' ? <MyDishes t={t} lang={lang} onPublished={() => selectTab('feed')} /> : <FeedList />}
     </div>
   );
 }

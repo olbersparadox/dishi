@@ -120,7 +120,13 @@ function JournalSkeleton() {
  * does — it's a clean upsert, so "editing" a rating and "re-rating" a dish are
  * the same real action, not two different code paths pretending to be one).
  */
-export default function MyDishes({ t, lang }: { t: (k: string, p?: Record<string, string | number>) => string; lang: 'zh' | 'en' }) {
+export default function MyDishes({ t, lang, onPublished }: {
+  t: (k: string, p?: Record<string, string | number>) => string; lang: 'zh' | 'en';
+  /** Fired after a successful PUBLISH (PostSheet's onSaved with posted=true)
+   * — never on unpublish. Lets the page switch itself to 大家食, the tab
+   * that now actually shows the thing that just happened. */
+  onPublished?: () => void;
+}) {
   // Restore the list from the module cache on mount (lazy initializers, so this reads
   // the snapshot once). A tab switch away and back lands here with the rows already in
   // state — no skeleton, no refetch. First-ever load (no cache) starts null → skeleton.
@@ -525,6 +531,9 @@ export default function MyDishes({ t, lang }: { t: (k: string, p?: Record<string
             setDishes(prev => prev?.map(x => x.id === id
               ? { ...x, posted, post_reason: reason, post_visibility: posted ? (visibility ?? 'public') : null }
               : x) ?? null);
+            // Publish, not unpublish — the tab switch only fires on the act
+            // that actually put something on 大家食.
+            if (posted) onPublished?.();
           }}
         />
       )}
