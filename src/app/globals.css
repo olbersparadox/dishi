@@ -1373,7 +1373,7 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
    the same before (sealed 印) and after (broken seal) in the same footprint. */
 .seal-badge-inline {
   width: 21px; height: 21px; border-radius: 5px; flex-shrink: 0;
-  font-size: var(--fs-caption); margin-left: 6px; vertical-align: 2px;
+  font-size: var(--fs-caption); margin-left: 6px; vertical-align: 3px;
 }
 /* The reveal balloon's own content (2026-07-26 redesign) — leads with the face,
    big and centred (the same emoji as the badge, just no longer squeezed into a
