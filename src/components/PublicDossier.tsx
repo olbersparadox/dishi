@@ -11,18 +11,21 @@
 // standing behavioural instruction, the category Phase 0.5 measured hosts
 // refusing — see lib/dossier.ts. A friend who trusts this palate should reach
 // its posts. Do not add a copy/share-to-AI button to this page.
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { TasteFormReveal } from './TasteForm';
 import FeedCard from './FeedCard';
 import ExplainModal from './ExplainModal';
 import { ArrowLeftIcon } from './icons';
 import { useLang, cuisineLabel } from '@/lib/i18n';
+import { useShrinkToFitWidth } from '@/lib/shrinkToFit';
 import { type PublicDossier as Dossier } from '@/lib/dossier';
 
 export default function PublicDossier({ dossier, isOwner }: { dossier: Dossier; isOwner: boolean }) {
   const { t, lang } = useLang();
   const router = useRouter();
+  const identityRef = useRef<HTMLSpanElement>(null);
+  useShrinkToFitWidth(identityRef, dossier.username);
   // Local-only: which anchors THIS visitor has bookmarked this load, mirroring
   // FeedList.tsx's own pattern (FeedCard reports back via onBookmarked).
   const [bookmarked, setBookmarked] = useState<Set<string>>(new Set());
@@ -67,7 +70,7 @@ export default function PublicDossier({ dossier, isOwner }: { dossier: Dossier; 
           />
         </div>
         <div className="version-line" style={{ marginTop: 10 }}>
-          <span className="username-claim-prefix">dishi.{d.username}</span>
+          <span className="username-identity" ref={identityRef}>dishi.{d.username}</span>
         </div>
         <div className="version-line" style={{ marginTop: 6 }}>
           <span className="version-now">V{d.version}</span>

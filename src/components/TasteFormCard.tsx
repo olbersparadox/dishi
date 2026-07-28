@@ -20,6 +20,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { TasteFormLive, TasteFormReveal } from './TasteForm';
 import { topGlyphDims } from '@/lib/blobForm';
 import { useLang, cuisineLabel } from '@/lib/i18n';
+import { useShrinkToFitWidth } from '@/lib/shrinkToFit';
 import ExplainModal from './ExplainModal';
 import {
   extractTasteSections, buildTastePrompt, confidenceInputsFrom, evidenceConfidence,
@@ -94,6 +95,12 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
   // the globe/notification icons (a scrim + an anchored paper sheet), applied to the
   // 4 stat boxes so each number can explain what it actually measures.
   const [openStat, setOpenStat] = useState<null | 'strength' | 'flicks' | 'cuisines' | 'senses'>(null);
+  // Shrink-to-fit for the claimed dishi.{username} display — shared with
+  // PublicDossier.tsx (the SAME line, kept in sync at --fs-title-b). Only
+  // this static display; the unclaimed "dishi." prefix beside the live claim
+  // input keeps its own untouched .username-claim-prefix size.
+  const identityRef = useRef<HTMLSpanElement>(null);
+  useShrinkToFitWidth(identityRef, identity?.claimed ? identity.username : null);
 
   // Debounced availability check for the inline claim pill — same shape as
   // UsernameSheet's own (sequence-numbered so a slow early check can't overwrite
@@ -320,7 +327,7 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
       {identity && state.version.v >= 1 && (
         <div className="version-line" style={{ marginTop: 10 }}>
           {identity.claimed ? (
-            <span className="username-claim-prefix">dishi.{identity.username}</span>
+            <span className="username-identity" ref={identityRef}>dishi.{identity.username}</span>
           ) : (
             /* Unclaimed reads as a PREVIEW of the claimed line, sized like a persona
                name (.persona-name's own type) rather than a small CTA button: the

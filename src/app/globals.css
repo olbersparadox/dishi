@@ -1156,6 +1156,19 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
   font-family: var(--font-display); font-weight: 800;
   font-size: var(--fs-title-a); color: var(--ink); flex-shrink: 0;
 }
+/* The CLAIMED identity line's static display — dishi.{username}, shown on
+   both Taste AI's own card and the public dossier's (owner call: they must
+   stay in sync, since the two cards are otherwise pixel-identical). One step
+   bigger than .username-claim-prefix (page-title size, --fs-title-b) with a
+   JS shrink-to-fit (useShrinkToFitWidth) for names too long for the card at
+   that size — a separate class from .username-claim-prefix because THAT one
+   also sizes the unclaimed "dishi." prefix beside the live claim input, which
+   this shrink behavior must not touch. */
+.username-identity {
+  font-family: var(--font-display); font-weight: 800;
+  font-size: var(--fs-title-b); color: var(--ink);
+  max-width: 100%; overflow: hidden; white-space: nowrap;
+}
 .username-claim-fieldwrap { position: relative; display: inline-flex; align-items: center; }
 .username-claim-field {
   width: 8em; border-radius: 999px; padding: 8px 34px 8px 16px; font-size: var(--fs-subtitle-a);
