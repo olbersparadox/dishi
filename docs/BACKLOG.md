@@ -102,12 +102,9 @@ SHIPPED". The Phase 2 menu-corpus eval and the eat-one-dish-at-3-4-shops
 ground truth remain owner-side — both live in the data-acquisition item
 under "Later / standing".)
 
-- [ ] **[S] Persist `ingredients` on dishes — split out 2026-07-28 (was
-  buried inside the protein/base item).** Enrichment already extracts up to
-  4 key ingredients with the HK carb-shorthand expansion (米/河/意/通/丁),
-  uses them for diet flags, then discards them — no column, zero downstream
-  readers. One column + one write. Mechanical, and it unblocks the parked
-  protein/base affinity work without waiting on its design.
+(Persist `ingredients` on dishes — split out 2026-07-28: SHIPPED `8d12c50`,
+see DECISIONS.md. Unblocks the parked protein/base affinity work whenever
+it's designed — no longer waiting on its own column.)
 
 (Retire the ask-for-name card for claimed users — the username's table
 payoff, found unwired: SHIPPED `1edcd19`, 2026-07-28 — see DECISIONS.md.)

@@ -4060,3 +4060,45 @@ Pinned at the source level (`tests/tableChopClaimedGate.test.ts`), the same
 pattern `tests/tableComponentIdentity.test.tsx` already uses for this exact
 file — the table page is auth-gated and polling, not a realistic render-test
 target.
+
+## Persist `ingredients` on dishes — one column, one write everywhere — ✅ `8d12c50`
+
+Split out 2026-07-28 from the protein/base affinity item it was buried
+inside. Enrichment already extracts up to 4 key ingredients — vision's photo
+read and menuScan's text-only enrich, both through the existing
+`sanitizeIngredients` — with the HK carb-shorthand expansion (米/河/意/通/丁),
+uses them for diet-flag derivation, then discarded them: no `dishes` column,
+zero downstream readers, so an ingredient chip shown once in an API response
+vanished for any SECOND reader of the same dish (a page reload, a bookmark,
+the feed).
+
+`dishes.ingredients text[] not null default '{}'::text[]` — same shape as the
+existing `diet` column (`supabase/applied/dishes_ingredients_persist.sql`).
+Written at every existing site that already creates or updates a `dishes`
+row, same pattern `cooking_method`/`heaviness`/`diet` already use at each:
+
+- `POST /api/dishes` (photo path) — `vision.ingredients` on insert.
+- `POST /api/dishes/enrich` — `enrichment.ingredients` on the update, under
+  the same force-mode "don't wipe good data with empties" guard the sibling
+  fields use. Also added to the initial `SELECT` — the already-enriched
+  early-return branch (a second enrich call on a dish with `attributes`
+  already populated) was returning that select verbatim and would otherwise
+  have kept silently dropping the persisted value forever.
+- `POST /api/dishes/pick` — `buildPickRows` now runs the client-echoed value
+  through `sanitizeIngredients` (never trusted verbatim, same as its
+  siblings). `scan/page.tsx`'s pick payload had the data on screen the whole
+  time (`ScannedItem.ingredients`) and simply never sent it.
+- `POST /api/bookmarks` — `buildBookmarkRow` carries the source dish's
+  ingredients into the queued row, same as its three siblings.
+
+Both response routes' explicit `ingredients: vision.ingredients` /
+`ingredients: enrichment?.ingredients ?? []` overrides are now redundant —
+the row returned from `.select()` already carries the real column — and were
+removed rather than left as harmless-but-stale duplication.
+
+Verified with a dry-run insert against the live table (`begin; insert ...
+returning id, ingredients; rollback;`) confirming the write/read round trip
+before relying on it — no live data touched. `tests/pickContext.test.ts` and
+`tests/feed.test.ts` pin the two re-sanitize/pass-through sites; the rest is
+mechanical write-site coverage tsc + the existing `sanitizeIngredients`
+suite already prove.
