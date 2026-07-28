@@ -1839,26 +1839,24 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 .feed-chips > div { justify-content: center; }
 /* Bookmark: muted count+icon overlaid in the dish-name row's top-right corner
    (titleAside), owner call — shown to EVERY viewer including the post's own
-   author (the count is social proof, not a personal affordance). Idle =
-   ink-soft; a successful tap turns it vermillion (owner call) — the one
-   sanctioned use of --seal outside the seal stamp / export CTA / dirty-save
-   button, because it marks the SAME thing those do: an action just
-   committed. On your own post it stays enabled (tapping explains why,
-   ExplainModal, rather than doing nothing) but reads muted via .own. */
-.feed-bookmark-wrap { position: absolute; top: 0; right: 10px; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+   author (the count is social proof, not a personal affordance). Stays
+   ink-soft whatever the state — no colour swap on a successful bookmark
+   (owner correction: vermillion is reserved for the seal/export CTA/dirty-
+   save button, not this). On your own post it stays enabled (tapping
+   explains why, ExplainModal, rather than doing nothing) but reads muted via
+   .own. */
+.feed-bookmark-wrap { position: absolute; top: -10px; right: 8px; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
 .feed-bookmark-btn {
   display: inline-flex; align-items: center; gap: 4px;
   border: none; background: none; padding: 2px 0; color: var(--ink-soft);
-  /* Non-serif and bigger than the card-title's own type (owner correction) —
-     this is a UI count, not part of the dish-name typographic treatment it
-     happens to sit inside. */
-  font-family: var(--font-body), system-ui, sans-serif; font-size: var(--fs-subtitle-a); font-weight: 700;
+  /* Non-serif (owner correction) — this is a UI count, not part of the
+     dish-name typographic treatment it happens to sit inside. */
+  font-family: var(--font-body), system-ui, sans-serif;
 }
 .feed-bookmark-btn:not(:disabled):hover, .feed-bookmark-btn:not(:disabled):focus-visible { color: var(--ink); }
-.feed-bookmark-btn.bookmarked { color: var(--seal); }
 .feed-bookmark-btn.own { opacity: 0.6; }
 .feed-bookmark-btn:disabled { opacity: 0.6; cursor: default; }
-.feed-bookmark-count { font-weight: 700; }
+.feed-bookmark-count { font-size: var(--fs-caption); font-weight: 600; color: var(--ink-faint); }
 .feed-bookmark-failed { font-size: var(--fs-micro); color: var(--ink-soft); font-family: var(--font-body), system-ui, sans-serif; }
 .identity-answers { display: flex; justify-content: center; gap: 34px; margin-top: 16px; }
 .identity-answer {

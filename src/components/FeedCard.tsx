@@ -121,7 +121,7 @@ export default function FeedCard({ item, onBookmarked }: {
               <div className="feed-bookmark-wrap">
                 <button
                   type="button"
-                  className={`feed-bookmark-btn${item.bookmarked ? ' bookmarked' : ''}${item.own ? ' own' : ''}`}
+                  className={`feed-bookmark-btn${item.own ? ' own' : ''}`}
                   disabled={saving || !!item.bookmarked}
                   onClick={(e) => { e.stopPropagation(); bookmark(); }}
                   aria-label={t(item.bookmarked ? 'feed.bookmarked' : 'feed.bookmark')}
