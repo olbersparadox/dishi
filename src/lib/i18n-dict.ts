@@ -556,6 +556,8 @@ export const dict: Record<string, { zh: string; en: string }> = {
   // the page misrepresent a published dislike.
   'dossier.anchors': { zh: '公開的菜式', en: 'Dishes published' },
   'dossier.cta': { zh: '建立你自己的味覺 AI →', en: 'Build your own taste AI →' },
+  // The shared-dish permalink's way through to the whole palate behind it.
+  'dossier.dish.more': { zh: '睇 dishi.{name} 嘅完整味覺 →', en: "See dishi.{name}'s full palate →" },
   'copied.short': { zh: '已複製', en: 'Copied' },
   'profile.owner.link': { zh: '開啟儀表板', en: 'Open the dashboard' },
   'profile.owner.blurb': { zh: '看看食客的口味如何回應你餐廳的菜式。', en: 'See how diners\u2019 palates respond to your menu.' },

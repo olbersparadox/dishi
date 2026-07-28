@@ -65,7 +65,7 @@ describe('every not-the-owner read path filters to the public tier', () => {
   const mustFilter = [
     ['../src/app/api/feed/route.ts', 'the 大家 feed — everyone'],
     ['../src/app/api/cron/persona-daily/route.ts', 'the persona sourcing pool — everyone'],
-    ['../src/app/[username]/page.tsx', 'the public dossier — everyone'],
+    ['../src/lib/dossierResolve.ts', 'the public dossier — everyone'],
   ] as const;
 
   for (const [file, audience] of mustFilter) {
@@ -75,6 +75,25 @@ describe('every not-the-owner read path filters to the public tier', () => {
       expect(src).toMatch(/\.eq\('visibility',\s*'public'\)/);
     });
   }
+
+  it('the dossier page owns no dish_posts query of its own — it delegates', () => {
+    // The filter moved into dossierResolve when the permalink began sharing
+    // it. If a future change gives this page its own query back, the filter
+    // above stops covering it and this catches that rather than the leak.
+    const src = read('../src/app/[username]/page.tsx');
+    expect(src).not.toMatch(/from\('dish_posts'\)/);
+    expect(src).toMatch(/resolveDossier/);
+  });
+
+  it('the permalink scope deliberately serves BOTH tiers', () => {
+    // The one read path that must NOT filter to public, and the reason it is
+    // safe: a link-only post's intended audience is precisely whoever holds
+    // the link. Pinned so nobody "fixes" the missing filter into a bug that
+    // makes the whole share tier unreachable.
+    const src = read('../src/lib/dossierResolve.ts');
+    expect(src).toMatch(/onlyDishId/);
+    expect(src).toMatch(/\.eq\('dish_id',\s*onlyDishId\)/);
+  });
 
   it('/api/bookmarks requires the dish to be published at all', () => {
     // Not a visibility filter — an EXISTENCE check. Before the share batch
