@@ -3615,3 +3615,95 @@ any learning.
   card (對決 chassis) with cross-venue rows; visual verification of that card
   was done when it shipped (`15a9399`). The data layer was verified live
   instead: backfill audit above + the group query in the session log.
+
+
+---
+
+# Batch: export positioning (2026-07-26) — Taste-only export ✅ SHIPPED 2026-07-28
+
+Decision 5 built: the export ships taste learning only, and the persona
+apparatus leaves the export path. What shipped, and the judgment calls made
+in the build:
+
+- **The doc is one voice — the user's own.** Header is the claimed identity
+  (`# dishi.{username} — my AI palate`); provenance still leads; the trust
+  contract (epistemic line, hard limits) and the Phase 0.5 survivors
+  (consent-framed VERSION_AWARENESS, request-framed VENUE_GROUNDING) ride
+  verbatim. Everything character — Meeting me, Arrival, chime, language
+  mirroring, scout missions, 收聲, location-conflict — is deleted from
+  tasteExport.ts, and the taste-only contract test pins each absence.
+- **The summon path is the container name.** `exportContainerName()` derives
+  `dishi.{username}` (claimed) or plain `dishi`, and ONE derivation feeds
+  both the doc's "Using this" line and the install steps — the name the
+  person types into their host and the name the doc answers to cannot drift.
+  The doc teaches bringing the palate on purpose and promises no ambient
+  surfacing (pinned by test).
+- **The name is the CLAIMED username only, never the handle.** The old
+  builder took `name={handle}` — for unclaimed users that was the
+  email-derived local part leaking into the doc header. Callers now pass the
+  claimed username or null; unclaimed exports are anonymous. installFlow
+  test pins that the legacy handle never reaches doc or container.
+- **State B is the install surface, not a carousel.** The Spoon→CK→Kiki
+  swipe died with the voice choice (kill-legacy: carousel JSX, drag state,
+  dots CSS, `persona.next` key all removed). The slot now shows the identity
+  being installed — dishi.{username} in the same display type — so naming
+  your taste AI and installing it read as one chain. persona.ts itself is
+  UNTOUCHED: the voices' in-app home is separate work (decision 5's second
+  half), and `taste_profiles.persona` keeps the stored choice, dormant.
+- **/api/taste/export POST no longer accepts or writes a persona.** GET/POST
+  semantics unchanged otherwise (GET read-only preview, POST the real export
+  event advancing the delta baseline).
+- **Install steps de-charactered.** The Sonnet-class model note is gone —
+  the measured Haiku failure was CHARACTER adoption, and this doc has no
+  character to adopt; re-add per-host notes only on fresh taste-only
+  evidence. Knowledge-slot and paste-as-TEXT warnings stay (those were
+  measured against the doc channel, not the character). A test pins that no
+  character language survives in any host's steps.
+- **LINK_RITUAL is deleted, not just struck.** It was persona house-rule
+  machinery; the `/i` route item in BACKLOG now requires re-justification
+  from the surfaces that remain (share/public page/QR) before any build.
+
+Verified: 693 tests passing (installFlow.test.tsx supersedes
+personaInstallFlow.test.tsx; taste-only contract pins in
+tasteExport.test.ts), tsc clean, and screenshots of State A (claimed
+identity + delta line), State B claimed (dishi.jerry_c), State B unclaimed
+(plain dishi — no handle leak), and the Claude install layer (container-named
+steps), rendered from the real component via a temporary dev route (deleted).
+
+## The item as it stood in BACKLOG at ship time (moved verbatim):
+
+## 1. Rewrite the export as TASTE-ONLY — *(Fable — the doc IS the surface)*
+
+**NEXT in the dishi.name stream (sync 2026-07-28).** Decided 2026-07-26 and
+still unbuilt — `tasteExport.ts` still builds the full persona-voiced doc
+(`VOICES[persona]`), so the live product contradicts decision 5 today. This
+builds BEFORE any new stream-2 surface; the chain is: taste-only export →
+`dishi.me/[username]` public page → messenger share → 食記 feed.
+
+Owner decision 5, 2026-07-26 (full rationale in DECISIONS.md, "Identity,
+connection, and export positioning"). The export stops shipping a character
+and ships taste learning only.
+
+**What the rewritten export must do:** import the taste model into the user's
+own AI, summonable by name, with the understanding that this taste should
+influence food-related answers, and installed into a specific Project/Gem/GPT
+rather than global memory. That is the exact shape Phase 0.5 measured as
+working (`docs/rnd/persona-phase0-results.md` §1, §5).
+
+**Affected, as a deliberate partial retirement — not drift:** the three
+persona briefs, the persona install flow, `taste_profiles.persona`, and the
+voice/chime/house-rule apparatus in `tasteExport.ts`.
+
+**Do NOT delete the personas.** They move in-app, where a host cannot refuse
+them — that is the whole point of the payload/costume split (Phase 0.5 §5).
+Retire them from the EXPORT path only; the in-app home is separate work.
+
+**Hard copy constraint:** the install card must NOT promise ambient
+self-surfacing. Proactive surfacing is a standing behavioural instruction,
+which is precisely the category hosts decline. Teach ONE summon path as
+reliable; describe ambient surfacing as *may happen on some hosts*, or omit
+it entirely.
+
+Related and still open: item 4 of the Phase 0.5 batch (owner manual re-test)
+now narrows to the ChatGPT custom GPT with the post-fix doc — the one surface
+never retested. Claude Project and Gemini Gem both passed.

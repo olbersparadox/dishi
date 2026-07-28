@@ -24,10 +24,10 @@ independent — all three converge on one keystone:
    returning "model fine, data too thin"; the solo corpus is now the
    binding constraint.
 2. **dishi.name** — identity, attachment, sharing (taste-rank + messenger
-   share; there is NO social graph, settled). NEXT: the taste-only export
-   rewrite (settled 2026-07-26, still unbuilt — the live export contradicts
-   it), then the [S] chop-wiring fix. Chain: taste-only export →
-   `dishi.me/[username]` public page → messenger share → 食記 feed.
+   share; there is NO social graph, settled). Taste-only export SHIPPED
+   2026-07-28. NEXT: the `dishi.me/[username]` public page, plus the [S]
+   chop-wiring fix. Chain: taste-only export ✅ → public page → messenger
+   share → 食記 feed.
 3. **UX/UI** — polish + the 書面化 register shift. No open corrections from
    the 2026-07-28 review.
 
@@ -313,10 +313,13 @@ minimal: authenticated landing, shows what the persona wants to record
 ("Spoon 想幫你記低：{dish} — 加入去搵清單？"), explicit confirm creates the
 entry, nothing commits on tap (contract already promised in the struck
 LINK_RITUAL text). Unauth → login → return with intent preserved. When it
-ships, re-add LINK_RITUAL to the house-rules assembly in
-`src/lib/tasteExport.ts` (the strike comment marks the exact spot; the
-house-rules test pins the absence and will fail until inverted back) and
-re-test on a live host.
+ships, DO NOT resurrect LINK_RITUAL: the taste-only rewrite (2026-07-28)
+removed the house-rules assembly entirely — the const is deleted and the
+taste-only contract test pins persona machinery OUT of the doc. This item's
+original consumer (persona-issued links) no longer exists; before building,
+it needs re-justification against the surfaces that remain (messenger share,
+the public page, QR entry). If nothing claims it by the time the share chain
+ships, close it.
 
 ## 4. Owner re-test (manual, no code — listed for tracking)
 
@@ -374,41 +377,16 @@ if append also reads back from the session).
 
 # Batch: export positioning (2026-07-26)
 
-## 1. Rewrite the export as TASTE-ONLY — *(Fable — the doc IS the surface)*
+## 1. Rewrite the export as TASTE-ONLY — ✅ SHIPPED 2026-07-28
 
-**NEXT in the dishi.name stream (sync 2026-07-28).** Decided 2026-07-26 and
-still unbuilt — `tasteExport.ts` still builds the full persona-voiced doc
-(`VOICES[persona]`), so the live product contradicts decision 5 today. This
-builds BEFORE any new stream-2 surface; the chain is: taste-only export →
-`dishi.me/[username]` public page → messenger share → 食記 feed.
+(Full entry, verbatim, in DECISIONS.md under this batch heading — "Taste-only
+export shipped". The doc now carries the palate alone, headed by the claimed
+dishi.username; the carousel became the install-identity surface; the persona
+apparatus is out of the export path, with the voices intact in persona.ts for
+their in-app home. Item 4 of the Phase 0.5 batch — the owner's ChatGPT
+custom-GPT re-test — stays open, now against the taste-only doc.)
 
-Owner decision 5, 2026-07-26 (full rationale in DECISIONS.md, "Identity,
-connection, and export positioning"). The export stops shipping a character
-and ships taste learning only.
-
-**What the rewritten export must do:** import the taste model into the user's
-own AI, summonable by name, with the understanding that this taste should
-influence food-related answers, and installed into a specific Project/Gem/GPT
-rather than global memory. That is the exact shape Phase 0.5 measured as
-working (`docs/rnd/persona-phase0-results.md` §1, §5).
-
-**Affected, as a deliberate partial retirement — not drift:** the three
-persona briefs, the persona install flow, `taste_profiles.persona`, and the
-voice/chime/house-rule apparatus in `tasteExport.ts`.
-
-**Do NOT delete the personas.** They move in-app, where a host cannot refuse
-them — that is the whole point of the payload/costume split (Phase 0.5 §5).
-Retire them from the EXPORT path only; the in-app home is separate work.
-
-**Hard copy constraint:** the install card must NOT promise ambient
-self-surfacing. Proactive surfacing is a standing behavioural instruction,
-which is precisely the category hosts decline. Teach ONE summon path as
-reliable; describe ambient surfacing as *may happen on some hosts*, or omit
-it entirely.
-
-Related and still open: item 4 of the Phase 0.5 batch (owner manual re-test)
-now narrows to the ChatGPT custom GPT with the post-fix doc — the one surface
-never retested. Claude Project and Gemini Gem both passed.
+The self-surfacing test plan below remains OPEN and binding on future design.
 
 **Self-surfacing — test plan before it is designed into anything (owner,
 2026-07-26).** The owner's export plan included "the AI appears by itself at

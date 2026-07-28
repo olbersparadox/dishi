@@ -1547,27 +1547,14 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 @keyframes personaIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .persona-pick { animation: none; } }
 /* Swipe viewport: horizontal pulls move the carousel, vertical stays native scroll. */
-.persona-viewport { overflow: hidden; touch-action: pan-y; cursor: grab; }
-.persona-track { display: flex; transition: transform 280ms ease; }
 .persona-slide { min-width: 100%; text-align: center; padding: 2px 12px 0; }
-/* The persona NAME is a name — the dish-name serif register (font-display,
-   heavy), not UI-label styling. */
+/* .persona-name doubles as the type spec the unclaimed username pill matches —
+   see the .username-claim comment above. The carousel that once swiped between
+   three of these died with the persona-voiced export (2026-07-28, taste-only);
+   State B now renders ONE of them: the container name, dishi.{username}. */
 .persona-name { font-family: var(--font-display); font-size: var(--fs-title-a); font-weight: 800; color: var(--ink); }
 .persona-blurb { font-size: var(--fs-body); color: var(--ink-soft); line-height: 1.55; margin-top: 1px; letter-spacing: 0.04em; }
-/* A real <button> (was a decorative span row) — tapping the dots as a group
-   advances the carousel one step, looping 3rd → 1st. Reset to a plain hit
-   area; padding widens the tap target beyond the tiny visible dots. */
-.persona-dots {
-  display: flex; justify-content: center; align-items: center; gap: 7px;
-  margin: 14px auto 0; padding: 8px 12px; border: none; background: none; cursor: pointer;
-}
-.persona-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--line); }
-/* The one deliberate 4th use of vermillion beyond the seal stamp / export CTA /
-   dish-edit dirty-save — owner call (2026-07-24): the active persona dot. */
-.persona-dot.on { background: var(--seal); }
-/* A real element wrapping the <hr>, not a ::after on it — Safari/WebKit doesn't
-   reliably render generated content on <hr>, so the earlier pseudo-element
-   triangle was invisible on-device even though it computed fine in Chromium. */
+
 .persona-divider-wrap { position: relative; margin: 18px 24px; }
 .persona-divider { border: none; border-top: 1px solid var(--line); margin: 0; }
 .persona-divider-arrow {

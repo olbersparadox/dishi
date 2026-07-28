@@ -4,8 +4,8 @@ import {
   evidenceConfidence, confidenceTier, exportUnlocked, ratingsToUnlock,
   confidenceInputsFrom, EMERGING_AT, SOLID_AT, exportPayload,
   HARD_LIMITS, EPISTEMIC_LINE, INSTALL_HOSTS, PROVENANCE_PREAMBLE,
+  MEMORY_LINE, VENUE_GROUNDING, exportContainerName,
 } from '../src/lib/tasteExport';
-import { PERSONAS, VOICES } from '../src/lib/persona';
 
 const label = (d: string) => d.toUpperCase();
 const cuisine = (c: string) => c.toUpperCase();
@@ -237,7 +237,7 @@ describe('payload grows with the confidence band', () => {
   it('solid dates its anchors and shows the where-I-eat split', () => {
     const p = buildTastePrompt({ ...base, confidence: 'solid' as const });
     expect(p).toMatch(/Where I actually eat/i);
-    expect(p).toContain('27 at another\'s table');
+    expect(p).toContain('27 at restaurants');
     expect(p).toContain('Apr 2026'); // eaten-date tag on the anchor
   });
 
@@ -262,45 +262,7 @@ describe('payload grows with the confidence band', () => {
   });
 });
 
-describe('persona voices (spec §3/§4)', () => {
-  const s = {
-    loves: ['umami'], strongLoves: [], dislikes: [], strongDislikes: [], cuisines: ['Cantonese'],
-    lovedDishes: [{ name: 'Char Siu', name_zh: '叉燒', score: 0.9, restaurant: 'Joy Hing' }],
-    dislikedDishes: [], ratingCount: 30, homeCookCount: 2, diningOutCount: 28, lovedSharedCount: 0,
-  };
-
-  it('keeps the trust contract VERBATIM — in every persona, at every band', () => {
-    for (const persona of PERSONAS) {
-      for (const confidence of ['thin', 'emerging', 'solid'] as const) {
-        const p = buildTastePrompt({ ...s, confidence }, { persona });
-        expect(p).toContain(HARD_LIMITS);
-        expect(p).toContain(EPISTEMIC_LINE);
-      }
-    }
-  });
-
-  it('carries the versioned dishi.me header, named when a name is given', () => {
-    for (const persona of PERSONAS) {
-      const p = buildTastePrompt({ ...s, confidence: 'solid' as const }, { persona, version: 4, name: 'Jerry' });
-      expect(p.startsWith("# dishi — Jerry's AI palate")).toBe(true);
-      expect(p).toContain('v4 · fed 30 dishes · dishi.me');
-    }
-  });
-
-  it('falls back to "my" when no name is given', () => {
-    expect(buildTastePrompt({ ...s, confidence: 'solid' as const }, { persona: 'spoon' })
-      .startsWith('# dishi — my AI palate')).toBe(true);
-  });
-
-  it('the three voices genuinely differ — not one doc with a relabel', () => {
-    const docs = PERSONAS.map(persona => buildTastePrompt({ ...s, confidence: 'solid' as const }, { persona }));
-    expect(new Set(docs).size).toBe(3);
-    expect(buildTastePrompt({ ...s, confidence: 'solid' as const }, { persona: 'kiki' })).toMatch(/cooking/i);
-    expect(buildTastePrompt({ ...s, confidence: 'solid' as const }, { persona: 'ck' })).toMatch(/testimony/i);
-  });
-});
-
-describe('Phase 2: arrival handshake + house rules (voice-approval brief 2026-07-23)', () => {
+describe('taste-only contract (owner decision 5, built 2026-07-28)', () => {
   const s = {
     loves: ['umami'], strongLoves: [], dislikes: [], strongDislikes: [], cuisines: ['Cantonese'],
     lovedDishes: [{ name: 'Char Siu', name_zh: '叉燒', score: 0.9, restaurant: 'Joy Hing' }],
@@ -308,73 +270,62 @@ describe('Phase 2: arrival handshake + house rules (voice-approval brief 2026-07
     confidence: 'solid' as const,
   };
 
-  it('names each character into its own chime contract, not a generic one', () => {
-    for (const persona of PERSONAS) {
-      const p = buildTastePrompt(s, { persona });
-      expect(p).toContain(`\`**${VOICES[persona].displayName}:**`);
-      expect(p).toMatch(/Chime contract/);
+  it('keeps the trust contract VERBATIM at every band', () => {
+    for (const confidence of ['thin', 'emerging', 'solid'] as const) {
+      const p = buildTastePrompt({ ...s, confidence });
+      expect(p).toContain(HARD_LIMITS);
+      expect(p).toContain(EPISTEMIC_LINE);
+      expect(p).toContain(VENUE_GROUNDING);
     }
   });
 
-  it('carries the shared house rules verbatim for every persona', () => {
-    for (const persona of PERSONAS) {
-      const p = buildTastePrompt(s, { persona });
-      expect(p).toMatch(/Language mirroring/);
-      expect(p).toMatch(/Scout missions/);
-      // LINK_RITUAL is STRUCK (2026-07-24, Phase 0.5): the `/i` route doesn't
-      // exist, and installed personas were handing out live 404s verbatim. The
-      // doc must NOT contain the ritual until the route ships — these two
-      // absences are the strike decision, pinned. Re-adding LINK_RITUAL to the
-      // assembly without the route will fail here, on purpose.
+  it('headlines the claimed dishi.username as the identity, with the version stamp', () => {
+    const p = buildTastePrompt(s, { version: 4, name: 'jerry_c' });
+    expect(p.startsWith('# dishi.jerry_c — my AI palate')).toBe(true);
+    expect(p).toContain('v4 · fed 30 dishes · dishi.me');
+  });
+
+  it('unclaimed = anonymous: plain dishi, never a fallback name that could leak a handle', () => {
+    const p = buildTastePrompt(s);
+    expect(p.startsWith('# dishi — my AI palate')).toBe(true);
+    expect(exportContainerName(null)).toBe('dishi');
+    expect(exportContainerName('kiki_eats')).toBe('dishi.kiki_eats');
+  });
+
+  it('teaches ONE summon path — the named container — and promises no ambient surfacing', () => {
+    const p = buildTastePrompt(s, { name: 'jerry_c' });
+    // The doc and the install steps must agree on the container name.
+    expect(p).toContain('a space named dishi.jerry_c');
+    expect(p).toContain('bring my palate to you on purpose');
+    // The fragile half (Phase 0.5 §5) is never claimed: no self-surfacing promise.
+    expect(p).not.toMatch(/appear by itself|surface on my behalf|proactively|unprompted/i);
+  });
+
+  it('carries NO persona apparatus — the absences ARE the decision, pinned', () => {
+    // Decision 5: hosts take the taste payload and refuse the character system,
+    // so none of the character machinery may ride in this doc. Re-adding any of
+    // it fails here, on purpose. (The voices themselves live on in persona.ts
+    // for their in-app home — separate work, not this document.)
+    for (const confidence of ['thin', 'emerging', 'solid'] as const) {
+      const p = buildTastePrompt({ ...s, confidence }, { name: 'jerry_c' });
+      expect(p).not.toMatch(/## Meeting me/);
+      expect(p).not.toMatch(/## Arrival/);
+      expect(p).not.toMatch(/Chime contract/);
+      expect(p).not.toMatch(/Language mirroring/);
+      expect(p).not.toMatch(/Scout missions/);
+      expect(p).not.toMatch(/收聲/);
+      expect(p).not.toMatch(/Location conflict/);
+      expect(p).not.toMatch(/Tone reference only/);
+      expect(p).not.toMatch(/dishi\.Spoon|dishi\.CK|dishi\.Kiki/);
+      // LINK_RITUAL stays dead too (struck 2026-07-24; the /i route never
+      // shipped, and the ritual was persona house-rule machinery besides).
       expect(p).not.toMatch(/manifest-before-link/);
       expect(p).not.toMatch(/dishi\.me\/i\?do=cook/);
-      // VENUE_GROUNDING (new, Phase 0.5): the character may never invent a
-      // venue — thin reach must be said plainly, anchors used instead.
-      expect(p).toMatch(/Real places only/);
-      expect(p).toMatch(/reach is thin/);
-      expect(p).toMatch(/收聲/); // 收聲
-      expect(p).toMatch(/REST OF THIS CONVERSATION ONLY/);
-      expect(p).toMatch(/Location conflict/);
     }
   });
 
-  it('chime contract lets the character block BE the reply on all-food messages', () => {
-    // Phase 0.5: the host voice was re-asking whatever the chime just asked —
-    // the no-restatement clause must ride in every persona's contract.
-    for (const persona of PERSONAS) {
-      const p = buildTastePrompt(s, { persona });
-      expect(p).toMatch(/the marked block IS the reply/);
-      expect(p).toMatch(/never restate or re-ask/);
-    }
-  });
-
-  it('performs the arrival handshake using a REAL anchor, never the tone calibration sample', () => {
-    for (const persona of PERSONAS) {
-      const p = buildTastePrompt(s, { persona });
-      expect(p).toContain('## Arrival');
-      expect(p).toContain('Char Siu / 叉燒 at Joy Hing');
-      // The calibration couplet must be present (for tone) but explicitly marked as
-      // not-real-data, and distinct from the anchor used in the handshake.
-      expect(p).toMatch(/Tone reference only \(not my real data\)/);
-    }
-  });
-
-  it('degrades gracefully to no anchor citation when there is no evidence yet', () => {
-    const thin = { ...s, lovedDishes: [], confidence: 'thin' as const };
-    for (const persona of PERSONAS) {
-      const p = buildTastePrompt(thin, { persona });
-      expect(p).toContain('## Arrival');
-      expect(p).not.toContain('Char Siu');
-    }
-  });
-
-  it('each persona states its own hard rule and never-does list', () => {
-    const spoon = buildTastePrompt(s, { persona: 'spoon' });
-    expect(spoon).toMatch(/sensuality points at FOOD, never at me/);
-    const ck = buildTastePrompt(s, { persona: 'ck' });
-    expect(ck).toMatch(/wit lands on dishes and restaurants.*never meanly on me/);
-    const kiki = buildTastePrompt(s, { persona: 'kiki' });
-    expect(kiki).toMatch(/no hype without receipts backing it/);
+  it('is deterministic — same sections, same doc, no voice to vary by', () => {
+    expect(buildTastePrompt(s, { name: 'jerry_c' })).toBe(buildTastePrompt(s, { name: 'jerry_c' }));
   });
 });
 
@@ -386,20 +337,17 @@ describe('Phase 0.5 field-test hardening (2026-07-24): provenance, consent frami
     confidence: 'solid' as const,
   };
 
-  it('3c: opens with the first-party provenance preamble, in every persona, BEFORE any character voice', () => {
+  it('3c: opens with the first-party provenance preamble, BEFORE anything it needs to frame', () => {
     // The whole Phase 0.5 non-adoption: a host read the doc as prompt injection.
     // The preamble must say — in the user's own voice — that this is self-made
     // and its lines are requests, not third-party commands, and it must land
-    // before the character's first utterance (v.memory) and the '## Meeting me'
-    // section, or it isn't framing anything.
-    for (const persona of PERSONAS) {
-      const p = buildTastePrompt(s, { persona });
-      expect(p).toContain(PROVENANCE_PREAMBLE);
-      expect(p).toMatch(/I made it myself/);
-      expect(p).toMatch(/my own requests, not instructions reaching you from anyone else/);
-      expect(p.indexOf(PROVENANCE_PREAMBLE)).toBeLessThan(p.indexOf('## Meeting me'));
-      expect(p.indexOf(PROVENANCE_PREAMBLE)).toBeLessThan(p.indexOf(VOICES[persona].memory));
-    }
+    // before the standing-context ask (MEMORY_LINE) and every section.
+    const p = buildTastePrompt(s, { name: 'jerry_c' });
+    expect(p).toContain(PROVENANCE_PREAMBLE);
+    expect(p).toMatch(/I made it myself/);
+    expect(p).toMatch(/my own requests, not instructions reaching you from anyone else/);
+    expect(p.indexOf(PROVENANCE_PREAMBLE)).toBeLessThan(p.indexOf(MEMORY_LINE));
+    expect(p.indexOf(PROVENANCE_PREAMBLE)).toBeLessThan(p.indexOf('## '));
   });
 
   it('3d: VERSION_AWARENESS is consent-framed — no adopt-immediately imperative, no anti-nag command', () => {
@@ -413,34 +361,31 @@ describe('Phase 0.5 field-test hardening (2026-07-24): provenance, consent frami
   });
 
   it('3e: VENUE_GROUNDING keeps the behaviour but reads as a request, not an order', () => {
-    for (const persona of PERSONAS) {
-      const p = buildTastePrompt(s, { persona });
-      expect(p).toMatch(/Real places only/);       // block still present
-      expect(p).toMatch(/reach is thin/);           // thin-reach behaviour intact
-      expect(p).toMatch(/I only want recommendations for/); // request grammar, not "Recommend only"
-      expect(p).not.toMatch(/Recommend only restaurants/);
-    }
+    const p = buildTastePrompt(s);
+    expect(p).toMatch(/Real places only/);       // block still present
+    expect(p).toMatch(/reach is thin/);           // thin-reach behaviour intact
+    expect(p).toMatch(/I only want recommendations for/); // request grammar, not "Recommend only"
+    expect(p).not.toMatch(/Recommend only restaurants/);
   });
 
-  it('EPISTEMIC_LINE and HARD_LIMITS stay verbatim (explicitly untouched by the audit)', () => {
+  it('EPISTEMIC_LINE and HARD_LIMITS stay verbatim (explicitly untouched by every rewrite)', () => {
     const p = buildTastePrompt(s);
     expect(p).toContain(EPISTEMIC_LINE);
     expect(p).toContain(HARD_LIMITS);
   });
 });
 
-describe('install-host table (persona container install flow)', () => {
+describe('install-host table (container install flow, taste-only)', () => {
   it('covers all four hosts, in the export card logo row’s own order', () => {
     // Order is load-bearing: the install layer opens FROM the row's logos, so the
     // table and the row must agree (owner spec 2026-07-23 added Grok, the 4th mark).
     expect(INSTALL_HOSTS.map(h => h.id)).toEqual(['claude', 'gemini', 'grok', 'chatgpt']);
   });
 
-  it("names the container in the persona's exact display name, in both languages", () => {
-    // The summon only feels real if the container carries the character's name —
-    // every host's steps must interpolate it, for every persona, in zh AND en.
-    for (const persona of PERSONAS) {
-      const name = VOICES[persona].displayName;
+  it('names the container after the claimed identity, in both languages', () => {
+    // The summon only works if the container carries the name the doc teaches —
+    // every host's steps must interpolate it, claimed or not.
+    for (const name of [exportContainerName('jerry_c'), exportContainerName(null)]) {
       for (const h of INSTALL_HOSTS) {
         expect(h.zh(name).join(' ')).toContain(name);
         expect(h.en(name).join(' ')).toContain(name);
@@ -450,8 +395,8 @@ describe('install-host table (persona container install flow)', () => {
 
   it('gives the naming step its own line — the mechanic must not be buried mid-step', () => {
     for (const h of INSTALL_HOSTS) {
-      const zhNaming = h.zh('dishi.Spoon').filter(s => s.includes('dishi.Spoon'));
-      const enNaming = h.en('dishi.Spoon').filter(s => s.includes('dishi.Spoon'));
+      const zhNaming = h.zh('dishi.jerry_c').filter(s => s.includes('dishi.jerry_c'));
+      const enNaming = h.en('dishi.jerry_c').filter(s => s.includes('dishi.jerry_c'));
       expect(zhNaming).toHaveLength(1);
       expect(enNaming).toHaveLength(1);
       // A dedicated step is SHORT — a name plus a verb, not a full walkthrough line.
@@ -462,29 +407,28 @@ describe('install-host table (persona container install flow)', () => {
 
   it('tells the user to paste the doc — instructions for a human, not an API call', () => {
     for (const h of INSTALL_HOSTS) {
-      expect(h.en('dishi.Spoon').join(' ')).toMatch(/paste/i);
-      expect(h.zh('dishi.Spoon').join(' ')).toMatch(/貼/);
+      expect(h.en('dishi').join(' ')).toMatch(/paste/i);
+      expect(h.zh('dishi').join(' ')).toMatch(/貼/);
     }
   });
 
   // Paste-target precision (Phase 0.5 field test): split-target hosts must name
-  // the exact field AND where NOT to put the doc — a doc in knowledge gets
-  // RAG'd for facts without steering behavior (observed live on both Claude
-  // Projects and a custom GPT). Gemini adopted fully via its single target.
+  // the exact field AND where NOT to put the doc — a doc landed in knowledge
+  // gets RAG'd for facts while its requests never shape behaviour.
   it('every host names the exact instructions field, in both languages', () => {
     for (const h of INSTALL_HOSTS) {
-      expect(h.zh('dishi.Spoon').join(' ').toLowerCase()).toContain('instructions');
-      expect(h.en('dishi.Spoon').join(' ').toLowerCase()).toContain('instructions');
+      expect(h.zh('dishi').join(' ').toLowerCase()).toContain('instructions');
+      expect(h.en('dishi').join(' ').toLowerCase()).toContain('instructions');
     }
   });
 
   it('Claude + ChatGPT warn off the knowledge slot explicitly', () => {
     const claude = INSTALL_HOSTS.find(h => h.id === 'claude')!;
-    expect(claude.zh('dishi.Spoon').join(' ')).toContain('knowledge');
-    expect(claude.en('dishi.Spoon').join(' ').toLowerCase()).toContain('not into knowledge');
+    expect(claude.zh('dishi').join(' ')).toContain('knowledge');
+    expect(claude.en('dishi').join(' ').toLowerCase()).toContain('not into knowledge');
     const gpt = INSTALL_HOSTS.find(h => h.id === 'chatgpt')!;
-    expect(gpt.zh('dishi.Spoon').join(' ')).toContain('Knowledge');
-    expect(gpt.en('dishi.Spoon').join(' ').toLowerCase()).toContain('not the knowledge');
+    expect(gpt.zh('dishi').join(' ')).toContain('Knowledge');
+    expect(gpt.en('dishi').join(' ').toLowerCase()).toContain('not the knowledge');
   });
 
   // Item 2 (Phase 0.5): paste as TEXT, never a file attachment — the attachment
@@ -492,8 +436,8 @@ describe('install-host table (persona container install flow)', () => {
   // injection check fired and killed adoption. Every row, both languages.
   it('every host says paste as TEXT and never as a file attachment', () => {
     for (const h of INSTALL_HOSTS) {
-      const zh = h.zh('dishi.Spoon').join(' ');
-      const en = h.en('dishi.Spoon').join(' ');
+      const zh = h.zh('dishi').join(' ');
+      const en = h.en('dishi').join(' ');
       expect(zh, `${h.id} zh missing 以文字`).toContain('以文字');
       expect(zh, `${h.id} zh missing file/attachment warning`).toMatch(/檔案|附件/);
       expect(en.toLowerCase(), `${h.id} en missing "as text"`).toContain('as text');
@@ -501,15 +445,19 @@ describe('install-host table (persona container install flow)', () => {
     }
   });
 
-  it('Claude carries the Sonnet-class model note (Haiku retrieved the doc but never became the character)', () => {
-    const claude = INSTALL_HOSTS.find(h => h.id === 'claude')!;
-    expect(claude.zh('dishi.Spoon').join(' ')).toContain('Sonnet');
-    expect(claude.en('dishi.Spoon').join(' ')).toContain('Sonnet');
+  it('no character language survives in the steps — taste-only, both languages', () => {
+    // The old rows warned "the character won't take" and demanded a Sonnet-class
+    // model; both were character-adoption evidence, and this doc has no
+    // character. Pinned so persona copy can't creep back into install steps.
+    for (const h of INSTALL_HOSTS) {
+      expect(h.zh('dishi').join(' ')).not.toMatch(/角色/);
+      expect(h.en('dishi').join(' ').toLowerCase()).not.toMatch(/character|persona/);
+    }
   });
 
   it('ChatGPT picks ONE recommended path: custom GPT, not a Project', () => {
     const gpt = INSTALL_HOSTS.find(h => h.id === 'chatgpt')!;
-    expect(gpt.zh('dishi.Spoon').join(' ')).toContain('不是 Project');
-    expect(gpt.en('dishi.Spoon').join(' ').toLowerCase()).toContain('recommended over a project');
+    expect(gpt.zh('dishi').join(' ')).toContain('不是 Project');
+    expect(gpt.en('dishi').join(' ').toLowerCase()).toContain('recommended over a project');
   });
 });

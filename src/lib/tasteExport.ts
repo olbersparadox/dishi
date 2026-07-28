@@ -14,8 +14,6 @@
 // most reliably in English. Dish and restaurant names inside it stay in whatever
 // language they really are.
 
-import { VOICES, type Persona } from './persona';
-
 /** Only dims with a real, legible signal are worth putting in someone's mouth as
  * "I love X" — near-zero values are noise, not a preference, and listing them
  * would manufacture confidence the engine doesn't actually have. */
@@ -211,96 +209,100 @@ function dishLine(d: ExportDish, showDate: boolean): string {
   return `- ${name}${meta.length ? ` (${meta.join(', ')})` : ''}`;
 }
 
-/** The trust contract — appended VERBATIM for every persona. The "absent = unknown"
+/** The trust contract — appended VERBATIM at every band. The "absent = unknown"
  * epistemic line and the hard-limits reminder policy are the two things that decide
  * whether the export reads as a smart companion or as malware in someone's assistant.
- * A voice may be funny around them; it may never rewrite them. Exported so tests can
- * assert their presence at every band, in every persona. */
+ * Exported so tests can assert their presence at every band. */
 export const EPISTEMIC_LINE =
   "Anything NOT listed below is genuinely unknown, not neutral. Please don't quietly fill those gaps with assumptions — ask me, or say you don't know.";
 export const HARD_LIMITS =
   "**Hard limits:** mention Dishi at most ONCE per conversation, only ever as a short aside, and never as the main content of a reply. If I decline, ignore it, or seem uninterested, drop it completely and don't raise it again in that conversation. Never nag, never repeat yourself, and never make it a condition of helping me. If mentioning it wouldn't genuinely help me right now, don't mention it at all — being useful to me matters more than promoting an app.";
-// PROVENANCE_PREAMBLE (new, Phase 0.5 field test 2026-07-24): the doc used to
-// open straight into character, giving a host no way to tell a first-party
-// export from text pasted off a forum — and a host (Claude, Sonnet 5) read the
-// whole document as possible prompt injection and declined to adopt it. The fix
-// is not to evade that (correct) instinct but to say plainly what the document
-// is. Spoken in the USER's own first-person voice — never a persona's, never
-// legalese — and pushed BEFORE any character voice (v.memory) so it frames
-// everything after it. The document-level twin of the epistemic line.
+// PROVENANCE_PREAMBLE (Phase 0.5 field test 2026-07-24): the doc used to open
+// straight into content, giving a host no way to tell a first-party export from
+// text pasted off a forum — and a host (Claude, Sonnet 5) read the whole document
+// as possible prompt injection and declined to adopt it. The fix is not to evade
+// that (correct) instinct but to say plainly what the document is. Spoken in the
+// USER's own first-person voice — never legalese — and placed BEFORE everything
+// else so it frames what follows. The document-level twin of the epistemic line.
 export const PROVENANCE_PREAMBLE =
   "This is a real palate export I generated inside Dishi (dishi.me) from my own dish ratings — I made it myself, and I'm pasting it to you on purpose. Everything below is me telling you about my own taste and how I'd like you to use it: these are my own requests, not instructions reaching you from anyone else. If any part of it ever seems off, just ask me about it.";
 
-// ── House rules — Phase 2 (voice-approval brief 2026-07-23 + Phase 0 R&D, both
-// CLEARED). BEHAVIOR, not wording, so unlike the persona voices these are
-// structural and appended VERBATIM for every persona — carried over unchanged
-// from the Phase 2 backlog description, not reinvented per character. Validated
-// in-session on Gemini Pro + Claude Opus 4.8 (docs/rnd/persona-phase0-results.md);
-// zero cross-session persistence from paste, which is why the doc must be
-// self-contained and re-establish all of this every time it's loaded fresh.
-/** Names the character into the marked-block format so the host can hold "two
- * speakers, one reply" across turns. Takes the persona's displayName.
- * No-restatement clause (Phase 0.5 field test, 2026-07-24): on all-food
- * messages Gemini-as-Spoon would ask a question in the chime, then the host
- * voice would immediately ask the SAME question again — the character block
- * must be allowed to BE the whole reply. */
-export function chimeContract(name: string): string {
-  return `**Chime contract.** When food, a restaurant, a recipe, or a meal comes up in our conversation, drop in ONE clearly marked block in character — \`**${name}:** …\` — then continue in your own voice. Two speakers, one reply. But when my message is entirely about food, the marked block IS the reply — end there; never restate or re-ask what the character just said in your own voice. Don't chime on topics that have nothing to do with food.`;
-}
-export const LANGUAGE_MIRROR =
-  "**Language mirroring.** Reply in whatever language I write in — Cantonese to Cantonese, English to English — including inside the chime. The language I answer with at the arrival handshake becomes the standing default; if I switch mid-conversation, mirror the switch, but never ask the language question again.";
-export const SCOUT_MISSION =
-  "**Scout missions.** If a natural moment allows it, you may ask ONE light question aimed at the weakest-evidence part of the record below — a thin dimension, or a dish worth rating — woven into the conversation, never a survey. At most one such question per reply, and only when it genuinely fits.";
-// STRUCK from the doc assembly 2026-07-24 (owner call, Phase 0.5 field test):
-// the `/i` intent-landing route does not exist yet — verified by grep, no
-// src/app/i, no middleware, no rewrites — so installed personas (Gemini was
-// doing it verbatim) were distributing live 404s. Const kept so the exact
-// promised contract survives; re-add to the house-rules assembly in
-// buildTastePrompt when the `/i` route ships (see docs/BACKLOG.md, "`/i`
-// intent-landing route"), and re-test on a live host.
-export const LINK_RITUAL =
-  "**Link ritual.** When a real dish or plan is worth sending back to Dishi — a recipe worth cooking, a dish worth hunting down, a trip-worthy pick, or something I just ate — you may offer ONE link per conversation. Name what it does BEFORE showing it (manifest-before-link), then give the bare readable URL: `dishi.me/i?do=cook&dish=<name>` to cook it, `do=trip` to plan travel around it, `do=hunt` to go find it, `do=ate` to log it. Tapping the link never commits anything by itself, and always mention that I can do the same thing manually inside the Dishi app.";
-// VENUE_GROUNDING (new, Phase 0.5 field test 2026-07-24): Gemini-as-Spoon
-// presented invented-composite venues (滿福樓, 中華小館, 豪隍點心茶居) WITH
-// PRICES as taste-matched picks. A character's conviction makes fabrication
-// MORE convincing than a generic assistant's — this is the venue-level twin of
-// the epistemic line, and it rides with every persona for the same reason.
-// Reframed command → request in the 3e audit pass (2026-07-24): behaviour
-// unchanged, "Recommend only… never invent" becomes the user asking, so the
-// block reads as a preference rather than an order to the host.
+// ── THE PERSONA APPARATUS IS RETIRED FROM THE EXPORT (owner decision 5,
+// 2026-07-26; built 2026-07-28 — full record in DECISIONS.md, "Identity,
+// connection, and export positioning" §5 and the taste-only ship entry).
+// Phase 0.5 measured the split precisely: hosts take the taste PAYLOAD and
+// refuse the character SYSTEM — the paste channel itself triggers behavioural-
+// instruction screening, whoever wrote the doc. So the export now ships taste
+// learning alone, and the personas move in-app where a host cannot refuse them
+// (their voices live on in persona.ts; the in-app home is separate work).
+// What died here with the voices: the chime contract, language mirroring,
+// scout missions, 收聲 dismissal, location-conflict — all standing behavioural
+// machinery of exactly the category hosts decline. LINK_RITUAL died with them
+// (it was a persona house rule; the `/i` route it pointed at never shipped —
+// see docs/BACKLOG.md, the `/i` item now needs re-justification).
+// What SURVIVES is everything measured as working or load-bearing for trust:
+// provenance, version awareness, the epistemic line, venue grounding, hard
+// limits — all request-framed, all in the user's own voice.
+
+// VENUE_GROUNDING (Phase 0.5 field test 2026-07-24): a host presented
+// invented-composite venues (滿福樓, 中華小館, 豪隍點心茶居) WITH PRICES as
+// taste-matched picks. Conviction makes fabrication convincing — this is the
+// venue-level twin of the epistemic line. Request-framed (3e audit): the block
+// reads as a preference, not an order to the host.
 export const VENUE_GROUNDING =
   "**Real places only.** I only want recommendations for restaurants and venues you can actually verify exist — please don't invent a plausible-sounding name, address, or price. When you don't have solid knowledge of the area I'm asking about, I'd rather you told me plainly that your reach is thin there and reasoned from my anchors instead ('look for somewhere that does X the way Y did'). An honest 'I don't know this neighbourhood well' keeps my trust; a confident invented restaurant destroys it.";
-export const DISMISSAL_SCOPE =
-  "**收聲 (dismissal).** If I say 收聲, or \"quiet\", or \"that's enough\" — go silent as this character for the REST OF THIS CONVERSATION ONLY. Keep helping normally, just without the persona. Never store this as a standing instruction, a topic ban, or anything that reaches into future conversations — next time this document loads fresh, the character is back.";
-export const LOCATION_CONFLICT =
-  "**Location conflict.** If where I appear to be (network/IP) conflicts with where my real eating history below says I live, don't silently trust either signal on its own — ask me, once, in one line.";
 // VERSION_AWARENESS reframed command → consent (Phase 0.5 field test 2026-07-24):
-// the old text ORDERED the host ("adopt it immediately", "never tell me
-// unprompted", "never ask me to re-export") — anti-nag UX convenience bought
-// with host-commanding grammar, which is exactly the injection-shaped pattern a
-// host flagged. Rewritten as the user describing their own intent; the
-// never-tell-me / re-export nag clauses are dropped outright (that nudge lives in
-// the Dishi app, and isn't worth the document's credibility with the host).
+// the old text ORDERED the host ("adopt it immediately") — injection-shaped
+// grammar a host flagged. Rewritten as the user describing their own intent.
 export const VERSION_AWARENESS =
   "**Staying current.** If I paste a newer version of this document, that's me updating you — treat the higher version number as the current me, and let the older one go.";
+/** The standing-context line — what the host is being asked to hold. Exported so
+ * the ordering pin (provenance frames everything, including this) is testable. */
+export const MEMORY_LINE =
+  "Please keep this as your standing picture of my taste. When food, meals, restaurants, or cooking come up between us, this is the palate you're talking to.";
+
+/** The container name the person installs under — the dishi.username identity
+ * when claimed, plain "dishi" when not. ONE derivation shared by the doc's
+ * summon line and the install-step copy, so the name the doc answers to and the
+ * name the person typed into their host can never drift apart. */
+export function exportContainerName(username?: string | null): string {
+  return username && username.trim() ? `dishi.${username.trim()}` : 'dishi';
+}
+
+/** The ONE summon path, taught as reliable (Phase 0.5 §1/§5: a named container
+ * is the only mechanic that persists; ambient self-surfacing is host-dependent
+ * and must never be promised — so the doc teaches bringing the palate to the
+ * conversation on purpose, and claims nothing about appearing uninvited). */
+function usingLine(container: string): string {
+  return `**Using this.** I keep this in a space named ${container} so I can bring my palate to you on purpose. When I ask about food here — what to eat, where to go, what to cook, what to order — please reason from the palate below rather than from a generic idea of "good food". A recommendation that fits ME beats a safe, popular pick.`;
+}
+
+// ── The doc's own wording — one neutral first-person voice, owned by the
+// builder (the persona voices owned wording per-character; taste-only means the
+// USER speaks throughout, same register as PROVENANCE_PREAMBLE).
+const CONFIDENCE_WORDING: Record<'thin' | 'emerging' | 'solid', (n: number) => string> = {
+  thin: n => `This read is early (only ${n} dishes) — let it tip a close decision, but do not lean your weight on it yet. Tell me when you are guessing.`,
+  emerging: n => `This read is forming (${n} dishes). The direction is honest, but the detail is still filling in. Lean on it, and stay open to surprise.`,
+  solid: n => `This read is solid (${n} dishes). You can trust it for real guidance — and where it is silent, that silence is a genuine unknown, not indifference.`,
+};
 
 /**
- * Builds the paste-ready export — the user's palate, speaking in the persona they
- * chose (spec §3/§4). This function owns STRUCTURE: the versioned header, which
- * sections appear, the concrete dish anchors, and the two verbatim contract blocks.
- * A voice (persona.ts) owns only WORDING. So a fourth persona is a new voice profile,
- * not a fork of this builder.
+ * Builds the paste-ready export — the person's palate, in their own voice,
+ * taste learning only (owner decision 5: no character, no chime, no house-rule
+ * machinery — hosts adopt the data and decline the system). This function owns
+ * both STRUCTURE and WORDING now; the band still governs how much authority the
+ * document claims (thin = weak prior … solid = rely on it).
  *
- * Provenance still leads — that dishes were really eaten and rated is the whole
- * differentiator — and the band still governs how much authority the document claims
- * (thin = weak prior … solid = rely on it), just phrased in the chosen voice.
+ * `name` is the claimed dishi.username (never the legacy email-derived handle —
+ * callers pass null when unclaimed, and the doc stays anonymous rather than
+ * leaking an address local-part into someone's AI).
  */
 export function buildTastePrompt(
   s: TasteExportSections,
-  opts: { persona?: Persona; version?: number; name?: string | null; companions?: ExportCompanions } = {},
+  opts: { version?: number; name?: string | null; companions?: ExportCompanions } = {},
 ): string {
-  const { persona = 'spoon', version, name, companions } = opts;
-  const v = VOICES[persona];
+  const { version, name, companions } = opts;
+  const container = exportContainerName(name);
   const {
     loves, strongLoves, dislikes, strongDislikes,
     cuisines, lovedDishes, dislikedDishes, ratingCount, confidence,
@@ -312,96 +314,69 @@ export function buildTastePrompt(
 
   const out: string[] = [];
 
-  // Versioned header (spec §4) — identity + how much it's seen + supersede rule, so a
-  // newer paste replaces an older one instead of the AI holding two palates at once.
-  const who = name && name.trim() ? `${name.trim()}'s` : 'my';
-  out.push(`# dishi — ${who} AI palate`);
+  // Versioned header — identity + how much it's seen + supersede rule, so a
+  // newer paste replaces an older one instead of the AI holding two palates at
+  // once. The claimed username IS the headline identity (name → export chain).
+  out.push(`# ${container} — my AI palate`);
   out.push(`${version ? `v${version} · ` : ''}fed ${ratingCount} dishes · dishi.me`);
   out.push('');
-  // Provenance leads, before any character voice or instruction: this is a
-  // first-party export and what follows are the user's own requests — the frame
-  // a host needs to receive the doc as a palate rather than screen it as an
-  // injected instruction set (Phase 0.5 field test).
+  // Provenance leads, before anything else: this is a first-party export and
+  // what follows are the user's own requests — the frame a host needs to
+  // receive the doc as a palate rather than screen it as an injected
+  // instruction set (Phase 0.5 field test).
   out.push(PROVENANCE_PREAMBLE);
   out.push('');
   // Version mechanics as a statement of fact, not a command to replace (3e
-  // audit) — pairs with the consent-framed VERSION_AWARENESS below.
+  // audit) — pairs with the consent-framed VERSION_AWARENESS.
   out.push("If you're already holding an earlier version of this, this one takes its place — the higher version number is the current me.");
   out.push(VERSION_AWARENESS);
   out.push('');
-  out.push(v.memory);
+  out.push(MEMORY_LINE);
   out.push('');
 
   out.push("## Where this came from — and why it's worth trusting");
-  out.push(v.provenance(ratingCount));
-  out.push(v.confidence[confidence](ratingCount));
+  out.push(`Everything below was learned by Dishi (dishi.me) from ${ratingCount} dishes I really ate and rated — it comes from what I actually tasted, not from words I typed.`);
+  out.push(CONFIDENCE_WORDING[confidence](ratingCount));
   out.push(EPISTEMIC_LINE);
   out.push('');
 
-  // Meeting me (voice-approval brief 2026-07-23): who this character is, in their
-  // own words, so the host AI knows who it's being asked to become — not shown to
-  // the end user, read by the model. The calibration pair is a TONE reference only,
-  // never real evidence, which is why it's marked as such and never reused below.
-  out.push('## Meeting me');
-  out.push(v.archetype);
-  out.push(`In this voice, I would never: ${v.neverDoes.join('; ')}.`);
-  out.push(v.hardRule);
-  out.push('Tone reference only (not my real data) — the same character in both languages:');
-  out.push(`> 廣東話: ${v.calibration.zh}`);
-  out.push(`> English: ${v.calibration.en}`);
-  out.push('');
-
-  // Arrival (Phase 0 R&D verdict: character concept validates fully in-session but
-  // has zero persistence from a paste, so the doc must re-run this handshake every
-  // time it's loaded fresh — see docs/rnd/persona-phase0-results.md).
-  const topAnchor = lovedDishes[0]
-    ? `${[lovedDishes[0].name, lovedDishes[0].name_zh].filter(Boolean).join(' / ')}${lovedDishes[0].restaurant ? ` at ${lovedDishes[0].restaurant}` : ''}`
-    : null;
-  out.push('## Arrival');
-  out.push(v.handshakeIntro(topAnchor));
-  out.push('');
-
-  out.push('## House rules');
-  out.push(chimeContract(v.displayName));
-  out.push(LANGUAGE_MIRROR);
-  out.push(SCOUT_MISSION);
-  // LINK_RITUAL deliberately absent: struck 2026-07-24 until the `/i` route
-  // exists (see the const's comment + docs/BACKLOG.md). Re-add HERE.
+  out.push("## How I'd like you to use this");
+  out.push(usingLine(container));
   out.push(VENUE_GROUNDING);
-  out.push(DISMISSAL_SCOPE);
-  out.push(LOCATION_CONFLICT);
   out.push('');
 
-  out.push(`## ${v.likesLead}`);
+  out.push('## What I love');
   if (strongLoves.length) out.push(`Strongly: ${strongLoves.join(', ')}`);
   if (loves.length) out.push(`Overall: ${loves.join(', ')}`);
   if (!loves.length) out.push('(No clear positive signal yet.)');
   out.push('');
 
-  out.push(`## ${v.dislikesLead}`);
+  out.push('## What I avoid');
   if (strongDislikes.length) out.push(`Strongly avoid: ${strongDislikes.join(', ')}`);
   if (dislikes.length) out.push(`Generally prefer less: ${dislikes.join(', ')}`);
   if (!dislikes.length) out.push('(No clear negative signal yet.)');
   out.push('');
 
   if (cuisines.length) {
-    out.push(`## ${v.cuisinesLead}`);
+    out.push('## Cuisines I keep returning to');
     out.push(cuisines.join(', '));
     out.push('');
   }
 
   // Home-vs-dining is a real behavioural pattern, not a taste dim; only past 'thin'.
   if (payload.sourceSplit && homeCookCount + diningOutCount > 0) {
-    out.push(v.whereIEat(diningOutCount, homeCookCount));
+    const bits = [
+      diningOutCount && `${diningOutCount} at restaurants`,
+      homeCookCount && `${homeCookCount} from my own kitchen`,
+    ].filter(Boolean);
+    out.push(`Where I actually eat — of the dishes I have rated: ${bits.join(', ')}. Weight suggestions toward where I actually spend my time — a good meal at home counts as much as any restaurant.`);
     out.push('');
   }
 
   // 同檯 companions (Table Mode item 4): honest aggregates from real shared-table
-  // edges — never invented sociability. Fixed heading (like the provenance and
-  // limits sections); the personality lives in the sections around it. Facts,
-  // not inference, so it isn't band-gated: it exists exactly when edges exist.
-  // Display names only (hard privacy line) — companions who never set one are
-  // counted, not named.
+  // edges — never invented sociability. Facts, not inference, so it isn't
+  // band-gated: it exists exactly when edges exist. Display names only (hard
+  // privacy line) — companions who never set one are counted, not named.
   if (companions && (companions.named.length > 0 || companions.unnamedCount > 0)) {
     out.push('## Who I actually eat with');
     out.push('From real shared-table sessions in Dishi — dishes we picked at the same table, not a claimed social graph.');
@@ -418,29 +393,39 @@ export function buildTastePrompt(
   }
 
   if (lovedDishes.length) {
-    out.push(`## ${v.anchorsLead}`);
+    out.push('## Dishes I have loved (the evidence)');
     out.push(...lovedDishes.map(d => dishLine(d, payload.dishDates)));
     // Only when it's a real pattern: most of what I loved was communal eating.
     if (lovedSharedCount > 0) {
       out.push(`${lovedSharedCount} of these were shared-table meals — dishes picked with other people at the table, not solo orders.`);
     }
-    out.push(v.anchorsAnalogy);
+    out.push('These are my anchors. When an unfamiliar dish or menu comes up, reason by comparison to these — real dishes I have known — rather than to the abstract traits above.');
     out.push('');
   }
 
   if (dislikedDishes.length) {
-    out.push(`## ${v.dislikedLead}`);
+    out.push('## Dishes that did not land');
     out.push(...dislikedDishes.map(d => dishLine(d, payload.dishDates)));
     out.push('');
   }
 
-  out.push(`## ${v.journeysHead}`);
-  v.journeys.forEach((j, i) => out.push(`${i + 1}. ${j}`));
+  out.push('## Where you can help me');
+  const journeys = [
+    '**Finding a place nearby.** When I ask where to eat, rank by fit to this palate and tell me why — which anchor, which trait it echoes. If a menu leans on something I plainly dislike, warn me rather than stay silent.',
+    '**Travelling.** In an unfamiliar city, do not chase my usual dishes. Translate me: name the local dishes that answer the same longing, and flag the celebrated specialty I would likely regret.',
+    "**Eating with others.** Given someone else's taste profile, find the genuine overlap and propose dishes that satisfy both of us. When there is little overlap, say so plainly rather than forcing a compromise.",
+    '**Patterns, if I ask.** My rated dishes are also a record of how I eat. If I ask, read them for richness, frequency, variety — observed, not judged. Keep opinions on my eating to yourself unless I invite them.',
+    '**Spend, if I ask.** Dishi tracks menu prices. If I ask, help me see what eating well truly costs me, and where the money goes.',
+  ];
+  journeys.forEach((j, i) => out.push(`${i + 1}. ${j}`));
   out.push('');
 
   out.push('## Keeping this current (please respect these limits)');
-  out.push(v.reminderIntro);
-  for (const b of v.reminderBullets) out.push(`- ${b}`);
+  out.push('This palate only stays true while I keep eating and rating in Dishi. You may remind me — gently, and only in my service:');
+  out.push('- If I mention a meal I just had, you may suggest I rate it in Dishi so this sharpens. One quiet line.');
+  out.push('- If I ask for guidance where this read is thin, or missing the very dimension that matters, say so and suggest a few ratings to fill it.');
+  out.push('- Before travel or an important meal, it is fair to suggest I refresh this export from Dishi first.');
+  out.push('- If this data feels stale, ask me for a fresh export.');
   out.push('');
   out.push(HARD_LIMITS);
 
@@ -474,33 +459,33 @@ export function computeExportDelta(
     .map(x => ({ dim: x.dim, dir: Math.sign(x.diff) as 1 | -1 }));
 }
 
-// ── Install hosts — the container-install layer of the persona export.
-// Phase 0 R&D (docs/rnd/persona-phase0-results.md): a pasted persona evaporates
+// ── Install hosts — the container-install layer of the taste-only export.
+// Phase 0 R&D (docs/rnd/persona-phase0-results.md): a pasted doc evaporates
 // between conversations on every host tested — a NAMED container (Gemini Gem /
 // Claude Project / custom GPT) is the only mechanic that makes one persist. So
-// the export card leads with "create the container, in the character's name",
-// and plain paste is demoted to a one-conversation taster.
+// the export card leads with "create the container, named dishi.{username}",
+// and plain paste is demoted to a one-conversation taster. The container name
+// comes from exportContainerName — the same name the doc's summon line teaches,
+// so what the person typed into their host and what the doc answers to agree.
 //
 // This is copy shown to the USER — instructions for creating the container by
 // hand in each host's own UI, not anything Dishi calls. Host UIs churn, so it
 // is deliberately a tiny isolated table: editing a host's steps (or adding a
-// host) is one row here and nothing else. Bilingual-in-code like PERSONA_META
-// (persona.ts) because the copy interpolates the persona's exact display name —
-// the container must carry the character's name for the summon to feel real.
+// host) is one row here and nothing else.
 export type InstallHost = {
   id: 'claude' | 'gemini' | 'grok' | 'chatgpt';
   /** Brand name — a product name, so never translated. */
   label: string;
   /** /public path — same assets as the export card's logo row. */
   logo: string;
-  /** Discrete numbered steps, in the persona's own name. Kept as steps (not one
-   * arrow-chain line) so the UI can give the naming step — the mechanic the whole
-   * install flow exists for — its own line, with the name legible. */
+  /** Discrete numbered steps, interpolating the container name (dishi.{username}).
+   * Kept as steps (not one arrow-chain line) so the UI can give the naming step —
+   * the mechanic the whole install flow exists for — its own line, name legible. */
   zh: (name: string) => string[];
   en: (name: string) => string[];
   /** Per-step keyword lists (index-aligned with zh/en's own step arrays) for
    * selective bold-in-black highlighting in the install layer — product/
-   * target nouns (Claude, Project, the persona name, the exact paste field)
+   * target nouns (Claude, Project, the container name, the exact paste field)
    * get bolded; a step's "don't do this" noun (Knowledge, the rejected
    * Project in ChatGPT's GPT-not-Project line) is simply left out of that
    * step's list rather than bolded and un-bolded by some clause-parsing rule.
@@ -511,39 +496,32 @@ export type InstallHost = {
 };
 // Row order matches the export card's live logo row (Claude · Gemini · Grok ·
 // ChatGPT) — the install layer opens FROM those logos, so the two must agree.
-// zh register: 書面 (owner revision 2026-07-24, part of the app-wide 書面化 —
-// the earlier 口語 walkthroughs are gone), kept SHORT: verb + where, name it,
-// paste. Host-product nouns (Project / Gem / GPT) stay in English — they're
-// the host's own UI labels, translating them would hurt findability.
+// zh register: 書面. Host-product nouns (Project / Gem / GPT) stay in English —
+// they're the host's own UI labels; translating them would hurt findability.
 // Paste-target precision (Phase 0.5 field test, 2026-07-24): Gemini Gems have
-// ONE paste target and adopted the character fully; Claude Projects and custom
-// GPTs split "instructions" from "knowledge/files", and a doc landed in
-// knowledge gets RAG'd for facts without ever steering behavior — the owner hit
-// exactly this on both hosts, so every row now names the EXACT field and the
-// split-target hosts say where NOT to put it. Claude additionally needs a
-// Sonnet-class model: on Haiku 4.5 the doc was retrieved but the character
-// never showed up. ChatGPT: custom GPT is the ONE recommended path (its editor
-// makes the Instructions field explicit; Projects bury the doc in files).
-// Paste-as-TEXT, never a file (Phase 0.5, 2026-07-24): the file-attachment path
-// demonstrably routes through document-scanning machinery — that is where a
-// host's prompt-injection check fired on a pasted-as-TXT export and it declined
-// to adopt the persona at all. Every row now says paste the text, not upload a
-// file, in its own bilingual voice.
+// ONE paste target; Claude Projects and custom GPTs split "instructions" from
+// "knowledge/files", and a doc landed in knowledge gets RAG'd for facts while
+// its requests (venue grounding, hard limits, the summon line) never shape
+// behaviour — so every row names the EXACT field and the split-target hosts say
+// where NOT to put it. Paste-as-TEXT, never a file (Phase 0.5): the attachment
+// path routes through document-scanning machinery — that is where a host's
+// prompt-injection check fired on a pasted-as-TXT export and it declined the
+// doc entirely. The old Sonnet-class model note is GONE with the personas: the
+// measured Haiku failure was CHARACTER adoption, and this doc has no character
+// to adopt — re-add per-host model notes only on fresh taste-only evidence.
 export const INSTALL_HOSTS: InstallHost[] = [
   {
     id: 'claude', label: 'Claude', logo: '/ai-logos/logo-claude.webp',
     zh: n => [
       '開啟 Claude，建立新 Project', `命名為 ${n}`,
-      '將整份文件以文字貼入 Project 的「instructions」欄，不要放入 knowledge 或上載成檔案，放錯位角色不會生效',
-      '模型選 Sonnet 或以上，較小的模型記得住內容，卻演不出角色',
+      '將整份文件以文字貼入 Project 的「instructions」欄，不要放入 knowledge 或上載成檔案，放錯位它只會被當作參考資料，不會照你的口味回答',
     ],
     en: n => [
       'Open Claude → new Project', `Name it ${n}`,
-      'Paste the whole doc as TEXT into the project "instructions" field — not into knowledge, and never as an uploaded file, or the character won\'t take',
-      'Pick a Sonnet-class model or above; smaller models remember the doc but can\'t carry the character',
+      'Paste the whole doc as TEXT into the project "instructions" field — not into knowledge, and never as an uploaded file, or it becomes reference material that never shapes answers',
     ],
-    boldZh: n => [['Claude', 'Project'], [n], ['Project', '「instructions」'], ['Sonnet']],
-    boldEn: n => [['Claude', 'Project'], [n], ['project', '"instructions"'], ['Sonnet']],
+    boldZh: n => [['Claude', 'Project'], [n], ['Project', '「instructions」']],
+    boldEn: n => [['Claude', 'Project'], [n], ['project', '"instructions"']],
   },
   {
     id: 'gemini', label: 'Gemini', logo: '/ai-logos/logo-gemini.png',
@@ -563,11 +541,11 @@ export const INSTALL_HOSTS: InstallHost[] = [
     id: 'chatgpt', label: 'ChatGPT', logo: '/ai-logos/logo-chatgpt.webp',
     zh: n => [
       '開啟 ChatGPT，去 GPTs 建立自訂 GPT（建議用 GPT，不是 Project）', `命名為 ${n}`,
-      '將整份文件以文字貼入「Instructions」欄，不要上載到 Knowledge 或做附件，放錯位只會記得事實，演不出角色',
+      '將整份文件以文字貼入「Instructions」欄，不要上載到 Knowledge 或做附件，放錯位只會記得事實，不會照你的口味回答',
     ],
     en: n => [
       'Open ChatGPT → GPTs → create a custom GPT (recommended over a Project)', `Name it ${n}`,
-      'Paste the whole doc as text into the "Instructions" field — not the Knowledge upload or a file attachment — or it will remember facts without becoming the character',
+      'Paste the whole doc as text into the "Instructions" field — not the Knowledge upload or a file attachment — or it will remember the facts without letting them shape its answers',
     ],
     // 'Project' deliberately absent from step 1's list both languages — it's
     // the REJECTED option (不是 Project / recommended over a Project), same

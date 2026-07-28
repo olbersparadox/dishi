@@ -1,10 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { supabaseServer, supabaseAdmin } from '@/lib/supabase/server';
 import { DIMS } from '@/lib/taste';
 import { computeExportDelta, confidenceInputsFrom, type ExportCompanions } from '@/lib/tasteExport';
 import { companionStats, type CompanionEdgeView } from '@/lib/companions';
 import { versionForProfile, ratchetVersion } from '@/lib/version';
-import { isPersona } from '@/lib/persona';
 
 // 同檯 companions layer (Table Mode item 4): honest aggregates from this
 // person's real companion edges, computed server-side so the client (and the
@@ -91,8 +90,8 @@ function versionFor(profile: { vector: unknown; cuisine_affinity: unknown; ratin
  * version stamp, the dims that moved since the last export, and any new table
  * companions. Powers the Taste tab's recurring "what's new in v{N}" line
  * (§5 + the versioning-deltas open thread) WITHOUT committing anything: the
- * delta baseline (last_export_vector/last_export_at) and the stored persona
- * belong to the real export event, which is POST's alone.
+ * delta baseline (last_export_vector/last_export_at)
+ * belongs to the real export event, which is POST's alone.
  */
 export async function GET() {
   const supabase = supabaseServer();
@@ -118,19 +117,18 @@ export async function GET() {
   });
 }
 
-export async function POST(req: NextRequest) {
+export async function POST() {
   const supabase = supabaseServer();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Sign in first.' }, { status: 401 });
 
-  // The chosen voice, if the client is committing one on this export. Validated; an
-  // absent/invalid persona leaves the stored choice untouched.
-  const body = await req.json().catch(() => ({}));
-  const persona = isPersona(body?.persona) ? body.persona : null;
-
+  // The export is taste-only (owner decision 5, built 2026-07-28): POST no longer
+  // accepts or persists a persona. The taste_profiles.persona column stays — it
+  // holds a real user choice and the personas' in-app home will read it — this
+  // event just stopped being what writes it.
   const { data: profile } = await supabase
     .from('taste_profiles')
-    .select('vector, cuisine_affinity, rating_count, version_unlocked, profile_version, last_export_vector, last_export_at, persona')
+    .select('vector, cuisine_affinity, rating_count, version_unlocked, profile_version, last_export_vector, last_export_at')
     .eq('user_id', user.id)
     .maybeSingle();
   if (!profile) return NextResponse.json({ error: 'No taste profile yet.' }, { status: 404 });
@@ -145,13 +143,11 @@ export async function POST(req: NextRequest) {
     profile_version: version,
     last_export_vector: vector,
     last_export_at: new Date().toISOString(),
-    ...(persona ? { persona } : {}),
   }).eq('user_id', user.id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   return NextResponse.json({
     profile_version: version, delta, is_first_export: !prior,
-    persona: persona ?? profile.persona ?? 'spoon',
     companions, new_companions: newCompanions,
   });
 }

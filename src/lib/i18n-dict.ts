@@ -508,7 +508,10 @@ export const dict: Record<string, { zh: string; en: string }> = {
   // Install layer title (owner spec 2026-07-23) — {name} is the persona's display
   // name (dishi.Spoon…). The per-host steps live in tasteExport.ts INSTALL_HOSTS.
   'install.title': { zh: '植入 {name}', en: 'Install {name}' },
-  'persona.next': { zh: '下一個角色', en: 'Next persona' },
+  // State B's one-line identity blurb (taste-only export: the carousel is gone,
+  // the slot shows the container name + this line). Deliberately makes NO
+  // ambient-surfacing promise — the doc teaches one summon path only.
+  'export.install.blurb': { zh: '將你的口味植入你日常用的 AI', en: 'Install your palate into the AI you already use' },
   'form.migration.title': { zh: '你的夥伴進化了', en: 'Your companion evolved' },
   'form.migration.blurb': {
     zh: '現在它就是你的味覺本身 — 每次評分都會真實地改變它的模樣。',

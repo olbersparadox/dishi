@@ -10,7 +10,6 @@ import { type SealResult } from '@/components/SealRevealBadge';
 import RatedDishRow from '@/components/RatedDishRow';
 import ExplainModal from '@/components/ExplainModal';
 import type { ExportDish } from '@/lib/tasteExport';
-import { isPersona, type Persona } from '@/lib/persona';
 import { RateIcon, TrashIcon, UtensilsIcon, HomeIcon, PhotoIcon } from '@/components/icons';
 import PickCardThumb from '@/components/PickCardThumb';
 import { normalizePhoto } from '@/lib/image';
@@ -89,8 +88,6 @@ function TasteProfile() {
   const [ratedRows, setRatedRows] = useState<RatedRow[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
   const [sealedIds, setSealedIds] = useState<Set<string>>(new Set());
-  const [persona, setPersona] = useState<Persona>('spoon');
-  const [handle, setHandle] = useState<string | null>(null);
   // The entry pill's album file input — ref'd so the locked export card can open
   // the SAME picker as its 相簿舊菜 fast track (one entry point, merged pill).
   const albumInputRef = useRef<HTMLInputElement | null>(null);
@@ -114,16 +111,14 @@ function TasteProfile() {
       setUserId(uid);
       const [{ data: taste }, { data: prof }] = await Promise.all([
         supabase.from('taste_profiles').select('*').eq('user_id', uid).maybeSingle(),
-        supabase.from('profiles').select('points, handle').eq('id', uid).maybeSingle(),
+        supabase.from('profiles').select('points').eq('id', uid).maybeSingle(),
       ]);
       if (taste) {
         setVector(taste.vector ?? {});
         setAffinity(taste.cuisine_affinity ?? {});
         setCount(taste.rating_count ?? 0);
-        if (isPersona(taste.persona)) setPersona(taste.persona);
       }
       setPoints(prof?.points ?? 0);
-      setHandle(prof?.handle ?? null);
     });
     fetch('/api/my/dishes?unrated=1').then(r => r.json()).then(async j => {
       const dishes = j.dishes ?? [];
@@ -321,7 +316,6 @@ function TasteProfile() {
       )}
 
       {userId && <TasteFormCard key={refreshKey} vector={vector} affinity={affinity} count={count} dishes={exportDishes} userId={userId}
-        persona={persona} name={handle} onPersonaPersisted={setPersona}
         onAlbumPath={() => albumInputRef.current?.click()} />}
 
       {/* 已評嘅菜 — flat, no-photo reference list below the AI export card per the
