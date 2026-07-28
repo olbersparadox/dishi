@@ -38,10 +38,10 @@ independent — all three converge on one keystone:
    messenger share ✅. NEXT for this stream is the recorded pool-starvation
    watch (below) plus the still-missing messenger brand assets. The [S] chop-wiring fix (independent of all of it) SHIPPED
    `1edcd19`, 2026-07-28. Two remainders carried into DECISIONS.md, not lost:
-   personas' cold-start payoff waits on owner-published menus as a second
-   source (today's live run
-   is honestly empty), and a POPULATED feed has no pixel proof until a second
-   claimed user posts.
+   personas' cold-start payoff no longer waits on owner-published menus —
+   the EDITORIAL batch (2026-07-29, below) is the cold-start answer, with
+   menus/picks growing alongside; and a POPULATED feed has no pixel proof
+   until a second claimed user posts.
 3. **UX/UI** — polish + the 書面化 register shift. No open corrections from
    the 2026-07-28 review.
 
@@ -500,6 +500,11 @@ only adds engagement does not qualify, however social it is.
 
 ## Daily persona content — amendments (owner + review)
 
+*(2026-07-29: the sourcing amendment below is RE-SCOPED — not weakened — by
+the editorial batch near the end of this file: §6 bans fabricated VENUES;
+dish-level editorial with no venue claim is outside its blast radius. The
+venue rule itself survives verbatim.)*
+
 - **Shared precomputed pool, ranked per user at read time with
   `contentScore`.** No LLM in the read path.
 - **Ranking is what makes it Dishi.** Identical content for everyone is a
@@ -591,6 +596,119 @@ requires, before any code):**
   Spoon/CK/Kiki move in-app as 食記 authors, the 書面化 register pass must
   not flatten their voices — Kiki is deliberately Cantonese-forward. A copy
   sweep that treats persona lines as UI copy would sand them down.
+
+
+# Batch: dishi.persona editorial — columnists in 大家食 (owner design session, 2026-07-29)
+
+**The owner's ask, verbatim in substance:** Spoon / CK / Kiki must be ALIVE in
+大家食 — both to fill the feed initially and to lead by example, showing future
+users how to write creatively about food. Posts are precomputed, written in
+each persona's own voice, from mixed sources. Full cadence is minimum
+1/persona/day — but NOT yet: the product is still in development, so this
+ships as SAMPLES first, with the daily automation designed and documented but
+switched off. The feed stays chronological (the 2026-07-28 interim stands).
+
+## Settled inputs (owner, 2026-07-29 — do not re-litigate)
+
+- **Personas are COLUMNISTS, not reviewers.** They write about DISHES (the
+  world's canon, trends, technique); users write about MEALS they actually
+  ate. That contrast is the "lead by example": personas model how to talk
+  about food, users answer with where they ate it. A persona never claims a
+  verdict on a specific venue's execution.
+- **The §6 guard is re-scoped, not weakened.** Phase 0.5 §6's measured failure
+  was FABRICATED VENUES with prices — actionable claims a person could walk
+  into. A dish-level editorial post makes no actionable claim; there is
+  nothing to walk into and nothing to pay. The surviving hard rule: **if a
+  post names a venue it is a real, Places-verified one, and prices are never
+  invented.** Most editorial posts name no venue at all.
+- **Mixed sources, all of them in play** (the owner explicitly wants the full
+  mix, not one channel — see the source ladder below).
+- **Every post needs a real food shot** with rights we can actually use.
+  AI-generated food photos are REJECTED outright — synthetic food in a
+  taste-authenticity app poisons the brand.
+- **Review is IN-FEED, not a separate page.** Generated posts land `pending`,
+  visible only to the editor (profiles.is_persona_editor), rendered in the
+  real card with approve/discard. Reviewing the exact pixels users will see
+  is the point; an admin list would hide photo crop, line length, and voice
+  in context. Scales unchanged to the daily pipeline (cron writes pending).
+- **No LLM in the read path — binding amendment holds.** Voice is written at
+  PRECOMPUTE, per the carve-out personaDaily.ts always reserved, behind the
+  grounding validator (below).
+
+## Source ladder (in order of reliability; mix freely)
+
+1. **Wikimedia Commons + Wikipedia — the backbone.** Every famous dish on
+   earth: facts (origin, ingredients, method) + CC/PD photos. Attribution
+   recorded per image and rendered as a discreet credit. Volume sustains
+   3/day for years without repeats. Legally boring, structurally stable.
+2. **Owner drop folder — the topper, never an obligation.** Owner drops a
+   photo + one fact line when they feel like it; pipeline persona-izes.
+   Zero rights questions, real HK material, and it is literally the owner
+   seeding the creative culture users should imitate.
+3. **Social as SIGNAL, never as ASSET.** Crawl/monitor for WHICH dish people
+   are talking about (Google Trends, Reddit API, food-press RSS — stable,
+   ToS-clean); the photo and facts then come from licensed pools (source 1).
+   Never scrape platform photos (each is someone's copyright) and never
+   build brittle scrapers against IG/Threads/小紅書.
+4. **Later, for venue-pointed HK posts:** Google Places photos (licensed for
+   display alongside place data) — the legal photo path the day a persona
+   points at a real HK venue.
+
+## Beats — each persona OWNS one (editorial identity, not a hash)
+
+- **Spoon — 世界慾望誌.** The world's dishes worth slowing down for; senses
+  first, verdict second, origin as seduction. Backbone source.
+- **CK — 簡單做啱咗.** The humble-dish canon done correctly; technique wisdom
+  as observation, the decorated version damned with faint praise.
+- **Kiki — 講緊乜.** The trend beat — the ONLY one wired to social signal.
+  Her hard rule already polices it: no hype without receipts, where a receipt
+  is a NAMED source ("Reddit 條 thread 爆咗"), never an invented count.
+  Recency claims ("this week") only when the signal is actually fresh —
+  sample posts use timeless phrasing.
+
+Three beats also de-risk supply: if trend listening proves flaky, Spoon and
+CK run forever on the licensed backbone and the feed never starves.
+
+## The grounding validator (contract, enforced in code + tests)
+
+A voiced line is REJECTED unless every factual token traces to its grounding
+pack: no digits or currency not present in the pack, no Latin proper nouns
+outside the pack's vocabulary, no venue/price patterns at all. Register rules
+ride along: CK zero emoji; Kiki 2–4; Spoon no exclamation clusters. Lives in
+`src/lib/personaEditorial.ts` with vitest coverage. Hand-authored sample
+lines pass through the SAME validator — the contract holds regardless of who
+(or what) wrote the text.
+
+## Cadence + pipeline (designed now, switched on later)
+
+- Full cadence: **1/persona/day (3/day total)**, staggered so the feed reads
+  as people, not a batch job — Kiki morning, CK lunch, Spoon night. A dish
+  name never repeats within 90 days.
+- **Decouple writing from posting:** harvest + voice in monthly batches
+  (LLM at precompute, validator-gated, images re-hosted to Supabase storage
+  with attribution); the daily cron only flips queued rows live at stagger
+  times. No LLM in the daily path — an API outage cannot empty the feed.
+  Queue-depth + failure visibility reuse persona_runs.
+- The existing persona_items daily-picks job (real posted dishes) KEEPS
+  running alongside — editorial fills the feed; picks surface real
+  community material as it grows.
+
+## Items
+
+1. **Schema + validator + in-feed review + 6 samples — ship now.**
+   `persona_posts` (pending|published, grounding pack, image attribution),
+   `dishes.from_persona_post_id` so the bookmark amendment holds on editorial
+   cards (bookmark = build the 待評 row from the post itself), feed union
+   (published for all, pending for editor), approve/discard via guarded API.
+   2 samples per persona on their beats, Commons images license-verified via
+   API, packs recorded.
+2. **Daily automation — LATER, owner flips it on when the product stage is
+   ready.** Harvest script (Commons category walk + trend signal), LLM voice
+   pass behind the validator, cron publish at stagger times. Do NOT build
+   until the owner asks; the design above is the spec.
+3. **Open, owner decision someday, not blocking:** whether persona authorship
+   carries a quiet disclosure marker (on the persona's profile surface, not
+   on every card).
 
 # Batch: sharing — messenger share + per-dish links — ✅ SHIPPED 2026-07-28
 

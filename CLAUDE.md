@@ -122,6 +122,16 @@ consumer-side dish-level demand data.
 
 ## Model selection (decide per task, state the choice)
 
+- **Priority order of any tier call (owner, 2026-07-29):** (1) correct read of
+  the product stage and big picture — stage-confusion or false signals into
+  R&D are worse than any tier mismatch; (2) efficiency — prefer the cheapest
+  model that carries the work; (3) only then surface-type heuristics like the
+  new-UI rule below. Never present a surface heuristic as the headline reason.
+- **Dishi is PRE-LAUNCH, designed solo.** Every table is near-empty because of
+  the stage, not failure. Current data volume is never a diagnosis, never a
+  blocker, and never worth re-measuring to make a point. Design for the launch
+  state.
+
 - **Strongest model (Opus/Fable tier):** entity-resolution tradeoffs, cross-layer
   diagnosis (e.g. silent DB failures), R&D with uncertain success, simulation-
   heavy verification, anything touching the authority ladder or seal contract.
