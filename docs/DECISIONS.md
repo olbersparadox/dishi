@@ -3829,3 +3829,110 @@ contents are still in question. Corrected order:
 page's real form → messenger share.**
 
 This is the substantive cost of the amendment: share moves BEHIND posts.
+
+---
+
+# 貼文 + 食記 feed + dishi.persona daily picks — ✅ SHIPPED `82fc26f`, `8299392`, `cd1aca2` (2026-07-28)
+
+Stream 2's next link after the public page, built as one item at the owner's
+call (scope: the full thing — posts, the feed tab, AND the persona pipeline;
+negative posts allowed). Closes the placeholder amendment above.
+
+## The architecture review that preceded it (Fable-tier, required by the VISION entry)
+
+Two findings decided the shape:
+
+1. **The feed's READ path could not be validated.** Live DB at review time: 3
+   profiles, **1 claimed username, 1 rater, 50 ratings**, 70 dishes (all with
+   attributes, 61 canonical). Taste-rank distribution with an audience of one
+   is untestable, and "no rec is better than an irrelevant one" makes a feed
+   that ranks nothing unshippable.
+2. **The chain's blocking need was the post WRITE path, not the feed.** The
+   page's placeholder is fixed by per-dish opt-in alone — one table, one
+   affordance, one swap of the anchor query.
+
+Recommendation was therefore posts-first with the feed gated on a second
+rater. **The owner overrode it and took the full item**, so 3a/3b/3c all
+shipped in sequence, each verified before the next.
+
+## 1. 貼文 — per-dish opt-in publishing (`82fc26f`)
+
+`dish_posts` (unique per user+dish, RLS = own rows, insert fenced on owning the
+dish, unpublish = real DELETE). `/api/posts`. 公開 in the 食記 kebab, PostSheet
+on the shared ExplainModal chassis, 已公開 legible on the row itself.
+
+**The public page's anchors are now posts.** `lib/dossier.ts` keeps its role as
+the privacy contract; what changed is the source and one rule:
+
+- **NEGATIVE POSTS ARE ALLOWED (owner, 2026-07-28)** — reversing "a public
+  'this dish here is bad' is a statement about the restaurant." The old rule
+  rested on the person never having chosen that dish specifically; per-dish
+  opt-in IS that choice. The cost is paid by carrying the VERDICT WORD on
+  every anchor and in the publish sheet: a published dislike that rendered
+  like the loves beside it would be worse than not publishing at all.
+- No score filter (filtering would swallow a post someone deliberately made),
+  newest-first (a publishing surface, not a leaderboard), cap 12, verdict as a
+  flick word key — never the number, which still dies at the projection.
+- The verdict is read LIVE from ratings, never snapshotted: re-rating replays
+  history, and a page quoting an abandoned verdict is worse than one that lags.
+- Label copy moved 實際食過並喜愛的菜 → 公開的菜式 for the same reason.
+
+Verified end to end on the owner's real session: published a dish through the
+real sheet → `dishi.me/jerry` renders it with @ 元氣壽司 and 超好味, and the six
+blanket-consent anchors are gone.
+
+## 2. 大家 — the feed tab (`8299392`)
+
+Second tab in 食記 (the two tabs ARE the heading; no new tab chrome). One card
+type, author always `dishi.X`, author union in `lib/feed.ts` so a new author
+type needs no new screen.
+
+Ranking rules, deliberately conservative because **taste-rank IS the
+distribution** (no graph — nothing here reads a relationship):
+
+- below 5 ratings (`/api/recommendations`' long-standing bar) the feed does not
+  claim a match at all; it says how far off it is.
+- items the engine doesn't like FOR YOU are dropped, not ranked last.
+- **a negative VERDICT never disqualifies a post**: relevance is the dish, the
+  verdict is the content.
+- three states said out loud: training / empty / failed.
+
+Bookmark on every card queues into 待評 as a normal `dishes` row — `eaten_at`
+NULL (a bookmark is not a meal that happened, unlike a menu pick, whose
+buildPickRows stamps pick-time as eaten-time) and no photo (it belongs to
+whoever ate it). `dishes.from_dish_id` + its unique index make "already
+bookmarked" exact and a second tap a no-op.
+
+## 3. dishi.persona daily picks (`cd1aca2`)
+
+`persona_items` + `persona_runs`, `/api/cron/persona-daily` (03:30 daily,
+CRON_SECRET, same shape as `/api/mf/train`). Every binding amendment encoded:
+shared pool ranked per user at read time; **no LLM in the read path — and none
+in the write path either** (the line is composed from rows that already exist,
+so it has no slot a fact could be invented into; a test asserts it cannot
+contain a digit); Places-verified sourcing via a `restaurants!inner` join on
+`place_id`; a visible failure path (both the quiet day and the broken job were
+rendered and screenshotted).
+
+**CONSENT CORRECTION made during the build.** Candidates come only from POSTED
+dishes, never the rated-dish table at large. `dishes` is publicly readable and
+the old 為你推介 browsed it freely — but those are private logs, and sourcing
+them through a persona would quietly reinstate the blanket publishing that
+per-dish posts had replaced that morning. The consent unit is the dish,
+whoever is doing the surfacing.
+
+## Open remainders
+
+- **The cold-start argument for personas does not pay off yet.** Personas were
+  justified as what makes the feed non-empty before enough people post; with a
+  consent-clean pool that is only true once there is published material. The
+  first live run is honestly `empty` (the single post's restaurant carries no
+  `place_id`). **Owner-published menus (`restaurant_menu_items` — public by
+  publication, Places-verified by the same join) are the next source**; the
+  seam is marked in the route. That table has 0 rows today.
+- **A POPULATED feed has no pixel proof.** It needs a second claimed user with
+  a post, which the database does not have; the card's anatomy is pinned by
+  `tests/feedCard.test.tsx` instead (author line, negative verdict rendered,
+  no verdict invented for personas, bookmark on every card).
+- Stream 2's chain now reads: taste-only export ✅ → public page ✅ (real form,
+  post-sourced) → posts / 食記 feed ✅ → **messenger share (next)**.

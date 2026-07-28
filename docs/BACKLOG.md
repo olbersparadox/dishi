@@ -25,14 +25,18 @@ independent — all three converge on one keystone:
    binding constraint.
 2. **dishi.name** — identity, attachment, sharing (taste-rank + messenger
    share; there is NO social graph, settled). Taste-only export SHIPPED
-   2026-07-28; `dishi.me/[username]` shipped 2026-07-28 as a PLACEHOLDER —
-   its anchors section is sourced from private ratings and must become
-   opt-in posts (owner amendment to decision 3, same day; copy-for-AI already
-   removed). NEXT: **posts / 食記 feed**, which the page's real form depends
-   on — NOT the messenger share, which moved behind it.
-   Chain: taste-only export ✅ → public page (placeholder ✅) → posts / 食記
-   feed → page's real form → messenger share. Plus the [S] chop-wiring fix,
-   independent of all of it.
+   2026-07-28. `dishi.me/[username]` SHIPPED 2026-07-28, and its placeholder
+   is CLOSED the same day: 貼文 (per-dish opt-in), the 大家 feed tab and the
+   dishi.persona daily job all shipped (`82fc26f`, `8299392`, `cd1aca2`) —
+   anchors are now posts, and negative posts are publishable by owner call.
+   See DECISIONS.md, "貼文 + 食記 feed + dishi.persona daily picks".
+   NEXT: **messenger share** — the page it distributes now has its real form.
+   Chain: taste-only export ✅ → public page ✅ → posts / 食記 feed ✅ →
+   messenger share. Plus the [S] chop-wiring fix, independent of all of it.
+   Two remainders carried into DECISIONS.md, not lost: personas' cold-start
+   payoff waits on owner-published menus as a second source (today's live run
+   is honestly empty), and a POPULATED feed has no pixel proof until a second
+   claimed user posts.
 3. **UX/UI** — polish + the 書面化 register shift. No open corrections from
    the 2026-07-28 review.
 
@@ -513,7 +517,14 @@ only adds engagement does not qualify, however social it is.
   "no good picks today" state. Silence and stale content are both worse than
   an honest empty.
 
-## One feed, three author types — the content surface (owner + review, 2026-07-26)
+## One feed, three author types — ✅ SHIPPED 2026-07-28
+
+(Full entry moved verbatim to DECISIONS.md, "貼文 + 食記 feed + dishi.persona
+daily picks" — with the architecture review that preceded it, the negative-post
+reversal, the consent correction on persona sourcing, and the two open
+remainders. 食家 stays PARKED and needs no new surface when it unparks.)
+
+## One feed, three author types — the shipped spec, kept for the WHY (owner + review, 2026-07-26)
 
 Resolves the open "personas move to menu scan or 食記?" question and folds it
 together with user posts. **They are ONE surface, not two features that
