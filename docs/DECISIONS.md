@@ -3995,7 +3995,7 @@ feed is to quietly reintroduce scoring in the route.
 owner's post renders as a card with author, restaurant, verdict and reason. A
 SECOND author still doesn't exist, so cross-user ordering remains unproven.
 
-## Photo-forward post cards, both surfaces — mounted DuelSide, not a new card (owner, 2026-07-28) — ✅ `<pending commit>`
+## Photo-forward post cards, both surfaces — mounted DuelSide, not a new card (owner, 2026-07-28) — ✅ `7d8f994`
 
 Owner reference: "the format of duel > pick 1 > reveal — large food shot with
 dish name and info." That is `DuelSide.tsx`'s own anatomy (photo, name,
