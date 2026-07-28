@@ -32,9 +32,10 @@ independent — all three converge on one keystone:
    See DECISIONS.md, "貼文 + 食記 feed + dishi.persona daily picks".
    NEXT: **messenger share** — the page it distributes now has its real form.
    Chain: taste-only export ✅ → public page ✅ → posts / 食記 feed ✅ →
-   messenger share. Plus the [S] chop-wiring fix, independent of all of it.
-   Two remainders carried into DECISIONS.md, not lost: personas' cold-start
-   payoff waits on owner-published menus as a second source (today's live run
+   messenger share. The [S] chop-wiring fix (independent of all of it) SHIPPED
+   `1edcd19`, 2026-07-28. Two remainders carried into DECISIONS.md, not lost:
+   personas' cold-start payoff waits on owner-published menus as a second
+   source (today's live run
    is honestly empty), and a POPULATED feed has no pixel proof until a second
    claimed user posts.
 3. **UX/UI** — polish + the 書面化 register shift. No open corrections from
@@ -108,19 +109,8 @@ under "Later / standing".)
   readers. One column + one write. Mechanical, and it unblocks the parked
   protein/base affinity work without waiting on its design.
 
-- [ ] **[S] Retire the ask-for-name card for claimed users — the username's
-  table payoff, found unwired (2026-07-28 review).** The claim itself DOES
-  mechanically replace the leaking email-derived handle (it overwrites
-  `profiles.handle`), so chops show the chosen name once claimed. What is
-  NOT wired: table entry (`src/app/table/page.tsx`, the chop card around
-  line 543) still asks a claimed user with no `display_name` "what should we
-  call you" as if they had never named themselves. Suppress the card when
-  the member has a claimed username — key off
-  `hasClaimedUsername(username_set_at)` (the members payload must carry the
-  flag), NEVER "handle is non-empty" (every legacy profile has a handle;
-  that is the leak). Deliberately OUT of this item: inviting the UNCLAIMED
-  to claim at the table — the naming moment lives on the taste card, gated
-  on v1, by decision; changing that is an owner design question, not wiring.
+(Retire the ask-for-name card for claimed users — the username's table
+payoff, found unwired: SHIPPED `1edcd19`, 2026-07-28 — see DECISIONS.md.)
 
 (Carb-tripwire follow-up: honest vector re-score — SHIPPED 2026-07-22, see
 DECISIONS.md.)

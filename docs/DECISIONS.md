@@ -4033,3 +4033,30 @@ no accessible "img" role) with the `duel-photo` class, which only DuelSide's
 populated-photo branch produces; a hand-built lookalike card would pass a
 "does it look right" check but fail this one, per the repo's "sameness tests
 assert identity" rule.
+
+## Retire the ask-for-name card for claimed users — the username's table payoff, found unwired — ✅ `1edcd19`
+
+Found unwired on the 2026-07-28 review, filed under "Ready to build — specs
+are decided, no open questions": the username claim itself DOES mechanically
+replace the leaking email-derived handle (it overwrites `profiles.handle`),
+so chops show the chosen name once claimed. What was NOT wired: table entry
+(`src/app/table/page.tsx`, the chop card) still asked a claimed user with no
+`display_name` "what should we call you" as if they had never named
+themselves. Suppressed the card when the member has a claimed username — key
+off `hasClaimedUsername(username_set_at)` (the members payload now carries
+the flag), NEVER "handle is non-empty" (every legacy profile has a handle;
+that is the exact leak `hasClaimedUsername`'s own comment warns about).
+
+`GET /api/table/[code]` now selects `username_set_at` alongside `handle` and
+`display_name`, and threads `username_claimed` through to `members[]`. The
+chop card's own-row lookup now requires both `!display_name` AND
+`!username_claimed`.
+
+Deliberately OUT of scope: inviting the UNCLAIMED to claim at the table — the
+naming moment lives on the taste card, gated on v1, by decision; changing
+that is an owner design question, not wiring.
+
+Pinned at the source level (`tests/tableChopClaimedGate.test.ts`), the same
+pattern `tests/tableComponentIdentity.test.tsx` already uses for this exact
+file — the table page is auth-gated and polling, not a realistic render-test
+target.
