@@ -171,15 +171,16 @@ export default function MyDishes({ t, lang }: { t: (k: string, p?: Record<string
 
   /** The public/link-only badge beside the kebab — tapping it is a quick
    * "copy the link" shortcut for a dish that's already posted, always
-   * clipboard (no OS share-sheet detour), with a quiet inline confirmation
-   * instead of a native alert(). */
+   * clipboard (no OS share-sheet detour). Confirmation is the SAME small
+   * rounded-rect popup the kebab's own menu uses (.row-menu +
+   * .row-menu-backdrop), not a native alert() — dismissed by tapping
+   * anywhere, same as that menu, so no auto-timeout here either. */
   async function copyDishLink(dishId: string) {
     const url = await resolveDishUrl(dishId);
     if (!url) { setShareNeedsName(true); return; }
     try {
       await navigator.clipboard.writeText(url);
       setLinkCopiedId(dishId);
-      setTimeout(() => setLinkCopiedId(prev => (prev === dishId ? null : prev)), 2500);
     } catch { /* clipboard blocked — quiet, nothing honest to say beyond that */ }
   }
 
@@ -219,7 +220,7 @@ export default function MyDishes({ t, lang }: { t: (k: string, p?: Record<string
   const [draftRestaurant, setDraftRestaurant] = useState<RestaurantChoice>(null);
   const [changingRating, setChangingRating] = useState(false);
   const [ratingSaved, setRatingSaved] = useState<string | null>(null); // dish id, transient
-  const [linkCopiedId, setLinkCopiedId] = useState<string | null>(null); // dish id, transient
+  const [linkCopiedId, setLinkCopiedId] = useState<string | null>(null); // dish id — cleared by the popup's own backdrop tap, not a timer
 
   // Retro dish-identity check. The live ask happens at LOG time now (the growth
   // screen's 係咪同一味 card, via RatingStack) — this sweep covers everything
@@ -535,7 +536,17 @@ export default function MyDishes({ t, lang }: { t: (k: string, p?: Record<string
         // so delaying them further buys nothing.
         const rowDelay = Math.min(rowIdx++, 8) * 35;
         return (
-        <article className="rated-dish-row" key={d.id} style={{ animationDelay: `${rowDelay}ms` }}>
+        // .rated-dish-row's entrance animation ends with `transform: none`,
+        // but a CSS animation never truly releases a property it touched —
+        // even holding "none" via fill-mode:both, the computed value stays a
+        // resolved identity matrix rather than the literal keyword, which
+        // silently makes the row a containing block for any position:fixed
+        // descendant (a .row-menu-backdrop can't reach the full viewport
+        // anymore, so tapping outside the row no longer dismisses its menu or
+        // the link-copied popup). Detaching the animation once it's actually
+        // done restores a genuine `transform: none`.
+        <article className="rated-dish-row" key={d.id} style={{ animationDelay: `${rowDelay}ms` }}
+          onAnimationEnd={e => { e.currentTarget.style.animation = 'none'; }}>
           <div className="card-body journal-row">
             {/* Left column: the dish photo (or a soft placeholder when a dish
                 was rated without one), with the verdict word directly beneath
@@ -697,9 +708,6 @@ export default function MyDishes({ t, lang }: { t: (k: string, p?: Record<string
               {ratingSaved === d.id && (
                 <p className="card-meta" style={{ color: 'var(--ink)', fontSize: 12.5, marginTop: 4 }}>{t('home.ratingsaved')}</p>
               )}
-              {linkCopiedId === d.id && (
-                <p className="card-meta" style={{ color: 'var(--ink)', fontSize: 12.5, marginTop: 4 }}>{t('post.link.copied')}</p>
-              )}
               {editing === d.id && saveError && (
                 <p style={{ color: 'var(--lacquer)', fontSize: 12.5, marginTop: 4 }}>{saveError}</p>
               )}
@@ -737,6 +745,20 @@ export default function MyDishes({ t, lang }: { t: (k: string, p?: Record<string
                   aria-label={t('home.more')} title={t('home.more')} aria-haspopup="menu" aria-expanded={menuOpenId === d.id}>
                   <MoreIcon size={20} />
                 </button>
+                {/* Link-copied confirmation — the SAME small rounded-rect
+                    popup the kebab's own menu uses (.row-menu +
+                    .row-menu-backdrop), not a native alert(): dismissed by
+                    tapping anywhere, just like that menu. */}
+                {linkCopiedId === d.id && (
+                  <>
+                    <div className="row-menu-backdrop" onClick={() => setLinkCopiedId(null)} aria-hidden />
+                    <div className="row-menu" role="status">
+                      <p style={{ margin: 0, padding: '11px 14px', fontSize: 'var(--fs-caption)', color: 'var(--ink-soft)', fontWeight: 500 }}>
+                        {t('post.link.copied')}
+                      </p>
+                    </div>
+                  </>
+                )}
                 {menuOpenId === d.id && (
                   <>
                     <div className="row-menu-backdrop" onClick={() => setMenuOpenId(null)} aria-hidden />

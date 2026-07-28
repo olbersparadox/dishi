@@ -74,7 +74,12 @@ export default function FeedCard({ item, onBookmarked }: {
   const chopColor = chopColorFor(item.author.username);
 
   return (
-    <article className="rated-dish-row">
+    // .rated-dish-row's entrance animation permanently leaves a resolved
+    // (non-"none") transform behind even after finishing (see MyDishes.tsx's
+    // own note on this) — that silently turns the row into a containing
+    // block for any position:fixed descendant. FeedCard has none today, but
+    // detaching the animation once done keeps this row honest the same way.
+    <article className="rated-dish-row" onAnimationEnd={e => { e.currentTarget.style.animation = 'none'; }}>
       <div className="duel-pair resolving">
         <div className="duel-option feed-side feed-post">
           <DuelSide

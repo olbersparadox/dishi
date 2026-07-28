@@ -4,7 +4,9 @@
 //
 // Mounts inside the shared ExplainModal (same scrim, same paper card, same
 // dismissal as UsernameSheet and every other explainer) and styles with
-// existing classes only — .field, .btn primary large, .label. No new CSS.
+// existing classes only — .field, .label, and (owner call) the EXACT
+// Cancel/Save icon-circle pair every dish/restaurant name-edit site uses
+// (.icon-btn.cancel + .icon-btn.save/.dirty). No new CSS.
 //
 // The VERDICT is shown before you publish, never derived silently: a post may
 // carry any verdict (owner call 2026-07-28), so a person publishing 唔啱我 must
@@ -13,7 +15,7 @@ import { useState } from 'react';
 import { useLang } from '@/lib/i18n';
 import ExplainModal from './ExplainModal';
 import DishName from './DishName';
-import { GlobeIcon } from './icons';
+import { GlobeIcon, CloseIcon } from './icons';
 import { wordKeyFor } from '@/lib/flickWords';
 import { POST_REASON_MAX, normalizeReason } from '@/lib/posts';
 
@@ -90,13 +92,13 @@ export default function PostSheet({ dish, mode = 'publish', onClose, onSaved }: 
       extra={
         <>
           {/* Same dish-name treatment 食自己 uses — .card-title + DishName,
-              not a hand-rolled bold <p> — and the SAME verdict styling
-              (.journal-verdict) rather than a plain .label, so what's about
-              to publish reads exactly like the row it came from. */}
+              not a hand-rolled bold <p> — so what's about to publish reads
+              exactly like the row it came from. The verdict word itself
+              isn't shown here (owner call) — it still drives the reason
+              placeholder below. */}
           <div className="card-title" style={{ marginTop: 12 }}>
             <DishName name={dish.name} name_zh={dish.name_zh} />
           </div>
-          <div className="journal-verdict" style={{ textAlign: 'left', marginTop: 2 }}>{verdict}</div>
           {dish.score < 0 && (
             // Said out loud rather than left to be discovered on the page: the
             // person is publishing a bad verdict about a real restaurant.
@@ -114,25 +116,26 @@ export default function PostSheet({ dish, mode = 'publish', onClose, onSaved }: 
         </>
       }
       footer={
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, marginTop: 16 }}>
-          {/* Black circle publish icon (owner call) — replaces the old
-              .btn.primary.large text button, same shell every other
-              ExplainModal action uses (.ok-circle). Vermillion ONLY when an
-              already-published post has an edited reason — the app's "you
-              have unsaved edits on a save action" exception (CLAUDE.md:
-              wired at every dish-edit site), not a general publish colour. */}
-          <button type="button"
-            className={`ok-circle${dish.posted && dirty ? ' dirty' : ''}`}
-            disabled={saving}
-            onClick={publish}
-            aria-label={dish.posted ? t('post.update') : t(mode === 'share' ? 'post.share.cta' : 'post.publish')}>
-            <GlobeIcon size={26} />
-          </button>
+        // The EXACT same Cancel(✕)/Save(✓) circle pair every dish/restaurant
+        // name-edit site uses (.icon-btn.cancel left, .icon-btn.save right,
+        // save turning vermillion via .dirty the moment the reason actually
+        // changes) — not a new button shape. 收回/unpublish only exists once
+        // there's something posted to take back.
+        <div style={{ display: 'flex', gap: 8, marginTop: 16, justifyContent: 'center' }}>
           {dish.posted && (
-            <button type="button" className="btn ghost small" disabled={saving} onClick={unpublish}>
-              {t('post.unpublish')}
+            <button type="button" className="icon-btn cancel" disabled={saving}
+              onClick={unpublish} aria-label={t('post.unpublish')} title={t('post.unpublish')}>
+              <CloseIcon size={16} />
             </button>
           )}
+          <button type="button"
+            className={`icon-btn save${dish.posted && dirty ? ' dirty' : ''}`}
+            disabled={saving}
+            onClick={publish}
+            aria-label={dish.posted ? t('post.update') : t(mode === 'share' ? 'post.share.cta' : 'post.publish')}
+            title={dish.posted ? t('post.update') : t(mode === 'share' ? 'post.share.cta' : 'post.publish')}>
+            {saving ? <span className="icon-btn-spinner" aria-hidden /> : <GlobeIcon size={16} />}
+          </button>
         </div>
       }
       onClose={onClose}

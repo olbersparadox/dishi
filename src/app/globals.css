@@ -698,13 +698,6 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
 }
 .ok-circle:hover { transform: translateY(-1px); }
-/* PostSheet's publish circle only — vermillion the moment an already-
-   published post's reason actually changes, the same "unsaved edit on a save
-   action" exception .btn.primary.dirty carries everywhere else (CLAUDE.md:
-   wired app-wide at every dish-edit site). Every other .ok-circle usage
-   (dismiss/confirm) never gets this class, so this is inert elsewhere. */
-.ok-circle.dirty { background: var(--seal); }
-.ok-circle:disabled { opacity: 0.6; cursor: default; }
 .ok-circle-wrap { display: flex; justify-content: center; margin: 20px 0 4px; }
 .grow-okwrap { display: flex; justify-content: center; margin: 26px 0 4px; }
 @media (prefers-reduced-motion: reduce) {
