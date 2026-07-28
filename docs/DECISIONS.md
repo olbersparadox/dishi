@@ -4102,3 +4102,282 @@ before relying on it — no live data touched. `tests/pickContext.test.ts` and
 `tests/feed.test.ts` pin the two re-sanitize/pass-through sites; the rest is
 mechanical write-site coverage tsc + the existing `sanitizeIngredients`
 suite already prove.
+
+---
+
+# Batch: sharing — messenger share + per-dish links (owner design session, 2026-07-28) — SHIPPED
+
+Shipped 2026-07-28 in seven commits: `d9f26b7` (share helper), `ee619ed`
+(visibility tier), `810f776` (bookmarks published-check), `8a3ffbc`
+(permalink + OG), `3515ba4` (bookmark-as-signup), `98492e9` (dish share from
+食自己), `a5f8f09` (Taste AI share swipe + profile OG).
+
+**Three build-time corrections to the spec below, all deliberate:**
+
+1. **The permalink is keyed on the DISH id, not the post id.** The spec asked
+   for the post id so unpublishing would break the link. It breaks either way
+   — the lookup goes THROUGH `dish_posts`, so a revoked post resolves to
+   nothing and 404s — and the dish id is what `DossierAnchor`, `/api/bookmarks`
+   and `FeedCard` already speak, so keying on it means one id rather than three
+   surfaces translating between two.
+2. **`SignInSheet` must NOT resume off `onAuthStateChange`.** GoTrue emits
+   `SIGNED_IN` for a session that ALREADY exists, so the sheet fired on mount,
+   resumed the bookmark, took the same 401 and reopened itself — measured at 3
+   POSTs per single tap. Filtering the event name cannot fix it; a global
+   listener fundamentally cannot distinguish "just signed in" from "was signed
+   in". `OtpForm` now reports its own successful verify. Reachable in
+   production via a stale cookie that 401s while the client still holds a
+   session object.
+3. **The messenger row shipped WITHOUT the brand assets, rather than waiting
+   on them.** Each mark hides itself on error, so the row is fully functional
+   label-only today and gains the logos on a pure file drop. The assets remain
+   owner-supplied (trademarks) — see the BACKLOG follow-up.
+
+**Also corrected during the build:** `/api/bookmarks` had never checked that a
+dish was published at all — safe only by accident, because every dish id a
+client could obtain came from the feed. The permalink puts dish ids in URLs,
+so the check is now explicit (existence, not tier: a link-only post must pass,
+since bookmarking is what its link exists to invite).
+
+The spec as designed with the owner follows, verbatim.
+
+# Batch: sharing — messenger share + per-dish links (owner design session, 2026-07-28)
+
+**STATUS 2026-07-28: items 1, 2, 3, 5, 6 and HALF of 4 SHIPPED** (`d9f26b7`,
+`ee619ed`, `810f776`, `8a3ffbc`, `3515ba4`, `98492e9`). Full entries move to
+DECISIONS.md when the batch closes. ONE thing remains open:
+
+- [ ] **4b. The Taste AI second swipe — sharing the PROFILE.** *(Fable — new
+  visible surface.)* Blocked on four brand assets in `public/msg-logos/`
+  (WhatsApp, Telegram, WeChat, Line), which must come from each brand's own
+  official resources — do NOT generate approximations of real trademarks.
+  Everything else it needs exists: `lib/share.ts` (item 1) and the settled
+  design below (one rounded-rect wrapper, four logos inside, any tap opens
+  the OS share sheet). Gate on a claimed username; unclaimed sees the claim
+  prompt, which already lives on that card.
+
+Two build-time corrections worth carrying into DECISIONS.md, both recorded in
+the commits: the permalink is keyed on the DISH id, not the post id (it still
+404s on unpublish, since the lookup goes through dish_posts, and the dish id
+is what the anchor, the bookmark API and FeedCard all already speak); and
+SignInSheet must NOT resume off `onAuthStateChange` — GoTrue emits SIGNED_IN
+for an already-existing session, which looped one tap into three POSTs until
+OtpForm learned to report its own verify.
+
+
+The last link in the stream-2 chain: taste-only export ✅ → public page ✅ →
+posts / 食記 feed ✅ → **messenger share (this batch)**. Designed with the
+owner 2026-07-28 against the live surfaces; the settled inputs below are
+decisions, not suggestions.
+
+## Settled inputs — do not re-litigate
+
+- **TWO share surfaces, two different artifacts.** (1) The Taste AI card's
+  State B gains a SECOND swipe that shares the person's profile
+  (`dishi.me/[username]`). (2) MyDishes' existing 3-dot row menu gains a
+  Share item that shares ONE dish. The owner's framing: sharing a whole
+  profile page with every published dish is a different act from sending a
+  friend one dish, and the product needs both.
+- **Messenger row = four logos inside ONE rounded rectangle; any tap opens
+  the OS share sheet.** Not four separately-tappable per-app buttons (that
+  is the AI-host row's treatment, and it would claim per-app integrations
+  that don't exist for WeChat/Line). The single wrapper makes the logos
+  ILLUSTRATIVE of the destination category, which is why this is honest —
+  owner's own solution, and it is better than the per-app deep-linking
+  first proposed in review. Logos: WhatsApp, Telegram, WeChat, Line.
+- **LINK-ONLY TIER (owner call, over review's recommendation).** A shared
+  dish does NOT become a normal public post. See the tier item below, and
+  the recorded risk that follows it.
+- **`/i` intent-landing route: CLOSED.** BACKLOG's own condition ("if
+  nothing claims it by the time the share chain ships, close it") is met —
+  its original consumer (persona-issued links) died with the taste-only
+  export rewrite, and nothing in this batch needs it: the intent is carried
+  by the page URL plus one pending action, not a separate landing route.
+  Its CONTRACT survives, honoured by item 5 below: unauth → login → return
+  with intent preserved, nothing commits on tap.
+
+## 1. [S] Extract the share helper — do this FIRST
+
+`navigator.share` → `clipboard.writeText` → `alert` exists TWICE already,
+near-identically and with divergent error handling:
+`src/app/scan/page.tsx` (~160) and `src/app/table/page.tsx` (~418). Both
+predate this batch. Extract one helper to `src/lib/share.ts` and mount it at
+both existing sites plus the two new ones — a third and fourth copy is the
+"reuse, don't imitate" violation this repo has already paid for once.
+Must swallow a cancelled share (not an error) and fall back to copy-link
+where `navigator.share` is absent (desktop).
+
+## 2. [F] `dish_posts.visibility` — the link-only tier
+
+`'public' | 'link'`, NOT NULL, check-constrained, **default `'public'`** so
+every existing post keeps today's behaviour on migration.
+
+- `'public'` — today's semantics: dossier anchor + 大家 feed + persona
+  sourcing pool.
+- `'link'` — reachable ONLY at its own permalink (item 3). Absent from the
+  dossier, the feed, and persona sourcing.
+
+**The failure mode, and it is the whole risk of this item:** THREE existing
+read paths must gain `.eq('visibility','public')`, and missing any one
+silently republishes every link-only post — the repo's known
+silently-wrong-write-path class, in its read form:
+
+| Path | Change |
+|---|---|
+| `src/app/api/feed/route.ts` (~54) | filter to `public` |
+| `src/app/api/cron/persona-daily/route.ts` (~52) | filter to `public` |
+| `src/app/[username]/page.tsx` (~87) | filter to `public` |
+| `src/app/api/my/dishes/route.ts` (~151) | **NO filter** — the owner's own view of their own posts; must additionally RETURN the tier so the row can render the right glyph |
+
+Tests must assert a link-only post is ABSENT from feed/dossier/persona
+output — a test that only checks public posts appear would pass against a
+missing filter.
+
+`/api/posts` POST accepts `visibility`, defaulting to `'public'` for
+back-compat. DELETE semantics unchanged (revoking consent deletes the row,
+whatever its tier). Publishing a link-only dish via the globe UPGRADES
+`link` → `public`.
+
+**MyDishes row now has three states, and the glyphs must distinguish them:**
+no badge (unposted) · a LINK glyph (link-only) · the existing GlobeIcon
+(public). "The world can find this" and "only people with the link can" must
+not render identically.
+
+**First share of a dish still needs the consent moment.** Reuse `PostSheet`
+in a share mode — same component, different framing — because the repo's
+rule that a person publishing 唔啱我 must SEE that verdict word before
+consenting applies just as much when the audience is one friend. Copy must
+be honest about what link-only means (有連結嘅人就睇到), never implying
+private. A repeat share of an already-`link` post skips the sheet and goes
+straight to the OS share sheet.
+
+### RECORDED RISK — pool starvation (review's objection, owner overruled)
+
+Review recommended ONE tier (share = normal public post) and the owner chose
+link-only after weighing both objections raised. The privacy objection
+(a forwarded link is functionally public) the owner answered directly and
+reasonably: a dish is not sensitive material and links do not spread in
+practice. The objection that remains LIVE and is recorded here rather than
+lost is strategic, not privacy:
+
+> A link-only post feeds nothing — not the 大家 feed, not the dossier, not
+> persona sourcing. Friend-sharing is the EASY path and publishing the
+> deliberate one, so most content may land in the tier that reaches nobody.
+> Distribution is taste-rank and nothing else (no social graph, decision 2),
+> so a starved pool means posts reach no one — the exact cold-start hole
+> personas were invented to paper over, and today's live persona run is
+> already honestly empty for want of published material.
+
+**If the 大家 feed stays empty in the field, look here first.** The escape
+hatch is cheap and deliberate: flipping the default, or making the share
+flow default to `public` with link-only as the opt-out, is a copy + default
+change, not a migration.
+
+## 3. [F] `dishi.me/[username]/d/[postId]` — the per-dish permalink
+
+Nested under the username on purpose: the identity IS the context ("jerry's
+take on this dish"), and stripping the last segment lands on the full
+dossier — a free, discoverable affordance.
+
+- **Keyed on the POST id, not the dish id**, so unpublishing breaks the
+  link. The URL's lifetime must equal the consent's lifetime.
+- Renders BOTH tiers (that is the point of the tier).
+- **Reuses `projectDossier` — no second privacy gate.** The projection
+  sanitizes WHAT is exposed; the page decides WHICH rows to fetch. So this
+  page fetches one post row and passes a single-anchor dossier through the
+  SAME function. Do not add a parallel projection; "every public byte passes
+  projectDossier" is the contract.
+- `DossierAnchor` ALREADY carries a stable `id` (plus `diet`, `heaviness`,
+  `ingredients`) — an earlier draft of this spec asked for it to be added.
+  Nothing to do; build the permalink on it.
+- **Trap:** `projectDossier` DEDUPES same-dish-same-restaurant to the most
+  recent post. A permalink to a deduped-away post must still resolve (it was
+  explicitly shared) — verify the single-anchor path can't be swallowed by
+  its own dedupe.
+- **Mounts `FeedCard`.** `PublicDossier` already renders its anchors by
+  mounting `FeedCard` directly (author, photo, verdict, reason, chips,
+  bookmark), so the permalink mounts the SAME component with a single item —
+  not `DuelSide` beneath it, and certainly not a third card. The dossier,
+  the 大家 feed and this permalink are then literally one card.
+
+**OG metadata** — the highest-leverage half of "messenger share", since
+`generateMetadata` currently returns `{ title }` and a bare URL in WhatsApp
+reads as spam. Dish permalink gets a real card for free: the dish photo is
+already a public storage URL (`getPublicUrl`); title = dish name,
+description = verdict + reason. Profile page gets title + description
+(識 N 味 · N 道菜公開). **Everything in an OG card is visible to anyone the
+link is forwarded to and is CACHED BY CRAWLERS, so every byte of it must
+come through `projectDossier` — never assembled from raw rows at the
+metadata layer, which is the easy mistake here because `generateMetadata`
+runs separately from the page render and is tempting to feed directly.**
+(An earlier draft of this spec also required the OG card to respect
+`hideRestaurants`. That feature was KILLED — restaurant names on a public
+page are unconditional now, by owner decision. Nothing to respect.)
+
+**Share text must carry the VERDICT**, for exactly the reason the card must:
+a dish shown alone reads as a recommendation, and a negative post shared as
+a bare photo misrepresents the person who shared it.
+
+## 4. [F] The messenger row — one component, two mount points
+
+Per the settled input: four logos, one rounded-rect wrapper, any tap →
+`lib/share.ts`. Mounted at (a) Taste AI State B's new second swipe, sharing
+`dishi.me/[username]`; (b) the dish share flow, sharing the permalink.
+
+- Chassis is `.persona-hosts` / `.persona-slide` — the second swipe must be
+  visually parallel to the AI-host swipe (same divider, same slide anatomy).
+  One surface, two audiences: your AI, or a person.
+- **Gate on a CLAIMED username** — only claimed usernames resolve publicly
+  (legacy handles 404 by design). Unclaimed sees the claim prompt instead,
+  which is a natural motivator and already lives on this exact card.
+- **Asset dependency:** `public/msg-logos/` does not exist. Needs four brand
+  assets (WhatsApp, Telegram, WeChat, Line) from official brand resources —
+  do NOT generate approximations of real trademarks.
+
+## 5. [F] Receive: the bookmark IS the signup CTA
+
+The strategic core of the batch. Today's public page ends in a passive
+brochure line (建立你自己的味覺 AI → pointing at `/`). A recipient looking at
+a dish, a verdict and a reason wants exactly one thing — to eat it — and
+想食 is an affordance that already exists on every feed card, already writes
+into 待評, and already needs an account.
+
+**Sharpened by the live code (checked 2026-07-28): the button is ALREADY
+THERE AND ALREADY BROKEN for exactly the people a share aims at.**
+`PublicDossier` mounts `FeedCard` for visitors, bookmark included; a
+signed-out tap POSTs `/api/bookmarks`, takes a 401, and lands in
+`FeedCard`'s silent `failed` state. So this item is not "add a CTA" — it is
+"make the affordance that already renders do the obvious thing instead of
+dying quietly." Smaller than it looks, and worth more.
+
+```
+tap link → dish page (photo · verdict · reason · dishi.jerry)
+         → tap 想食
+         → not signed in? email + 6-digit OTP, inline, in place
+         → bookmark lands in 待評 · account exists · first dish already queued
+```
+
+Nothing commits on tap; the intent survives the OTP round trip and completes
+after (this is `/i`'s contract, honoured here — see settled inputs). A new
+user's first state is not an empty app but a queue holding a dish a friend
+vouched for. Costs no new concepts: OTP auth, `/api/bookmarks` and 待評 all
+exist. Auth is email-OTP only (no OAuth), which is already low-friction.
+
+## 6. [S] `/api/bookmarks` must verify the dish is posted
+
+Today it checks only that the caller doesn't OWN the dish — there is no
+`dish_posts` check. That is safe purely by accident: every dish id a client
+can currently obtain comes from the feed, which serves published material
+only. **Item 3 makes dish/post ids handleable by anyone**, so this must gain
+an "a post exists for this dish" check. Note the check is post-EXISTS, not
+post-is-public: a link-only dish is legitimately bookmarkable by its
+intended recipient, who is the whole point.
+
+## Sequencing
+
+1 (helper) → 2 (tier + filters, with the absence tests) → 3 (permalink + OG)
+→ 6 (bookmarks check, must land WITH or before 3) → 5 (receive loop) →
+4 (messenger row + both mounts, needs the assets).
+
+Items 3–5 are the acquisition loop and are worth more than items 1–2; but
+2 must precede 3 or the permalink has no tier to render.
