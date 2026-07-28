@@ -131,10 +131,12 @@ export default function PostSheet({ dish, onClose, onSaved }: {
           {dish.posted && (
             // GlobeOffIcon, not a generic ✕ (owner call) — the action is
             // specifically "take this off the public page", not a plain
-            // cancel, so the icon says so.
+            // cancel, so the icon says so. Sized bigger than its sibling
+            // icon-btn icons (owner call) so the slash actually reads as
+            // crossing the WHOLE 38px button, not just a small glyph inside it.
             <button type="button" className="icon-btn cancel" disabled={saving}
               onClick={unpublish} aria-label={t('post.unpublish')} title={t('post.unpublish')}>
-              <GlobeOffIcon size={16} />
+              <GlobeOffIcon size={32} />
             </button>
           )}
           <button type="button"
