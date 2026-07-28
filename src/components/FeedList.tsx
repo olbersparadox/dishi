@@ -20,6 +20,31 @@ type State =
   | { kind: 'ready'; items: Item[]; personaStatus: string }
   | { kind: 'failed' };
 
+// Shape now, not a blank flash + "Looking…" — the same treatment 食自己's
+// JournalSkeleton (MyDishes.tsx) uses, reusing its .skel-box pulse block,
+// just shaped for THIS card (big photo, then an avatar+name row, then a
+// dish-name-sized bar) instead of the journal row's thumbnail+lines.
+function FeedSkeleton() {
+  return (
+    <div aria-hidden>
+      {[0, 1].map(i => (
+        <article className="rated-dish-row" key={`feed-skel-${i}`}>
+          <div className="duel-pair resolving">
+            <div className="duel-option feed-side feed-post">
+              <div className="skel-box" style={{ aspectRatio: '4 / 3', borderRadius: 10 }} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '10px 10px 0' }}>
+                <span className="skel-box" style={{ width: 28, height: 28, borderRadius: '50%' }} />
+                <span className="skel-box" style={{ width: 90, height: 16, borderRadius: 6 }} />
+              </div>
+              <span className="skel-box" style={{ width: '55%', height: 20, borderRadius: 6, margin: '15px auto 0', display: 'block' }} />
+            </div>
+          </div>
+        </article>
+      ))}
+    </div>
+  );
+}
+
 export default function FeedList() {
   const { t, lang } = useLang();
   const [state, setState] = useState<State>({ kind: 'loading' });
@@ -40,7 +65,7 @@ export default function FeedList() {
     return () => { live = false; };
   }, [lang]);
 
-  if (state.kind === 'loading') return <p className="card-meta">{t('feed.loading')}</p>;
+  if (state.kind === 'loading') return <FeedSkeleton />;
   if (state.kind === 'failed') return <p className="card-meta">{t('feed.failed')}</p>;
 
   // The daily job breaking must not look like a quiet day. 'empty' is honest

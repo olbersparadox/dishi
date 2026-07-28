@@ -1798,13 +1798,11 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
    the shared .duel-option-rest size) — the restaurant/district line one step
    bigger than the shared default, owner call 2026-07-28. */
 .feed-post .duel-option-rest { font-size: var(--fs-subtitle-a); margin-bottom: 15px; }
-/* card-title becomes a row here (owner call, bookmark-count-in-title-row) so
-   the bookmark control (titleAside) can sit at the row's far side, on the
-   SAME line as the primary name — not a block above or below it. Every other
-   DuelSide caller never passes titleAside, so their card-title stays the
-   plain non-flex block it always was. */
-.feed-post .card-title { margin-top: 15px; display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
-.feed-post .card-title .dishname { min-width: 0; flex: 1; }
+/* card-title stays the plain centered block it always was — the bookmark
+   control (titleAside) is an ABSOLUTE overlay in its top-right corner, not a
+   flex sibling, because a flex sibling narrows the name's own box and pushes
+   it off-centre (owner correction: the aside must not move the name at all). */
+.feed-post .card-title { margin-top: 15px; position: relative; }
 /* The author row DuelSide's afterPhoto slot renders between the photo and the
    dish name (owner call 2026-07-28: chop + dishi.username at the same big/
    bold type the claimed username uses on the taste card — .username-claim-
@@ -1838,24 +1836,30 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
    owner call: chips must line up with the chop on the left and 一掃而空 on
    the right, not with the narrower 8px card edge. */
 .feed-chips { padding: 0 10px; }
-/* Bookmark: muted count+icon in the dish-name row (titleAside), owner call —
-   shown to EVERY viewer including the post's own author (the count is social
-   proof, not a personal affordance). Idle = ink-soft; a successful tap turns
-   it vermillion (owner call) — the one sanctioned use of --seal outside the
-   seal stamp / export CTA / dirty-save button, because it marks the SAME
-   thing those do: an action just committed. Disabled (saving, already
-   bookmarked, or the viewer's own dish) mutes it further rather than hiding
-   it, so the count stays visible either way. */
-.feed-bookmark-wrap { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; flex-shrink: 0; }
+.feed-chips > div { justify-content: center; }
+/* Bookmark: muted count+icon overlaid in the dish-name row's top-right corner
+   (titleAside), owner call — shown to EVERY viewer including the post's own
+   author (the count is social proof, not a personal affordance). Idle =
+   ink-soft; a successful tap turns it vermillion (owner call) — the one
+   sanctioned use of --seal outside the seal stamp / export CTA / dirty-save
+   button, because it marks the SAME thing those do: an action just
+   committed. On your own post it stays enabled (tapping explains why,
+   ExplainModal, rather than doing nothing) but reads muted via .own. */
+.feed-bookmark-wrap { position: absolute; top: 0; right: 10px; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
 .feed-bookmark-btn {
   display: inline-flex; align-items: center; gap: 4px;
-  border: none; background: none; padding: 2px 0; color: var(--ink-soft); font-size: var(--fs-caption);
+  border: none; background: none; padding: 2px 0; color: var(--ink-soft);
+  /* Non-serif and bigger than the card-title's own type (owner correction) —
+     this is a UI count, not part of the dish-name typographic treatment it
+     happens to sit inside. */
+  font-family: var(--font-body), system-ui, sans-serif; font-size: var(--fs-subtitle-a); font-weight: 700;
 }
 .feed-bookmark-btn:not(:disabled):hover, .feed-bookmark-btn:not(:disabled):focus-visible { color: var(--ink); }
 .feed-bookmark-btn.bookmarked { color: var(--seal); }
+.feed-bookmark-btn.own { opacity: 0.6; }
 .feed-bookmark-btn:disabled { opacity: 0.6; cursor: default; }
-.feed-bookmark-count { font-weight: 600; }
-.feed-bookmark-failed { font-size: var(--fs-micro); color: var(--ink-soft); }
+.feed-bookmark-count { font-weight: 700; }
+.feed-bookmark-failed { font-size: var(--fs-micro); color: var(--ink-soft); font-family: var(--font-body), system-ui, sans-serif; }
 .identity-answers { display: flex; justify-content: center; gap: 34px; margin-top: 16px; }
 .identity-answer {
   display: flex; flex-direction: column; align-items: center; gap: 6px;

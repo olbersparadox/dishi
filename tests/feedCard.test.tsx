@@ -10,14 +10,15 @@
 //      invented to fill the slot);
 //   4. every card carries the bookmark affordance, whatever the author,
 //      INCLUDING the viewer's own post — the count is social proof, not a
-//      personal affordance, so it stays visible; only the TAP is refused on
-//      an own post (disabled client-side, matching the API's own refusal);
+//      personal affordance, so it stays visible AND tappable; tapping it on
+//      your own post opens an explainer instead of calling the API (which
+//      would 400 it anyway);
 //   5. PHOTO-FORWARD FORMAT (owner, 2026-07-28): the card mounts the actual
 //      DuelSide component (large photo / name / location), not a lookalike —
 //      asserted here by checking for DuelSide's own .duel-photo img, which a
 //      hand-rolled copy would not produce.
 import { afterEach, describe, expect, it } from 'vitest';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { LanguageProvider } from '../src/lib/i18n';
 import FeedCard from '../src/components/FeedCard';
 import type { FeedItem } from '../src/lib/feed';
@@ -70,11 +71,13 @@ describe('FeedCard — one card, whatever the author', () => {
     expect(done.disabled).toBe(true);
   });
 
-  it("disables the bookmark tap on the viewer's own post — the API would refuse it — but still shows it", () => {
+  it("on the viewer's own post, tapping bookmark explains rather than erroring — the count still shows", () => {
     card({ ...base, own: true, bookmarkCount: 3 });
     const btn = screen.getByRole('button', { name: '想食' }) as HTMLButtonElement;
-    expect(btn.disabled).toBe(true);
+    expect(btn.disabled).toBe(false); // tappable — it opens the explainer, not a dead control
     expect(screen.getByText('3')).toBeTruthy();
+    fireEvent.click(btn);
+    expect(screen.getByText('無法收藏自己發佈的菜式')).toBeTruthy();
     // Still a full card otherwise: it is in the pool, not a stub.
     expect(screen.getByText('dishi.jerry')).toBeTruthy();
     expect(screen.getByText('唔會再食')).toBeTruthy();

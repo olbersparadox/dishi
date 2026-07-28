@@ -80,11 +80,12 @@ export default function DuelSide({ dish, pair = ZH_PRIMARY_PAIR, afterPhoto, aft
    * mirroring MyDishes.tsx's own card-title-then-chips sibling layout. Other
    * callers pass nothing, so their anatomy is byte-for-byte unchanged. */
   afterName?: React.ReactNode;
-  /** Optional content INSIDE the card-title row, pushed to the far side of the
-   * dish name — the feed post card's bookmark count+icon is the only current
-   * user (needs to sit in the name's own row, not a sibling block above/below
-   * it). Only .feed-post makes card-title a flex row for this; every other
-   * caller renders nothing here, so their layout is byte-for-byte unchanged. */
+  /** Optional content overlaid in card-title's top-right corner (position:
+   * absolute, .feed-post scope only) — the feed post card's bookmark
+   * count+icon is the only current user. Absolute, not a flex sibling: a flex
+   * sibling narrows the name's own box and pushes it off-centre, which an
+   * aside must never do. Every other caller renders nothing here, so their
+   * layout (and centering) is byte-for-byte unchanged. */
   titleAside?: React.ReactNode;
 }) {
   const { lang } = useLang();

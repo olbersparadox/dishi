@@ -19,6 +19,7 @@ import { useLang } from '@/lib/i18n';
 import DuelSide from './DuelSide';
 import Chop from './Chop';
 import DishInfoDisplay from './DishInfoDisplay';
+import ExplainModal from './ExplainModal';
 import { BookmarkIcon } from './icons';
 import { chopColorFor } from '@/lib/chop';
 import type { FeedItem } from '@/lib/feed';
@@ -30,11 +31,15 @@ export default function FeedCard({ item, onBookmarked }: {
   const { t, pair } = useLang();
   const [saving, setSaving] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [showOwnExplain, setShowOwnExplain] = useState(false);
   // Seeded from the server count, then bumped locally on a successful tap —
   // the server isn't re-fetched just to reflect the viewer's own action back.
   const [count, setCount] = useState(item.bookmarkCount ?? 0);
 
+  // On your own post the tap isn't a no-op — it explains why (the API would
+  // 400 it anyway), same as tapping anywhere else on your own card.
   const bookmark = async () => {
+    if (item.own) { setShowOwnExplain(true); return; }
     if (saving || item.bookmarked || !item.dish.id) return;
     setSaving(true);
     setFailed(false);
@@ -60,7 +65,14 @@ export default function FeedCard({ item, onBookmarked }: {
   const chopColor = chopColorFor(item.author.username);
 
   return (
-    <article className="rated-dish-row">
+    <article
+      className="rated-dish-row"
+      // The whole card is a shortcut to the same explainer the bookmark icon
+      // opens — only on your own post; every other post stays non-tappable
+      // (DuelSide's static-div convention, unchanged).
+      onClick={item.own ? () => setShowOwnExplain(true) : undefined}
+      style={item.own ? { cursor: 'pointer' } : undefined}
+    >
       <div className="duel-pair resolving">
         <div className="duel-option feed-side feed-post">
           <DuelSide
@@ -109,13 +121,13 @@ export default function FeedCard({ item, onBookmarked }: {
               <div className="feed-bookmark-wrap">
                 <button
                   type="button"
-                  className={`feed-bookmark-btn${item.bookmarked ? ' bookmarked' : ''}`}
-                  disabled={saving || !!item.bookmarked || !!item.own}
-                  onClick={bookmark}
+                  className={`feed-bookmark-btn${item.bookmarked ? ' bookmarked' : ''}${item.own ? ' own' : ''}`}
+                  disabled={saving || !!item.bookmarked}
+                  onClick={(e) => { e.stopPropagation(); bookmark(); }}
                   aria-label={t(item.bookmarked ? 'feed.bookmarked' : 'feed.bookmark')}
                 >
                   <span className="feed-bookmark-count">{count}</span>
-                  <BookmarkIcon size={16} filled={!!item.bookmarked} />
+                  <BookmarkIcon size={20} filled={!!item.bookmarked} />
                 </button>
                 {failed && <span className="feed-bookmark-failed">{t('feed.bookmark.failed')}</span>}
               </div>
@@ -123,6 +135,13 @@ export default function FeedCard({ item, onBookmarked }: {
           />
         </div>
       </div>
+      {showOwnExplain && (
+        <ExplainModal
+          title={t('feed.bookmark.own.title')}
+          body={t('feed.bookmark.own.body')}
+          onClose={() => setShowOwnExplain(false)}
+        />
+      )}
     </article>
   );
 }

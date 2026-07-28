@@ -612,7 +612,6 @@ export const dict: Record<string, { zh: string; en: string }> = {
   // name the actual visibility split more plainly than Journal/Everyone did.
   'home.tab.mine': { zh: '食自己', en: 'Private' },
   'home.tab.feed': { zh: '大家食', en: 'Public' },
-  'feed.loading': { zh: '搵緊…', en: 'Looking…' },
   'feed.failed': { zh: '載入唔到，稍後再試', en: "Couldn't load — try again later" },
   // Says what is actually true of a chronological pool. The old line ("nothing
   // matching your taste today") described a ranking that no longer runs — copy
@@ -621,6 +620,11 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'feed.bookmark': { zh: '想食', en: 'Want to eat' },
   'feed.bookmarked': { zh: '已加入待評', en: 'In your queue' },
   'feed.bookmark.failed': { zh: '加唔到', en: "Couldn't add" },
+  'feed.bookmark.own.title': { zh: '無法收藏自己發佈的菜式', en: 'Can’t bookmark your own post' },
+  'feed.bookmark.own.body': {
+    zh: '這個數字代表其他人想試這道菜；你已經吃過了，不用再加入自己的待評清單。',
+    en: 'This count is other people wanting to try it — you already have, so it doesn’t need to go in your own queue.',
+  },
   // Said out loud on purpose: a broken daily job must never be indistinguishable
   // from a genuinely quiet day.
   'feed.persona.failed': { zh: '（今日的每日精選未更新到。）', en: "(Today's daily picks didn't update.)" },
