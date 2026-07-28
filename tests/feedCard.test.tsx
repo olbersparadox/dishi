@@ -11,7 +11,11 @@
 //   4. every card carries the bookmark affordance, whatever the author —
 //      without it the feed is pure consumption and generates nothing — EXCEPT
 //      the viewer's own post, which cannot be bookmarked at all (the API
-//      refuses a dish you own), so the button would only ever error.
+//      refuses a dish you own), so the button would only ever error;
+//   5. PHOTO-FORWARD FORMAT (owner, 2026-07-28): the card mounts the actual
+//      DuelSide component (large photo / name / location), not a lookalike —
+//      asserted here by checking for DuelSide's own .duel-photo img, which a
+//      hand-rolled copy would not produce.
 import { afterEach, describe, expect, it } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 import { LanguageProvider } from '../src/lib/i18n';
@@ -71,5 +75,20 @@ describe('FeedCard — one card, whatever the author', () => {
     // Still a full card otherwise: it is in the pool, not a stub.
     expect(screen.getByText('dishi.jerry')).toBeTruthy();
     expect(screen.getByText('唔會再食')).toBeTruthy();
+  });
+
+  it('mounts the real DuelSide component — a photo renders its actual src, not a placeholder', () => {
+    // DuelSide's photo is alt="" (decorative — the name beside it is the text
+    // alternative), so it has no accessible "img" role; queried by tag instead.
+    const { container } = card({ ...base, dish: { ...base.dish, photo_url: 'https://example.com/goose.jpg' } });
+    const img = container.querySelector('img') as HTMLImageElement;
+    expect(img).toBeTruthy();
+    expect(img.className).toContain('duel-photo');
+    expect(img.src).toBe('https://example.com/goose.jpg');
+  });
+
+  it('with no photo, DuelSide renders its own blank block — no img tag invented', () => {
+    const { container } = card(base); // base.dish.photo_url is null
+    expect(container.querySelector('img')).toBeNull();
   });
 });

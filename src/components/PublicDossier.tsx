@@ -12,11 +12,12 @@
 // its posts. Do not add a copy/share-to-AI button to this page.
 import { useState } from 'react';
 import { TasteFormReveal } from './TasteForm';
+import DuelSide from './DuelSide';
 import { useLang, cuisineLabel } from '@/lib/i18n';
 import { type PublicDossier as Dossier } from '@/lib/dossier';
 
 export default function PublicDossier({ dossier, isOwner }: { dossier: Dossier; isOwner: boolean }) {
-  const { t, lang } = useLang();
+  const { t, lang, pair } = useLang();
   const [hide, setHide] = useState(dossier.hideRestaurants);
   const [saving, setSaving] = useState(false);
 
@@ -93,28 +94,29 @@ export default function PublicDossier({ dossier, isOwner }: { dossier: Dossier; 
         )}
       </div></div>
 
-      {/* The posted dishes — every line here is something this person chose to
+      {/* The posted dishes — every card here is something this person chose to
           publish (lib/dossier.ts). Posts may be negative, so the VERDICT rides
-          beside the name: without it a published dislike reads as a
-          recommendation, which is the one way this section could lie. */}
+          under the photo: without it a published dislike reads as a
+          recommendation, which is the one way this section could lie.
+          PHOTO-FORWARD FORMAT (owner, 2026-07-28): same DuelSide anatomy as
+          the 大家 feed card — mounted, not imitated (see FeedCard.tsx). */}
       {anchors.length > 0 && (
         <div className="card" style={{ marginTop: 14 }}><div className="card-body">
           <p className="label">{t('dossier.anchors')}</p>
-          {anchors.map((a, i) => {
-            const name = lang === 'zh'
-              ? [a.name_zh, a.name].filter(Boolean).join(' / ')
-              : [a.name, a.name_zh].filter(Boolean).join(' / ');
-            return (
-              <div key={i} style={{ margin: '10px 0' }}>
-                <p style={{ margin: 0 }}>
-                  {name}
-                  {a.restaurant && <span className="card-meta">　@ {a.restaurant}</span>}
-                </p>
-                <p className="card-meta" style={{ margin: '2px 0 0' }}>{t(a.verdict)}</p>
-                {a.reason && <p style={{ margin: '3px 0 0', fontSize: 13.5 }}>{a.reason}</p>}
+          {anchors.map((a, i) => (
+            <div key={i} style={{ margin: '14px 0' }}>
+              <div className="duel-pair resolving">
+                <div className="duel-option feed-side">
+                  <DuelSide
+                    dish={{ id: `${a.name_zh ?? a.name ?? 'anchor'}-${i}`, name: a.name ?? '', name_zh: a.name_zh, photo_url: a.photo_url, restaurant: a.restaurant }}
+                    pair={pair}
+                  />
+                </div>
               </div>
-            );
-          })}
+              <p className="card-meta" style={{ margin: '6px 0 0', textAlign: 'center' }}>{t(a.verdict)}</p>
+              {a.reason && <p style={{ margin: '3px 0 0', fontSize: 13.5, textAlign: 'center' }}>{a.reason}</p>}
+            </div>
+          ))}
           {isOwner && (
             <label className="card-meta" style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, cursor: 'pointer' }}>
               <input type="checkbox" checked={hide} disabled={saving} onChange={toggleHide} />

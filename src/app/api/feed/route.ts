@@ -52,7 +52,7 @@ export async function GET(req: NextRequest) {
   // render a single user post. Two queries, and the error is surfaced.
   const { data: rows, error: postsError } = await admin
     .from('dish_posts')
-    .select('id, reason, created_at, user_id, dish_id, dishes!inner(id, name, name_zh, cuisine, attributes, restaurant_id, restaurants(name))')
+    .select('id, reason, created_at, user_id, dish_id, dishes!inner(id, name, name_zh, cuisine, attributes, restaurant_id, photo_url, restaurants(name))')
     .order('created_at', { ascending: false })
     .limit(120);
   if (postsError) {
@@ -63,7 +63,8 @@ export async function GET(req: NextRequest) {
     id: string; reason: string | null; created_at: string; user_id: string; dish_id: string;
     dishes: {
       id: string; name: string | null; name_zh: string | null; cuisine: string | null;
-      attributes: Record<string, number> | null; restaurants: { name: string | null } | null;
+      attributes: Record<string, number> | null; photo_url: string | null;
+      restaurants: { name: string | null } | null;
     };
   };
   const rawPosts = (rows ?? []) as unknown as Row[];
@@ -119,7 +120,12 @@ export async function GET(req: NextRequest) {
         name: p.dishes.name, name_zh: p.dishes.name_zh,
         restaurant: p.dishes.restaurants?.name ?? null,
         cuisine: p.dishes.cuisine,
-        photo_url: null, // the author's photo stays theirs — see /api/bookmarks
+        // The dish photo IS part of what was published (owner call
+        // 2026-07-28 — the photo-forward card format). This is a different
+        // question from buildBookmarkRow's photo_url:null, which is about the
+        // BOOKMARKER's own copy of a dish they didn't cook or photograph —
+        // that stays null; browsing the feed and seeing the original is fine.
+        photo_url: p.dishes.photo_url ?? null,
         attributes: (p.dishes.attributes ?? {}) as Record<string, number>,
       },
       verdict: wordKeyFor(scores.get(p.id)!),
@@ -137,7 +143,7 @@ export async function GET(req: NextRequest) {
       // not content — it reads as the app quoting you back to yourself. Own
       // POSTS are in the pool now (they are yours, deliberately published);
       // a persona repeating one is not the same thing, so this stays excluded.
-      .select('id, persona, dish_id, name, name_zh, cuisine, attributes, line_zh, line_en, created_at, dishes!inner(user_id), restaurants(name)')
+      .select('id, persona, dish_id, name, name_zh, cuisine, attributes, line_zh, line_en, created_at, dishes!inner(user_id, photo_url), restaurants(name)')
       .eq('day', today)
       .neq('dishes.user_id', user.id),
     admin.from('persona_runs').select('status, item_count').eq('day', today).maybeSingle(),
@@ -154,7 +160,9 @@ export async function GET(req: NextRequest) {
         name: r.name ?? null, name_zh: r.name_zh ?? null,
         restaurant: r.restaurants?.name ?? null,
         cuisine: r.cuisine ?? null,
-        photo_url: null,
+        // Sourced from the same posted (consent-clean) dish the persona
+        // picked — its photo carries the same publication as its name.
+        photo_url: r.dishes?.photo_url ?? null,
         attributes: (r.attributes ?? {}) as Record<string, number>,
       },
       // A persona asserts no verdict — it did not eat anything. The slot stays

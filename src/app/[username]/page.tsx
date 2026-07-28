@@ -68,7 +68,7 @@ async function resolveDossier(rawName: string) {
   // verdict its owner has since abandoned is worse than one that lags.
   const { data: posts } = await admin
     .from('dish_posts')
-    .select('reason, created_at, dishes!inner(id, name, name_zh, restaurants(name))')
+    .select('reason, created_at, dishes!inner(id, name, name_zh, photo_url, restaurants(name))')
     .eq('user_id', prof.id)
     .order('created_at', { ascending: false })
     .limit(24);
@@ -77,7 +77,8 @@ async function resolveDossier(rawName: string) {
     reason: (p.reason as string | null) ?? null,
     posted_at: p.created_at as string,
     dish: p.dishes as unknown as {
-      id: string; name: string | null; name_zh: string | null; restaurants: { name: string | null } | null;
+      id: string; name: string | null; name_zh: string | null; photo_url: string | null;
+      restaurants: { name: string | null } | null;
     },
   }));
 
@@ -101,6 +102,7 @@ async function resolveDossier(rawName: string) {
       name: p.dish.name ?? null,
       name_zh: p.dish.name_zh ?? null,
       restaurant: p.dish.restaurants?.name ?? null,
+      photo_url: p.dish.photo_url ?? null,
       reason: p.reason,
       posted_at: p.posted_at,
       score: scores.get(p.dish.id)!,

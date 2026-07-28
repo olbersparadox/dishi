@@ -16,7 +16,7 @@ const raw = {
   // Anchors are POSTS now — each one an explicit publish, so the fixture
   // carries what a post carries: a reason, a post date, and any verdict.
   anchors: [
-    { name: 'Char siu', name_zh: '叉燒', restaurant: '再興', eaten_at: '2026-06-28T12:00:00Z', posted_at: '2026-07-20T00:00:00Z', reason: '肥瘦啱啱好', score: 0.9 },
+    { name: 'Char siu', name_zh: '叉燒', restaurant: '再興', photo_url: 'https://example.com/charsiu.jpg', eaten_at: '2026-06-28T12:00:00Z', posted_at: '2026-07-20T00:00:00Z', reason: '肥瘦啱啱好', score: 0.9 },
     { name: 'Beef chow fun', name_zh: '乾炒牛河', restaurant: '新記', eaten_at: '2026-07-12T12:00:00Z', posted_at: '2026-07-26T00:00:00Z', reason: null, score: 0.95 },
     { name: 'Natto', name_zh: null, restaurant: '金冠', eaten_at: null, posted_at: '2026-07-27T00:00:00Z', reason: null, score: -0.9 },
     { name: 'Plain congee', name_zh: null, restaurant: null, eaten_at: null, posted_at: '2026-07-18T00:00:00Z', reason: null, score: 0.1 },
@@ -78,6 +78,17 @@ describe('projectDossier — the privacy contract', () => {
     expect(d.anchors.every(a => a.restaurant === null)).toBe(true);
     expect(JSON.stringify(d)).not.toContain('再興');
     expect(JSON.stringify(d)).not.toContain('新記');
+    // "Nothing else" is the point of this test: a food photo names no place,
+    // so it must survive the same toggle that strips the restaurant string.
+    const charSiu = d.anchors.find(a => a.name === 'Char siu')!;
+    expect(charSiu.photo_url).toBe('https://example.com/charsiu.jpg');
+  });
+
+  it("the photo travels with a posted dish (owner call 2026-07-28 — photo-forward cards), and is null when there is none", () => {
+    const d = projectDossier(raw);
+    const byName = new Map(d.anchors.map(a => [a.name, a]));
+    expect(byName.get('Char siu')!.photo_url).toBe('https://example.com/charsiu.jpg');
+    expect(byName.get('Beef chow fun')!.photo_url).toBeNull(); // fixture carries none
   });
 
   it('dimension chips use the SAME thresholds as the export doc — one definition of "a preference"', () => {

@@ -55,9 +55,16 @@ export const DOSSIER_KNOWS_AT = 3;
  * `verdict` is a flick word KEY (client renders t(key)), not a number — the
  * same six-band vocabulary the person rated in. It is here because posts may
  * be negative; a coarse word is the minimum needed to keep a published dislike
- * from reading as praise, and it leaks no more than the band. */
+ * from reading as praise, and it leaks no more than the band.
+ *
+ * `photo_url` (owner call 2026-07-28, photo-forward post cards): the dish's
+ * own photo, already public storage (getPublicUrl — /api/dishes/photo), and
+ * exactly as consented as the name/reason beside it: posting a dish IS
+ * publishing the photo of it, not a lesser act. Unlike restaurant, it does NOT
+ * strip under hideRestaurants — a food photo names no place. */
 export type DossierAnchor = {
   name: string | null; name_zh: string | null; restaurant: string | null;
+  photo_url: string | null;
   verdict: string; reason: string | null;
 };
 
@@ -90,6 +97,7 @@ export type DossierRawAnchor = {
   eaten_at?: string | null;
   posted_at?: string | null;
   reason?: string | null;
+  photo_url?: string | null;
   /** The CURRENT rating, read live (never snapshotted at post time). Becomes a
    * verdict word in the projection; the number itself never leaves. */
   score: number;
@@ -147,6 +155,7 @@ export function projectDossier(raw: {
         name: a.name ?? null,
         name_zh: a.name_zh ?? null,
         restaurant: raw.hideRestaurants ? null : (a.restaurant ?? null),
+        photo_url: a.photo_url ?? null,
         verdict: wordKeyFor(a.score),
         reason: a.reason ?? null,
       })),

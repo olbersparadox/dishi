@@ -59,9 +59,16 @@ function useShrinkPrimaryToFit(ref: React.RefObject<HTMLElement>, maxLines: numb
   }, [dep, maxLines]);
 }
 
-/** The inner content of one side: photo (or blank block), the zh-pinned
- * dish-name treatment, and the location line. */
-export default function DuelSide({ dish }: { dish: DuelDish }) {
+/** The inner content of one side: photo (or blank block), the dish-name
+ * treatment, and the location line.
+ *
+ * `pair` defaults to the duel's own forced zh-primary (ZH_PRIMARY_PAIR) — that
+ * pinning is specific to SIDE-BY-SIDE comparison (per DuelSide's own header
+ * comment) and every existing caller (DuelOverlay, IdentityConfirmCard) relies
+ * on it, so the default is unchanged. A single-dish card with no comparison to
+ * anchor (a feed post, a public-page anchor) has no reason to override the
+ * viewer's own language pair, so those callers pass the chrome pair through. */
+export default function DuelSide({ dish, pair = ZH_PRIMARY_PAIR }: { dish: DuelDish; pair?: LangPair }) {
   const { lang } = useLang();
   const location = duelLocation(dish, lang);
   const titleRef = useRef<HTMLDivElement>(null);
@@ -73,8 +80,8 @@ export default function DuelSide({ dish }: { dish: DuelDish }) {
         ? <img src={dish.photo_url} alt="" className="duel-photo" />
         : <div className="duel-photo duel-photo-blank" aria-hidden />}
       {/* card-title: the exact journal/scan dish-name treatment (serif primary +
-          small secondary), pinned to 中文/English regardless of the global pair. */}
-      <div className="card-title" ref={titleRef}><DishName name={dish.name} name_zh={dish.name_zh} pair={ZH_PRIMARY_PAIR} /></div>
+          small secondary). */}
+      <div className="card-title" ref={titleRef}><DishName name={dish.name} name_zh={dish.name_zh} pair={pair} /></div>
       {location && <div className="duel-option-rest">{location}</div>}
     </>
   );

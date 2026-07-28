@@ -33,6 +33,15 @@ describe('no ranking in the feed read path (interim, owner 2026-07-28)', () => {
     expect(route).not.toMatch(/\.neq\('user_id', user\.id\)/);
     expect(route).toMatch(/own: p\.user_id === user\.id/);
   });
+
+  it('the dish photo travels through both queries (owner call 2026-07-28 — photo-forward cards)', () => {
+    // Both selects join photo_url, and both mappings read the real column —
+    // the earlier `photo_url: null` (posts) that blocked this is gone.
+    expect(route).toMatch(/dishes!inner\([^)]*photo_url/);
+    expect(route).toMatch(/dishes!inner\(user_id, photo_url\)/);
+    expect(route).toMatch(/photo_url: p\.dishes\.photo_url/);
+    expect(route).toMatch(/photo_url: r\.dishes\?\.photo_url/);
+  });
 });
 
 describe('buildBookmarkRow', () => {

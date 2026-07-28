@@ -3994,3 +3994,42 @@ feed is to quietly reintroduce scoring in the route.
 **One open remainder is now closed:** the populated feed has pixel proof — the
 owner's post renders as a card with author, restaurant, verdict and reason. A
 SECOND author still doesn't exist, so cross-user ordering remains unproven.
+
+## Photo-forward post cards, both surfaces — mounted DuelSide, not a new card (owner, 2026-07-28) — ✅ `<pending commit>`
+
+Owner reference: "the format of duel > pick 1 > reveal — large food shot with
+dish name and info." That is `DuelSide.tsx`'s own anatomy (photo, name,
+location), already extracted for reuse — `IdentityConfirmCard.tsx` mounts it
+the same way (static, non-tappable side inside `.duel-pair.resolving`, which
+collapses a single item to full width — literally the "one winner" reveal
+layout). Both the 大家 feed card and the `dishi.me/[username]` public anchors
+now mount it too, per "reuse, don't imitate": no new photo-card CSS, one line
+(`.feed-side { cursor: default; }`) plus a `pair` prop added to `DuelSide` so
+non-comparison callers can pass the viewer's own language pair instead of the
+duel's forced zh-primary (default unchanged — existing callers unaffected).
+
+**A real bug surfaced building this, one layer under the profiles-join bug
+above:** `FeedItem.dish.photo_url` was being hardcoded to `null` in
+`/api/feed/route.ts` with the comment "the author's photo stays theirs" — a
+carried-over rationale from `buildBookmarkRow` (where it's correct: a
+bookmarker's own copy of someone else's dish shouldn't inherit a photo they
+didn't take) applied to the wrong place (displaying the ORIGINAL post, whose
+photo is exactly as published as its name). The dish-photos storage bucket is
+already public (`getPublicUrl`), so this was never a privacy gate — just a
+stale comment nobody had reason to question until the format made it visible.
+Fixed by selecting `photo_url` in both the posts and persona `dishes!inner`
+joins and reading the real column.
+
+**`lib/dossier.ts` contract extended**, deliberately: `DossierAnchor` and
+`DossierRawAnchor` gained `photo_url`. Unlike `restaurant`, it does NOT strip
+under `hideRestaurants` — a food photo names no place, so the toggle has
+nothing to do with it. Test pins that specifically (`hideRestaurants: true`
+strips the restaurant string, the photo survives).
+
+Tests assert the REUSE, not just the pixels — `tests/feedCard.test.tsx` and
+the new `tests/publicDossierPhoto.test.tsx` check for `<img>` tags (queried
+by tag, not role — `DuelSide`'s photo is `alt=""`, decorative, so it carries
+no accessible "img" role) with the `duel-photo` class, which only DuelSide's
+populated-photo branch produces; a hand-built lookalike card would pass a
+"does it look right" check but fail this one, per the repo's "sameness tests
+assert identity" rule.

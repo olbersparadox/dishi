@@ -1776,6 +1776,11 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
    green/red; the palette contract holds) + the quiet 唔肯定 skip (.duel-tie). */
 .identity-card { margin-bottom: 16px; }
 .identity-side { cursor: default; }
+/* 食記/dishi.me photo-forward post card — same static (non-tappable) reuse of
+   DuelSide as .identity-side above, mounted one-at-a-time via .duel-pair
+   .resolving so the single side fills the row's width, matching the duel
+   reveal's "one winner, full width" look (FeedCard.tsx, PublicDossier.tsx). */
+.feed-side { cursor: default; }
 .identity-answers { display: flex; justify-content: center; gap: 34px; margin-top: 16px; }
 .identity-answer {
   display: flex; flex-direction: column; align-items: center; gap: 6px;
