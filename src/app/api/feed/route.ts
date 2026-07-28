@@ -78,13 +78,18 @@ export async function GET(req: NextRequest) {
   // legacy profile has an email-derived handle, and surfacing those would put
   // address local parts on a card as an identity. A post by someone who hasn't
   // claimed a name has no author to print, so it does not appear.
-  const handles = new Map<string, string>();
+  const handles = new Map<string, { handle: string; display: string }>();
   if (rawPosts.length > 0) {
     const { data: authors } = await admin
-      .from('profiles').select('id, handle, username_set_at')
+      .from('profiles').select('id, handle, username_display, username_set_at')
       .in('id', Array.from(new Set(rawPosts.map(r => r.user_id))));
     for (const a of authors ?? []) {
-      if (a.username_set_at && a.handle) handles.set(a.id as string, a.handle as string);
+      if (a.username_set_at && a.handle) {
+        handles.set(a.id as string, {
+          handle: a.handle as string,
+          display: (a.username_display as string | null) || (a.handle as string),
+        });
+      }
     }
   }
   const posts = rawPosts.filter(r => handles.has(r.user_id));
@@ -119,7 +124,11 @@ export async function GET(req: NextRequest) {
     .map(p => ({
       id: p.id,
       at: p.created_at,
-      author: { kind: 'user' as const, username: handles.get(p.user_id)! },
+      author: {
+        kind: 'user' as const,
+        username: handles.get(p.user_id)!.handle,
+        usernameDisplay: handles.get(p.user_id)!.display,
+      },
       dish: {
         id: p.dishes.id,
         name: p.dishes.name, name_zh: p.dishes.name_zh,

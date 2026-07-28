@@ -51,7 +51,14 @@ type BuddyState = {
   profile_version: number;
 };
 
-type Identity = { username: string | null; claimed: boolean; changesLeft: number };
+type Identity = {
+  username: string | null;
+  /** The as-typed casing ("Jerry") — cosmetic only, see profiles_username_display_casing.sql.
+   * Falls back to `username` (the canonical lowercase) wherever absent. */
+  usernameDisplay: string | null;
+  claimed: boolean;
+  changesLeft: number;
+};
 
 const MIGRATION_SEEN_KEY = 'dishi_form_migration_seen';
 
@@ -142,7 +149,7 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
   // this static display; the unclaimed "dishi." prefix beside the live claim
   // input keeps its own untouched .username-claim-prefix size.
   const identityRef = useRef<HTMLSpanElement>(null);
-  useShrinkToFitWidth(identityRef, identity?.claimed ? identity.username : null);
+  useShrinkToFitWidth(identityRef, identity?.claimed ? (identity.usernameDisplay ?? identity.username) : null);
 
   // Debounced availability check for the inline claim pill — same shape as
   // UsernameSheet's own (sequence-numbered so a slow early check can't overwrite
@@ -174,11 +181,16 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
     try {
       const res = await fetch('/api/username', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: normalizeUsername(claimValue) }),
+        // As-typed casing, not normalizeUsername(claimValue) — the server
+        // derives the canonical lowercase handle itself (see /api/username).
+        body: JSON.stringify({ username: claimValue.trim() }),
       });
       const json = await res.json();
       if (!res.ok) { setClaimStatus({ kind: 'err', code: asUsernameErrCode(json.error) }); return; }
-      setIdentity({ username: json.username, claimed: true, changesLeft: json.changesLeft });
+      setIdentity({
+        username: json.username, usernameDisplay: json.usernameDisplay ?? json.username,
+        claimed: true, changesLeft: json.changesLeft,
+      });
     } catch {
       setClaimStatus({ kind: 'err', code: 'failed' });
     } finally {
@@ -314,8 +326,9 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
   }
 
   // The container name the install steps + doc summon line both teach — the
-  // claimed identity when there is one, plain "dishi" when not.
-  const containerName = exportContainerName(identity?.claimed ? identity.username : null);
+  // claimed identity when there is one, plain "dishi" when not. Display casing,
+  // since this is exactly the name the person will type into their host.
+  const containerName = exportContainerName(identity?.claimed ? (identity.usernameDisplay ?? identity.username) : null);
 
   /** Send the public taste page. Same helper every other share in the app
    *  runs (lib/share.ts), so a dismissed OS sheet stays silent and desktop
@@ -323,8 +336,10 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
    *  since nothing else on screen would confirm it. */
   const shareProfile = async () => {
     if (!identity?.claimed || !identity.username) return;
+    // The URL stays the canonical lowercase handle — the share TITLE is
+    // cosmetic and can use the person's own casing.
     const url = `${window.location.origin}/${identity.username}`;
-    const result = await shareLink({ title: `dishi.${identity.username}`, url });
+    const result = await shareLink({ title: `dishi.${identity.usernameDisplay ?? identity.username}`, url });
     if (result === 'copied') {
       setShareCopied(true);
       window.setTimeout(() => setShareCopied(false), 2500);
@@ -393,7 +408,7 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
       {identity && state.version.v >= 1 && (
         <div className="version-line" style={{ marginTop: 10 }}>
           {identity.claimed ? (
-            <span className="username-identity" ref={identityRef}>dishi.{identity.username}</span>
+            <span className="username-identity" ref={identityRef}>dishi.{identity.usernameDisplay ?? identity.username}</span>
           ) : (
             /* Unclaimed reads as a PREVIEW of the claimed line, sized like a persona
                name (.persona-name's own type) rather than a small CTA button: the
@@ -682,10 +697,10 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
 
     {namingOpen && identity && (
       <UsernameSheet
-        current={identity.username}
+        current={identity.usernameDisplay ?? identity.username}
         changesLeft={identity.changesLeft}
         onClose={() => setNamingOpen(false)}
-        onSaved={(username, changesLeft) => setIdentity({ username, claimed: true, changesLeft })}
+        onSaved={(username, changesLeft, usernameDisplay) => setIdentity({ username, usernameDisplay, claimed: true, changesLeft })}
       />
     )}
 

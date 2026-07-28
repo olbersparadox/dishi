@@ -45,7 +45,7 @@ export const resolveDossier = cache(async (
   const admin = supabaseAdmin();
   const { data: prof } = await admin
     .from('profiles')
-    .select('id, handle, username_set_at')
+    .select('id, handle, username_display, username_set_at')
     .eq('handle', u)
     .maybeSingle();
   if (!prof || !hasClaimedUsername(prof.username_set_at)) return null;
@@ -150,6 +150,7 @@ export const resolveDossier = cache(async (
     ownerId: prof.id as string,
     dossier: projectDossier({
       username: prof.handle as string,
+      usernameDisplay: prof.username_display as string | null,
       version,
       versionProgress: liveVersion.progress,
       ratingCount,

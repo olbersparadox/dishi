@@ -18,6 +18,7 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ back: () => {} }) }));
 
 const dossier: Dossier = {
   username: 'jerry',
+  usernameDisplay: 'Jerry',
   version: 2,
   versionProgress: 0.3,
   ratingCount: 30,

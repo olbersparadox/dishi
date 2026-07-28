@@ -28,7 +28,7 @@ export async function GET() {
     // The username rides along here rather than on its own endpoint: the naming
     // moment is gated on the version this same response computes, so a separate
     // fetch would only let the card render a prompt for a version it hasn't read.
-    supabase.from('profiles').select('handle, username_set_at, username_changes_used')
+    supabase.from('profiles').select('handle, username_display, username_set_at, username_changes_used')
       .eq('id', user.id).maybeSingle(),
   ]);
 
@@ -85,6 +85,11 @@ export async function GET() {
     // row already has an auto-derived handle, so a non-empty name proves nothing.
     identity: {
       username: (identity?.handle as string | null) ?? null,
+      // Cosmetic casing only ("Jerry" over "jerry") — see
+      // profiles_username_display_casing.sql. Falls back to the canonical
+      // handle itself for every row that predates this (which is every row
+      // that has never re-saved through the claim/rename flow since).
+      usernameDisplay: (identity?.username_display as string | null) ?? (identity?.handle as string | null) ?? null,
       claimed: !!identity?.username_set_at,
       changesLeft: renamesLeft(identity?.username_changes_used as number | null),
     },

@@ -47,18 +47,29 @@ export async function POST(req: NextRequest) {
   const err = validateUsername(body?.username ?? '');
   if (err) return NextResponse.json({ error: err }, { status: 400 });
   const name = normalizeUsername(body.username);
+  // The AS-TYPED casing ("Jerry"), kept only for display (username_display —
+  // see profiles_username_display_casing.sql). `name` above is always what
+  // actually gets checked/stored as the canonical, lowercase identity.
+  const raw = String(body.username).trim();
 
   const { data: profile } = await admin
-    .from('profiles').select('handle, username_set_at, username_changes_used').eq('id', user.id).maybeSingle();
+    .from('profiles').select('handle, username_display, username_set_at, username_changes_used')
+    .eq('id', user.id).maybeSingle();
   if (!profile) return NextResponse.json({ error: 'noprofile' }, { status: 404 });
 
   const claimed = !!profile.username_set_at;
   const left = renamesLeft(profile.username_changes_used as number | null);
 
-  // Re-submitting the name you already have is a no-op, not a spent rename —
-  // otherwise a double-tap on 儲存 would burn the one change a person gets.
+  // Re-submitting the SAME identity (case-insensitively) is never a spent
+  // rename — otherwise a double-tap on 儲存 would burn the one change a person
+  // gets. But it may still be a genuine ask: a re-casing ("jerry" -> "Jerry")
+  // with nothing else about the identity changing, which this both allows and
+  // persists — cosmetic only, so it costs nothing.
   if (normalizeUsername((profile.handle as string | null) ?? '') === name && claimed) {
-    return NextResponse.json({ username: name, changesLeft: left, spent: false });
+    if (raw !== ((profile.username_display as string | null) ?? profile.handle)) {
+      await admin.from('profiles').update({ username_display: raw }).eq('id', user.id);
+    }
+    return NextResponse.json({ username: name, usernameDisplay: raw, changesLeft: left, spent: false });
   }
   if (claimed && left <= 0) return NextResponse.json({ error: 'nochangesleft' }, { status: 409 });
   if (await isTaken(name, user.id)) return NextResponse.json({ error: 'taken' }, { status: 409 });
@@ -68,6 +79,7 @@ export async function POST(req: NextRequest) {
   const changesUsed = (profile.username_changes_used as number | null) ?? 0;
   const { error: writeErr } = await admin.from('profiles').update({
     handle: name,
+    username_display: raw,
     username_set_at: new Date().toISOString(),
     username_changes_used: claimed ? changesUsed + 1 : changesUsed,
   }).eq('id', user.id);
@@ -81,6 +93,7 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({
     username: name,
+    usernameDisplay: raw,
     changesLeft: claimed ? renamesLeft(changesUsed + 1) : left,
     spent: claimed,
   });

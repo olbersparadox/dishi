@@ -32,8 +32,14 @@ export type FeedAuthor = {
   /** 'persona' = dishi.Spoon et al (precomputed daily). 'user' = someone's
    * opt-in post. 食家 slots in here as a third kind with NO new surface. */
   kind: 'user' | 'persona';
-  /** Rendered as dishi.<username> — the card's whole identity line. */
+  /** Rendered as dishi.<username> — the card's whole identity line. This is
+   * always the CANONICAL lowercase handle (also the profile URL — see
+   * FeedCard.tsx's Link); `usernameDisplay` is what's actually printed. */
   username: string;
+  /** Cosmetic casing only ("Jerry" over "jerry") — see
+   * profiles_username_display_casing.sql. Absent for personas (no such
+   * concept there); FeedCard falls back to `username` when unset. */
+  usernameDisplay?: string;
 };
 
 export type FeedDish = {

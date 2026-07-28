@@ -173,12 +173,12 @@ export default function FeedCard({ item, onBookmarked }: {
                   {item.author.kind === 'user' ? (
                     <Link href={`/${item.author.username}`} className="feed-author-id">
                       <Chop name={item.author.username} color={chopColor} size={28} />
-                      <span className="feed-author-name">dishi.{item.author.username}</span>
+                      <span className="feed-author-name">dishi.{item.author.usernameDisplay ?? item.author.username}</span>
                     </Link>
                   ) : (
                     <div className="feed-author-id">
                       <Chop name={item.author.username} color={chopColor} size={28} />
-                      <span className="feed-author-name">dishi.{item.author.username}</span>
+                      <span className="feed-author-name">dishi.{item.author.usernameDisplay ?? item.author.username}</span>
                     </div>
                   )}
                   {/* The verdict is never optional dressing on a user's post: posts

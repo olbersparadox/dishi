@@ -31,7 +31,7 @@ export default function UsernameSheet({ current, changesLeft, onClose, onSaved }
   current: string | null;
   changesLeft: number;
   onClose: () => void;
-  onSaved: (username: string, changesLeft: number) => void;
+  onSaved: (username: string, changesLeft: number, usernameDisplay: string) => void;
 }) {
   const { t } = useLang();
   // A rename starts from what the person actually picked — never derived/blank.
@@ -42,11 +42,17 @@ export default function UsernameSheet({ current, changesLeft, onClose, onSaved }
 
   const trimmed = normalizeUsername(value);
   const unchanged = trimmed === normalizeUsername(current ?? '');
+  // A pure re-casing ("jerry" -> "Jerry") is `unchanged` (same identity) but
+  // not `identical` — it costs nothing and needs no availability check, but
+  // it IS a real save, not a no-op the button should stay disabled for.
+  const identical = value.trim() === (current ?? '');
+  const recasingOnly = unchanged && !identical;
   const spent = changesLeft <= 0;
 
   // Debounced availability check. Every response carries its own sequence number
   // so a slow early check can't overwrite the verdict for what's in the box now.
   useEffect(() => {
+    if (recasingOnly) { setStatus({ kind: 'ok' }); return; }
     if (spent || !trimmed || unchanged) { setStatus({ kind: 'idle' }); return; }
     const local = validateUsername(trimmed);
     if (local) { setStatus({ kind: 'err', code: local }); return; }
@@ -64,7 +70,7 @@ export default function UsernameSheet({ current, changesLeft, onClose, onSaved }
       }
     }, 350);
     return () => clearTimeout(timer);
-  }, [trimmed, spent, unchanged]);
+  }, [trimmed, spent, unchanged, recasingOnly]);
 
   const save = async () => {
     if (saving || status.kind !== 'ok') return;
@@ -72,11 +78,14 @@ export default function UsernameSheet({ current, changesLeft, onClose, onSaved }
     try {
       const res = await fetch('/api/username', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: trimmed }),
+        // The AS-TYPED string, not `trimmed` (lowercased) — the server derives
+        // the canonical lowercase identity itself and keeps this casing only
+        // for display (see /api/username's own note).
+        body: JSON.stringify({ username: value.trim() }),
       });
       const json = await res.json();
       if (!res.ok) { setStatus({ kind: 'err', code: asUsernameErrCode(json.error) }); return; }
-      onSaved(json.username, json.changesLeft);
+      onSaved(json.username, json.changesLeft, json.usernameDisplay ?? json.username);
       onClose();
     } catch {
       setStatus({ kind: 'err', code: 'failed' });
@@ -85,7 +94,10 @@ export default function UsernameSheet({ current, changesLeft, onClose, onSaved }
     }
   };
 
-  const note = status.kind === 'checking' ? t('username.checking')
+  // A pure re-casing has nothing to claim — "Available" would misstate what's
+  // happening, so this reads as the reserved blank line instead, same as idle.
+  const note = recasingOnly ? ' '
+    : status.kind === 'checking' ? t('username.checking')
     : status.kind === 'ok' ? t('username.available')
     : status.kind === 'err' ? t(`username.err.${status.code}`)
     : ' '; // reserve the line so the card doesn't jump as the verdict lands

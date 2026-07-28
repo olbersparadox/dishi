@@ -76,6 +76,9 @@ export type DossierAnchor = {
 
 export type PublicDossier = {
   username: string;
+  /** Cosmetic casing only ("Jerry" over "jerry") — see
+   * profiles_username_display_casing.sql. Falls back to `username` itself. */
+  usernameDisplay: string;
   version: number;
   /** 0..1 toward the NEXT version — the SAME live number Taste AI's own
    * progress bar reads (versionForProfile), not re-derived here from a
@@ -126,6 +129,7 @@ export type DossierRawAnchor = {
 
 export function projectDossier(raw: {
   username: string;
+  usernameDisplay?: string | null;
   version: number;
   /** Live progress toward the next version (versionForProfile's own .progress)
    * — the caller already runs that call to ratchet `version`, so it's passed
@@ -145,6 +149,7 @@ export function projectDossier(raw: {
 
   return {
     username: raw.username,
+    usernameDisplay: raw.usernameDisplay?.trim() || raw.username,
     version: Math.max(1, raw.version),
     versionProgress: raw.versionProgress,
     ratingCount: raw.ratingCount,

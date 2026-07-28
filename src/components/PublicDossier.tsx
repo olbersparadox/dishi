@@ -25,7 +25,7 @@ export default function PublicDossier({ dossier, isOwner }: { dossier: Dossier; 
   const { t, lang } = useLang();
   const router = useRouter();
   const identityRef = useRef<HTMLSpanElement>(null);
-  useShrinkToFitWidth(identityRef, dossier.username);
+  useShrinkToFitWidth(identityRef, dossier.usernameDisplay);
   // Local-only: which anchors THIS visitor has bookmarked this load, mirroring
   // FeedList.tsx's own pattern (FeedCard reports back via onBookmarked).
   const [bookmarked, setBookmarked] = useState<Set<string>>(new Set());
@@ -75,7 +75,7 @@ export default function PublicDossier({ dossier, isOwner }: { dossier: Dossier; 
           />
         </div>
         <div className="version-line" style={{ marginTop: 10 }}>
-          <span className="username-identity" ref={identityRef}>dishi.{d.username}</span>
+          <span className="username-identity" ref={identityRef}>dishi.{d.usernameDisplay}</span>
         </div>
         <div className="version-line" style={{ marginTop: 6 }}>
           <span className="version-now">V{d.version}</span>
@@ -139,14 +139,14 @@ export default function PublicDossier({ dossier, isOwner }: { dossier: Dossier; 
               --fs-body) and centered — this is the section's own headline,
               not a quiet meta caption anymore now that it names the person. */}
           <p className="label" style={{ margin: '0 0 8px', textAlign: 'center', fontSize: 'var(--fs-body)' }}>
-            {t('dossier.anchors', { name: d.username })}
+            {t('dossier.anchors', { name: d.usernameDisplay })}
           </p>
           {d.anchors.map(a => (
             <FeedCard
               key={a.id}
               item={{
                 id: a.id,
-                author: { kind: 'user', username: d.username },
+                author: { kind: 'user', username: d.username, usernameDisplay: d.usernameDisplay },
                 dish: {
                   id: a.id, name: a.name, name_zh: a.name_zh, restaurant: a.restaurant,
                   cuisine: null, photo_url: a.photo_url, attributes: {},
