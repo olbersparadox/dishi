@@ -1905,6 +1905,35 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
    flex sibling, because a flex sibling narrows the name's own box and pushes
    it off-centre (owner correction: the aside must not move the name at all). */
 .feed-post .card-title { margin-top: 15px; position: relative; }
+/* Editorial (BACKLOG batch 2026-07-29) — the columnist card's two additions.
+   The photo credit is a license term (CC BY/BY-SA), styled as the quietest
+   text the card carries: caption-size, soft ink, tucked under the photo. */
+.feed-photo-credit {
+  margin: 4px 10px 0; font-size: 10px; color: var(--ink-soft);
+  text-align: right; opacity: 0.75; line-height: 1.3;
+}
+/* The in-feed review bar — editor-only, above a draft's card. Quiet workflow
+   chrome in the app's own tokens: hairline frame, ink text, and the ONE
+   emphatic element is the publish button in solid ink (not vermillion —
+   that stays reserved for the seal/export/dirty-save trio). */
+.feed-review-bar {
+  display: flex; align-items: center; gap: 8px;
+  margin: 0 0 8px; padding: 6px 8px 6px 12px;
+  border: 1px solid var(--line); border-radius: 10px;
+}
+.feed-review-badge {
+  font-size: var(--fs-caption); font-weight: 700; color: var(--ink-soft);
+  letter-spacing: 0.08em; margin-right: auto;
+}
+.feed-review-failed { font-size: var(--fs-caption); color: var(--ink-soft); }
+.feed-review-btn {
+  font-size: var(--fs-caption); font-weight: 600; cursor: pointer;
+  padding: 5px 14px; border-radius: 999px; border: 1px solid var(--line);
+  background: transparent; color: var(--ink);
+}
+.feed-review-btn.publish { background: var(--ink); border-color: var(--ink); color: var(--glaze); }
+.feed-review-btn:disabled { opacity: 0.5; cursor: default; }
+
 /* The author row DuelSide's afterPhoto slot renders between the photo and the
    dish name (owner call 2026-07-28: chop + dishi.username at the same big/
    bold type the claimed username uses on the taste card — .username-claim-

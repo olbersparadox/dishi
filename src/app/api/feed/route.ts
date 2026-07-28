@@ -183,17 +183,67 @@ export async function GET(req: NextRequest) {
       reason: (lang === 'en' ? r.line_en : r.line_zh) ?? null,
     }));
 
-  // One pool, newest first. Both author types sort on the same clock, so a
+  // Persona EDITORIAL — columnist posts (BACKLOG batch 2026-07-29). Same
+  // pool, same card; the author line is a persona exactly like a daily pick,
+  // but the content is a dish-of-the-world with its own licensed photo and no
+  // dishes row behind it (dish.id null; bookmarking keys on the post).
+  //
+  // PENDING rows travel ONLY to the editor — the in-feed review IS the
+  // approval surface, so the editor sees drafts rendered as the real card
+  // with an approve/discard bar; everyone else gets published rows only.
+  const { data: editorProfile } = await admin
+    .from('profiles').select('is_persona_editor').eq('id', user.id).maybeSingle();
+  const isEditor = !!editorProfile?.is_persona_editor;
+
+  let editorialQuery = admin
+    .from('persona_posts')
+    .select('id, persona, name, name_zh, cuisine, body_zh, body_en, image_url, image_credit, status, created_at, published_at')
+    .order('created_at', { ascending: false })
+    .limit(30);
+  editorialQuery = isEditor
+    ? editorialQuery.in('status', ['pending', 'published'])
+    : editorialQuery.eq('status', 'published');
+  const { data: editorialRows } = await editorialQuery;
+
+  const editorialItems: Timed[] = ((editorialRows ?? []) as any[])
+    .filter(r => isPersona(r.persona))
+    .map(r => ({
+      id: r.id as string,
+      // Publication time is the feed clock where it exists — a draft approved
+      // days after seeding should surface as new, not buried at its authoring
+      // date. Pending rows (editor-only) ride on created_at.
+      at: (r.published_at ?? r.created_at) as string,
+      author: { kind: 'persona' as const, username: PERSONA_META[r.persona as 'spoon' | 'ck' | 'kiki'][lang] },
+      dish: {
+        id: null,
+        name: r.name ?? null, name_zh: r.name_zh ?? null,
+        restaurant: null,
+        cuisine: r.cuisine ?? null,
+        photo_url: r.image_url as string,
+        attributes: {},
+        diet: [], heaviness: null, ingredients: [],
+      },
+      // A columnist asserts no verdict — nobody ate anything.
+      verdict: null,
+      reason: (lang === 'en' ? r.body_en : r.body_zh) ?? null,
+      editorial: {
+        credit: r.image_credit as string,
+        ...(r.status === 'pending' ? { pending: true } : {}),
+      },
+    }));
+
+  // One pool, newest first. All author types sort on the same clock, so a
   // fresh post appears above the morning's persona picks rather than in a
   // block behind them.
-  const pool = [...items, ...personaItems]
+  const pool = [...items, ...personaItems, ...editorialItems]
     .sort((a, b) => b.at.localeCompare(a.at))
     .slice(0, 30);
 
   // Bookmark counts, EVERYONE's — the count on a card is "how many people
   // want to eat this", not just the viewer's own state, so it's a separate
   // query over the same from_dish_id column with no user_id filter, scoped to
-  // just the dishes actually rendered.
+  // just the dishes actually rendered. Editorial cards mirror the whole
+  // pattern on from_persona_post_id — same affordance, different key.
   const poolDishIds = Array.from(new Set(pool.map(i => i.dish.id).filter((id): id is string => !!id)));
   const bookmarkCounts = new Map<string, number>();
   if (poolDishIds.length > 0) {
@@ -205,6 +255,19 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  const editorialIds = pool.filter(i => i.editorial).map(i => i.id);
+  const editorialBookmarked = new Set<string>();
+  const editorialCounts = new Map<string, number>();
+  if (editorialIds.length > 0) {
+    const { data: eb } = await admin
+      .from('dishes').select('from_persona_post_id, user_id').in('from_persona_post_id', editorialIds);
+    for (const b of eb ?? []) {
+      const id = b.from_persona_post_id as string;
+      editorialCounts.set(id, (editorialCounts.get(id) ?? 0) + 1);
+      if (b.user_id === user.id) editorialBookmarked.add(id);
+    }
+  }
+
   return NextResponse.json({
     // Told apart deliberately: 'empty' is a legitimate quiet day, 'failed' is
     // the job breaking, and a missing row means it never ran today. The UI must
@@ -212,8 +275,12 @@ export async function GET(req: NextRequest) {
     persona_status: (runRow?.status as string | undefined) ?? 'missing',
     items: pool.map(({ at: _at, ...i }) => ({
       ...i,
-      bookmarked: !!i.dish.id && bookmarked.has(i.dish.id),
-      bookmarkCount: i.dish.id ? (bookmarkCounts.get(i.dish.id) ?? 0) : 0,
+      bookmarked: i.editorial
+        ? editorialBookmarked.has(i.id)
+        : !!i.dish.id && bookmarked.has(i.dish.id),
+      bookmarkCount: i.editorial
+        ? (editorialCounts.get(i.id) ?? 0)
+        : i.dish.id ? (bookmarkCounts.get(i.dish.id) ?? 0) : 0,
     })),
   });
 }

@@ -639,6 +639,12 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'feed.bookmark': { zh: '想食', en: 'Want to eat' },
   'feed.bookmarked': { zh: '已加入待評', en: 'In your queue' },
   'feed.bookmark.failed': { zh: '加唔到', en: "Couldn't add" },
+  // The in-feed editorial review (editor-only; BACKLOG batch 2026-07-29).
+  // 書面 register — this is workflow chrome, not persona voice.
+  'feed.review.pending': { zh: '待刊', en: 'Draft' },
+  'feed.review.publish': { zh: '刊出', en: 'Publish' },
+  'feed.review.discard': { zh: '棄用', en: 'Discard' },
+  'feed.review.failed': { zh: '操作失敗，請再試', en: 'Failed — try again' },
   'feed.bookmark.own.title': { zh: '係你自己碟菜', en: 'That’s your own dish' },
   'feed.bookmark.own.body': {
     zh: '收藏其他人推介的菜式才有意思。收藏後可以在 Taste AI 的 待評清單找到。',

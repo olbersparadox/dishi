@@ -66,6 +66,17 @@ export type FeedItem = {
    * /api/bookmarks refuses a dish you already own, so offering it would put a
    * button on screen whose only outcome is an error. */
   own?: boolean;
+  /** Persona EDITORIAL — a columnist post about a dish, not about anyone's
+   * meal (BACKLOG batch 2026-07-29). dish.id is null (no dishes row exists);
+   * bookmarking keys on the post itself. */
+  editorial?: {
+    /** Photo attribution, rendered on the card — CC BY/BY-SA make credit a
+     * license term, not décor. */
+    credit: string;
+    /** Editor-only drafts awaiting the in-feed approve/discard. Absent for
+     * everyone else — a pending row never leaves the server otherwise. */
+    pending?: boolean;
+  };
 };
 
 /**
@@ -84,6 +95,37 @@ export type FeedItem = {
  *    bookmarker attaches their own when they do (the 待評 card already offers
  *    it). Copying it would quietly re-attribute someone's photograph.
  */
+/**
+ * The 待評 row an EDITORIAL bookmark creates — same contract as
+ * buildBookmarkRow, sourced from a persona_posts row instead of a dish.
+ *
+ * Same two NULLs, same reasons: `eaten_at` because wanting to eat something
+ * is not having eaten it, and `photo_url` because the editorial photo is a
+ * licensed Commons shot of the DISH-IN-GENERAL — copying it into a personal
+ * journal would present someone's reference photo as this user's meal.
+ * `attributes` starts empty: nobody has rated this dish, and an empty vector
+ * is honest absence, which the engine already treats as unknown (never
+ * "confirmed neutral"). The user's own rating fills it when they eat.
+ */
+export function buildEditorialBookmarkRow(source: {
+  postId: string;
+  userId: string;
+  post: { name: string | null; name_zh: string | null; cuisine: string | null };
+}) {
+  return {
+    user_id: source.userId,
+    from_persona_post_id: source.postId,
+    restaurant_id: null,
+    name: (source.post.name ?? '').slice(0, 120),
+    name_zh: source.post.name_zh ?? null,
+    cuisine: source.post.cuisine ?? 'unknown',
+    attributes: {},
+    photo_url: null,
+    eaten_at: null,
+    source: 'post' as const,
+  };
+}
+
 export function buildBookmarkRow(source: {
   /** The dish being bookmarked — someone else's row. Provenance keys on the
    * DISH, not the post: persona cards carry the same affordance and have no

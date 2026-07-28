@@ -41,17 +41,29 @@ export default function FeedCard({ item, onBookmarked }: {
   // the server isn't re-fetched just to reflect the viewer's own action back.
   const [count, setCount] = useState(item.bookmarkCount ?? 0);
 
+  // Editorial review state — editor-only, on drafts. 'discarded' unmounts the
+  // card below; 'published' just drops the bar, leaving the card as every
+  // other viewer will now see it. (reviewAct itself is defined AFTER bookmark:
+  // signInResume.test.ts pins that the file's first generic failure check
+  // comes after bookmark's 401-as-signup branch.)
+  const [review, setReview] = useState<'pending' | 'busy' | 'published' | 'discarded'>('pending');
+  const [reviewFailed, setReviewFailed] = useState(false);
+
   // On your own post the bookmark tap isn't a no-op — it explains why (the
   // API would 400 it anyway) rather than sitting dead or erroring.
   const bookmark = async () => {
     if (item.own) { setShowOwnExplain(true); return; }
-    if (saving || item.bookmarked || !item.dish.id) return;
+    // An editorial card has no dishes row — its bookmark keys on the post
+    // itself and the API builds the 待評 row from the post's fields.
+    if (saving || item.bookmarked || (!item.dish.id && !item.editorial)) return;
     setSaving(true);
     setFailed(false);
     try {
       const res = await fetch('/api/bookmarks', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dish_id: item.dish.id }),
+        body: JSON.stringify(item.editorial && !item.dish.id
+          ? { persona_post_id: item.id }
+          : { dish_id: item.dish.id }),
       });
       // 401 is not a failure, it is a person without an account reaching for
       // the highest-intent action on the public surface (sharing batch item
@@ -65,6 +77,22 @@ export default function FeedCard({ item, onBookmarked }: {
       setFailed(true);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const reviewAct = async (action: 'publish' | 'discard') => {
+    if (review === 'busy') return;
+    setReview('busy');
+    setReviewFailed(false);
+    try {
+      const res = await fetch(`/api/persona-posts/${item.id}`, action === 'publish'
+        ? { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'publish' }) }
+        : { method: 'DELETE' });
+      if (!res.ok) throw new Error();
+      setReview(action === 'publish' ? 'published' : 'discarded');
+    } catch {
+      setReview('pending');
+      setReviewFailed(true);
     }
   };
 
@@ -86,6 +114,9 @@ export default function FeedCard({ item, onBookmarked }: {
   // for a companion chop with no id (chopColorFor(c.user_id ?? c.name)).
   const chopColor = chopColorFor(item.author.username);
 
+  // A discarded draft leaves the screen — that IS the review's answer.
+  if (review === 'discarded') return null;
+
   return (
     // .rated-dish-row's entrance animation permanently leaves a resolved
     // (non-"none") transform behind even after finishing (see MyDishes.tsx's
@@ -93,6 +124,23 @@ export default function FeedCard({ item, onBookmarked }: {
     // block for any position:fixed descendant. FeedCard has none today, but
     // detaching the animation once done keeps this row honest the same way.
     <article className="rated-dish-row" onAnimationEnd={e => { e.currentTarget.style.animation = 'none'; }}>
+      {/* The in-feed review bar — the whole reason drafts render HERE instead
+          of on an admin page: the editor judges the exact pixels everyone
+          else will get. Publish drops the bar; discard removes the card. */}
+      {item.editorial?.pending && review !== 'published' && (
+        <div className="feed-review-bar">
+          <span className="feed-review-badge">{t('feed.review.pending')}</span>
+          {reviewFailed && <span className="feed-review-failed">{t('feed.review.failed')}</span>}
+          <button type="button" className="feed-review-btn discard"
+            disabled={review === 'busy'} onClick={() => reviewAct('discard')}>
+            {t('feed.review.discard')}
+          </button>
+          <button type="button" className="feed-review-btn publish"
+            disabled={review === 'busy'} onClick={() => reviewAct('publish')}>
+            {t('feed.review.publish')}
+          </button>
+        </div>
+      )}
       <div className="duel-pair resolving">
         <div className="duel-option feed-side feed-post">
           <DuelSide
@@ -113,6 +161,11 @@ export default function FeedCard({ item, onBookmarked }: {
             )}
             afterPhoto={
               <>
+                {/* CC BY / BY-SA make attribution a license term, not décor —
+                    the credit rides directly under the photo it licenses. */}
+                {item.editorial && (
+                  <p className="feed-photo-credit">{item.editorial.credit}</p>
+                )}
                 <div className="feed-author-row">
                   {/* A persona (dishi.Spoon et al) has no real profile to link
                       to — only a claimed user's chop/name goes to their

@@ -46,3 +46,8 @@ update public.profiles set is_persona_editor = true where id = '4d1c3ae0-47d9-4c
 insert into storage.buckets (id, name, public) values ('persona-content','persona-content', true);
 
 commit;
+
+-- Applied live 2026-07-29, same session: the editorial bookmark's idempotency
+-- authority — the exact mirror of the (user_id, from_dish_id) unique index,
+-- so a second tap reports "already queued" instead of minting a duplicate.
+create unique index dishes_user_persona_post_uniq on public.dishes(user_id, from_persona_post_id) where from_persona_post_id is not null;

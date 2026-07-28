@@ -1,20 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseServer, supabaseAdmin } from '@/lib/supabase/server';
-import { buildBookmarkRow } from '@/lib/feed';
+import { buildBookmarkRow, buildEditorialBookmarkRow } from '@/lib/feed';
 
 /**
- * POST /api/bookmarks { dish_id } — 收藏 a feed card into 待評.
+ * POST /api/bookmarks { dish_id } | { persona_post_id } — 收藏 a feed card
+ * into 待評.
  *
  * Every card carries this affordance whatever its author (binding amendment:
- * a feed without it is pure consumption and generates nothing), which is why
- * it takes a DISH and not a post — a persona pick has no post behind it, but
- * every card in the feed points at a real dishes row.
+ * a feed without it is pure consumption and generates nothing). Most cards
+ * point at a real dishes row and send dish_id; a persona EDITORIAL card is
+ * about a dish-of-the-world with no dishes row behind it, so it sends the
+ * post id and the 待評 row is built from the post's own fields instead
+ * (buildEditorialBookmarkRow — same two NULLs, same reasons).
  *
- * It creates a normal unrated dishes row for the CALLER — see buildBookmarkRow
- * for the two fields that make a bookmark honestly different from a menu pick.
- *
- * Idempotent: the (user_id, from_dish_id) unique index is the authority, so a
- * second tap reports success instead of minting a duplicate queue entry.
+ * Idempotent: the (user_id, from_dish_id) / (user_id, from_persona_post_id)
+ * unique indexes are the authority, so a second tap reports success instead
+ * of minting a duplicate queue entry.
  */
 export async function POST(req: NextRequest) {
   const supabase = supabaseServer();
@@ -23,6 +24,31 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json().catch(() => null);
   const dishId = typeof body?.dish_id === 'string' ? body.dish_id : null;
+  const personaPostId = typeof body?.persona_post_id === 'string' ? body.persona_post_id : null;
+  if (!dishId && !personaPostId) return NextResponse.json({ error: 'No dish.' }, { status: 400 });
+
+  if (personaPostId) {
+    // PUBLISHED only — a pending draft hasn't been offered to anyone yet,
+    // editor included; approving it is one tap away if they want it.
+    const { data: post } = await supabaseAdmin()
+      .from('persona_posts')
+      .select('id, name, name_zh, cuisine, status')
+      .eq('id', personaPostId)
+      .maybeSingle();
+    if (!post || post.status !== 'published') {
+      return NextResponse.json({ error: 'That post is gone.' }, { status: 404 });
+    }
+    const row = buildEditorialBookmarkRow({ postId: post.id, userId: user.id, post });
+    if (!row.name && !row.name_zh) {
+      return NextResponse.json({ error: 'That dish has no name.' }, { status: 400 });
+    }
+    const { data, error } = await supabase.from('dishes').insert(row).select('id').maybeSingle();
+    if (error) {
+      if (error.code === '23505') return NextResponse.json({ ok: true, already: true });
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+    return NextResponse.json({ ok: true, dish_id: data?.id ?? null });
+  }
   if (!dishId) return NextResponse.json({ error: 'No dish.' }, { status: 400 });
 
   // Admin read: the source dish belongs to someone else. Nothing personal to
