@@ -1603,6 +1603,45 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 .persona-host-btn:hover, .persona-host-btn:focus-visible { border-color: var(--ink); }
 .persona-host-btn img { object-fit: contain; }
 
+/* State B's TWO panels — "one surface, two audiences": install into your AI,
+   or send to a person. Native scroll-snap rather than a JS carousel: the
+   thing that died here in 2026-07-28 was a JS-driven persona carousel, and a
+   plain overflow container gets touch, trackpad, keyboard and momentum for
+   free. Each panel carries its OWN divider + row, because the row is exactly
+   what differs between the two audiences. */
+.persona-swipe {
+  display: flex; overflow-x: auto; scroll-snap-type: x mandatory;
+  scrollbar-width: none; -ms-overflow-style: none; overscroll-behavior-x: contain;
+}
+.persona-swipe::-webkit-scrollbar { display: none; }
+.persona-panel { min-width: 100%; scroll-snap-align: start; }
+.persona-dots { display: flex; justify-content: center; gap: 6px; margin-top: 16px; }
+.persona-dot {
+  width: 5px; height: 5px; border-radius: 50%; padding: 0;
+  border: none; background: var(--line); cursor: pointer;
+  transition: background 160ms ease;
+}
+.persona-dot.on { background: var(--ink-soft); }
+
+/* The messenger row: ONE button wrapping all four marks (settled design —
+   the marks are illustrative of the destination, never per-app buttons; see
+   lib/messengers.ts). Height matches .persona-host-btn so the two panels'
+   rows sit on the same line as you swipe between them. */
+.msg-share-row {
+  display: flex; align-items: center; justify-content: center; gap: 12px;
+  margin: 0 auto; padding: 0 18px; min-height: 54px;
+  border: 1px solid var(--line); border-radius: 14px;
+  background: transparent; cursor: pointer;
+}
+.msg-share-row:hover, .msg-share-row:focus-visible { border-color: var(--ink); }
+.msg-logos { display: flex; align-items: center; gap: 8px; }
+/* No assets yet (or none resolved) — the row collapses to its label and still
+   works, rather than showing a gap where marks would be. */
+.msg-logos:empty { display: none; }
+.msg-logos img { object-fit: contain; }
+.msg-share-label { font-size: var(--fs-body); color: var(--ink-soft); letter-spacing: 0.04em; }
+.msg-share-note { font-size: var(--fs-body); color: var(--ink-soft); text-align: center; line-height: 1.55; margin: 0 12px; }
+
 /* --- rated dish row: "more actions" kebab menu (edit/delete) --- */
 .row-menu-backdrop {
   position: fixed; inset: 0; z-index: 45; background: transparent;

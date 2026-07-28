@@ -512,6 +512,20 @@ export const dict: Record<string, { zh: string; en: string }> = {
   // the slot shows the container name + this line). Deliberately makes NO
   // ambient-surfacing promise — the doc teaches one summon path only.
   'export.install.blurb': { zh: '將你的口味植入你日常用的 AI', en: 'Install your palate into the AI you already use' },
+  // The second swipe: the SAME palate, sent to a person instead of an AI.
+  // The blurb says what the friend actually receives (the public page), so
+  // the swipe is not mistaken for sending the export document itself.
+  'export.share.blurb': { zh: '將你的公開味覺頁面傳給朋友', en: 'Send your public taste page to a friend' },
+  'export.share.messengers': { zh: '傳給朋友', en: 'Send to a friend' },
+  'export.share.copied': { zh: '已複製連結', en: 'Link copied' },
+  // Unclaimed: only a claimed name resolves publicly, so there is no page to
+  // send yet. Points at the claim field, which sits on this same card.
+  'export.share.needname': {
+    zh: '改咗上面個名，就有得分享你嘅味覺頁面',
+    en: 'Claim your name above and you can share your taste page',
+  },
+  'export.swipe.ai': { zh: '植入 AI', en: 'Install into an AI' },
+  'export.swipe.person': { zh: '傳給朋友', en: 'Send to a friend' },
   'form.migration.title': { zh: '你的夥伴進化了', en: 'Your companion evolved' },
   'form.migration.blurb': {
     zh: '現在它就是你的味覺本身 — 每次評分都會真實地改變它的模樣。',

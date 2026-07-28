@@ -27,6 +27,8 @@ import {
   exportUnlocked, ratingsToUnlock, exportContainerName, INSTALL_HOSTS,
   type InstallHost, type ExportDish, type ExportCompanions,
 } from '@/lib/tasteExport';
+import { MESSENGER_MARKS } from '@/lib/messengers';
+import { shareLink } from '@/lib/share';
 import { splitBoldKeywords } from '@/lib/textBold';
 import { CloseIcon, CopyIcon, CheckIcon, EditIcon } from './icons';
 import UsernameSheet from './UsernameSheet';
@@ -95,6 +97,13 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
   // the globe/notification icons (a scrim + an anchored paper sheet), applied to the
   // 4 stat boxes so each number can explain what it actually measures.
   const [openStat, setOpenStat] = useState<null | 'strength' | 'flicks' | 'cuisines' | 'senses'>(null);
+  // State B's two panels: which one is in view (drives the dots), and the
+  // scroll element the dots scroll back to.
+  const [panel, setPanel] = useState(0);
+  const swipeRef = useRef<HTMLDivElement>(null);
+  // Transient "link copied" under the share row — only reachable on desktop,
+  // where there is no OS sheet and nothing else would confirm the copy.
+  const [shareCopied, setShareCopied] = useState(false);
   // Shrink-to-fit for the claimed dishi.{username} display — shared with
   // PublicDossier.tsx (the SAME line, kept in sync at --fs-title-b). Only
   // this static display; the unclaimed "dishi." prefix beside the live claim
@@ -275,6 +284,30 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
   // claimed identity when there is one, plain "dishi" when not.
   const containerName = exportContainerName(identity?.claimed ? identity.username : null);
 
+  /** Send the public taste page. Same helper every other share in the app
+   *  runs (lib/share.ts), so a dismissed OS sheet stays silent and desktop
+   *  falls back to the clipboard — the one case that needs saying out loud,
+   *  since nothing else on screen would confirm it. */
+  const shareProfile = async () => {
+    if (!identity?.claimed || !identity.username) return;
+    const url = `${window.location.origin}/${identity.username}`;
+    const result = await shareLink({ title: `dishi.${identity.username}`, url });
+    if (result === 'copied') {
+      setShareCopied(true);
+      window.setTimeout(() => setShareCopied(false), 2500);
+    }
+  };
+
+  /** Defined ONCE and mounted in both panels: the spec's requirement is that
+   *  the two panels share the same divider, and two copies of the markup
+   *  would be free to drift apart. */
+  const personaDivider = (
+    <div className="persona-divider-wrap">
+      <hr className="persona-divider" />
+      <span className="persona-divider-arrow" aria-hidden />
+    </div>
+  );
+
   return (
     <>
     <div className="taste-form-card">
@@ -440,24 +473,80 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
          name the person will type into their host — so naming your taste AI and
          installing it read as one chain, not two features. */
       <div className="persona-pick">
-        <div className="persona-slide">
-          <div className="persona-name">{containerName}</div>
-          <p className="persona-blurb">{t('export.install.blurb')}</p>
+        {/* TWO panels, one surface: the same palate going to an AI (left) or
+            to a person (right). Native scroll-snap — see .persona-swipe. */}
+        <div className="persona-swipe" ref={swipeRef}
+          onScroll={e => {
+            const el = e.currentTarget;
+            setPanel(el.clientWidth > 0 ? Math.round(el.scrollLeft / el.clientWidth) : 0);
+          }}>
+          <div className="persona-panel">
+            <div className="persona-slide">
+              <div className="persona-name">{containerName}</div>
+              <p className="persona-blurb">{t('export.install.blurb')}</p>
+            </div>
+            {personaDivider}
+            {/* Host logos as buttons — same marks/order as the resting row below,
+                now each in a thin rounded-square outline marking them tappable. */}
+            <div className="persona-hosts">
+              {INSTALL_HOSTS.map(h => (
+                <button key={h.id} type="button" className="persona-host-btn"
+                  onClick={() => { setCopied(false); setInstallHost(h); }}
+                  aria-label={h.label} title={h.label}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={h.logo} alt="" width={28} height={28} />
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="persona-panel">
+            <div className="persona-slide">
+              {/* The URL, not the container name: this panel sends a PAGE, and
+                  showing what the friend will actually receive is both more
+                  informative and what makes the swipe legible — two identical
+                  headings would read as nothing having moved. */}
+              <div className="persona-name">
+                {identity?.claimed ? `dishi.me/${identity.username}` : 'dishi.me'}
+              </div>
+              <p className="persona-blurb">{t('export.share.blurb')}</p>
+            </div>
+            {personaDivider}
+            {/* Gated on a CLAIMED username: legacy email-derived handles 404 by
+                design, so there is genuinely no page to send. The claim field
+                is on this same card, a few lines up — hence a note pointing at
+                it rather than a dead button. */}
+            {identity?.claimed ? (
+              <div style={{ display: 'grid', justifyItems: 'center', gap: 8 }}>
+                <button type="button" className="msg-share-row"
+                  onClick={shareProfile} aria-label={t('export.share.messengers')}>
+                  {/* ONE button, four illustrative marks — never four buttons.
+                      Each mark hides itself if its file is absent, so the row
+                      works today and gains the logos the moment the brand
+                      assets land (lib/messengers.ts carries the contract). */}
+                  <span className="msg-logos">
+                    {MESSENGER_MARKS.map(m => (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img key={m.id} src={m.logo} alt="" width={26} height={26}
+                        onError={e => { e.currentTarget.style.display = 'none'; }} />
+                    ))}
+                  </span>
+                  <span className="msg-share-label">{t('export.share.messengers')}</span>
+                </button>
+                {shareCopied && <p className="card-meta">{t('export.share.copied')}</p>}
+              </div>
+            ) : (
+              <p className="msg-share-note">{t('export.share.needname')}</p>
+            )}
+          </div>
         </div>
-        <div className="persona-divider-wrap">
-          <hr className="persona-divider" />
-          <span className="persona-divider-arrow" aria-hidden />
-        </div>
-        {/* Host logos as buttons — same marks/order as the resting row below,
-            now each in a thin rounded-square outline marking them tappable. */}
-        <div className="persona-hosts">
-          {INSTALL_HOSTS.map(h => (
-            <button key={h.id} type="button" className="persona-host-btn"
-              onClick={() => { setCopied(false); setInstallHost(h); }}
-              aria-label={h.label} title={h.label}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={h.logo} alt="" width={28} height={28} />
-            </button>
+
+        <div className="persona-dots">
+          {[t('export.swipe.ai'), t('export.swipe.person')].map((label, i) => (
+            <button key={label} type="button"
+              className={`persona-dot${panel === i ? ' on' : ''}`}
+              aria-label={label} aria-current={panel === i}
+              onClick={() => swipeRef.current?.scrollTo({ left: i * swipeRef.current.clientWidth, behavior: 'smooth' })} />
           ))}
         </div>
       </div>

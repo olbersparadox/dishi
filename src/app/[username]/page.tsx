@@ -28,9 +28,52 @@ export const dynamic = 'force-dynamic';
 
 type Params = { params: { username: string } };
 
+/**
+ * The OG card for a shared PROFILE (sharing batch item 4b's other half — the
+ * Taste AI swipe sends this URL, and a bare link in WhatsApp reads as spam).
+ *
+ * Every byte comes off the PROJECTED dossier, never a raw row. That rule is
+ * easy to break precisely here: generateMetadata runs as its own call, so
+ * reaching straight into the DB for a "quick" name or count would bypass
+ * projectDossier entirely — and an OG card is the worst place to leak, since
+ * it is visible to everyone the link is forwarded to AND cached by crawlers.
+ * resolveDossier is React-cached, so this costs no extra queries.
+ */
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const u = normalizeUsername(decodeURIComponent(params.username));
-  return validateUsername(u) ? {} : { title: `dishi.${u}` };
+  if (validateUsername(u)) return {};
+
+  const resolved = await resolveDossier(params.username);
+  const d = resolved?.dossier;
+  const title = `dishi.${d?.username ?? u}`;
+  if (!d) return { title };
+
+  // Counts only — the palate's shape, not its contents. Deliberately NOT the
+  // dish names: the page itself shows those with their verdicts attached, and
+  // a verdict-less dish name in a link preview reads as a recommendation.
+  const description = [
+    `識 ${d.knowsCount} 味`,
+    `${d.ratingCount} 次食評`,
+    `${d.anchors.length} 道菜公開`,
+  ].join(' · ');
+  // The newest posted dish's photo — already public (it is on the page this
+  // card previews), and it is what makes the preview look like food rather
+  // than a URL.
+  const photo = d.anchors.find(a => a.photo_url)?.photo_url ?? null;
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title, description, type: 'profile',
+      ...(photo ? { images: [{ url: photo }] } : {}),
+    },
+    twitter: {
+      card: photo ? 'summary_large_image' : 'summary',
+      title, description,
+      ...(photo ? { images: [photo] } : {}),
+    },
+  };
 }
 
 export default async function PublicDossierPage({ params }: Params) {

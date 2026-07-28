@@ -77,10 +77,17 @@ describe('State A → State B: the card morph', () => {
     expect(screen.queryByText(/已識/)).toBeNull();
     expect(screen.queryByText('91%')).toBeNull();
     expect(document.querySelectorAll('.persona-host-btn')).toHaveLength(4);
-    // No voice to choose: the carousel is gone, structurally.
+    // No VOICE to choose: the persona carousel is gone, structurally. This
+    // used to be pinned by asserting zero dots — that proxy broke when the
+    // share swipe (batch item 4b) gave State B two AUDIENCE panels, so the
+    // guard is now stated directly instead. The dots below are audiences
+    // (AI / person), never personas: three voice slides would fail this.
     expect(document.querySelector('.persona-viewport')).toBeNull();
-    expect(document.querySelectorAll('.persona-dot')).toHaveLength(0);
     expect(screen.queryByText('dishi.Spoon')).toBeNull();
+    expect(screen.queryByText('dishi.CK')).toBeNull();
+    expect(screen.queryByText('dishi.Kiki')).toBeNull();
+    expect(document.querySelectorAll('.persona-panel')).toHaveLength(2);
+    expect(document.querySelectorAll('.persona-dot')).toHaveLength(2);
 
     fireEvent.click(screen.getByRole('button', { name: '取消' }));
     expect(screen.getByText(/已識/)).toBeTruthy();
