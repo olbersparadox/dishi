@@ -554,7 +554,10 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'dossier.loves': { zh: '偏愛', en: 'Loves' },
   'dossier.avoids': { zh: '避開', en: 'Avoids' },
   'dossier.cuisines': { zh: '常回味的菜系：{list}', en: 'Keeps returning to: {list}' },
-  'dossier.anchors': { zh: '實際食過並喜愛的菜', en: 'Dishes really eaten and loved' },
+  // Was "實際食過並喜愛的菜" when this section was the top-rated ratings. It is
+  // posts now, and posts may be negative — a label promising love would make
+  // the page misrepresent a published dislike.
+  'dossier.anchors': { zh: '公開的菜式', en: 'Dishes published' },
   'dossier.hide.restaurants': { zh: '隱藏餐廳名稱', en: 'Hide restaurant names' },
   'dossier.cta': { zh: '建立你自己的味覺 AI →', en: 'Build your own taste AI →' },
   'copied.short': { zh: '已複製', en: 'Copied' },
@@ -603,6 +606,17 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'auth.verifying': { zh: '核對緊…', en: 'Verifying…' },
   'auth.codefail': { zh: '數字碼不正確或已過期 — 請再試一次，或重新傳送。', en: 'That code is wrong or expired — try again, or resend.' },
   'auth.resend': { zh: '用另一個電郵 / 重新傳送', en: 'Different email / resend' },
+  // 貼文 — publishing is per DISH, and the copy says 公開 (public), never
+  // "share with friends": there is no friend concept in the product.
+  'post.title': { zh: '公開這道菜', en: 'Publish this dish' },
+  'post.body': { zh: '公開之後，這道菜、你的評價，同你寫的一句，會出現在你的公開頁面。', en: 'Once published, this dish, your verdict, and your line appear on your public page.' },
+  'post.reason.placeholder': { zh: '一句話：點解值得知？（可以唔寫）', en: 'One line: why is it worth knowing? (optional)' },
+  'post.negative.note': { zh: '負評一樣可以公開；頁面會照樣顯示你的評價。', en: 'A bad verdict can be published too; the page shows it as it is.' },
+  'post.publish': { zh: '公開', en: 'Publish' },
+  'post.update': { zh: '更新', en: 'Update' },
+  'post.unpublish': { zh: '收回', en: 'Unpublish' },
+  'post.public': { zh: '已公開', en: 'Public' },
+  'post.failed': { zh: '公開唔到，再試一次', en: "Couldn't publish — try again" },
   'home.edit': { zh: '編輯', en: 'Edit' },
   'home.delete': { zh: '刪除', en: 'Delete' },
   'home.more': { zh: '更多操作', en: 'More actions' },

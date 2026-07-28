@@ -61,19 +61,50 @@ async function resolveDossier(rawName: string) {
     versionForProfile(confidenceInputsFrom(vector, affinity, ratingCount)).version,
   );
 
-  // Positive anchors with restaurant names — the credibility layer. Scores and
-  // dates ride only as far as the projection, which drops them.
-  const { data: rated } = await admin
-    .from('ratings')
-    .select('score, dishes!inner(name, name_zh, restaurants(name))')
+  // Anchors = POSTS (2026-07-28). Every row here is a dish this person chose
+  // to publish; nothing reaches the page off the strength of a rating alone.
+  // The verdict is read LIVE from ratings rather than snapshotted at post
+  // time — re-rating replays the whole history, and a public page quoting a
+  // verdict its owner has since abandoned is worse than one that lags.
+  const { data: posts } = await admin
+    .from('dish_posts')
+    .select('reason, created_at, dishes!inner(id, name, name_zh, restaurants(name))')
     .eq('user_id', prof.id)
-    .gte('score', 0.4)
-    .order('score', { ascending: false })
+    .order('created_at', { ascending: false })
     .limit(24);
-  const anchors: DossierRawAnchor[] = (rated ?? []).map(r => {
-    const d = r.dishes as unknown as { name: string | null; name_zh: string | null; restaurants: { name: string | null } | null };
-    return { name: d?.name ?? null, name_zh: d?.name_zh ?? null, restaurant: d?.restaurants?.name ?? null, score: Number(r.score) };
-  });
+
+  const postRows = (posts ?? []).map(p => ({
+    reason: (p.reason as string | null) ?? null,
+    posted_at: p.created_at as string,
+    dish: p.dishes as unknown as {
+      id: string; name: string | null; name_zh: string | null; restaurants: { name: string | null } | null;
+    },
+  }));
+
+  // One batched read of the current verdicts. A post with no rating left (only
+  // reachable if a rating was deleted out from under it) is DROPPED rather
+  // than rendered verdictless — an anchor with no verdict is exactly the
+  // "reads as praise" failure the verdict word exists to prevent.
+  const scores = new Map<string, number>();
+  if (postRows.length > 0) {
+    const { data: rated } = await admin
+      .from('ratings')
+      .select('dish_id, score')
+      .eq('user_id', prof.id)
+      .in('dish_id', postRows.map(p => p.dish.id));
+    for (const r of rated ?? []) scores.set(r.dish_id as string, Number(r.score));
+  }
+
+  const anchors: DossierRawAnchor[] = postRows
+    .filter(p => scores.has(p.dish.id))
+    .map(p => ({
+      name: p.dish.name ?? null,
+      name_zh: p.dish.name_zh ?? null,
+      restaurant: p.dish.restaurants?.name ?? null,
+      reason: p.reason,
+      posted_at: p.posted_at,
+      score: scores.get(p.dish.id)!,
+    }));
 
   return {
     ownerId: prof.id as string,

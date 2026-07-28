@@ -2,14 +2,24 @@
 // "the dossier IS the public taste page — there is no third artifact").
 //
 // This module is the page's PRIVACY CONTRACT, kept pure so tests can pin it:
-// everything the public page (and its copy-for-AI text) may show passes
-// through projectDossier, and the projection's OUTPUT TYPE cannot carry the
-// things decision 3 forbids — eaten dates (they reveal whereabouts and
-// patterns) and companions (NEVER) have no field to ride in. Negative dish
-// anchors are also excluded by construction: a public "this dish at this
-// restaurant is bad" is a statement about the RESTAURANT, and publishing it
-// per-user collides with the never-sell-trust restaurant relationship in a
-// way abstract avoid-dimensions don't.
+// everything the public page may show passes through projectDossier, and the
+// projection's OUTPUT TYPE cannot carry the things decision 3 forbids — eaten
+// dates (they reveal whereabouts and patterns) and companions (NEVER) have no
+// field to ride in.
+//
+// ANCHORS ARE POSTS (2026-07-28, ending the placeholder). They used to be the
+// person's top ratings, published on the single blanket event of claiming a
+// username — a coarser consent grain than the rest of the product, where the
+// unit is the DISH. Now one anchor = one `dish_posts` row = one deliberate
+// act of publishing, and unpublishing deletes it.
+//
+// That change is what reopened negative anchors, and the owner opened them
+// (2026-07-28): a post may carry ANY verdict, because per-dish opt-in IS the
+// consent the old blanket rule couldn't give. The earlier rule — never publish
+// "this dish at this restaurant is bad" — rested on the person never having
+// chosen that dish specifically; they choose now. The cost is paid by carrying
+// the VERDICT WORD on every anchor: a published dislike that rendered like the
+// loves beside it would be worse than not publishing it at all.
 //
 // NO COPY-FOR-AI PATH (owner call 2026-07-28, amending decision 3). This
 // module briefly emitted third-person text for a friend's own AI. It carried
@@ -30,6 +40,7 @@
 // claim exists to end. hasClaimedUsername() (lib/username.ts) is the gate.
 
 import { MEANINGFUL_THRESHOLD, STRONG_THRESHOLD } from './tasteExport';
+import { wordKeyFor } from './flickWords';
 
 /** Same bar the buddy card's 識 N 味 uses (/api/buddy: evidence >= 3 ratings
  * taught the dim). Duplicated as a named constant rather than imported from
@@ -37,9 +48,18 @@ import { MEANINGFUL_THRESHOLD, STRONG_THRESHOLD } from './tasteExport';
  * two derivations is the tripwire. */
 export const DOSSIER_KNOWS_AT = 3;
 
-/** A public anchor is a dish + (optionally) where — nothing else. No dates,
- * no scores, no ids: the type is the fence. */
-export type DossierAnchor = { name: string | null; name_zh: string | null; restaurant: string | null };
+/** A public anchor is a posted dish: what, (optionally) where, the verdict in
+ * the app's own flick vocabulary, and the line the person wrote. No dates, no
+ * numeric scores, no ids: the type is the fence.
+ *
+ * `verdict` is a flick word KEY (client renders t(key)), not a number — the
+ * same six-band vocabulary the person rated in. It is here because posts may
+ * be negative; a coarse word is the minimum needed to keep a published dislike
+ * from reading as praise, and it leaks no more than the band. */
+export type DossierAnchor = {
+  name: string | null; name_zh: string | null; restaurant: string | null;
+  verdict: string; reason: string | null;
+};
 
 export type PublicDossier = {
   username: string;
@@ -64,8 +84,14 @@ export type DossierRawAnchor = {
   name: string | null; name_zh: string | null;
   restaurant?: string | null;
   /** Deliberately accepted-and-dropped: callers may hand the projection rows
-   * that still carry dates; the projection is where they die. */
+   * that still carry dates; the projection is where they die. `posted_at`
+   * orders the list and then dies with them — a post's date is as private as
+   * a meal's. */
   eaten_at?: string | null;
+  posted_at?: string | null;
+  reason?: string | null;
+  /** The CURRENT rating, read live (never snapshotted at post time). Becomes a
+   * verdict word in the projection; the number itself never leaves. */
   score: number;
 };
 
@@ -96,32 +122,33 @@ export function projectDossier(raw: {
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5)
       .map(([c]) => c),
-    // PROVISIONAL SOURCE (owner call 2026-07-28): these are top-rated dishes
-    // drawn from ratings that are otherwise private, published on the strength
-    // of one blanket event — claiming a username. Everywhere else in the
-    // product the consent unit is the DISH (posts are per-dish opt-in), so
-    // this section is a coarser grain than the rest of the app and is a
-    // PLACEHOLDER. When posts ship, this list's source becomes "dishes you
-    // posted" — same section, same decision-3 rationale (the restaurants are
-    // the credibility), consent-gated per dish. Nothing links to this page yet.
+    // POSTED dishes — every one of them an explicit publish (see the module
+    // comment). NO score filter: filtering would silently swallow a post the
+    // person deliberately made, which is the same disrespect for the consent
+    // act that the blanket source had, pointed the other way.
     //
-    // Positive anchors ONLY (see the module comment), strongest first, capped —
-    // and the eaten_at a raw row may carry ends here, never in the output.
-    // Deduped by (name, restaurant): re-rating a dish appends rating rows (the
-    // engine's full-history-replay design), so the same dish can arrive here
-    // several times — a public page listing 壽司拼盤 @ Tsumura twice reads as a
-    // glitch, not enthusiasm. First occurrence wins (the list is score-sorted,
-    // so that's the strongest rating of that dish).
+    // Newest first, because this is a publishing surface and not a leaderboard;
+    // score-sorting would bury a negative post under the loves and quietly
+    // undo the owner's call. The eaten_at / posted_at a raw row carries ends
+    // here, never in the output.
+    //
+    // Deduped by (name, restaurant): one dish can only be posted once (unique
+    // index), but the SAME real dish logged as two rows at one restaurant can
+    // be posted twice — 壽司拼盤 @ Tsumura listed twice reads as a glitch, not
+    // enthusiasm. First occurrence wins, i.e. the most recent post of it.
+    //
+    // Capped at a page length, not at a taste: 12 keeps the dossier a dossier
+    // without making the cap the thing that decides what's public.
     anchors: dedupeAnchors(
-      raw.anchors
-        .filter(a => a.score >= 0.4)
-        .sort((a, b) => b.score - a.score),
+      [...raw.anchors].sort((a, b) => (b.posted_at ?? '').localeCompare(a.posted_at ?? '')),
     )
-      .slice(0, 6)
+      .slice(0, 12)
       .map(a => ({
         name: a.name ?? null,
         name_zh: a.name_zh ?? null,
         restaurant: raw.hideRestaurants ? null : (a.restaurant ?? null),
+        verdict: wordKeyFor(a.score),
+        reason: a.reason ?? null,
       })),
     hideRestaurants: raw.hideRestaurants,
     vector: raw.vector,

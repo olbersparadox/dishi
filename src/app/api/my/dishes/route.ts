@@ -121,11 +121,14 @@ export async function GET(req: NextRequest) {
   // the admin client and scoped to this user, per the standing pattern for
   // sealed_predictions (RLS-locked against its own owner).
   let seals = new Map<string, unknown>();
+  // 貼文 state per dish, so the journal row can say whether it is public and
+  // reopen the sheet on the reason already written. Absent = not posted.
+  let posts = new Map<string, string | null>();
 
   if (ids.length) {
     // locked_dish_ids batches what used to be one is_dish_locked RPC PER dish (the
     // journal's main slowness) into a single query returning just the locked ids.
-    const [{ data: marks }, { data: ratings }, { data: lockedRows }, { data: edges }, { data: sealRows }] = await Promise.all([
+    const [{ data: marks }, { data: ratings }, { data: lockedRows }, { data: edges }, { data: sealRows }, { data: postRows }] = await Promise.all([
       admin.from('helpful_marks').select('dish_id').in('dish_id', ids),
       supabase.from('ratings').select('dish_id, score').eq('user_id', user.id).in('dish_id', ids),
       admin.rpc('locked_dish_ids', { p_dish_ids: ids }),
@@ -142,7 +145,12 @@ export async function GET(req: NextRequest) {
         .in('dish_id', ids)
         .not('revealed_at', 'is', null)   // decided only — never a pending seal
         .order('revealed_at', { ascending: false }),
+      // User-scoped client: a post is the owner's own row and RLS is the right
+      // fence for it (unlike sealed_predictions, which is locked against its
+      // owner by design and must go through admin).
+      supabase.from('dish_posts').select('dish_id, reason').eq('user_id', user.id).in('dish_id', ids),
     ]);
+    for (const p of postRows ?? []) posts.set(p.dish_id, (p.reason as string | null) ?? null);
     for (const m of marks ?? []) hearts.set(m.dish_id, (hearts.get(m.dish_id) ?? 0) + 1);
     for (const r of ratings ?? []) myScores.set(r.dish_id, r.score);
     for (const row of (lockedRows ?? []) as unknown[]) {
@@ -201,6 +209,8 @@ export async function GET(req: NextRequest) {
       locked: lockedSet.has(d.id),
       companions: companions.get(d.id) ?? [], // 同檯 chop names for shared-meal dishes
       seal: seals.get(d.id) ?? null, // the BROKEN seal only — see the query above
+      posted: posts.has(d.id),
+      post_reason: posts.get(d.id) ?? null,
 
       created_at: d.created_at, // used as the next page's `before` cursor
       eaten_at: d.eaten_at ?? null, // photo-EXIF when-eaten; shown (not ordered by) on the card

@@ -5,7 +5,7 @@ import RestaurantPicker, { RestaurantChoice } from '@/components/RestaurantPicke
 import FlickRating from '@/components/FlickRating';
 import { cuisineLabel } from '@/lib/i18n';
 import { wordKeyFor } from '@/lib/flickWords';
-import { EditIcon, TrashIcon, MoreIcon, CheckIcon, CloseIcon } from './icons';
+import { EditIcon, TrashIcon, MoreIcon, CheckIcon, CloseIcon, GlobeIcon } from './icons';
 import { cookingBucket, type CookingMethod } from '@/lib/menuScan';
 import DishInfoDisplay from './DishInfoDisplay';
 import { normalizePhoto } from '@/lib/image';
@@ -14,6 +14,7 @@ import { pickDistrict, type DistrictMap } from '@/lib/district';
 import Chop from './Chop';
 import { chopColorFor } from '@/lib/chop';
 import IdentityConfirmCard from './IdentityConfirmCard';
+import PostSheet from './PostSheet';
 import type { DuelDish } from './DuelSide';
 import { identityRecheckDue } from '@/lib/dishIdentity';
 
@@ -33,6 +34,10 @@ export type MyDish = {
    * own live stamps used. user_id seeds the chop color (color is f(user_id),
    * never f(name)). Empty/absent for solo dishes. */
   companions?: { user_id?: string; name: string }[];
+  /** 貼文 state: whether this dish is public, and the line published with it.
+   * Per-dish opt-in is the product's consent unit — see lib/posts.ts. */
+  posted?: boolean;
+  post_reason?: string | null;
 };
 
 /** Rated-on label for a journal row: date + weekday (7月11日 星期六 / Sat, Jul 11). */
@@ -122,6 +127,9 @@ export default function MyDishes({ t, lang }: { t: (k: string, p?: Record<string
   // kebab button replaces the previous always-visible edit+delete icon pair,
   // per the decided design; at most one row's menu is open at a time.
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
+  // Which dish's 貼文 sheet is open. Publishing is a deliberate, separate act —
+  // never a side effect of rating or editing.
+  const [posting, setPosting] = useState<MyDish | null>(null);
   // Which photoless row is currently uploading a just-picked photo — so its
   // placeholder can show a "saving" state instead of silently doing nothing.
   const [photoUploadingId, setPhotoUploadingId] = useState<string | null>(null);
@@ -444,6 +452,17 @@ export default function MyDishes({ t, lang }: { t: (k: string, p?: Record<string
           onDone={identityAskDone}
         />
       )}
+      {posting && posting.my_score !== null && (
+        <PostSheet
+          dish={{
+            id: posting.id, name: posting.name, name_zh: posting.name_zh,
+            score: posting.my_score, posted: !!posting.posted, reason: posting.post_reason ?? null,
+          }}
+          onClose={() => setPosting(null)}
+          onSaved={(id, posted, reason) =>
+            setDishes(prev => prev?.map(x => x.id === id ? { ...x, posted, post_reason: reason } : x) ?? null)}
+        />
+      )}
       {groups.map(group => {
         const rows = group.map(d => {
         const bucket = cookingBucket(d.cooking_method as CookingMethod | null | undefined);
@@ -608,6 +627,12 @@ export default function MyDishes({ t, lang }: { t: (k: string, p?: Record<string
                 </>
               )}
 
+              {/* Public state is legible on the row itself, not only inside the
+                  sheet: a person must be able to see what they've published by
+                  reading their journal, without opening anything. */}
+              {d.posted && (
+                <p className="card-meta" style={{ fontSize: 12.5, marginTop: 4 }}>{t('post.public')}</p>
+              )}
               {relearnedId === d.id && (
                 <p className="card-meta" style={{ color: 'var(--ink)', fontSize: 12.5, marginTop: 4 }}>{t('log.relearned')}</p>
               )}
@@ -635,6 +660,13 @@ export default function MyDishes({ t, lang }: { t: (k: string, p?: Record<string
                       <button role="menuitem" onClick={() => { setMenuOpenId(null); startEdit(d); }}>
                         <EditIcon size={16} /> {t('home.edit')}
                       </button>
+                      {/* Only a RATED dish can be published — a post asserts a
+                          verdict, and an unrated dish has none to assert. */}
+                      {d.my_score !== null && (
+                        <button role="menuitem" onClick={() => { setMenuOpenId(null); setPosting(d); }}>
+                          <GlobeIcon size={16} /> {d.posted ? t('post.public') : t('post.publish')}
+                        </button>
+                      )}
                       <button role="menuitem" onClick={() => { setMenuOpenId(null); remove(d.id); }}>
                         <TrashIcon size={16} /> {t('home.delete')}
                       </button>

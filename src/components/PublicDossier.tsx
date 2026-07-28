@@ -93,9 +93,10 @@ export default function PublicDossier({ dossier, isOwner }: { dossier: Dossier; 
         )}
       </div></div>
 
-      {/* PLACEHOLDER SECTION — sourced from otherwise-private top ratings today;
-          becomes "dishes you posted" when posts ship (per-dish opt-in, matching
-          the product's consent grain). See lib/dossier.ts and DECISIONS.md. */}
+      {/* The posted dishes — every line here is something this person chose to
+          publish (lib/dossier.ts). Posts may be negative, so the VERDICT rides
+          beside the name: without it a published dislike reads as a
+          recommendation, which is the one way this section could lie. */}
       {anchors.length > 0 && (
         <div className="card" style={{ marginTop: 14 }}><div className="card-body">
           <p className="label">{t('dossier.anchors')}</p>
@@ -104,10 +105,14 @@ export default function PublicDossier({ dossier, isOwner }: { dossier: Dossier; 
               ? [a.name_zh, a.name].filter(Boolean).join(' / ')
               : [a.name, a.name_zh].filter(Boolean).join(' / ');
             return (
-              <p key={i} style={{ margin: '6px 0' }}>
-                {name}
-                {a.restaurant && <span className="card-meta">　@ {a.restaurant}</span>}
-              </p>
+              <div key={i} style={{ margin: '10px 0' }}>
+                <p style={{ margin: 0 }}>
+                  {name}
+                  {a.restaurant && <span className="card-meta">　@ {a.restaurant}</span>}
+                </p>
+                <p className="card-meta" style={{ margin: '2px 0 0' }}>{t(a.verdict)}</p>
+                {a.reason && <p style={{ margin: '3px 0 0', fontSize: 13.5 }}>{a.reason}</p>}
+              </div>
             );
           })}
           {isOwner && (
