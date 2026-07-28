@@ -1802,21 +1802,24 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
    dish name (owner call 2026-07-28: chop + dishi.username at the same big/
    bold type the claimed username uses on the taste card — .username-claim-
    prefix — with the flick verdict word at the row's other end). Dish name
-   drops to the row below as a direct result of this row's insertion. */
-.feed-author-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 10px 0 4px; }
+   drops to the row below as a direct result of this row's insertion.
+   padding-left/right ADD 10px past .duel-option's own 8px padding (owner call
+   2026-07-28) — the chop sits 10px further from the card's left edge, the
+   verdict word 10px further from its right edge. */
+.feed-author-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 10px 0 4px; padding: 0 10px; }
 .feed-author-id { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .feed-author-name {
   font-family: var(--font-display); font-weight: 800; font-size: var(--fs-title-a); color: var(--ink);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .feed-author-verdict { font-size: var(--fs-caption); font-weight: 500; color: var(--ink); flex-shrink: 0; }
-/* The poster's own comment, boxed so it reads as a quoted aside rather than
-   part of the card's own copy — shown only when there IS one (FeedCard.tsx
-   renders nothing at all, box included, when item.reason is empty). */
-.feed-reason-box {
-  margin-top: 8px; padding: 10px 12px; border-radius: 10px;
-  background: var(--paper-inset); color: var(--ink); font-size: var(--fs-caption); line-height: 1.5;
-}
+/* The poster's own comment — plain text now, no box (owner call 2026-07-28:
+   the earlier boxed treatment read as too heavy). Left-aligned with the NAME,
+   not the chop: 10px (.feed-author-row's own left padding, above) + 28px
+   (Chop size) + 8px (.feed-author-id's gap) = 46px indent. Shown, divider
+   included, only when there IS a comment — see FeedCard.tsx. */
+.feed-comment { margin: 0 10px 0 46px; color: var(--ink); font-size: var(--fs-caption); line-height: 1.5; }
+.feed-comment-divider { border: none; border-top: 1px solid var(--line); margin: 8px 0 0; }
 .identity-answers { display: flex; justify-content: center; gap: 34px; margin-top: 16px; }
 .identity-answer {
   display: flex; flex-direction: column; align-items: center; gap: 6px;

@@ -65,21 +65,33 @@ export default function FeedCard({ item, onBookmarked }: {
             }}
             pair={pair}
             afterPhoto={
-              <div className="feed-author-row">
-                <div className="feed-author-id">
-                  <Chop name={item.author.username} color={chopColor} size={28} />
-                  <span className="feed-author-name">dishi.{item.author.username}</span>
+              <>
+                <div className="feed-author-row">
+                  <div className="feed-author-id">
+                    <Chop name={item.author.username} color={chopColor} size={28} />
+                    <span className="feed-author-name">dishi.{item.author.username}</span>
+                  </div>
+                  {/* The verdict is never optional dressing on a user's post: posts
+                      may be negative, and a card that showed only the dish would
+                      read as a recommendation of it. */}
+                  {item.verdict && <span className="feed-author-verdict">{t(item.verdict)}</span>}
                 </div>
-                {/* The verdict is never optional dressing on a user's post: posts
-                    may be negative, and a card that showed only the dish would
-                    read as a recommendation of it. */}
-                {item.verdict && <span className="feed-author-verdict">{t(item.verdict)}</span>}
-              </div>
+                {/* The poster's own comment, left-aligned with their name (not the
+                    chop) — plain text, no box (owner call 2026-07-28: the box read
+                    as too heavy). The hairline only exists to close THIS off from
+                    the dish name below; skipping both together when there's no
+                    comment keeps an empty post going straight from name to dish. */}
+                {item.reason && (
+                  <>
+                    <p className="feed-comment">{item.reason}</p>
+                    <hr className="feed-comment-divider" />
+                  </>
+                )}
+              </>
             }
           />
         </div>
       </div>
-      {item.reason && <div className="feed-reason-box">{item.reason}</div>}
       {/* Your own post carries no bookmark: /api/bookmarks refuses a dish you
           already own, so the button's only possible outcome would be an
           error. The author row already reads dishi.<you>, which is the only
