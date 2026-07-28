@@ -88,3 +88,35 @@ describe('buildBookmarkRow', () => {
     expect(rowNoIngredients.ingredients).toEqual([]);
   });
 });
+
+// Editorial drafts are EDITOR-ONLY (owner, 2026-07-29: "only dishi.jerry can
+// see this 待刊 bar"). Two independent layers, and these pin both — hiding the
+// button alone would be theatre, and shipping pending rows to everyone would
+// leak unpublished content even if no button rendered.
+describe('the 待刊 review surface is gated to persona editors', () => {
+  const feedRoute = readFileSync(new URL('../src/app/api/feed/route.ts', import.meta.url), 'utf8');
+  const reviewRoute = readFileSync(new URL('../src/app/api/persona-posts/[id]/route.ts', import.meta.url), 'utf8');
+
+  it('a non-editor is never SENT a pending row', () => {
+    // The flag decides the status filter; without it the query is published-only.
+    expect(feedRoute).toMatch(/is_persona_editor/);
+    expect(feedRoute).toMatch(/isEditor\s*\n?\s*\?\s*editorialQuery\.in\('status',\s*\['pending',\s*'published'\]\)/);
+    expect(feedRoute).toMatch(/:\s*editorialQuery\.eq\('status',\s*'published'\)/);
+  });
+
+  it('publish and discard are gated SERVER-side, not by hiding the button', () => {
+    // Both verbs must call the gate before touching persona_posts, so a
+    // hand-rolled request from a non-editor fails regardless of the UI.
+    expect(reviewRoute).toMatch(/async function requireEditor/);
+    expect(reviewRoute).toMatch(/if\s*\(!profile\?\.is_persona_editor\)/);
+    for (const verb of ['PATCH', 'DELETE']) {
+      const body = reviewRoute.slice(reviewRoute.indexOf(`export async function ${verb}`));
+      expect(body.indexOf('requireEditor()')).toBeLessThan(body.indexOf('persona_posts'));
+    }
+  });
+
+  it('bookmarking refuses an unpublished draft', () => {
+    const bookmarks = readFileSync(new URL('../src/app/api/bookmarks/route.ts', import.meta.url), 'utf8');
+    expect(bookmarks).toMatch(/post\.status !== 'published'/);
+  });
+});
