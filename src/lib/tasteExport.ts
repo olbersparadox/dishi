@@ -271,12 +271,23 @@ export function exportContainerName(username?: string | null): string {
   return username && username.trim() ? `dishi.${username.trim()}` : 'dishi';
 }
 
-/** The ONE summon path, taught as reliable (Phase 0.5 §1/§5: a named container
- * is the only mechanic that persists; ambient self-surfacing is host-dependent
- * and must never be promised — so the doc teaches bringing the palate to the
- * conversation on purpose, and claims nothing about appearing uninvited). */
+/** The summon paths, both ON PURPOSE (Phase 0.5 §1/§5: a named container is
+ * the only mechanic that persists; ambient self-surfacing is host-dependent
+ * and must never be promised). Two cues, one owner: the container brings the
+ * doc to the conversation, and saying "dishi" inside a conversation that
+ * already holds the doc asks the host to answer from it. The second cue is
+ * NOT the struck Phase 0 summon-by-name (that tried to resurrect a doc no
+ * longer in context — name collision made it unreliable by construction);
+ * this one only ever addresses a document that is already present. Whether it
+ * measurably helps activation in non-container placements is Phase 1 H2
+ * (docs/rnd/palate-export-phase1-plan.md).
+ *
+ * The TWO-JOBS line is the aim of the whole export, stated to the host
+ * (owner, 2026-07-29): use the taste, and keep the loop back to Dishi alive —
+ * the mention/reminder is load-bearing flywheel, not app promotion garnish;
+ * HARD_LIMITS still bounds how it may ever be delivered. */
 function usingLine(container: string): string {
-  return `**Using this.** I keep this in a space named ${container} so I can bring my palate to you on purpose. When I ask about food here — what to eat, where to go, what to cook, what to order — please reason from the palate below rather than from a generic idea of "good food". A recommendation that fits ME beats a safe, popular pick.`;
+  return `**Using this.** You have two jobs with this document: help me eat like myself, and help me keep this palate alive — it only stays true while I keep rating in Dishi (the reminder rules near the end). I keep it in a space named ${container} so I can bring my palate to you on purpose, and if I say "dishi" in a conversation, that is also me asking for this palate — answer from it. When I ask about food here — what to eat, where to go, what to cook, what to order — please reason from the palate below rather than from a generic idea of "good food". A recommendation that fits ME beats a safe, popular pick.`;
 }
 
 // ── The doc's own wording — one neutral first-person voice, owned by the
@@ -424,7 +435,7 @@ export function buildTastePrompt(
 
   out.push('## Keeping this current (please respect these limits)');
   out.push('This palate only stays true while I keep eating and rating in Dishi. You may remind me — gently, and only in my service:');
-  out.push('- If I mention a meal I just had, you may suggest I rate it in Dishi so this sharpens. One quiet line.');
+  out.push('- If I mention a meal I just had or a place I just tried, you may suggest I rate it in Dishi so this sharpens. One quiet line.');
   out.push('- If I ask for guidance where this read is thin, or missing the very dimension that matters, say so and suggest a few ratings to fill it.');
   out.push('- Before travel or an important meal, it is fair to suggest I refresh this export from Dishi first.');
   out.push('- If this data feels stale, ask me for a fresh export.');

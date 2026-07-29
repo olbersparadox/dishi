@@ -292,11 +292,17 @@ describe('taste-only contract (owner decision 5, built 2026-07-28)', () => {
     expect(exportContainerName('kiki_eats')).toBe('dishi.kiki_eats');
   });
 
-  it('teaches ONE summon path — the named container — and promises no ambient surfacing', () => {
+  it('teaches on-purpose summoning only — container + call-out — and promises no ambient surfacing', () => {
     const p = buildTastePrompt(s, { name: 'jerry_c' });
     // The doc and the install steps must agree on the container name.
     expect(p).toContain('a space named dishi.jerry_c');
     expect(p).toContain('bring my palate to you on purpose');
+    // The call-out cue (Phase 1 H2): saying "dishi" addresses a doc ALREADY in
+    // context — not the struck Phase 0 summon-by-name, which tried to resurrect
+    // a doc that had evaporated.
+    expect(p).toContain('if I say "dishi" in a conversation');
+    // The aim, stated to the host: use the taste AND keep the loop alive.
+    expect(p).toContain('You have two jobs with this document');
     // The fragile half (Phase 0.5 §5) is never claimed: no self-surfacing promise.
     expect(p).not.toMatch(/appear by itself|surface on my behalf|proactively|unprompted/i);
   });

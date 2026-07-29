@@ -331,6 +331,10 @@ the public page, QR entry). If nothing claims it by the time the share chain
 ships, close it.
 
 ## 4. Owner re-test (manual, no code — listed for tracking)
+**→ ABSORBED 2026-07-29 into palate-export Phase 1** (batch at end of file;
+plan + results table in `docs/rnd/palate-export-phase1-plan.md`). The two
+confounds below remain binding on every Phase 1 run — they are protocol now,
+not history.
 
 After the expanded Phase 0.5 deploy (provenance preamble + consent framing +
 paste-as-text copy). **Two confounds have polluted every Claude test so far —
@@ -729,3 +733,24 @@ here because each was a real defect and not a preference: the row had shipped
 as a text label instead of the agreed four marks; the identity line was
 re-labelling itself per panel instead of staying fixed; and the dots' touch
 targets overlapped, so tapping back to panel 1 silently did nothing.
+
+# Batch: palate-export Phase 1 — the loop, measured (owner directive 2026-07-29)
+
+The full plan (aim, settled evidence, H1–H4, probe script, go bar, revision
+levers) lives in `docs/rnd/palate-export-phase1-plan.md` — that file is the
+spec AND the results log; read it before touching the export. The aim in one
+line: **taste learned in Dishi shows up in the user's own AI, and that AI
+sends them back to Dishi to keep rating.** No persona (closed); the dishi
+mention/reminder is load-bearing flywheel, bounded by HARD_LIMITS.
+
+## Items
+
+1. **R1 instruction rewrite — ✅ SHIPPED 2026-07-29.** Two-jobs aim line,
+   the "dishi" call-out cue (addresses a doc in context — NOT the struck
+   bare-name summon), place-mention added to the rate trigger. Pinned in
+   tasteExport tests.
+2. **Phase 1 runs — OWNER-RUN, manual.** The probe script per host ×
+   placement cell; results appended to the plan doc's table. Absorbs the old
+   export-batch item 4 (ChatGPT custom GPT retest) as one H1a cell.
+3. **R2–R4 revision levers — gated on results.** One lever per version; no
+   code until a run asks for it.
