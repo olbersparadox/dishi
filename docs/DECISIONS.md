@@ -4424,3 +4424,60 @@ review exists to make).
 **One UX wart, accepted:** the editor's own bookmark tap on a still-pending
 draft 404s server-side (only published posts are bookmarkable). Editor-only
 surface, one-tap-from-published — not worth the complexity.
+
+---
+
+# Comparison frequency: starvation diagnosis + the interactions feed — SHIPPED `062aa16` (R&D) + `bf12477` (build), 2026-07-29
+
+Owner complaint: duels and execution comparisons barely fire for the heaviest
+user; the rating data is "wasted in the back". Full diagnosis + design space in
+`docs/rnd/comparison-frequency.md` (measured, not asserted — scripts
+`diagnose-comparison-starvation.ts` and `eval-duel-uncertainty.ts`).
+
+**The headline finding.** The duel gate ("a contrasting dim with evidence <= 2")
+was a one-way ratchet: evidence only grows, so at 49 ratings the gate killed
+374/374 strongly-contrasting pairs and `selectDuelPair` returned null FOREVER —
+the engine went quieter the more someone rated. Meanwhile the model's own
+sealed bets were coin flips on 306/378 pairs: the counter was manufacturing
+certainty the model did not have.
+
+**Owner decisions (2026-07-29):** ~2/day duels (10h cooldown, was 20h); band
+edge p < 0.65 (the no-filler rule applied to duels); build order gate-rebuild →
+execution inbox; and the JOURNAL + BELL become the standing HOST surfaces for
+taste-calibration interactions — up to two daily cards in 食記, everything in
+the bell, future kinds join the same feed. Standing invitation: interactions
+beyond ratings are welcome whenever they sharpen taste definition.
+
+**What shipped:**
+- Duel qualification is the engine's own UNRESOLVED BET: pairs qualify while
+  the sealed confidence sits under 0.65 and the least-certain pair serves
+  first (uncertainty sampling; selection returns the p the route seals, so the
+  gate and the seal cannot disagree). Evidence survives only as tiebreak.
+  Same-canonical pairs are excluded — two renderings of one dish are the
+  execution slider's question (the simulation caught 壽司拼盤 vs 軍艦壽司 in
+  its own top five). A duel predicted WRONG within 7 days redirects selection
+  to re-probe its dims, and the card admits it (上次估錯了，這局再驗證一次) —
+  visible recalibration IS the product claim.
+- `/api/interactions/today` is THE host feed (supersedes /api/duels/next,
+  killed). Serves the duel slot + the execution INBOX: stranded sibling pairs
+  (rated before their sibling existed — 11 existed at ship time) re-offered one
+  per day; scoring retires them, dismissal is session-local.
+- One client hook (`useInteractions`) feeds both surfaces; answering anywhere
+  re-syncs everywhere via one window event. Overlays are the existing chassis
+  (DuelOverlay / ExecutionSlider) mounted as-is. The execution marker 比 is
+  ink — vermillion stays the seal's.
+
+**Verified** with a disposable seeded account on the dev server (screenshots in
+session): journal strip with both cards, execution overlay showing the
+cross-venue 火腿通粉 pair with flick-bounded sliders, duel seal + answer +
+reveal (學到 dims), strip clearing to nothing when drained. Fixture user, its
+dishes, restaurants and duels deleted after (verified zero leftovers).
+
+**Rejected/parked in the design space** (reasons in the R&D doc): 冠軍 group
+champion (deferred, data trigger: 2–3 canonical groups at >= 3 rated),
+taste-drift recheck (~35%), cross-cuisine bridge duels (~30%), abstract
+attribute probes (rejected — dishes are the interface).
+
+**Follow-up worth watching:** all 4 answered duels sealed at p≈0.5 and all went
+the predicted way — a hint DUEL_K=2 under-scales the gap (model UNDER-confident).
+Recalibrate DUEL_K against accumulated duel outcomes once n is respectable.

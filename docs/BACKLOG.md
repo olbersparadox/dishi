@@ -124,6 +124,25 @@ DECISIONS.md.)
 
 ## Needs an owner decision before any code
 
+- [ ] **[F] 未食 hypothetical duels (menu-preference probes) — proposed
+  2026-07-29, ~60% go.** The comparison family's first BEYOND-RATINGS member
+  (owner invited: anything that sharpens taste definition may live in the
+  interactions feed). A duel over two CATALOG dishes the person has NOT
+  eaten — "邊樣你會點？" — on the same chassis. Supply becomes effectively
+  infinite (144 entries × pairs) and selection can target exactly the dims
+  the profile is thinnest on, which real eating can't be steered toward.
+  The open engine question that gates it: a hypothetical pick is WEAKER
+  evidence than an eaten experience, so it needs its own (lower) learning
+  weight and probably its own evidence channel — sizing that weight is an
+  R&D pass, not a constant to guess. Decide: run that R&D next, or wait
+  until the real-rating interaction loop has bedded in?
+- [ ] **[F] Aversion probes (內臟/生食/辣度 tolerance) — proposed 2026-07-29,
+  ~45% go.** Direct dish-photo questions ("呢啲食唔食？") filling the
+  aversion side the AI export needs most (negative-rating data ceiling is a
+  recorded gotcha — aversions barely appear in eaten-and-rated data because
+  people don't order what they avoid). Must be designed to not feel like a
+  survey; below the bar until that design exists.
+
 (dishi.Persona — character persistence in foreign AIs: install flow SHIPPED
 `1f5198c` 2026-07-23, closing the item — full entry moved to DECISIONS.md.
 Only the owner's manual Phase 0.5 persistence re-test remains, outside code.)
@@ -145,6 +164,22 @@ question. Full entry, kept for the WHY, in DECISIONS.md.)
   2026-07-22 (see DECISIONS.md), so this is now unblocked. Spec below.
 
 ## Later / standing
+
+(Comparison frequency batch — unresolved-bet duel gate, /api/interactions/today
+feed, journal 今日 cards + bell hosting, execution inbox: SHIPPED `062aa16` +
+`bf12477`, 2026-07-29 — see DECISIONS.md "Comparison frequency". Two watches
+remain open below.)
+
+- [ ] **[F] 冠軍 group champion — data-gated (decided 2026-07-29).** N-way
+  "邊間係你嘅冠軍?" over a canonical group's rated instances, on the duel
+  chassis. Trigger: 2–3 canonical groups reach >= 3 RATED instances (today
+  only sushi-platter). One group makes it a gimmick; the moment should feel
+  earned. Design pass then build.
+- [ ] **[F] DUEL_K recalibration watch.** All 4 answered duels sealed at
+  p≈0.50–0.52 and ALL went the predicted way — a hint the model is
+  UNDER-confident (K=2 under-scales the content-score gap). n=4 proves
+  nothing. Once ~30+ duel outcomes exist, fit K to observed hit rates
+  (predicted_p vs reality) and re-check the p<0.65 band edge with it.
 
 - [ ] **Strategy: consumer scan density.** One dense neighborhood before
   expanding. Not a code item. **"No friend graph" STANDS — SETTLED
