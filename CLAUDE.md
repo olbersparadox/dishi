@@ -88,6 +88,15 @@ consumer-side dish-level demand data.
   switches (deliberately NOT Web Storage: must clear on browser refresh).
 - `src/lib/openrouter.ts` (`callClaudeStream`) + `src/lib/jsonSalvage.ts`
   (`salvageJsonObjects`) — token-level SSE scan streaming + incremental JSON.
+- **Scan invariants (each regressed live at least once, 2026-07-29):**
+  (1) scan result state is APPEND-ONLY — stages 2/3 merge into React state
+  only, so never write the stream loop's local `items` transcript into
+  `result` (it carries no enrichment; a snapshot write erases every chip
+  already merged — pinned by `tests/scanPipelining.test.tsx`);
+  (2) any "scan feels slow" report starts by grepping Vercel runtime logs for
+  `scan-telemetry` (one structured line per scan; names the culprit stage)
+  BEFORE reading code; (3) no per-item conditional instructions in
+  `SKELETON_SYSTEM` — measured 3× slower per item + a broken JSON envelope.
 - Logging a dish: one entry point, `src/app/profile/page.tsx`'s merged
   restaurant/home/album pill, which all three open the SAME photo picker →
   `src/components/RatingStack.tsx` (flick card → `TasteGrowth` growth
