@@ -47,6 +47,15 @@ export async function callClaude(
   // window: 29% first-attempt failures, one retry recovered ~60% of them, a
   // second cuts the residual roughly in half again. Callers without expectJson
   // keep the original retry-once behavior unchanged.
+  //
+  // The per-attempt timeout ESCALATES (base, then 2x, then 3x). Found by the
+  // canary's first-ever run (2026-07-29): during a slow-provider window the
+  // model spent 817 reasoning tokens (~16s) on a 3-word hook, so a FIXED 12s
+  // budget aborted attempt 1 mid-body — and then aborted the identical
+  // attempt 2 at the identical 12s. A flat timeout only defends against
+  // transient faults; under sustained slowness it converts "slow chips" into
+  // "no chips, silently, for every dish". Attempt 1 stays tight (fast-fail
+  // wins when the fault is transient), the retry gets patience.
   const started = Date.now();
   const attempts = opts.expectJson ? 3 : 2;
   let last: string | null = null;
@@ -55,7 +64,8 @@ export async function callClaude(
       if (Date.now() - started > 15_000) break;
       await new Promise(r => setTimeout(r, 800));
     }
-    last = await callClaudeOnce(system, userContent, opts);
+    const timeoutMs = opts.timeoutMs === undefined ? undefined : opts.timeoutMs * (i + 1);
+    last = await callClaudeOnce(system, userContent, { ...opts, timeoutMs });
     if (last !== null && (!opts.expectJson || parseJsonResponse(last) !== null)) return last;
   }
   return last;

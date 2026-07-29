@@ -1,6 +1,7 @@
 {
   "crons": [
     { "path": "/api/mf/train", "schedule": "0 3 * * *" },
-    { "path": "/api/cron/persona-daily", "schedule": "30 3 * * *" }
+    { "path": "/api/cron/persona-daily", "schedule": "30 3 * * *" },
+    { "path": "/api/canary/scan", "schedule": "0 1 * * *" }
   ]
 }

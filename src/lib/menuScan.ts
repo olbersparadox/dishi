@@ -445,10 +445,14 @@ export async function enrichOneDish(item: { name: string; name_zh?: string | nul
   // \u7086\u7c73 alongside a bland English name lets the shorthand glossary do its job.
   const zh = item.name_zh && item.name_zh !== item.name ? ` / ${item.name_zh}` : '';
   const userText = `${item.name}${zh}${item.section ? ` (menu section: ${item.section})` : ''} \u2014 cuisine: ${item.cuisine}`;
-  // timeoutMs 12s: a healthy enrich answer is single-digit seconds; a hung
-  // attempt should abort and retry (callClaude's own retry ladder) instead of
-  // eating the route's maxDuration — worst case two calls (first + tripwire
-  // re-ask) × ~25s of attempts still fits the route's 60s budget.
+  // timeoutMs 12s base, escalating per attempt (12s then 24s — see callClaude):
+  // a healthy answer is single-digit seconds, but a slow-provider window can
+  // legitimately need ~16s (measured: 817 reasoning tokens on a 3-word hook),
+  // so the retry must be patient where the first attempt is tight. Worst case
+  // two calls (first + tripwire re-ask) × ~37s of attempts can exceed the
+  // route's 60s budget in the doubly-degraded corner — Vercel then kills the
+  // function and the client degrades to honest-empty chips, which is the same
+  // outcome a flat timeout produced FAR more often.
   const first = parseEnrichment(await callClaude(ENRICH_SYSTEM, userText, { maxTokens: 260, timeoutMs: 12_000 }));
   if (!first) return EMPTY_ENRICHMENT;
 
