@@ -2,7 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase/server';
 import { enrichOneDish, type OcrMenuItem } from '@/lib/menuScan';
 
-export const maxDuration = 30;
+// 60, not 30: enrichOneDish is up to TWO sequential LLM calls (first pass +
+// the one tripwire re-ask — and the seafood tripwire fires often on exactly
+// the Japanese menus that also run slow), each with its own retry ladder at
+// ~12s/attempt. 30 killed the function mid-second-call on a degraded provider
+// and those dishes' chips never arrived at all (2026-07-29 Japanese scan).
+export const maxDuration = 60;
 
 /**
  * POST /api/menu-scan/enrich — STAGE 2, called ONCE PER DISH by the client, several

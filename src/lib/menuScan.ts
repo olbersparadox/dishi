@@ -346,10 +346,15 @@ export async function* scanMenuSkeletonStream(base64: string, mediaType: string)
   let emitted = 0;
   let lastText = '';
 
+  // maxTokens 3000, not the old 1800: a Japanese/Korean menu carries THREE name
+  // renderings per item (name + name_zh + name_original), so ~130 tokens/item
+  // put a 20-item menu past 1800 and silently truncated the tail. Time (the
+  // stream's own idle/overall timeouts) is the real bound; the token ceiling
+  // just shouldn't be the thing that cuts a fast provider short.
   for await (const text of callClaudeStream(SKELETON_SYSTEM, [
     imagePart(base64, mediaType),
     textPart('Extract every dish\u2019s name, price, and cuisine only. Nothing else.'),
-  ], { maxTokens: 1800 })) {
+  ], { maxTokens: 3000 })) {
     lastText = text;
     const found = salvageJsonObjects(text, 'items');
     if (found.length > emitted) {
@@ -440,7 +445,11 @@ export async function enrichOneDish(item: { name: string; name_zh?: string | nul
   // \u7086\u7c73 alongside a bland English name lets the shorthand glossary do its job.
   const zh = item.name_zh && item.name_zh !== item.name ? ` / ${item.name_zh}` : '';
   const userText = `${item.name}${zh}${item.section ? ` (menu section: ${item.section})` : ''} \u2014 cuisine: ${item.cuisine}`;
-  const first = parseEnrichment(await callClaude(ENRICH_SYSTEM, userText, { maxTokens: 260 }));
+  // timeoutMs 12s: a healthy enrich answer is single-digit seconds; a hung
+  // attempt should abort and retry (callClaude's own retry ladder) instead of
+  // eating the route's maxDuration — worst case two calls (first + tripwire
+  // re-ask) × ~25s of attempts still fits the route's 60s budget.
+  const first = parseEnrichment(await callClaude(ENRICH_SYSTEM, userText, { maxTokens: 260, timeoutMs: 12_000 }));
   if (!first) return EMPTY_ENRICHMENT;
 
   // Tripwires, not authority (see dietSuspicion / carbSuspicion). A name/flag/
@@ -457,7 +466,7 @@ export async function enrichOneDish(item: { name: string; name_zh?: string | nul
     const carbBad = carbSuspicion(item.name, item.name_zh ?? null, first.ingredients);
     if (dietBad || carbBad) {
       const rechecks = [dietBad ? DIET_RECHECK_LINE : null, carbBad ? CARB_RECHECK_LINE : null].filter(Boolean).join('\n');
-      const retry = parseEnrichment(await callClaude(ENRICH_SYSTEM, `${userText}\n${rechecks}`, { maxTokens: 260 }));
+      const retry = parseEnrichment(await callClaude(ENRICH_SYSTEM, `${userText}\n${rechecks}`, { maxTokens: 260, timeoutMs: 12_000 }));
       // carb_suspect marks that the FIRST reading misread the carb \u2014 the signal a
       // vector scored in parallel from the same name is polluted too. It stays true
       // regardless of the retry outcome: a corrected retry proves the first pass was
@@ -728,7 +737,9 @@ export async function scoreOneDish(
   item: { name: string; name_zh?: string | null; cuisine: string },
   opts?: { groundIngredients?: string[]; carbRecheck?: boolean },
 ): Promise<DishVector> {
-  const text = await callClaude(SCORE_ONE_SYSTEM, buildScoreUserText(item, opts), { maxTokens: 150 });
+  // Same 12s-per-attempt budget as enrichOneDish, same reason: 150 tokens of
+  // output should never hold a route (or the scan's settle) hostage for 50s.
+  const text = await callClaude(SCORE_ONE_SYSTEM, buildScoreUserText(item, opts), { maxTokens: 150, timeoutMs: 12_000 });
   const parsed = parseJsonResponse<{ a?: unknown }>(text);
   return mergeScoredAttributes(1, Array.isArray(parsed?.a) ? [parsed!.a] : null)[0];
 }

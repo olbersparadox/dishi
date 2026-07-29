@@ -8,7 +8,7 @@ import PhotoPicker from '@/components/PhotoPicker';
 import ScanBenefitDemo from '@/components/ScanBenefitDemo';
 import ExplainModal from '@/components/ExplainModal';
 import RestaurantPicker, { RestaurantChoice } from '@/components/RestaurantPicker';
-import { mapWithConcurrency } from '@/lib/concurrency';
+import { createTaskPool } from '@/lib/concurrency';
 import { mergeFinalScanItems } from '@/lib/tableMenuItems';
 import { shareLink } from '@/lib/share';
 import DishInfoDisplay from '@/components/DishInfoDisplay';
@@ -375,6 +375,73 @@ function Scanner() {
       let meta: { profile_ready: boolean; rating_count: number; needed: number; mock: boolean; phase: 'done' | 'needs_scoring' } | null = null;
       let done: { menu_language: string; restaurant_guess: string | null } | null = null;
 
+      const offset = baseItems.length; // where this page's new dishes sit in the combined list (0 when fresh)
+
+      // STAGE 2/3 ARE PIPELINED INTO STAGE 1 (2026-07-29): enrichment and
+      // scoring are per-dish calls, so nothing about them ever needed the full
+      // menu — each dish's calls fire the moment ITS item event arrives, not
+      // after the stream ends. The old sequencing had a measured, brutal cost:
+      // a Japanese menu's skeleton stream stalled after its last item and held
+      // the connection to the full stream timeout, and only THEN did 28
+      // per-dish calls begin — chips and recommendations trailed the visible
+      // menu by minutes, on the app's core loop. The pools keep the old batch
+      // semantics (cap, per-item onEach the moment each result lands, one
+      // failure never touching the rest); `drain()` below is awaited exactly
+      // where the old batch promises were.
+      //
+      // Each stage still merges only the fields it OWNS (see the note on the
+      // enrich/score onEach bodies) — pipelining changes WHEN calls start,
+      // never who wins a write.
+      const enrichPool = createTaskPool<ScannedItem>(SCORE_CONCURRENCY, (enriched, index) => {
+        setResult(prev => {
+          if (!prev) return prev;
+          const at = offset + index;
+          const nextItems = [...prev.items];
+          nextItems[at] = enriched
+            ? { ...nextItems[at], hook: enriched.hook, hook_zh: enriched.hook_zh, diet: enriched.diet, cooking_method: enriched.cooking_method, heaviness: enriched.heaviness, ingredients: enriched.ingredients, enriched: true }
+            : { ...nextItems[at], enriched: true }; // failed enrichment: stop showing the shimmer, stay honestly empty
+          return { ...prev, items: nextItems };
+        });
+      });
+      const scorePool = createTaskPool<ScannedItem>(SCORE_CONCURRENCY, (scored, index) => {
+        setResult(prev => {
+          if (!prev) return prev;
+          const at = offset + index;
+          const nextItems = [...prev.items];
+          nextItems[at] = scored
+            ? { ...nextItems[at], match: scored.match, reason: scored.reason, caution: scored.caution, fire: scored.fire, raw_score: scored.raw_score, attributes: scored.attributes }
+            : { ...nextItems[at], match: null }; // null = failed, shown gracefully
+          return { ...prev, items: nextItems };
+        });
+      });
+      // Fired at item ACCEPTANCE (so an appended duplicate that gets dropped is
+      // never enriched/scored). meta always precedes items on the wire ('start'
+      // is sent before the model call even begins — see the route), so the
+      // guard is a formality, not a race. Mock items arrive already enriched.
+      const startStages = (item: ScannedItem, index: number) => {
+        if (!meta || meta.mock) return;
+        enrichPool.push(index, async () => {
+          const r = await fetch('/api/menu-scan/enrich', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ item }),
+          });
+          if (!r.ok) throw new Error('enrich failed');
+          return (await r.json()).item as ScannedItem;
+        });
+        if (meta.phase === 'needs_scoring') {
+          scorePool.push(index, async () => {
+            const r = await fetch('/api/menu-scan/score', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ item, lang }),
+            });
+            if (!r.ok) throw new Error('score failed');
+            return (await r.json()).item as ScannedItem;
+          });
+        }
+      };
+
       while (true) {
         const { done: streamDone, value } = await reader.read();
         if (streamDone) break;
@@ -422,6 +489,7 @@ function Scanner() {
                 items = [...items, { ...incoming, isNew: true }];
                 const snapshot = [...baseItems, ...items];
                 setResult(prev => prev ? { ...prev, items: snapshot } : prev);
+                startStages(items[items.length - 1], items.length - 1);
               }
             } else {
               const isFirst = items.length === 0;
@@ -437,6 +505,7 @@ function Scanner() {
               } else {
                 setResult(prev => prev ? { ...prev, items: snapshot } : prev);
               }
+              startStages(incoming, items.length - 1);
             }
           } else if (ev.kind === 'done') {
             done = ev;
@@ -455,8 +524,6 @@ function Scanner() {
 
       if (!meta) throw new Error('Scan ended unexpectedly.');
       if (!append && items.length === 0) throw new Error('No dishes could be read from that photo.');
-
-      const offset = baseItems.length; // where this page's new dishes sit in the combined list (0 when fresh)
 
       // Only the FIRST scan creates the session; captured as a promise (not just
       // state) so the post-stage re-author sync at the bottom of this same call
@@ -480,43 +547,18 @@ function Scanner() {
       }
       if (meta.phase !== 'needs_scoring') setSettled(true); // already complete (mock / under threshold)
 
-      // Stage 2 (enrichment: hook/diet/cooking/heaviness/ingredients) always runs,
-      // for every user, regardless of profile maturity — day-0 utility needs no
-      // taste learning. Stage 3 (flavor scoring) only runs once profile_ready. The
-      // two are INDEPENDENT, so they run concurrently rather than one waiting on
-      // the other.
+      // Stage 2 (enrichment) and Stage 3 (scoring) are ALREADY RUNNING — each
+      // dish's calls fired the moment it streamed in (see startStages above).
+      // Enrichment runs for every user regardless of profile maturity (day-0
+      // utility needs no taste learning); scoring only once profile_ready.
       //
       // Each stage's server response echoes back the item snapshot it was CALLED
-      // with, which — because the two calls fire at the same time — can be stale
-      // by the time the response lands (the other stage may have already updated
-      // that same item). Merging only the specific fields each stage OWNS, rather
-      // than replacing the whole item, makes the merge order-independent: whichever
-      // response arrives first or last, neither stage can ever clobber the other's
-      // work.
-      const enrichPromise = meta.mock ? Promise.resolve(null as (ScannedItem | null)[] | null) : mapWithConcurrency(
-        items,
-        SCORE_CONCURRENCY,
-        async (item) => {
-          const r = await fetch('/api/menu-scan/enrich', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ item }),
-          });
-          if (!r.ok) throw new Error('enrich failed');
-          return (await r.json()).item as ScannedItem;
-        },
-        (enriched, index) => {
-          setResult(prev => {
-            if (!prev) return prev;
-            const at = offset + index;
-            const nextItems = [...prev.items];
-            nextItems[at] = enriched
-              ? { ...nextItems[at], hook: enriched.hook, hook_zh: enriched.hook_zh, diet: enriched.diet, cooking_method: enriched.cooking_method, heaviness: enriched.heaviness, ingredients: enriched.ingredients, enriched: true }
-              : { ...nextItems[at], enriched: true }; // failed enrichment: stop showing the shimmer, stay honestly empty
-            return { ...prev, items: nextItems };
-          });
-        },
-      ).catch(() => null as (ScannedItem | null)[] | null); // best-effort: a failed enrichment batch must never block scoring or settle
+      // with, which can be stale by the time the response lands (the other stage
+      // may have already updated that same item). Merging only the specific
+      // fields each stage OWNS (the pool onEach bodies above), rather than
+      // replacing the whole item, makes the merge order-independent: whichever
+      // response arrives first or last, neither stage can ever clobber the
+      // other's work.
 
       // Kana/hangul tripwire (語言對 fix v2). The skeleton model sometimes leaves
       // the printed Japanese/Korean name in name_zh despite the prompt telling it
@@ -544,42 +586,13 @@ function Scanner() {
         })
         .catch(() => ({})); // best-effort: a failed re-author leaves the printed name, never blocks
 
-      // Phase 2 (scoring): one small call PER DISH, several in parallel (capped).
-      // Each ring lights up the moment ITS call finishes — no waiting for the
-      // slowest dish to unblock everyone else's result. Original menu order is
-      // preserved while any dish is still pending; once every dish has an outcome
-      // (scored or failed), the view "settles" into ranked order with the hero
-      // promoted.
-      const scorePromise: Promise<(ScannedItem | null)[] | null> = meta.phase === 'needs_scoring'
-        ? mapWithConcurrency(
-            items,
-            SCORE_CONCURRENCY,
-            async (item) => {
-              const r = await fetch('/api/menu-scan/score', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ item, lang }),
-              });
-              if (!r.ok) throw new Error('score failed');
-              return (await r.json()).item as ScannedItem;
-            },
-            (scored, index) => {
-              setResult(prev => {
-                if (!prev) return prev;
-                const at = offset + index;
-                const nextItems = [...prev.items];
-                nextItems[at] = scored
-                  ? { ...nextItems[at], match: scored.match, reason: scored.reason, caution: scored.caution, fire: scored.fire, raw_score: scored.raw_score, attributes: scored.attributes }
-                  : { ...nextItems[at], match: null }; // null = failed, shown gracefully
-                return { ...prev, items: nextItems };
-              });
-            },
-          ).catch(() => null)
-        : Promise.resolve(null);
-
-      const scoreResults = await scorePromise;
+      // The view "settles" (ranked order, hero promoted, fire cap applied) once
+      // every dish has a scoring outcome — i.e. when the score pool drains.
+      // Much of it usually finished DURING the stream; this await only covers
+      // the stragglers.
+      const scoreResults = await scorePool.drain();
       setSettled(true);
-      const enrichResults = await enrichPromise; // usually already resolved by now; awaited so this function doesn't return early
+      const enrichResults = await enrichPool.drain(); // usually already resolved by now; awaited so this function doesn't return early
       const nameFixes = await namefixPromise; // same: a re-author still in flight shouldn't be dropped on return
 
       // Keep the SHARED table session in step with this scanner's finished view,

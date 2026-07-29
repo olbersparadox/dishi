@@ -47,7 +47,7 @@ export function shapeTableMenuItems(raw: unknown[], cap = 40): TableMenuItem[] {
 }
 
 /** The stage results a scan's post-creation passes produce, positionally
- * aligned with the scanned items (mapWithConcurrency preserves order; a null
+ * aligned with the scanned items (createTaskPool keys results by index; a null
  * slot is that item's failed call). */
 type StageResults<T> = (T | null)[] | null;
 

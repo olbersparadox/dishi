@@ -26,7 +26,7 @@ type ContentPart =
 export async function callClaude(
   system: string,
   userContent: string | ContentPart[],
-  opts: { maxTokens?: number; expectJson?: boolean } = {},
+  opts: { maxTokens?: number; expectJson?: boolean; timeoutMs?: number } = {},
 ): Promise<string | null> {
   // Retry on FAST failures only (the elapsed gate below): a retry after a slow
   // failure (a genuine ~50s timeout) would stack past Vercel's function budget
@@ -64,7 +64,7 @@ export async function callClaude(
 async function callClaudeOnce(
   system: string,
   userContent: string | ContentPart[],
-  opts: { maxTokens?: number } = {},
+  opts: { maxTokens?: number; timeoutMs?: number } = {},
 ): Promise<string | null> {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) return null;
@@ -73,10 +73,16 @@ async function callClaudeOnce(
   // try/catch below turns it into a null return. Without it, the exception crashed
   // the whole route, Vercel served an HTML error page, and Safari surfaced it as
   // "The string did not match the expected pattern" when the client parsed JSON.
+  //
+  // timeoutMs: callers with SMALL expected outputs (per-dish enrich/score — a
+  // healthy answer takes single-digit seconds) pass a tight budget so a hung
+  // attempt aborts early and RETRIES, instead of eating the route's whole
+  // maxDuration on one dead request (the degraded-provider probe in callClaude's
+  // notes: a fresh attempt recovers ~60% of failures). Default stays 50s.
   let res: Response;
   try {
     res = await fetch(ENDPOINT, {
-    signal: AbortSignal.timeout(50_000),
+    signal: AbortSignal.timeout(opts.timeoutMs ?? 50_000),
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -149,10 +155,30 @@ export async function* callClaudeStream(
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) return;
 
+  // TWO timeout shapes, because a stream has two distinct failure modes and a
+  // single flat 50s cap served both badly (measured 2026-07-29, Japanese menu:
+  // the provider streamed 14 items then STALLED, and the flat cap let the dead
+  // connection sit until the full 50s before giving up — the whole downstream
+  // pipeline waited on it):
+  //  - IDLE: no chunk for 15s after streaming has started = the stream is dead;
+  //    kill it NOW and salvage what already arrived. The first chunk gets a
+  //    more generous 25s (image upload + vision prefill legitimately run long
+  //    before any token appears).
+  //  - OVERALL: 50s hard ceiling regardless of progress, unchanged — the route
+  //    budget (maxDuration 60) still needs post-stream work to fit.
+  const ctrl = new AbortController();
+  const overallTimer = setTimeout(() => ctrl.abort(new DOMException('stream overall timeout', 'TimeoutError')), 50_000);
+  let idleTimer = setTimeout(() => ctrl.abort(new DOMException('stream idle timeout', 'TimeoutError')), 25_000);
+  const armIdle = () => {
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => ctrl.abort(new DOMException('stream idle timeout', 'TimeoutError')), 15_000);
+  };
+  const clearTimers = () => { clearTimeout(overallTimer); clearTimeout(idleTimer); };
+
   let res: Response;
   try {
     res = await fetch(ENDPOINT, {
-      signal: AbortSignal.timeout(50_000),
+      signal: ctrl.signal,
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -171,11 +197,13 @@ export async function* callClaudeStream(
       }),
     });
   } catch (e) {
+    clearTimers();
     console.error('OpenRouter stream call failed/timed out', e);
     return;
   }
 
   if (!res.ok || !res.body) {
+    clearTimers();
     console.error('OpenRouter stream error', res.status, await res.text().catch(() => ''));
     return;
   }
@@ -189,6 +217,7 @@ export async function* callClaudeStream(
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
+      armIdle();
       lineBuffer += decoder.decode(value, { stream: true });
 
       const lines = lineBuffer.split('\n');
@@ -218,6 +247,7 @@ export async function* callClaudeStream(
     // before this failure — a mid-stream drop degrades to "fewer dishes," not
     // "nothing," matching the existing truncation-handling philosophy.
   } finally {
+    clearTimers();
     reader.releaseLock();
   }
 }

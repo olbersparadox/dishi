@@ -10,7 +10,7 @@ import { LeaveIcon } from '@/components/icons';
 import { useLang, hasNonChineseScript } from '@/lib/i18n';
 import { sumPrices } from '@/lib/price';
 import { normalizePhoto } from '@/lib/image';
-import { mapWithConcurrency } from '@/lib/concurrency';
+import { createTaskPool } from '@/lib/concurrency';
 import { mergeFinalScanItems } from '@/lib/tableMenuItems';
 import { shareLink } from '@/lib/share';
 import { supabaseBrowser } from '@/lib/supabase/client';
@@ -293,9 +293,19 @@ function Session({ code, onLeave }: { code: string; onLeave: () => void }) {
         throw new Error((errJson as any).error || 'Scan failed.');
       }
 
-      // Same NDJSON line-delimited stream scan/page.tsx consumes, but nothing
-      // here needs the per-item events as they arrive — this screen has no
-      // incremental view to update, so just collect the final item list.
+      // Same NDJSON line-delimited stream scan/page.tsx consumes. This screen
+      // has no incremental view to update, but stages 2/3 are still PIPELINED
+      // per item (same 2026-07-29 fix as scan/page.tsx): each dish's
+      // enrich/score calls fire the moment its item event arrives, so a
+      // stalled stream tail no longer delays the whole page-add by its length.
+      //
+      // Stage 2 (enrich) always runs; Stage 3 (score, real taste attributes)
+      // only when the profile is ready — so a member without enough ratings
+      // yet still contributes fully-visible dishes, just without personal
+      // match/fire (which this shared list doesn't render per-item anyway —
+      // group_match comes from rankForGroup server-side).
+      const enrichPool = createTaskPool<ScanPageItem>(SCORE_CONCURRENCY);
+      const scorePool = createTaskPool<ScanPageItem>(SCORE_CONCURRENCY);
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let lineBuffer = '';
@@ -313,8 +323,29 @@ function Session({ code, onLeave }: { code: string; onLeave: () => void }) {
           let ev: any;
           try { ev = JSON.parse(line); } catch { continue; } // one bad line must never sink an otherwise-good scan
           if (ev.kind === 'start') meta = ev;
-          else if (ev.kind === 'item') items.push(ev.item as ScanPageItem);
-          else if (ev.kind === 'error') {
+          else if (ev.kind === 'item') {
+            const item = ev.item as ScanPageItem;
+            const index = items.length;
+            items.push(item);
+            if (meta && !meta.mock) {
+              enrichPool.push(index, async () => {
+                const r = await fetch('/api/menu-scan/enrich', {
+                  method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ item }),
+                });
+                if (!r.ok) throw new Error('enrich failed');
+                return (await r.json()).item as ScanPageItem;
+              });
+              if (meta.phase === 'needs_scoring') {
+                scorePool.push(index, async () => {
+                  const r = await fetch('/api/menu-scan/score', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ item, lang }),
+                  });
+                  if (!r.ok) throw new Error('score failed');
+                  return (await r.json()).item as ScanPageItem;
+                });
+              }
+            }
+          } else if (ev.kind === 'error') {
             const err: any = new Error(ev.error);
             err.reason = ev.reason;
             throw err;
@@ -323,35 +354,6 @@ function Session({ code, onLeave }: { code: string; onLeave: () => void }) {
       }
       if (!meta) throw new Error('Scan ended unexpectedly.');
       if (items.length === 0) return; // a page with nothing readable is a quiet no-op, not an error
-
-      // Stage 2 (enrich) always runs; Stage 3 (score, real taste attributes) only
-      // when the profile is ready — same gating scan/page.tsx's own append uses,
-      // so a member without enough ratings yet still contributes fully-visible
-      // dishes, just without personal match/fire (which this shared list doesn't
-      // render per-item anyway — group_match comes from rankForGroup server-side).
-      const enrichPromise = meta.mock ? Promise.resolve(null as (ScanPageItem | null)[] | null) : mapWithConcurrency(
-        items, SCORE_CONCURRENCY,
-        async (item) => {
-          const r = await fetch('/api/menu-scan/enrich', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ item }),
-          });
-          if (!r.ok) throw new Error('enrich failed');
-          return (await r.json()).item as ScanPageItem;
-        },
-      ).catch(() => null);
-
-      const scorePromise: Promise<(ScanPageItem | null)[] | null> = meta.phase === 'needs_scoring'
-        ? mapWithConcurrency(
-            items, SCORE_CONCURRENCY,
-            async (item) => {
-              const r = await fetch('/api/menu-scan/score', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ item, lang }),
-              });
-              if (!r.ok) throw new Error('score failed');
-              return (await r.json()).item as ScanPageItem;
-            },
-          ).catch(() => null)
-        : Promise.resolve(null);
 
       // Kana/hangul tripwire — the SAME namefix pass scan/page.tsx runs on its
       // own pages. This path skipped it entirely, so a Japanese page appended
@@ -367,7 +369,7 @@ function Session({ code, onLeave }: { code: string; onLeave: () => void }) {
         .then((j: { names?: Record<string, string> }) => j.names ?? {})
         .catch(() => ({}));
 
-      const [enriched, scored, nameFixes] = await Promise.all([enrichPromise, scorePromise, namefixPromise]);
+      const [enriched, scored, nameFixes] = await Promise.all([enrichPool.drain(), scorePool.drain(), namefixPromise]);
 
       const forTable = mergeFinalScanItems(items, enriched, scored, nameFixes);
 
