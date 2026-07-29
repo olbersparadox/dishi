@@ -9,6 +9,7 @@ import ScanBenefitDemo from '@/components/ScanBenefitDemo';
 import ExplainModal from '@/components/ExplainModal';
 import RestaurantPicker, { RestaurantChoice } from '@/components/RestaurantPicker';
 import { createTaskPool } from '@/lib/concurrency';
+import { createScanTelemetry, type ScanSummary } from '@/lib/scanTelemetry';
 import { mergeFinalScanItems } from '@/lib/tableMenuItems';
 import { shareLink } from '@/lib/share';
 import DishInfoDisplay from '@/components/DishInfoDisplay';
@@ -351,6 +352,25 @@ function Scanner() {
     }
     // The dish list this scan started from — append merges onto it; fresh starts empty.
     const baseItems: ScannedItem[] = append && result ? result.items : [];
+
+    // Latency record for THIS scan (lib/scanTelemetry.ts). The clock starts
+    // before the upload, because the wait a person actually experiences starts
+    // when they tap, not when the server begins reading. Ships once at the end
+    // via sendTelemetry — fire-and-forget, never awaited, never able to fail a
+    // scan.
+    const tele = createScanTelemetry();
+    let teleSent = false;
+    const sendTelemetry = (summary: ScanSummary) => {
+      if (teleSent) return; // success and error paths both call this; first wins
+      teleSent = true;
+      try {
+        fetch('/api/scan-telemetry', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(summary),
+        }).catch(() => { /* measurement must never be load-bearing */ });
+      } catch { /* ditto */ }
+    };
+
     try {
       const form = new FormData();
       form.append('photo', await normalizePhoto(file));
@@ -393,6 +413,7 @@ function Scanner() {
       // enrich/score onEach bodies) — pipelining changes WHEN calls start,
       // never who wins a write.
       const enrichPool = createTaskPool<ScannedItem>(SCORE_CONCURRENCY, (enriched, index) => {
+        tele.mark('chips_done'); // last result to land is the one that counts
         setResult(prev => {
           if (!prev) return prev;
           const at = offset + index;
@@ -404,6 +425,7 @@ function Scanner() {
         });
       });
       const scorePool = createTaskPool<ScannedItem>(SCORE_CONCURRENCY, (scored, index) => {
+        tele.mark('recs_done'); // ditto — the settle waits for the slowest one
         setResult(prev => {
           if (!prev) return prev;
           const at = offset + index;
@@ -421,23 +443,42 @@ function Scanner() {
       const startStages = (item: ScannedItem, index: number) => {
         if (!meta || meta.mock) return;
         enrichPool.push(index, async () => {
-          const r = await fetch('/api/menu-scan/enrich', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ item }),
-          });
-          if (!r.ok) throw new Error('enrich failed');
-          return (await r.json()).item as ScannedItem;
+          // Timed around the WHOLE attempt, failures included: a call that
+          // burned its budget and then failed cost the person that time just
+          // as surely as a slow success did (see callStats' own note).
+          const t0 = tele.now();
+          try {
+            const r = await fetch('/api/menu-scan/enrich', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ item }),
+            });
+            if (!r.ok) throw new Error('enrich failed');
+            const out = (await r.json()).item as ScannedItem;
+            tele.recordEnrich(tele.since(t0), true);
+            return out;
+          } catch (e) {
+            tele.recordEnrich(tele.since(t0), false);
+            throw e;
+          }
         });
         if (meta.phase === 'needs_scoring') {
           scorePool.push(index, async () => {
-            const r = await fetch('/api/menu-scan/score', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ item, lang }),
-            });
-            if (!r.ok) throw new Error('score failed');
-            return (await r.json()).item as ScannedItem;
+            const t0 = tele.now();
+            try {
+              const r = await fetch('/api/menu-scan/score', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ item, lang }),
+              });
+              if (!r.ok) throw new Error('score failed');
+              const out = (await r.json()).item as ScannedItem;
+              tele.recordScore(tele.since(t0), true);
+              return out;
+            } catch (e) {
+              tele.recordScore(tele.since(t0), false);
+              throw e;
+            }
           });
         }
       };
@@ -467,6 +508,7 @@ function Scanner() {
             console.error('menu-scan stream: skipped an unparseable line', parseErr, line.slice(0, 200));
             continue;
           }
+          if (ev.kind === 'item') tele.markOnce('first_name'); // the screen stops looking dead here
           if (ev.kind === 'start') {
             // Stash the terminal metadata for later; DON'T transition the screen
             // yet. Real evidence: flipping to the results view here used to show
@@ -522,6 +564,8 @@ function Scanner() {
         }
       }
 
+      tele.mark('names_done'); // the skeleton stream has closed
+
       if (!meta) throw new Error('Scan ended unexpectedly.');
       if (!append && items.length === 0) throw new Error('No dishes could be read from that photo.');
 
@@ -538,7 +582,15 @@ function Scanner() {
         // Combined menu; restaurant/menu_language stay as page 1's.
         setResult(prev => prev ? { ...prev, items: [...baseItems, ...items] } : prev);
         setAppending(false);
-        if (items.length === 0) { setSettled(true); return; } // nothing new to score
+        if (items.length === 0) {
+          // Every dish on this page was already on the menu. No stage 2/3 work
+          // to do — but stage 1 still made a real provider call, so its latency
+          // is real and gets reported (this early return is exactly the kind of
+          // path a "log it at the end" instrument would silently miss).
+          setSettled(true);
+          sendTelemetry(tele.summary({ lang: done?.menu_language ?? 'unknown', items: 0, append }));
+          return;
+        }
       } else {
         // Fire-and-forget: the table code appears when it appears, and never
         // blocks scoring or the dishes already on screen.
@@ -595,6 +647,17 @@ function Scanner() {
       const enrichResults = await enrichPool.drain(); // usually already resolved by now; awaited so this function doesn't return early
       const nameFixes = await namefixPromise; // same: a re-author still in flight shouldn't be dropped on return
 
+      // Both stages are done — the scan's full latency shape is known. Mock
+      // runs are skipped: no provider calls happened, so their numbers would
+      // only dilute the real ones.
+      if (!meta.mock) {
+        sendTelemetry(tele.summary({
+          lang: done?.menu_language ?? 'unknown',
+          items: items.length,
+          append,
+        }));
+      }
+
       // Keep the SHARED table session in step with this scanner's finished view,
       // not just their local state — the shared session otherwise holds whatever
       // snapshot it was created/appended with forever, which is exactly how a
@@ -624,6 +687,15 @@ function Scanner() {
       }
       return;
     } catch (e: any) {
+      // A scan that DIED is the most interesting latency record of all — how
+      // far it got before failing is exactly what says whether the provider
+      // stalled at stage 1 or something downstream broke. `reason` (or a
+      // generic marker) rather than the raw message: the field is a token,
+      // and a server-authored string has no business in a log dimension.
+      sendTelemetry(tele.summary({
+        lang: 'unknown', items: 0, append,
+        error: e?.reason || 'threw',
+      }));
       // Known reasons get localized copy (this app is zh-first by default, and a
       // hardcoded English server string would be unreadable to most users here).
       const localized = e?.reason === 'not_menu' ? t('scan.err.notmenu')

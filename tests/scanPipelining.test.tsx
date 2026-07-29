@@ -48,6 +48,7 @@ window.matchMedia = ((query: string) => ({
 })) as any;
 
 import ScanPage from '../src/app/scan/page';
+import { clearScanSession } from '../src/lib/scanSession';
 
 const encoder = new TextEncoder();
 
@@ -59,7 +60,13 @@ function scanItem(n: number) {
   };
 }
 
-afterEach(() => { cleanup(); vi.restoreAllMocks(); });
+// clearScanSession is the load-bearing one: the scan session is MODULE-level
+// (deliberately — it survives tab switches, see lib/scanSession.ts), so a
+// completed scan in one test leaves the next one mounting straight into the
+// results view, where the file input is "add a page" and every dish dedupes
+// as a duplicate. unstubAllGlobals likewise, since restoreAllMocks does not
+// undo stubGlobal.
+afterEach(() => { cleanup(); clearScanSession(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
 describe('scan stage pipelining', () => {
   it('fires enrich + score for a dish WHILE the skeleton stream is still open', async () => {
@@ -69,6 +76,7 @@ describe('scan stage pipelining', () => {
 
     const enrichCalls: any[] = [];
     const scoreCalls: any[] = [];
+    const telemetry: any[] = [];
 
     vi.stubGlobal('fetch', vi.fn(async (url: any, init?: any) => {
       const path = String(url);
@@ -81,6 +89,10 @@ describe('scan stage pipelining', () => {
         const body = JSON.parse(init.body);
         scoreCalls.push({ item: body.item, streamOpenAtCall: !streamClosed });
         return new Response(JSON.stringify({ item: { ...body.item, match: 80, raw_score: 1, reason: null, caution: null, fire: false, attributes: {} } }), { status: 200 });
+      }
+      if (path.includes('/api/scan-telemetry')) {
+        telemetry.push(JSON.parse(init.body));
+        return new Response(JSON.stringify({ ok: true }), { status: 200 });
       }
       if (path.includes('/api/menu-scan')) {
         const stream = new ReadableStream<Uint8Array>({ start(c) { streamCtrl = c; } });
@@ -147,5 +159,78 @@ describe('scan stage pipelining', () => {
     });
     expect(enrichCalls.length).toBe(2); // per dish exactly once — pipelining, not duplication
     expect(scoreCalls.length).toBe(2);
+
+    // One latency record per scan, carrying every milestone — this is the
+    // thing that makes the NEXT regression visible in a log line instead of
+    // costing a forensic session (lib/scanTelemetry.ts).
+    await waitFor(() => expect(telemetry).toHaveLength(1));
+    const t = telemetry[0];
+    expect(t.lang).toBe('japanese');
+    expect(t.items).toBe(2);
+    expect(t.append).toBe(false);
+    // Every milestone reached, and the per-stage call samples are populated.
+    for (const k of ['first_name', 'names_done', 'chips_done', 'recs_done']) {
+      expect(typeof t.marks[k]).toBe('number');
+    }
+    expect(t.enrich.ok).toBe(2);
+    expect(t.enrich.failed).toBe(0);
+    expect(t.score.ok).toBe(2);
+    expect(t.error).toBeUndefined();
+  });
+
+  it('records a FAILED enrichment rather than letting it vanish silently', async () => {
+    // The 15 silent catch sites in the scan path are individually correct
+    // ("a failed enrichment must never block the scan") but collectively made
+    // degraded indistinguishable from fine. The failure count is what tells
+    // those two apart.
+    let streamCtrl!: ReadableStreamDefaultController<Uint8Array>;
+    const sendLine = (obj: unknown) => streamCtrl.enqueue(encoder.encode(JSON.stringify(obj) + '\n'));
+    const telemetry: any[] = [];
+
+    vi.stubGlobal('fetch', vi.fn(async (url: any, init?: any) => {
+      const path = String(url);
+      if (path.includes('/api/menu-scan/enrich')) return new Response('nope', { status: 500 });
+      if (path.includes('/api/menu-scan/score')) {
+        const body = JSON.parse(init.body);
+        return new Response(JSON.stringify({ item: { ...body.item, match: 80, raw_score: 1, reason: null, caution: null, fire: false, attributes: {} } }), { status: 200 });
+      }
+      if (path.includes('/api/scan-telemetry')) {
+        telemetry.push(JSON.parse(init.body));
+        return new Response(JSON.stringify({ ok: true }), { status: 200 });
+      }
+      if (path.includes('/api/menu-scan')) {
+        return new Response(new ReadableStream<Uint8Array>({ start(c) { streamCtrl = c; } }), { status: 200 });
+      }
+      if (path.includes('/api/table')) return new Response(JSON.stringify({ code: 'ABCDE', session_id: 's1' }), { status: 200 });
+      return new Response(JSON.stringify({}), { status: 200 });
+    }));
+    vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: () => 'blob:mock' }));
+
+    const { container } = render(
+      <LanguageProvider>
+        <TranslationProvider>
+          <ScanPresetProvider>
+            <ScanPage />
+          </ScanPresetProvider>
+        </TranslationProvider>
+      </LanguageProvider>,
+    );
+    const input = await waitFor(() => {
+      const el = container.querySelector('input[type="file"]') as HTMLInputElement | null;
+      if (!el) throw new Error('file input not mounted yet');
+      return el;
+    });
+    fireEvent.change(input, { target: { files: [new File(['x'], 'menu.jpg', { type: 'image/jpeg' })] } });
+
+    await waitFor(() => { if (!streamCtrl) throw new Error('scan stream not opened yet'); });
+    sendLine({ kind: 'start', profile_ready: true, rating_count: 49, needed: 5, mock: false, phase: 'needs_scoring' });
+    sendLine({ kind: 'item', item: scanItem(1) });
+    sendLine({ kind: 'done', menu_language: 'japanese', restaurant_guess: null, elapsed_ms: 500 });
+    streamCtrl.close();
+
+    await waitFor(() => expect(telemetry).toHaveLength(1));
+    expect(telemetry[0].enrich.failed).toBe(1); // the broken stage is NAMED
+    expect(telemetry[0].enrich.ok).toBe(0);
+    expect(telemetry[0].score.ok).toBe(1);      // the healthy one still reads healthy
   });
 });
