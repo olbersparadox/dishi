@@ -408,6 +408,18 @@ ${DIET_PROMPT_GUIDANCE}
 ${HK_MENU_SHORTHAND_GUIDANCE}
 Diet flags are your best estimate, not a guarantee — never claim certainty about allergens.`;
 
+/** Reasoning control for the per-dish knowledge calls (enrich/score) ONLY —
+ * the stage-1 vision scan never gets this. Env-gated so flipping it is a
+ * Vercel dashboard toggle, not a deploy, and reversible the same way.
+ * Unset (the default) = today's behavior, model reasons at will. Set
+ * OPENROUTER_SCAN_REASONING=off|low only after the quality A/B says the diet
+ * flags survive it (they feed the allergen tripwires — wrong beats slow is
+ * NOT the trade there). Exported for the test that pins the env var's name. */
+export function scanReasoning(): 'off' | 'low' | undefined {
+  const v = process.env.OPENROUTER_SCAN_REASONING;
+  return v === 'off' || v === 'low' ? v : undefined;
+}
+
 export type Enrichment = { hook: string; hook_zh: string; diet: DietFlag[]; cooking_method: CookingMethod | null; heaviness: Heaviness | null; ingredients: string[] };
 /** enrichOneDish's actual return: the enrichment plus whether the carb tripwire
  * FIRED on the first pass. Callers that persist a vector use the flag to justify
@@ -453,7 +465,7 @@ export async function enrichOneDish(item: { name: string; name_zh?: string | nul
   // route's 60s budget in the doubly-degraded corner — Vercel then kills the
   // function and the client degrades to honest-empty chips, which is the same
   // outcome a flat timeout produced FAR more often.
-  const first = parseEnrichment(await callClaude(ENRICH_SYSTEM, userText, { maxTokens: 260, timeoutMs: 12_000 }));
+  const first = parseEnrichment(await callClaude(ENRICH_SYSTEM, userText, { maxTokens: 260, timeoutMs: 12_000, reasoning: scanReasoning() }));
   if (!first) return EMPTY_ENRICHMENT;
 
   // Tripwires, not authority (see dietSuspicion / carbSuspicion). A name/flag/
@@ -470,7 +482,7 @@ export async function enrichOneDish(item: { name: string; name_zh?: string | nul
     const carbBad = carbSuspicion(item.name, item.name_zh ?? null, first.ingredients);
     if (dietBad || carbBad) {
       const rechecks = [dietBad ? DIET_RECHECK_LINE : null, carbBad ? CARB_RECHECK_LINE : null].filter(Boolean).join('\n');
-      const retry = parseEnrichment(await callClaude(ENRICH_SYSTEM, `${userText}\n${rechecks}`, { maxTokens: 260, timeoutMs: 12_000 }));
+      const retry = parseEnrichment(await callClaude(ENRICH_SYSTEM, `${userText}\n${rechecks}`, { maxTokens: 260, timeoutMs: 12_000, reasoning: scanReasoning() }));
       // carb_suspect marks that the FIRST reading misread the carb \u2014 the signal a
       // vector scored in parallel from the same name is polluted too. It stays true
       // regardless of the retry outcome: a corrected retry proves the first pass was
@@ -743,7 +755,7 @@ export async function scoreOneDish(
 ): Promise<DishVector> {
   // Same 12s-per-attempt budget as enrichOneDish, same reason: 150 tokens of
   // output should never hold a route (or the scan's settle) hostage for 50s.
-  const text = await callClaude(SCORE_ONE_SYSTEM, buildScoreUserText(item, opts), { maxTokens: 150, timeoutMs: 12_000 });
+  const text = await callClaude(SCORE_ONE_SYSTEM, buildScoreUserText(item, opts), { maxTokens: 150, timeoutMs: 12_000, reasoning: scanReasoning() });
   const parsed = parseJsonResponse<{ a?: unknown }>(text);
   return mergeScoredAttributes(1, Array.isArray(parsed?.a) ? [parsed!.a] : null)[0];
 }

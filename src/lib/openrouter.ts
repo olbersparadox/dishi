@@ -23,10 +23,20 @@ type ContentPart =
  * Returns null if OPENROUTER_API_KEY isn't set, so every caller's existing
  * "no key -> mock" fallback keeps working unchanged.
  */
+/** Options shared by the one-shot and streaming callers.
+ * `reasoning`: OpenRouter's normalized reasoning control — 'off' disables the
+ * model's hidden thinking, 'low' caps its effort. Measured 2026-07-29 on the
+ * live endpoint: the default burned 817 reasoning tokens (~16s) producing a
+ * THREE-WORD enrich hook — >90% of both the latency and the bill on per-dish
+ * calls was invisible deliberation. Only callers whose outputs have passed a
+ * quality check against the default should set this (diet flags feed the
+ * allergen tripwires — wrong is worse than slow there). */
+type CallOpts = { maxTokens?: number; expectJson?: boolean; timeoutMs?: number; reasoning?: 'off' | 'low' };
+
 export async function callClaude(
   system: string,
   userContent: string | ContentPart[],
-  opts: { maxTokens?: number; expectJson?: boolean; timeoutMs?: number } = {},
+  opts: CallOpts = {},
 ): Promise<string | null> {
   // Retry on FAST failures only (the elapsed gate below): a retry after a slow
   // failure (a genuine ~50s timeout) would stack past Vercel's function budget
@@ -74,7 +84,7 @@ export async function callClaude(
 async function callClaudeOnce(
   system: string,
   userContent: string | ContentPart[],
-  opts: { maxTokens?: number; timeoutMs?: number } = {},
+  opts: CallOpts = {},
 ): Promise<string | null> {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) return null;
@@ -105,6 +115,9 @@ async function callClaudeOnce(
     body: JSON.stringify({
       model: MODEL,
       max_tokens: opts.maxTokens ?? 1000,
+      // OpenRouter-normalized reasoning control (see CallOpts). Absent unless a
+      // caller explicitly opted in, so default behavior is byte-identical.
+      ...(opts.reasoning ? { reasoning: opts.reasoning === 'off' ? { enabled: false } : { effort: 'low' } } : {}),
       messages: [
         { role: 'system', content: system },
         { role: 'user', content: userContent },
