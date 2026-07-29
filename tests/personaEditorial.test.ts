@@ -90,3 +90,24 @@ describe('validateEditorialPost gates both languages at once', () => {
     expect(r.reasons.every(x => x.startsWith('en:'))).toBe(true);
   });
 });
+
+// The one-author tell (owner voice pass, 2026-07-29): every early sample
+// pivoted on 「——」/「—」, so three "different" columnists shared one habit.
+// The ban is register, not grounding — it applies to all personas, both
+// languages, and the fix is always to pivot with punctuation the persona
+// actually owns (Spoon: a full stop and a short sentence; CK: a colon or a
+// dry second clause; Kiki: an emoji beat).
+describe('em-dash ban — the ghostwriter tell', () => {
+  const pack: GroundingPack = {
+    name: 'Congee', name_zh: '粥', cuisine: 'cantonese',
+    facts_zh: ['慢火'], facts_en: ['slow fire'], signal: null,
+  };
+  it('rejects the CJK double dash and the single em-dash, any persona', () => {
+    expect(validateEditorialBody('ck', pack, '粥要慢火——呢樣冇得急。', 'zh').ok).toBe(false);
+    expect(validateEditorialBody('spoon', pack, 'Congee asks for slow fire — and patience.', 'en').ok).toBe(false);
+  });
+  it('accepts the same pivot written as the persona would write it', () => {
+    expect(validateEditorialBody('ck', pack, '粥要慢火。呢樣冇得急。', 'zh').ok).toBe(true);
+    expect(validateEditorialBody('spoon', pack, 'Congee asks for slow fire. And patience.', 'en').ok).toBe(true);
+  });
+});

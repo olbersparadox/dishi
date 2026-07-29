@@ -674,7 +674,15 @@ CK run forever on the licensed backbone and the feed never starves.
 A voiced line is REJECTED unless every factual token traces to its grounding
 pack: no digits or currency not present in the pack, no Latin proper nouns
 outside the pack's vocabulary, no venue/price patterns at all. Register rules
-ride along: CK zero emoji; Kiki 2–4; Spoon no exclamation clusters. Lives in
+ride along: CK zero emoji; Kiki 2–4; Spoon no exclamation clusters.
+**Amendment 2026-07-29 (owner voice pass):** em-dashes (「——」/「—」) are
+banned outright, all personas, both languages — three voices sharing one
+pivot habit collapse into one author. Each persona pivots with punctuation
+it owns: Spoon a full stop and a short sentence, CK a colon or a dry second
+clause, Kiki an emoji beat. Voice length: long enough to carry character
+(the first samples were too short to be anyone); the beats section is the
+differentiation contract — Spoon dwells inside the eating, CK tells you
+what the dish proves about kitchens, Kiki receipts-verdict-tip. Lives in
 `src/lib/personaEditorial.ts` with vitest coverage. Hand-authored sample
 lines pass through the SAME validator — the contract holds regardless of who
 (or what) wrote the text.

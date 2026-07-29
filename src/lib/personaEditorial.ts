@@ -102,6 +102,12 @@ export function validateEditorialBody(
   }
 
   // ── Register (persona.ts neverDoes, mechanically checkable subset) ──────
+  // The ghostwriter tell (owner, 2026-07-29): three voices sharing one
+  // punctuation habit collapse into one author, and the em-dash is THE habit —
+  // every early sample leaned on 「——」/「—」 for its pivot. Banned for all
+  // personas, both languages: a voice that needs a pivot writes it with a full
+  // stop, a colon, or a second sentence, and each persona pivots differently.
+  if (/[—―]/.test(body)) reasons.push('register: em-dash is the one-author tell; pivot with punctuation the persona owns');
   const emoji = emojiCount(body);
   if (persona === 'ck' && emoji > 0) reasons.push('register: CK never uses emoji');
   if (persona === 'kiki') {
