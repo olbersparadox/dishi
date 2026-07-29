@@ -75,20 +75,25 @@ export function findExecutionReference(rows: RatedRow[], dish: ExecutionSiblingK
  * sibling comparison exists. Used by enrich when resolution lands after the
  * rating: the rating response couldn't offer the comparison (canonical id was
  * still null), so the offer rides the enrich response instead and the client
- * queues it exactly as if /api/ratings had sent it.
+ * queues it exactly as if /api/ratings had sent it. Also the shape the
+ * interactions inbox serves for STRANDED comparisons (rated before their
+ * sibling existed — the rating moment is gone, so the inbox re-offers it).
  *
  * Reference FIRST — it is the thing being compared against. No solo-anchor
  * branch here on purpose: without a sibling there is nothing this late offer
  * could add that the rating-time offer didn't already decide.
  */
+export function buildExecutionOfferFromRows(rows: RatedRow[], dishId: string): { rows: ExecRow[] } | null {
+  const mine = rows.find(r => r.dish_id === dishId);
+  if (!mine?.dishes) return null;
+  const reference = findExecutionReference(rows, keyOf(mine));
+  return reference ? { rows: [reference, rowFor(mine, rows)] } : null;
+}
+
 export async function buildExecutionOfferForRatedDish(
   supabase: SupabaseClient,
   userId: string,
   dishId: string,
 ): Promise<{ rows: ExecRow[] } | null> {
-  const rows = await fetchRatedRows(supabase, userId);
-  const mine = rows.find(r => r.dish_id === dishId);
-  if (!mine?.dishes) return null;
-  const reference = findExecutionReference(rows, keyOf(mine));
-  return reference ? { rows: [reference, rowFor(mine, rows)] } : null;
+  return buildExecutionOfferFromRows(await fetchRatedRows(supabase, userId), dishId);
 }

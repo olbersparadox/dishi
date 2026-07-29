@@ -1,8 +1,11 @@
 'use client';
-// Header notification bell — ALWAYS visible (a permanent affordance), built as a
-// general notification slot. Today the only notification type is a waiting taste
-// duel, but the list + seen-state are generic so more can be added without
-// reworking this.
+// Header notification bell — ALWAYS visible (a permanent affordance), and THE
+// host surface for taste-calibration interactions (owner direction, 2026-07-28):
+// everything /api/interactions/today serves is listed here — 對決 duels,
+// stranded 佢哋整得點？ comparisons, and whatever kinds join them later. The
+// journal separately surfaces the top two as daily cards (DailyInteractions);
+// both read the same feed and re-sync through one window event, so answering
+// in either place clears it everywhere.
 //
 // Red dot = there is at least one notification the user hasn't looked at yet.
 // Tapping the bell opens the list AND marks everything currently in it as seen, so
@@ -12,15 +15,18 @@ import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { useLang } from '@/lib/i18n';
 import { BellIcon } from './icons';
-import DuelOverlay, { type Duel } from './DuelOverlay';
+import DuelOverlay from './DuelOverlay';
+import ExecutionSlider from './ExecutionSlider';
+import {
+  useInteractions, notifyInteractionsChanged, interactionId,
+  type Interaction,
+} from '@/lib/useInteractions';
 
 const SEEN_KEY = 'dishi_notif_seen';
 const AUTO_KEY = 'dishi_duel_autosurfaced';
 // Increased from 0.3 → 0.55 (2026-07-26) for better taste-learning refinement
 // through pairwise contrast (duels are the only high-signal per-instance source).
 const AUTO_PROB = 0.55;
-
-type Notification = { id: string; label: string; sub: string; duel: Duel };
 
 function loadSeen(): Set<string> {
   try { return new Set(JSON.parse(localStorage.getItem(SEEN_KEY) || '[]')); } catch { return new Set(); }
@@ -30,32 +36,29 @@ function saveSeen(ids: Set<string>) {
 }
 
 export default function NotificationBell() {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const path = usePathname();
-  const [duel, setDuel] = useState<Duel | null>(null);
+  const { interactions, refresh } = useInteractions(path);
   const [listOpen, setListOpen] = useState(false);
-  const [overlay, setOverlay] = useState<Duel | null>(null);
+  const [overlay, setOverlay] = useState<Interaction | null>(null);
   const [seen, setSeen] = useState<Set<string>>(() => (typeof window === 'undefined' ? new Set() : loadSeen()));
 
-  // Re-check for a waiting duel on mount and tab changes.
-  useEffect(() => {
-    let cancelled = false;
-    fetch('/api/duels/next')
-      .then(r => r.json())
-      .then(j => { if (!cancelled) setDuel(j.duel ?? null); })
-      .catch(() => { /* no duel is a normal, silent state */ });
-    return () => { cancelled = true; };
-  }, [path]);
+  const label = (n: Interaction) =>
+    n.kind === 'duel' ? t('duel.title') : t('exec.title');
+  const sub = (n: Interaction) => {
+    if (n.kind === 'duel') return t(n.rematch ? 'notif.duel.rematch' : 'notif.duel.sub');
+    // The execution item names its dish — "去邊度食" is answered by the card.
+    const d = n.rows[n.rows.length - 1]?.dish;
+    const name = (lang === 'zh' ? d?.name_zh : null) ?? d?.name ?? '';
+    return t('notif.exec.sub').replace('{dish}', name);
+  };
 
-  const notifications: Notification[] = duel
-    ? [{ id: `duel:${duel.id}`, label: t('duel.title'), sub: t('notif.duel.sub'), duel }]
-    : [];
-  const hasUnseen = notifications.some(n => !seen.has(n.id));
+  const hasUnseen = interactions.some(n => !seen.has(interactionId(n)));
 
   function markAllSeen() {
-    if (!notifications.length) return;
+    if (!interactions.length) return;
     const next = new Set(seen);
-    for (const n of notifications) next.add(n.id);
+    for (const n of interactions) next.add(interactionId(n));
     setSeen(next); saveSeen(next);
   }
 
@@ -67,19 +70,20 @@ export default function NotificationBell() {
     });
   }
 
-  // Rare once-per-session auto-surface of the card if the user hasn't engaged.
+  // Rare once-per-session auto-surface of the top card if the user hasn't engaged.
+  const top = interactions[0] ?? null;
   useEffect(() => {
-    if (!duel || overlay || listOpen) return;
+    if (!top || overlay || listOpen) return;
     let already = false;
     try { already = sessionStorage.getItem(AUTO_KEY) === '1'; } catch { /* ignore */ }
     if (already) return;
     if (Math.random() < AUTO_PROB) {
       try { sessionStorage.setItem(AUTO_KEY, '1'); } catch { /* ignore */ }
-      const timer = setTimeout(() => { setOverlay(duel); markAllSeen(); }, 1400);
+      const timer = setTimeout(() => { setOverlay(top); markAllSeen(); }, 1400);
       return () => clearTimeout(timer);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [duel, overlay, listOpen]);
+  }, [top, overlay, listOpen]);
 
   return (
     <>
@@ -92,15 +96,15 @@ export default function NotificationBell() {
         <>
           <div className="notif-scrim" onClick={() => setListOpen(false)} />
           <div className="notif-list" role="menu" aria-label={t('notif.title')}>
-            {notifications.length === 0 ? (
+            {interactions.length === 0 ? (
               <div className="notif-empty">{t('notif.empty')}</div>
-            ) : notifications.map(n => (
-              <button key={n.id} className="notif-item" role="menuitem"
-                onClick={() => { setOverlay(n.duel); setListOpen(false); }}>
-                <span className="notif-item-seal" aria-hidden>印</span>
+            ) : interactions.map(n => (
+              <button key={interactionId(n)} className="notif-item" role="menuitem"
+                onClick={() => { setOverlay(n); setListOpen(false); }}>
+                <span className={`notif-item-seal${n.kind === 'duel' ? '' : ' ink'}`} aria-hidden>{n.kind === 'duel' ? '印' : '比'}</span>
                 <span className="notif-item-text">
-                  <span className="notif-item-label">{n.label}</span>
-                  <span className="notif-item-sub">{n.sub}</span>
+                  <span className="notif-item-label">{label(n)}</span>
+                  <span className="notif-item-sub">{sub(n)}</span>
                 </span>
               </button>
             ))}
@@ -108,12 +112,23 @@ export default function NotificationBell() {
         </>
       )}
 
-      {overlay && (
+      {overlay?.kind === 'duel' && (
         <DuelOverlay
-          duel={overlay}
+          duel={overlay.duel}
+          rematch={overlay.rematch}
           onClose={(resolved) => {
             setOverlay(null);
-            if (resolved) setDuel(null); // answered -> drop it; a dismiss keeps it
+            if (resolved) notifyInteractionsChanged(); // answered -> every surface re-syncs
+          }}
+        />
+      )}
+      {overlay?.kind === 'execution' && (
+        <ExecutionSlider
+          rows={overlay.rows}
+          onDone={(scored) => {
+            setOverlay(null);
+            if (scored) notifyInteractionsChanged();
+            else refresh.dismissExecution(); // session-local: returns another day, not today
           }}
         />
       )}

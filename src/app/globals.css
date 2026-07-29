@@ -1720,6 +1720,24 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 .notif-item:last-child { border-bottom: none; }
 .notif-item:active { background: rgba(20, 16, 12, 0.04); }
 .notif-item-seal { font-family: 'PingFang TC', 'Heiti TC', sans-serif; font-size: var(--fs-micro); font-weight: 700; color: var(--seal); border: 1px solid var(--seal); border-radius: 3px; padding: 1px 3px; flex-shrink: 0; }
+/* Non-duel interaction markers stay INK — vermillion is the seal's color, and
+   only the duel is a sealed bet. */
+.notif-item-seal.ink { color: var(--ink-soft); border-color: var(--ink-soft); }
+
+/* 今日 daily interaction cards at the top of the 食記 journal — the same row
+   anatomy as the bell's list items (shared classes above), framed as one quiet
+   card. Gone entirely when nothing is waiting. */
+.daily-interactions {
+  display: flex; flex-direction: column; margin-bottom: 16px;
+  background: var(--paper-raised); border: 1px solid var(--line); border-radius: var(--radius);
+  overflow: hidden;
+}
+.daily-card {
+  display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
+  padding: 12px 14px; background: none; border: none; border-bottom: 1px solid var(--line); cursor: pointer;
+}
+.daily-card:last-child { border-bottom: none; }
+.daily-card:active { background: rgba(20, 16, 12, 0.04); }
 .notif-item-text { display: flex; flex-direction: column; min-width: 0; }
 .notif-item-label { font-family: var(--font-display); font-size: var(--fs-body); color: var(--ink); }
 .notif-item-sub { font-size: var(--fs-micro); color: var(--ink-soft); }

@@ -24,8 +24,11 @@ type Reveal = { predicted_correct?: boolean; tie?: boolean; predicted_p: number 
 
 /** onClose(resolved): resolved=true when the duel was answered (pick/tie) and the
  *  user tapped OK — the caller drops it from the list; false on a ✕/backdrop
- *  dismiss, where the duel stays available. */
-export default function DuelOverlay({ duel, onClose }: { duel: Duel; onClose: (resolved: boolean) => void }) {
+ *  dismiss, where the duel stays available.
+ *  `rematch`: this pair was selected to re-probe the dims of a prediction the
+ *  engine recently got WRONG — the card says so, because a model admitting a
+ *  miss and visibly re-checking IS the taste-understanding claim made real. */
+export default function DuelOverlay({ duel, rematch, onClose }: { duel: Duel; rematch?: boolean; onClose: (resolved: boolean) => void }) {
   const { t } = useLang();
   const [chosen, setChosen] = useState<string | null>(null); // a dish id, or 'tie'
   const [reveal, setReveal] = useState<Reveal | null>(null);
@@ -84,6 +87,8 @@ export default function DuelOverlay({ duel, onClose }: { duel: Duel; onClose: (r
             </div>
             {!reveal && <button className="duel-x" onClick={() => close(false)} aria-label={t('home.cancel')}><CloseIcon /></button>}
           </div>
+
+          {rematch && !reveal && <p className="duel-q">{t('duel.rematch')}</p>}
 
           <div className={`duel-pair ${collapsing ? 'resolving' : ''}`}>
             {[duel.a, duel.b].map(dish => (

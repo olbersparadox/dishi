@@ -113,31 +113,33 @@ describe('bumpEvidenceFromDuel', () => {
 });
 
 // ── selectDuelPair ──────────────────────────────────────────────────────────────
-const cand = (id: string, cuisine: string | null, attributes: DishVector, identityId: string | null = null): DuelCandidate =>
-  ({ id, cuisine, attributes, identityId });
+const cand = (id: string, cuisine: string | null, attributes: DishVector, identityId: string | null = null, canonicalId: string | null = null): DuelCandidate =>
+  ({ id, cuisine, attributes, identityId, canonicalId });
 
 const NOW = Date.parse('2026-07-18T00:00:00Z');
 const daysAgo = (n: number) => new Date(NOW - n * 24 * 60 * 60 * 1000).toISOString();
+/** An empty profile: every bet is a coin flip, so every structural survivor qualifies. */
+const noTaste = {};
 
 describe('selectDuelPair', () => {
-  it('returns the qualifying same-cuisine pair with the most information', () => {
+  it('returns the qualifying same-cuisine pair', () => {
     const cands = [
       cand('x', 'cantonese', { umami: 0.9 }),
       cand('y', 'cantonese', { umami: 0.3 }),
     ];
-    const pair = selectDuelPair(cands, {}, [], NOW);
+    const pair = selectDuelPair(cands, noTaste, {}, [], { now: NOW });
     expect(pair).not.toBeNull();
     expect(new Set([pair!.a.id, pair!.b.id])).toEqual(new Set(['x', 'y']));
   });
 
   it('requires the same cuisine', () => {
     const cands = [cand('x', 'cantonese', { umami: 0.9 }), cand('y', 'japanese', { umami: 0.3 })];
-    expect(selectDuelPair(cands, {}, [], NOW)).toBeNull();
+    expect(selectDuelPair(cands, noTaste, {}, [], { now: NOW })).toBeNull();
   });
 
   it('never pairs an unknown cuisine', () => {
     const cands = [cand('x', 'unknown', { umami: 0.9 }), cand('y', 'unknown', { umami: 0.3 })];
-    expect(selectDuelPair(cands, {}, [], NOW)).toBeNull();
+    expect(selectDuelPair(cands, noTaste, {}, [], { now: NOW })).toBeNull();
   });
 
   it('excludes an already-answered pair regardless of stored order', () => {
@@ -145,15 +147,15 @@ describe('selectDuelPair', () => {
     // stored as (y, x) — the opposite order to the candidate loop. resolved covers
     // both a win and a tie (揀唔落) — either retires the pair.
     const answered: ExistingDuelRow[] = [{ dish_a: 'y', dish_b: 'x', resolved: true, served_at: daysAgo(200) }];
-    expect(selectDuelPair(cands, {}, answered, NOW)).toBeNull();
+    expect(selectDuelPair(cands, noTaste, {}, answered, { now: NOW })).toBeNull();
   });
 
   it('excludes a pair served within the recency window, then lets it back after', () => {
     const cands = [cand('x', 'cantonese', { umami: 0.9 }), cand('y', 'cantonese', { umami: 0.3 })];
     const recent: ExistingDuelRow[] = [{ dish_a: 'x', dish_b: 'y', resolved: false, served_at: daysAgo(10) }];
-    expect(selectDuelPair(cands, {}, recent, NOW)).toBeNull();
+    expect(selectDuelPair(cands, noTaste, {}, recent, { now: NOW })).toBeNull();
     const old: ExistingDuelRow[] = [{ dish_a: 'x', dish_b: 'y', resolved: false, served_at: daysAgo(40) }];
-    expect(selectDuelPair(cands, {}, old, NOW)).not.toBeNull();
+    expect(selectDuelPair(cands, noTaste, {}, old, { now: NOW })).not.toBeNull();
   });
 
   it('retires a dish that has hit the lifetime duel cap', () => {
@@ -164,24 +166,112 @@ describe('selectDuelPair', () => {
       { dish_a: 'x', dish_b: 'q', resolved: true, served_at: daysAgo(180) },
       { dish_a: 'x', dish_b: 'r', resolved: true, served_at: daysAgo(160) },
     ];
-    expect(selectDuelPair(cands, {}, existing, NOW)).toBeNull();
+    expect(selectDuelPair(cands, noTaste, {}, existing, { now: NOW })).toBeNull();
   });
 
   it('excludes same-identity pairs', () => {
     const cands = [cand('x', 'cantonese', { umami: 0.9 }, 'ident-1'), cand('y', 'cantonese', { umami: 0.3 }, 'ident-1')];
-    expect(selectDuelPair(cands, {}, [], NOW)).toBeNull();
+    expect(selectDuelPair(cands, noTaste, {}, [], { now: NOW })).toBeNull();
   });
 
-  it('disqualifies a pair whose only contrast is on a well-known dim', () => {
-    const cands = [cand('x', 'cantonese', { umami: 0.9 }), cand('y', 'cantonese', { umami: 0.3 })];
-    // umami already has plenty of evidence (> uncertainty threshold) -> nothing to learn
-    expect(selectDuelPair(cands, { umami: 8 }, [], NOW)).toBeNull();
+  it('excludes same-CANONICAL pairs — two renderings of one dish are an execution question, not a 對決', () => {
+    // Different venues, no shared identity — only the catalog links them.
+    const cands = [
+      cand('x', 'cantonese', { umami: 0.9 }, null, 'ham-macaroni'),
+      cand('y', 'cantonese', { umami: 0.3 }, null, 'ham-macaroni'),
+    ];
+    expect(selectDuelPair(cands, noTaste, {}, [], { now: NOW })).toBeNull();
   });
 
   it('disqualifies a pair with no dim contrasted by at least 0.3', () => {
     // both barely differ: 0.64 vs 0.5 -> x = 0.28 < floor
     const cands = [cand('x', 'cantonese', { umami: 0.64 }), cand('y', 'cantonese', { umami: 0.5 })];
-    expect(selectDuelPair(cands, {}, [], NOW)).toBeNull();
+    expect(selectDuelPair(cands, noTaste, {}, [], { now: NOW })).toBeNull();
+  });
+});
+
+describe('selectDuelPair — the unresolved-bet gate (2026-07-28 redesign)', () => {
+  it('heavy evidence NEVER disqualifies — the ratchet bug must stay dead', () => {
+    // The old gate (a contrasting dim with evidence <= 2) returned null here and
+    // could never reopen: evidence only grows. Measured live at 49 ratings it
+    // killed all 374 qualifying pairs while the model's own bets were coin
+    // flips. Uncertainty now comes from the BET, not the counter.
+    const cands = [cand('x', 'cantonese', { umami: 0.9 }), cand('y', 'cantonese', { umami: 0.3 })];
+    const heavyEvidence = { umami: 46, rich: 52, tender: 49 };
+    const pair = selectDuelPair(cands, noTaste, heavyEvidence, [], { now: NOW });
+    expect(pair).not.toBeNull();
+  });
+
+  it('excludes a pair the model can already call confidently (p >= band edge)', () => {
+    // Two strong taste dims, dishes at opposite ends: contentScore gap ~0.36,
+    // p = sigmoid(2 * 0.36) ~ 0.67 >= 0.65 — the bet is settled, asking
+    // teaches nothing, the card honestly does not appear.
+    const vector = { umami: 1, crispy: 1 };
+    const cands = [
+      cand('x', 'cantonese', { umami: 0.95, crispy: 0.95 }),
+      cand('y', 'cantonese', { umami: 0.05, crispy: 0.05 }),
+    ];
+    expect(selectDuelPair(cands, vector, {}, [], { now: NOW })).toBeNull();
+    // The same pair under an empty profile is a coin flip and qualifies.
+    expect(selectDuelPair(cands, noTaste, {}, [], { now: NOW })).not.toBeNull();
+  });
+
+  it('serves the LEAST certain pair first', () => {
+    // Profile knows umami; says nothing about baked. The umami pair is a
+    // leaning bet (p above coin flip); the baked pair is a pure coin flip —
+    // it must win selection.
+    const vector = { umami: 0.8 };
+    const cands = [
+      cand('u1', 'cantonese', { umami: 0.9 }),
+      cand('u2', 'cantonese', { umami: 0.1 }),
+      cand('b1', 'french', { baked: 0.9 }),
+      cand('b2', 'french', { baked: 0.2 }),
+    ];
+    const pair = selectDuelPair(cands, vector, {}, [], { now: NOW });
+    expect(pair).not.toBeNull();
+    expect(new Set([pair!.a.id, pair!.b.id])).toEqual(new Set(['b1', 'b2']));
+    expect(pair!.p).toBeCloseTo(0.5, 2);
+  });
+
+  it('breaks near-ties on p by information (thin-evidence dims deserve priority)', () => {
+    // Both pairs are exact coin flips under an empty profile; the crispy pair
+    // contrasts a dim with far less evidence, so its info score is higher.
+    const evidence = { umami: 40, crispy: 1 };
+    const cands = [
+      cand('u1', 'cantonese', { umami: 0.9 }),
+      cand('u2', 'cantonese', { umami: 0.1 }),
+      cand('c1', 'french', { crispy: 0.9 }),
+      cand('c2', 'french', { crispy: 0.1 }),
+    ];
+    const pair = selectDuelPair(cands, noTaste, evidence, [], { now: NOW });
+    expect(pair).not.toBeNull();
+    expect(new Set([pair!.a.id, pair!.b.id])).toEqual(new Set(['c1', 'c2']));
+  });
+
+  it('returns the sealed-bet confidence so the route seals exactly what selection judged', () => {
+    const cands = [cand('x', 'cantonese', { umami: 0.9 }), cand('y', 'cantonese', { umami: 0.3 })];
+    const pair = selectDuelPair(cands, noTaste, {}, [], { now: NOW });
+    expect(pair!.p).toBeGreaterThanOrEqual(0.5);
+    expect(pair!.p).toBeLessThan(0.65);
+  });
+
+  it('a recent WRONG bet redirects selection to pairs re-probing its dims', () => {
+    // Without rematchDims the baked pair (coin flip) wins; with crispy flagged
+    // from a missed prediction, the crispy pair takes priority and is marked.
+    const vector = { crispy: 0.3 };
+    const cands = [
+      cand('c1', 'cantonese', { crispy: 0.9 }),
+      cand('c2', 'cantonese', { crispy: 0.2 }),
+      cand('b1', 'french', { baked: 0.9 }),
+      cand('b2', 'french', { baked: 0.2 }),
+    ];
+    const plain = selectDuelPair(cands, vector, {}, [], { now: NOW });
+    expect(new Set([plain!.a.id, plain!.b.id])).toEqual(new Set(['b1', 'b2']));
+    expect(plain!.rematch).toBe(false);
+
+    const rematch = selectDuelPair(cands, vector, {}, [], { now: NOW, rematchDims: ['crispy'] });
+    expect(new Set([rematch!.a.id, rematch!.b.id])).toEqual(new Set(['c1', 'c2']));
+    expect(rematch!.rematch).toBe(true);
   });
 });
 

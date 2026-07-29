@@ -218,6 +218,13 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'notif.title': { zh: '通知', en: 'Notifications' },
   'notif.empty': { zh: '暫無新通知', en: 'Nothing new right now' },
   'notif.duel.sub': { zh: '揀一樣，幫個引擎調校口味', en: 'Pick one to refine your taste' },
+  // Rematch framing: the engine ADMITS the last bet missed and re-checks — the
+  // taste-understanding claim made visible, not an apology.
+  'notif.duel.rematch': { zh: '上次估錯了，再驗證一次', en: 'Got it wrong last time — checking again' },
+  'duel.rematch': { zh: '上次估錯了你的口味，這局再驗證一次', en: 'The last bet on your taste missed — this one double-checks' },
+  // {dish} is substituted client-side with the dish being asked about.
+  'notif.exec.sub': { zh: '你食過兩次{dish}——邊間整得好啲？', en: 'You’ve had {dish} twice — which kitchen did it better?' },
+  'daily.title': { zh: '今日互動', en: 'Today' },
   'log.toRate': { zh: '待評菜式', en: 'Dishes to rate' },
   'log.rateNow': { zh: '而家評', en: 'Rate now' },
   'scan.pickcount': { zh: '已選 {n} 道', en: '{n} dishes picked' },

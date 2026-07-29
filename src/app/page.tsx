@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import AuthGate from '@/components/AuthGate';
 import MyDishes, { JournalSkeleton } from '@/components/MyDishes';
 import FeedList from '@/components/FeedList';
+import DailyInteractions from '@/components/DailyInteractions';
 import { useLang } from '@/lib/i18n';
 
 /** AuthGate's fallback while the session check is in flight — the SAME
@@ -99,6 +100,10 @@ function Journal() {
           </Fragment>
         ))}
       </h1>
+      {/* 今日 interaction cards — only on the private journal tab: 大家食 is a
+          browsing surface, and a calibration ask interrupting browse would be
+          the old feed's mistake again. */}
+      {tab === 'mine' && <DailyInteractions />}
       {tab === 'mine' ? <MyDishes t={t} lang={lang} onPublished={() => selectTab('feed')} /> : <FeedList />}
     </div>
   );
