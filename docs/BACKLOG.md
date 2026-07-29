@@ -754,3 +754,126 @@ mention/reminder is load-bearing flywheel, bounded by HARD_LIMITS.
    export-batch item 4 (ChatGPT custom GPT retest) as one H1a cell.
 3. **R2–R4 revision levers — gated on results.** One lever per version; no
    code until a run asks for it.
+
+# Batch: 埋單 table endgame — fun reasons to order together (owner ideas session, 2026-07-29)
+
+**The owner's ask:** easy, fun mechanics for a group picking dishes together
+after a menu scan — equal split, random pick, casual multiplayer, loser pays —
+explicitly scoped small ("nothing too much to lose our focus"), the point
+being MORE day-1 reasons to open table order, for traction and stickiness.
+
+**Why the bill moment is the right wedge:** every group meal ends with the
+same ten seconds — 邊個俾錢？點分？— and today that moment belongs to a
+calculator app or awkwardness. If dishi owns it, table order gets opened at
+the END of meals too, not just the start, and the person who opens it is
+showing dishi to the whole table. It is the cheapest recurring multi-person
+moment in the product.
+
+**Hard scope guards (do not drift):**
+- dishi NEVER moves money. It declares outcomes (who pays / who owes what);
+  settling is Payme/FPS/cash, outside the app. No payment integrations, no
+  balances carried between meals, no debt ledger. The moment it stores "A
+  owes B", it is a payments product with a social graph — both off-strategy.
+- No new social surface: everything lives inside the existing table session
+  (same members, same lifecycle). Companion edges already record who was
+  there; these mechanics ADD no relationship data beyond what picks record.
+- Vermillion stays reserved: the seal stamp is the one place these games may
+  use it (and 抽印 does, legitimately — it IS a seal).
+
+## The menu — smallest first (each independently shippable)
+
+1. **均分 (equal split) — the utility floor, zero game.** The table session
+   already knows the picked dishes and their menu prices: one footer line on
+   the table surface — total, 加一 service toggle, ÷ headcount, per-head
+   figure rounded UP to the dollar (the HK convention; remainder note shown
+   so nobody thinks it lied). No design questions worth a session; ships as
+   a Sonnet-tier edit ONLY because it is a line on an existing surface — any
+   richer treatment makes it a new surface and re-tiers to Fable.
+
+2. **抽印 (the seal draw) — random pick / loser pays, dishi-native.** One
+   tap: every member's name on screen, the vermillion 印 stamps DOWN on one
+   of them — 今餐佢請 (or the softer default: 佢負責埋單收錢). One stamp
+   animation, server-side draw (crypto-random, all members equal weight,
+   result recorded in the session so re-taps can't reroll). Guests
+   participate (they have session membership; no account needed to lose).
+   This is the "casual multiplayer" ask satisfied in ONE interaction —
+   ten seconds of theatre, zero rules to learn, screenshots itself.
+
+3. **賭邊碟最正 (back-a-dish) — the strategic one: the bet that manufactures
+   ratings.** At pick time (or any time before rating), each member secretly
+   backs ONE picked dish as the table's eventual favourite. Backs are SEALED
+   (the honesty contract pattern — server-side, RLS-locked, the client may
+   only know a back exists). After the meal, members rate as normal; when
+   all backers' shared dishes are rated (or the Echo 48h timeout — same
+   clock, same rules), reveal: the dish with the table's highest mean wins,
+   whoever backed it eats free / everyone else splits their share (table
+   decides the stake up front — bragging rights is a valid stake and the
+   copy's default).
+   - **Why this one matters beyond fun:** it gives every member a REASON to
+     rate at the table (no rating, no reveal — the same lever the sealed
+     bet already proved solo), and it is comparison-DNA (backing = predicting
+     the table's comparative verdict). It composes with 檯友回音: same
+     sealed-reveal machinery, same timeout, reveal screens can stack.
+   - Build AFTER Echo (item 5 above) — it reuses Echo's reveal conditions
+     wholesale; building it first would mean building Echo's plumbing under
+     a different name.
+
+## Sequencing + tiers
+
+均分 (1) any time, tiny. 抽印 (2) next — new visible surface, Fable first
+pass, but small. 賭邊碟最正 (3) after 檯友回音 ships. Items 2 and 3 need an
+owner GO on copy register (how playful is 今餐佢請 allowed to be) before
+build; item 1 needs no decision.
+
+# Batch: onboarding — the album-first cold start (owner design session, 2026-07-29)
+
+**The owner's ask:** a new joiner should get up to speed by rating food
+photos drawn from their own camera roll, after the simplest possible
+walkthrough of what dishi is.
+
+**The insight to build around:** every new user already owns years of taste
+evidence — their camera roll IS their food diary, they just never rated it.
+The album source, the merged pill picker, RatingStack, and TasteGrowth all
+exist; onboarding is a thin GUIDED PATH over shipped machinery, not a new
+flow. (Reuse, don't imitate: the onboarding rating experience IS
+RatingStack — if onboarding ever needs its own rating card, the design has
+gone wrong.)
+
+## The flow (first sign-in, skippable at every step)
+
+1. **Walkthrough, TWO cards, not a marketing carousel** (ink-on-paper,
+   Chinese-first, one line each + small art):
+   - Card 1 — dishi 記住你食過乜，學你鍾意乜。影相、屋企飯、舊相，一樣計。
+     (dishes not restaurants; equal-weight logging stated up front)
+   - Card 2 — 評得多，你嘅味 AI 就愈似你。仲可以帶去你自己嘅 AI 度用。
+     (the blob + the export, one breath — the destination, not the mechanics)
+   No card 3. The third beat of every onboarding is churn; ours is DOING it.
+2. **The ask:** 揀幾張你影過嘅食物相（5–10 張，多多益善）— straight into
+   the SAME photo picker the merged pill opens, album mode. Camera-roll
+   permission is requested here, in context, not at app open.
+3. **Rate them:** RatingStack flick, exactly as shipped. TasteGrowth plays
+   after — the new user watches their profile take first shape from photos
+   they already had. That moment is the product pitch; no copy needed.
+4. **Landing:** profile page with the buddy bar's onboarding endowment
+   acknowledging the head start (endowment already exists in buddy.ts —
+   wire, don't invent; it must never masquerade as trained signal, its
+   standing rule).
+
+## Design decisions needing the owner (before build)
+
+- Photo count ask: 5–10 framed as 多多益善, or a harder "pick 8"? (Fuzzy
+  asks convert worse; hard asks feel like homework.)
+- Scan introduction: deliberately ABSENT above — first restaurant visit is
+  the natural scan moment. Agree, or should card 2 mention it?
+- Replay: walkthrough re-viewable from somewhere (設定?), or once-only?
+- The 食記-journal eaten-date question (open thread) becomes USER-VISIBLE the
+  moment album logging is the front door — old photos with EXIF dates will
+  populate the journal's past. Decide ordering there first, or accept
+  when-logged order for launch?
+
+## Tier + verification
+
+Fable, unambiguously (new first-run surface, and the first thing every new
+user ever sees). Verify with a REAL fresh account and a real camera roll —
+fixture photos hide exactly the density/quality problems onboarding exists
+to survive. Screenshot every step including both skip paths.
