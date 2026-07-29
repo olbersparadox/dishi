@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach, afterEach, afterAll } from 'vites
 import {
   sanitizeItem, sanitizeSkeletonItem, sanitizeDietFlags, sanitizeCookingMethod,
   sanitizeHeaviness, sanitizeIngredients, DIET_FLAGS, COOKING_METHODS, HEAVINESS,
-  scanReasoning,
 } from '../src/lib/menuScan';
 
 describe('sanitizeDietFlags — closed vocabulary, never free text', () => {
@@ -92,23 +91,6 @@ describe('sanitizeSkeletonItem — Stage 1, identity fields only', () => {
   it('falls back to the English name only when there is no "z" either', () => {
     const item = sanitizeSkeletonItem({ n: 'Caesar salad', c: 'western', f: 0.8 });
     expect(item?.name_original).toBe('Caesar salad');
-  });
-});
-
-describe('scanReasoning — the OPENROUTER_SCAN_REASONING dashboard toggle', () => {
-  // Pins the env var's NAME and its closed value set: this is flipped from the
-  // Vercel dashboard, so a silent rename in code would strand the toggle.
-  const KEY = 'OPENROUTER_SCAN_REASONING';
-  afterEach(() => { delete process.env[KEY]; });
-
-  it('unset -> undefined (default behavior, model reasons at will)', () => {
-    delete process.env[KEY];
-    expect(scanReasoning()).toBeUndefined();
-  });
-  it('accepts exactly off|low; anything else is ignored, never passed through', () => {
-    process.env[KEY] = 'off'; expect(scanReasoning()).toBe('off');
-    process.env[KEY] = 'low'; expect(scanReasoning()).toBe('low');
-    process.env[KEY] = 'true'; expect(scanReasoning()).toBeUndefined();
   });
 });
 

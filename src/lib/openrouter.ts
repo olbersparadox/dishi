@@ -24,13 +24,22 @@ type ContentPart =
  * "no key -> mock" fallback keeps working unchanged.
  */
 /** Options shared by the one-shot and streaming callers.
- * `reasoning`: OpenRouter's normalized reasoning control — 'off' disables the
- * model's hidden thinking, 'low' caps its effort. Measured 2026-07-29 on the
- * live endpoint: the default burned 817 reasoning tokens (~16s) producing a
- * THREE-WORD enrich hook — >90% of both the latency and the bill on per-dish
- * calls was invisible deliberation. Only callers whose outputs have passed a
- * quality check against the default should set this (diet flags feed the
- * allergen tripwires — wrong is worse than slow there). */
+ *
+ * `reasoning` (OpenRouter's normalized control) currently has NO production
+ * caller, deliberately — a 38-dish A/B on the live endpoint (2026-07-29)
+ * closed the question for qwen3.7-plus:
+ *   - 'off': 20x faster (enrich p50 37s -> 2s, reasoning_tokens 2394 -> 0)
+ *     but the diet-flag DERIVATION DISCIPLINE collapses — the soy-seasoning
+ *     rule broke on 9/35 dishes, and カキフライ lost `shellfish` while its own
+ *     ingredient list said "oyster". Allergen flags feed the tripwires;
+ *     disqualified.
+ *   - 'low': quality holds (20/27 flag-identical) but ZERO latency win
+ *     (p50 39.7s) — this endpoint treats effort as binary, so 'low' still
+ *     thinks at full length.
+ * Fast-but-unsafe or safe-but-not-fast: no setting is ever right for THIS
+ * model, so the env toggle that briefly wired it was removed. Kept as a
+ * capability because any future OPENROUTER_MODEL swap should re-run exactly
+ * this A/B, and the request plumbing is the annoying half of that. */
 type CallOpts = { maxTokens?: number; expectJson?: boolean; timeoutMs?: number; reasoning?: 'off' | 'low' };
 
 export async function callClaude(
