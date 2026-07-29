@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  SCAN_BUDGET_MS, percentile, callStats, budgetMisses,
+  scanBudgetMs, percentile, callStats, budgetMisses,
   formatScanSummary, createScanTelemetry, sanitizeScanSummary,
   type ScanSummary,
 } from '../src/lib/scanTelemetry';
@@ -46,29 +46,66 @@ describe('callStats', () => {
   });
 });
 
+describe('scanBudgetMs', () => {
+  it('scales every stage except first_name with item count', () => {
+    const small = scanBudgetMs(5);
+    const big = scanBudgetMs(50);
+    // Prefill does not care how many dishes are on the menu.
+    expect(small.first_name).toBe(big.first_name);
+    for (const k of ['names_done', 'chips_done', 'recs_done'] as const) {
+      expect(big[k]).toBeGreaterThan(small[k]);
+    }
+  });
+
+  it('never returns a zero budget for an empty/absurd item count', () => {
+    expect(scanBudgetMs(0).names_done).toBeGreaterThan(0);
+  });
+});
+
 describe('budgetMisses', () => {
-  it('flags only milestones that were reached AND blew their budget', () => {
+  it('charges each stage against the PREVIOUS one, so a slow stage marks only itself', () => {
+    // The real 2026-07-29 line: stage 1 was slow (33s), stages 2/3 excellent
+    // (chips 5.1s after the last name). Absolute budgets flagged all four,
+    // which named nothing. Increment budgets must name stage 1 alone.
     expect(budgetMisses({
-      first_name: 900,
-      names_done: 4_000,
-      chips_done: SCAN_BUDGET_MS.chips_done + 1,
-    })).toEqual(['chips_done']);
+      first_name: 7_504, names_done: 33_247, chips_done: 38_321, recs_done: 41_702,
+    }, 30)).toEqual(['first_name', 'names_done']);
+  });
+
+  it('flags a genuinely slow stage 2 even when stage 1 was fast', () => {
+    const misses = budgetMisses({
+      first_name: 1_000, names_done: 4_000, chips_done: 90_000, recs_done: 9_000,
+    }, 10);
+    expect(misses).toContain('chips_done');
+    expect(misses).not.toContain('recs_done'); // its own tail was fine
+    expect(misses).not.toContain('names_done');
   });
 
   it('an unreached milestone is not a miss (mock / under-threshold scans)', () => {
     // No scoring happened, so recs_done was never marked — inventing a
     // violation there would train everyone to ignore the field.
-    expect(budgetMisses({ first_name: 500, names_done: 2_000, chips_done: 5_000 })).toEqual([]);
+    expect(budgetMisses({ first_name: 500, names_done: 2_000, chips_done: 5_000 }, 3)).toEqual([]);
+  });
+
+  it('skips a stage whose baseline is missing rather than charging it against zero', () => {
+    // chips_done with no names_done has nothing honest to be charged against.
+    expect(budgetMisses({ chips_done: 999_000 }, 5)).toEqual([]);
   });
 
   it('exactly on budget is not a miss', () => {
-    expect(budgetMisses({ first_name: SCAN_BUDGET_MS.first_name })).toEqual([]);
+    expect(budgetMisses({ first_name: scanBudgetMs(1).first_name }, 1)).toEqual([]);
+  });
+
+  it('a big menu gets a proportionally bigger allowance', () => {
+    const marks = { first_name: 2_000, names_done: 22_000 }; // 20s of streaming
+    expect(budgetMisses(marks, 5)).toContain('names_done');   // way over for 5 dishes
+    expect(budgetMisses(marks, 40)).not.toContain('names_done'); // reasonable for 40
   });
 
   it('returns misses in pipeline order, not discovery order', () => {
     expect(budgetMisses({
-      recs_done: 99_000, first_name: 99_000, chips_done: 99_000, names_done: 99_000,
-    })).toEqual(['first_name', 'names_done', 'chips_done', 'recs_done']);
+      first_name: 99_000, names_done: 199_000, chips_done: 299_000, recs_done: 399_000,
+    }, 1)).toEqual(['first_name', 'names_done', 'chips_done', 'recs_done']);
   });
 });
 
@@ -92,9 +129,15 @@ describe('formatScanSummary', () => {
   });
 
   it('names the milestones that blew budget instead of just saying "slow"', () => {
-    const line = formatScanSummary({ ...base, marks: { ...base.marks, chips_done: 47_000 } });
+    const line = formatScanSummary({ ...base, marks: { ...base.marks, chips_done: 99_000 } });
     expect(line).toContain('BUDGET_MISS=chips_done');
     expect(line).not.toContain('budget=ok');
+  });
+
+  it('sizes the verdict by item count — the same timings pass a big menu and fail a small one', () => {
+    const marks = { first_name: 2_000, names_done: 25_000 };
+    expect(formatScanSummary({ ...base, items: 40, marks })).toContain('budget=ok');
+    expect(formatScanSummary({ ...base, items: 3, marks })).toContain('BUDGET_MISS=names_done');
   });
 
   it('prints "-" for milestones never reached, never 0', () => {

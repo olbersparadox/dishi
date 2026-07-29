@@ -68,6 +68,30 @@ describe('sanitizeSkeletonItem — Stage 1, identity fields only', () => {
   it('missing name -> null, never a fabricated dish', () => {
     expect(sanitizeSkeletonItem({ c: 'x', f: 0.5 })).toBeNull();
   });
+
+  // The skeleton prompt tells the model to OMIT "o" when it would be identical
+  // to "z" — the same characters generated twice on a Chinese menu, and stage 1
+  // is ~80% of a scan's wall clock. An omitted "o" therefore means "same as z",
+  // and name_original is the pick/dedupe key, so getting this fallback wrong
+  // silently breaks table picks rather than throwing.
+  it('an omitted "o" means "same as z" — never the English translation', () => {
+    const item = sanitizeSkeletonItem({ n: 'Braised pork belly', z: '金錢肚', p: '$88', c: 'cantonese', f: 0.9 });
+    expect(item?.name_original).toBe('金錢肚');
+    expect(item?.name_zh).toBe('金錢肚');
+  });
+
+  it('a present "o" still wins — a genuinely different printed name is preserved', () => {
+    // Japanese/Korean script, Simplified characters, etc: "o" and "z" differ and
+    // BOTH must survive, which is the whole reason the field exists.
+    const item = sanitizeSkeletonItem({ n: 'Grilled eel', z: '鰻魚飯', o: 'うなぎ丼', c: 'japanese', f: 0.9 });
+    expect(item?.name_original).toBe('うなぎ丼');
+    expect(item?.name_zh).toBe('鰻魚飯');
+  });
+
+  it('falls back to the English name only when there is no "z" either', () => {
+    const item = sanitizeSkeletonItem({ n: 'Caesar salad', c: 'western', f: 0.8 });
+    expect(item?.name_original).toBe('Caesar salad');
+  });
 });
 
 describe('sanitizeItem — full item assembly (owner-upload path + Stage 2 merge shape)', () => {

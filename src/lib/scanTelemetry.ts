@@ -18,24 +18,54 @@
 // Everything here is pure and side-effect free so it can be unit-tested;
 // the recorder holds numbers only, never a network call.
 
-/** Wall-clock budget per user-visible milestone, measured from scan start.
- * These are the promises the scan screen makes to a person holding a menu.
- * A miss is printed in the log line — that is what turns "feels slow" from a
- * feeling into a boolean, and what makes the NEXT bottleneck visible before
- * anyone has to sit through it. */
-export const SCAN_BUDGET_MS = {
-  /** First dish name painted — the moment the screen stops looking dead. */
-  first_name: 3_000,
-  /** Every dish name in; the skeleton stream has closed. */
-  names_done: 10_000,
-  /** Stage 2 complete: every dish's ingredient/diet chips resolved. */
-  chips_done: 20_000,
-  /** Stage 3 complete: every dish scored, view settles into ranked order. */
-  recs_done: 25_000,
-} as const;
+/**
+ * Budgets per user-visible milestone. TWO deliberate properties, both learned
+ * from the first real line this instrument ever produced (2026-07-29, a
+ * 30-item Japanese menu):
+ *
+ * 1. They SCALE WITH ITEM COUNT. A flat budget fails every large menu and
+ *    passes every small one, so it stops carrying information and everyone
+ *    learns to ignore the field. Only `first_name` is flat — it is upload +
+ *    vision prefill, which does not depend on how many dishes exist.
+ *
+ * 2. They are charged against the PREVIOUS milestone, not scan start. That
+ *    first line read BUDGET_MISS=first_name,names_done,chips_done,recs_done —
+ *    all four — when in truth only stage 1 was slow (33s) and stages 2/3 were
+ *    excellent (every chip resolved 5s after the last name, zero failures).
+ *    Absolute budgets cascade: one slow stage marks every stage behind it, and
+ *    a report that blames everything names nothing. An increment budget makes
+ *    the miss list say which stage is actually at fault.
+ *
+ * The marks in the log line stay ABSOLUTE — those are the truth about how long
+ * the person waited. Only the pass/fail verdict is per-stage.
+ */
+export function scanBudgetMs(items: number): Record<StageKey, number> {
+  const n = Math.max(1, items);
+  return {
+    /** Upload + vision prefill, before any dish can paint. Flat. */
+    first_name: 3_000,
+    /** Streaming the remaining names, charged from first_name. */
+    names_done: 5_000 + 600 * n,
+    /** Stage 2's TAIL past the stream — it runs concurrently with stage 1, so
+     *  most of the work is already done when the last name lands. */
+    chips_done: 8_000 + 200 * n,
+    /** Stage 3's tail, same shape; scoring settles the ranked view. */
+    recs_done: 10_000 + 250 * n,
+  };
+}
 
-export type StageKey = keyof typeof SCAN_BUDGET_MS;
+export type StageKey = 'first_name' | 'names_done' | 'chips_done' | 'recs_done';
 const STAGE_ORDER: StageKey[] = ['first_name', 'names_done', 'chips_done', 'recs_done'];
+
+/** What each milestone's budget is charged against. chips_done and recs_done
+ * both hang off names_done rather than off each other: they are independent
+ * stages racing in parallel, so neither should inherit the other's delay. */
+const CHARGED_AGAINST: Record<StageKey, StageKey | null> = {
+  first_name: null, // scan start
+  names_done: 'first_name',
+  chips_done: 'names_done',
+  recs_done: 'names_done',
+};
 
 /**
  * Nearest-rank percentile (no interpolation) over a small sample.
@@ -96,13 +126,24 @@ export type ScanSummary = {
   error?: string;
 };
 
-/** Which milestones blew their budget. Unreached milestones are NOT misses:
- * a mock scan or an under-threshold user legitimately never scores anything,
- * and inventing a violation there would train everyone to ignore the field. */
-export function budgetMisses(marks: ScanMarks): StageKey[] {
+/** Which milestones blew their own budget — each charged against the previous
+ * one (see CHARGED_AGAINST), so a slow stage marks only ITSELF, not everything
+ * downstream of it.
+ *
+ * Unreached milestones are NOT misses: a mock scan or an under-threshold user
+ * legitimately never scores anything, and inventing a violation there would
+ * train everyone to ignore the field. A milestone whose baseline is missing is
+ * skipped for the same reason — there is nothing honest to charge it against. */
+export function budgetMisses(marks: ScanMarks, items: number): StageKey[] {
+  const budget = scanBudgetMs(items);
   return STAGE_ORDER.filter(k => {
     const v = marks[k];
-    return typeof v === 'number' && v > SCAN_BUDGET_MS[k];
+    if (typeof v !== 'number') return false;
+    const base = CHARGED_AGAINST[k];
+    if (base === null) return v > budget[k];
+    const from = marks[base];
+    if (typeof from !== 'number') return false;
+    return v - from > budget[k];
   });
 }
 
@@ -111,7 +152,7 @@ const num = (v: number | null | undefined) => (typeof v === 'number' ? String(Ma
 /** The one glanceable line. Greppable by prefix, dimensioned by lang/items,
  * and ending in the verdict — so a scan's health is readable without parsing. */
 export function formatScanSummary(s: ScanSummary): string {
-  const misses = budgetMisses(s.marks);
+  const misses = budgetMisses(s.marks, s.items);
   const stat = (c: CallStat) => `p50:${num(c.p50)}/p95:${num(c.p95)}/max:${num(c.max)}/fail:${c.failed}of${c.ok + c.failed}`;
   return [
     'scan-telemetry',

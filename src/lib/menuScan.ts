@@ -254,7 +254,7 @@ Respond with ONLY compact JSON, no markdown fences, minimal whitespace:
  "items": [{
    "n": string (English name; translate if needed),
    "z": string (Traditional Chinese name, HK register — if the menu isn't Chinese, TRANSLATE by meaning; NEVER leave kana/hangul in "z"; see the "z" rules below),
-   "o": string (name exactly as printed),
+   "o": string (name exactly as printed) — OMIT THIS FIELD ENTIRELY whenever it would be character-for-character identical to "z", which is the usual case on a Traditional-Chinese menu. Include "o" ONLY when the printed name genuinely differs from "z": Japanese/Korean script, Simplified characters, or an English-only menu,
    "p": string|null (price exactly as printed),
    "c": string (cuisine, lowercase),
    "f": number 0..1 (confidence)
@@ -837,7 +837,14 @@ export function sanitizeSkeletonItem(raw: any): MenuItem | null {
   return {
     name: String(name),
     name_zh: (raw.z ?? raw.name_zh) ? String(raw.z ?? raw.name_zh) : null,
-    name_original: String(raw.o ?? raw.name_original ?? name),
+    // "o" falls back to the ZH name BEFORE the English one. The skeleton prompt
+    // now tells the model to omit "o" when it would be identical to "z" — the
+    // same characters generated twice on a Chinese menu, and stage 1 is ~80% of
+    // a scan's wall clock (measured 2026-07-29). An omitted "o" therefore MEANS
+    // "same as z". Falling through to the English name was wrong even before
+    // that: name_original is the pick/dedupe key and is supposed to be the
+    // PRINTED name, never a translation of it.
+    name_original: String(raw.o ?? raw.name_original ?? raw.z ?? raw.name_zh ?? name),
     section: raw.section ? String(raw.section) : null,
     description: null,
     price: (raw.p ?? raw.price) ? String(raw.p ?? raw.price) : null,
