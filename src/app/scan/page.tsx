@@ -417,6 +417,10 @@ function Scanner() {
         setResult(prev => {
           if (!prev) return prev;
           const at = offset + index;
+          // Bounds guard: a result can only be merged into a dish that is
+          // actually on screen. Writing past the end would punch an undefined
+          // hole into the list rather than failing loudly.
+          if (at >= prev.items.length) return prev;
           const nextItems = [...prev.items];
           nextItems[at] = enriched
             ? { ...nextItems[at], hook: enriched.hook, hook_zh: enriched.hook_zh, diet: enriched.diet, cooking_method: enriched.cooking_method, heaviness: enriched.heaviness, ingredients: enriched.ingredients, enriched: true }
@@ -429,6 +433,7 @@ function Scanner() {
         setResult(prev => {
           if (!prev) return prev;
           const at = offset + index;
+          if (at >= prev.items.length) return prev; // same bounds guard as enrich
           const nextItems = [...prev.items];
           nextItems[at] = scored
             ? { ...nextItems[at], match: scored.match, reason: scored.reason, caution: scored.caution, fire: scored.fire, raw_score: scored.raw_score, attributes: scored.attributes }
@@ -528,24 +533,37 @@ function Scanner() {
               // will be scored below.
               const combined = [...baseItems, ...items];
               if (!combined.some(e => sameDishInSession(e, incoming))) {
-                items = [...items, { ...incoming, isNew: true }];
-                const snapshot = [...baseItems, ...items];
-                setResult(prev => prev ? { ...prev, items: snapshot } : prev);
-                startStages(items[items.length - 1], items.length - 1);
+                const added = { ...incoming, isNew: true };
+                items = [...items, added];
+                // APPEND ONTO prev.items, never onto a snapshot of the local
+                // `items` array — see the note in the else-branch below.
+                setResult(prev => prev ? { ...prev, items: [...prev.items, added] } : prev);
+                startStages(added, items.length - 1);
               }
             } else {
               const isFirst = items.length === 0;
               items = [...items, incoming];
-              const snapshot = items;
               if (isFirst && meta) {
                 // First real content: NOW switch to the results view.
                 setScanning(false);
                 setResult({
                   phase: meta.phase, profile_ready: meta.profile_ready, rating_count: meta.rating_count, needed: meta.needed,
-                  mock: meta.mock, menu_language: 'unknown', restaurant_guess: null, items: snapshot,
+                  mock: meta.mock, menu_language: 'unknown', restaurant_guess: null, items: [incoming],
                 });
               } else {
-                setResult(prev => prev ? { ...prev, items: snapshot } : prev);
+                // FUNCTIONAL APPEND, not a snapshot of the local `items` array.
+                // `items` is the raw stream transcript and NEVER carries stage
+                // 2/3 results — those land only in React state. Writing a
+                // snapshot of it here therefore erased the chips of every dish
+                // already enriched, on every new dish that streamed in. Live
+                // symptom (2026-07-29): chips appearing and then vanishing,
+                // ending with only the last dish or two enriched, while the
+                // telemetry line honestly reported enrich fail:0of18 — the
+                // calls all succeeded; the UI threw their results away.
+                // Harmless before stages 2/3 were pipelined into the stream
+                // (nothing wrote enrichment until after it closed); a
+                // guaranteed race the moment they overlapped.
+                setResult(prev => prev ? { ...prev, items: [...prev.items, incoming] } : prev);
               }
               startStages(incoming, items.length - 1);
             }
@@ -579,8 +597,11 @@ function Scanner() {
         // never block; the dishes are added regardless.
         const decision = restaurantKeptNote(result?.restaurant_guess ?? null, done?.restaurant_guess ?? null);
         if (decision?.noteMismatch) setKeptNote(decision.keep);
-        // Combined menu; restaurant/menu_language stay as page 1's.
-        setResult(prev => prev ? { ...prev, items: [...baseItems, ...items] } : prev);
+        // Restaurant/menu_language stay as page 1's. NOTE: this deliberately no
+        // longer rewrites `items` — every dish was already appended to state as
+        // it streamed in, and re-writing the local transcript here would erase
+        // the enrichment that landed during the stream (same clobber documented
+        // in the item handler above).
         setAppending(false);
         if (items.length === 0) {
           // Every dish on this page was already on the menu. No stage 2/3 work
@@ -595,7 +616,12 @@ function Scanner() {
         // Fire-and-forget: the table code appears when it appears, and never
         // blocks scoring or the dishes already on screen.
         sessionPromise = createTableSession(items);
-        setResult(prev => prev ? { ...prev, items, menu_language: done?.menu_language ?? 'unknown', restaurant_guess: done?.restaurant_guess ?? null } : prev);
+        // Metadata ONLY. `items` is deliberately absent: the dishes are already
+        // in state from the stream, and writing the local transcript here was
+        // the single worst instance of the clobber above — it fired once, right
+        // after the stream, and erased EVERY enrichment that had landed while
+        // the stream was still open.
+        setResult(prev => prev ? { ...prev, menu_language: done?.menu_language ?? 'unknown', restaurant_guess: done?.restaurant_guess ?? null } : prev);
       }
       if (meta.phase !== 'needs_scoring') setSettled(true); // already complete (mock / under threshold)
 

@@ -254,7 +254,7 @@ Respond with ONLY compact JSON, no markdown fences, minimal whitespace:
  "items": [{
    "n": string (English name; translate if needed),
    "z": string (Traditional Chinese name, HK register — if the menu isn't Chinese, TRANSLATE by meaning; NEVER leave kana/hangul in "z"; see the "z" rules below),
-   "o": string (name exactly as printed) — OMIT THIS FIELD ENTIRELY whenever it would be character-for-character identical to "z", which is the usual case on a Traditional-Chinese menu. Include "o" ONLY when the printed name genuinely differs from "z": Japanese/Korean script, Simplified characters, or an English-only menu,
+   "o": string (name exactly as printed),
    "p": string|null (price exactly as printed),
    "c": string (cuisine, lowercase),
    "f": number 0..1 (confidence)
