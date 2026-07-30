@@ -1,9 +1,10 @@
 'use client';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AuthGate from '@/components/AuthGate';
-import Chop from '@/components/Chop';
-import { chopColorMap, chopColorFor } from '@/lib/chop';
+// Chop itself is deliberately NOT imported here: the stamp row is ChopStampRow's
+// job, and reaching for the bare glyph again is how a lookalike starts.
+import ChopStampRow from '@/components/ChopStampRow';
 import DishListRow from '@/components/DishListRow';
 import TableBar from '@/components/TableBar';
 import { LeaveIcon } from '@/components/icons';
@@ -14,8 +15,10 @@ import { createTaskPool } from '@/lib/concurrency';
 import { mergeFinalScanItems } from '@/lib/tableMenuItems';
 import { shareLink } from '@/lib/share';
 import { supabaseBrowser } from '@/lib/supabase/client';
-import type { RealtimeChannel } from '@supabase/supabase-js';
-import { stampsFromPicks, pickMatchesItem, mergeStamps, applyStampEvent, type StampOverlay, type StampEvent } from '@/lib/tableStamps';
+// The table-session engine — poll, realtime, stamps, pick/unpick — lives in ONE
+// place that /scan mounts too. This page used to own all of it inline, and /scan
+// had a weaker copy that drifted (see useTableSession's own header note).
+import { useTableSession, type RankedItem } from '@/lib/useTableSession';
 
 // A page a joined member scans and pushes straight onto the shared menu —
 // deliberately a SUBSET of scan/page.tsx's own ScannedItem: this screen never
@@ -31,33 +34,9 @@ type ScanPageItem = {
 };
 const SCORE_CONCURRENCY = 6; // matches scan/page.tsx's own cap for the same two per-dish endpoints
 
-type Member = {
-  user_id: string; handle: string; display_name: string | null;
-  username_claimed: boolean; has_profile: boolean; rating_count: number;
-};
-type RankedItem = {
-  key: string; name: string; name_zh?: string | null; name_original?: string; price?: string | null;
-  cuisine: string | null; photo_url?: string | null;
-  // Stage-2 enrichment's day-0 utility fields — present when this candidate came
-  // from a real /scan share; absent (and simply not rendered) for a restaurant's
-  // own typed menu or the community-dish pool, neither of which ever carries them.
-  diet?: string[] | null; cooking_method?: string | null; heaviness?: string | null;
-  ingredients?: string[] | null; enriched?: boolean;
-  group_match: number; member_matches: { handle: string; match: number }[];
-  unanimous: boolean; protected_by_fairness: boolean;
-  attributes?: Record<string, number>;
-};
-type TablePick = {
-  id: string; user_id: string; name: string; name_zh: string | null;
-  handle: string; display_name: string | null;
-  identity_name?: string | null; identity_name_zh?: string | null;
-  table_item_key?: string | null;
-};
-type SessionState = {
-  code: string; session_id: string; restaurant_id: string | null;
-  status: string; is_host: boolean; has_menu: boolean; orderable: boolean;
-  you: string; members: Member[]; items: RankedItem[]; table_picks: TablePick[];
-};
+// Member / RankedItem / TablePick / SessionState now live with the engine in
+// useTableSession.ts — they are the shared contract between the two screens that
+// mount it, not this page's private shapes.
 
 // "Never nag" (backlog, item 2): a skipped chop-name prompt must not reappear every
 // visit. There's no server-side "dismissed" state — the fallback (handle) is a fully
@@ -110,28 +89,14 @@ function Table() {
 // earned mark's table-mode equivalent, rendered with the same 🔥 tag scan uses.
 function Session({ code, onLeave }: { code: string; onLeave: () => void }) {
   const { t, lang } = useLang();
-  const [state, setState] = useState<SessionState | null>(null);
-  const [error, setError] = useState('');
-  const [picking, setPicking] = useState<string | null>(null); // item.key currently saving
-  // "Picked" is no longer its own local flag (owner correction, 2026-07-21): a dish
-  // is picked iff MY OWN stamp is present, derived straight from the same stamps
-  // list everyone else's chops come from — a Set that only updated on click used to
-  // drift from server truth on reload (a dish you'd already picked would render
-  // un-filled, though its stamp still showed correctly), which is exactly the
-  // inconsistency this closes. See stamps/picked in the render below.
-  //
-  // Realtime pick stamps (item 3): a LATENCY overlay on top of the poll's own
-  // table_picks (see tableStamps.ts for the full architecture note — the overlay
-  // is bidirectional, an 'unpick' entry hides a stamp the poll still has, not just
-  // 'pick' adding one). Cleared after every successful poll, since the poll is
-  // authoritative once it lands.
-  const [realtimeStamps, setRealtimeStamps] = useState<Record<string, StampOverlay>>({});
-  // Bridges the SAME gap realtimeStamps bridges, for the one thing stamps alone
-  // can't answer: which dish ROW to DELETE if I un-pick before the next poll has
-  // caught up with a pick I *just* made. Cleared alongside realtimeStamps on every
-  // poll, once state.table_picks itself carries the real id.
-  const [pendingDishIds, setPendingDishIds] = useState<Record<string, string>>({});
-  const channelRef = useRef<RealtimeChannel | null>(null);
+  // "Picked" is never its own local flag (owner correction, 2026-07-21): a dish is
+  // picked iff MY OWN stamp is present, derived from the same stamps list
+  // everyone else's chops come from — a Set that only updated on click drifted
+  // from server truth on reload. That rule, the realtime overlay, and pick/unpick
+  // all live in the shared engine now.
+  const {
+    state, error, refresh, busyKey, toggle, stampsFor, isPicked, colorFor,
+  } = useTableSession(code);
   // Add a page (Table Mode item 6, 2026-07-22): any member can grow the
   // shared menu now, not just the host who started it — someone else at the
   // table is often the one holding page 3, or the drinks list.
@@ -177,93 +142,6 @@ function Session({ code, onLeave }: { code: string; onLeave: () => void }) {
    * flow that /order/[token] has. Unifying those two paths is a real follow-up,
    * not something this pass silently pretends to already do.
    */
-  // Own name for the chop a broadcast stamp carries — the SAME fallback chain
-  // rendered everywhere else (display_name, then the auto-handle).
-  const myName = (s: SessionState) => {
-    const me = s.members.find(m => m.user_id === s.you);
-    return me?.display_name ?? me?.handle ?? 'someone';
-  };
-
-  // One shared helper for applying a stamp event, whether it came from the network
-  // or from MY OWN action — so a local pick/unpick and a received broadcast go
-  // through the exact same reducer (tableStamps.ts), never two slightly-different
-  // code paths that could drift.
-  function applyLocalStampEvent(itemKey: string, event: StampEvent) {
-    setRealtimeStamps(prev => ({ ...prev, [itemKey]: applyStampEvent(prev[itemKey] ?? {}, event) }));
-  }
-  function broadcastStamp(itemKey: string, event: StampEvent) {
-    channelRef.current?.send({ type: 'broadcast', event: event.type, payload: { item_key: itemKey, user_id: event.user_id, name: event.name } });
-  }
-
-  async function pickDish(item: RankedItem, state: SessionState) {
-    setPicking(item.key);
-    try {
-      const res = await fetch('/api/dishes/pick', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          restaurant_id: state.restaurant_id ?? undefined,
-          table_session_id: state.session_id,
-          items: [{ name: item.name, name_zh: item.name_zh, cuisine: item.cuisine, attributes: item.attributes ?? {}, table_item_key: item.key }],
-        }),
-      });
-      const json = await res.json().catch(() => null);
-      const dishId = json?.picked?.[0]?.id as string | undefined;
-      if (res.ok && dishId) {
-        setPendingDishIds(prev => ({ ...prev, [item.key]: dishId }));
-        const event: StampEvent = { type: 'pick', user_id: state.you, name: myName(state) };
-        applyLocalStampEvent(item.key, event); // instant local thunk — matches scan's own chop
-        broadcastStamp(item.key, event);       // instant for everyone else at the table; also flips "picked" (derived from stamps) immediately
-      }
-    } finally {
-      setPicking(null);
-    }
-  }
-
-  // Un-pick (item 3): DELETEs the dish row /api/dishes/pick created — the same
-  // owning-user-scoped endpoint the queue's own 刪除 trash icon already uses, so
-  // there's no new deletion path to reason about, just a new caller of it. Finds
-  // MY OWN pick via the same pickMatchesItem rule stamps use (state.table_picks is
-  // server truth), falling back to pendingDishIds only for the brief window right
-  // after a pick before the next poll has landed.
-  async function unpickDish(item: RankedItem, state: SessionState) {
-    const mine = state.table_picks.find(p => p.user_id === state.you && pickMatchesItem(p, item));
-    const dishId = mine?.id ?? pendingDishIds[item.key];
-    if (!dishId) return;
-    setPicking(item.key);
-    try {
-      const res = await fetch('/api/my/dishes', {
-        method: 'DELETE', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dish_id: dishId }),
-      });
-      if (res.ok) {
-        setPendingDishIds(prev => { const { [item.key]: _, ...rest } = prev; return rest; });
-        const event: StampEvent = { type: 'unpick', user_id: state.you, name: myName(state) };
-        applyLocalStampEvent(item.key, event);
-        broadcastStamp(item.key, event);
-      }
-    } finally {
-      setPicking(null);
-    }
-  }
-
-  const refresh = useCallback(async () => {
-    try {
-      const res = await fetch(`/api/table/${code}`);
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error);
-      setState(json);
-      setError('');
-      // The poll is authoritative the moment it lands — clear the realtime overlay
-      // so a stale entry (e.g. an unpick broadcast this client missed) can never
-      // outlive the DB truth for more than one poll cycle. See tableStamps.ts.
-      setRealtimeStamps({});
-      setPendingDishIds({}); // state.table_picks now carries the real id for anything pending
-    } catch (e: any) {
-      setError(e.message || 'Lost the table.');
-    }
-  }, [code]);
-
   // Add a page: any member can grow the shared scanned menu now (item 6,
   // owner decision 2026-07-22 — open trust model, no confirmation gate).
   //
@@ -389,34 +267,8 @@ function Session({ code, onLeave }: { code: string; onLeave: () => void }) {
     }
   }
 
-  // Realtime channel: one per session, subscribed once we know session_id (arrives
-  // async via the first refresh()). `self: false` because a local pick/unpick is
-  // already applied instantly via applyLocalStampEvent — receiving our own broadcast
-  // back would just be a redundant (harmless, since applyStampEvent is idempotent,
-  // but pointless) round-trip.
-  useEffect(() => {
-    if (!state?.session_id) return;
-    const supabase = supabaseBrowser();
-    const channel = supabase.channel(`table:${state.session_id}`, { config: { broadcast: { self: false } } });
-    channel
-      .on('broadcast', { event: 'pick' }, ({ payload }) => {
-        applyLocalStampEvent(payload.item_key, { type: 'pick', user_id: payload.user_id, name: payload.name });
-      })
-      .on('broadcast', { event: 'unpick' }, ({ payload }) => {
-        applyLocalStampEvent(payload.item_key, { type: 'unpick', user_id: payload.user_id, name: payload.name });
-      })
-      .subscribe();
-    channelRef.current = channel;
-    return () => { supabase.removeChannel(channel); channelRef.current = null; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state?.session_id]);
-
-  // Poll every 5s while open, so rankings shift live as friends join.
-  useEffect(() => {
-    refresh();
-    const t = setInterval(refresh, 5000);
-    return () => clearInterval(t);
-  }, [refresh]);
+  // Realtime subscription and the 5s poll both live in useTableSession now —
+  // this page no longer owns a second copy of either.
 
   async function share() {
     const url = `${window.location.origin}/table?code=${code}`;
@@ -434,17 +286,10 @@ function Session({ code, onLeave }: { code: string; onLeave: () => void }) {
   );
   if (!state) return <p className="card-meta">{t('table.pulling')}</p>;
 
-  // Per-item stamps (item 3): poll-derived base (stampsFromPicks, name-matched
-  // against table_picks — self-heals every 5s regardless of realtime) merged with
-  // the realtime latency overlay. Recomputed each render; state.items/table_picks
-  // are small (≤15/≤30), so this is cheap enough not to need memoizing.
-  const stampsByKey = new Map(
-    state.items.map(it => [
-      it.key,
-      mergeStamps(stampsFromPicks(it, state.table_picks), realtimeStamps[it.key] ?? {}),
-    ]),
-  );
-  const STAMP_CAP = 5;
+  // Per-item stamps: poll-derived base merged with the realtime overlay, from the
+  // shared engine. Recomputed each render; items/table_picks are small (≤15/≤30),
+  // so this is cheap enough not to need memoizing.
+  const stampsByKey = new Map(state.items.map(it => [it.key, stampsFor(it)]));
 
   // Distinct dishes with at least one stamp, live-merged (poll + realtime overlay)
   // — the ONE list the table-bar header's count AND the footer both derive from
@@ -467,7 +312,6 @@ function Session({ code, onLeave }: { code: string; onLeave: () => void }) {
   // identical on every member's screen, collision-free up to the palette size
   // (chopColorMap's contract). Stamps and fire dots both draw from it, and the
   // chopColorFor fallback only covers a realtime stamp racing the members poll.
-  const colorById = chopColorMap(state.members.map(m => m.user_id));
   const fireByKey = new Map<string, { userId: string; color: string }[]>();
   for (const member of state.members) {
     if (!member.has_profile) continue;
@@ -476,7 +320,7 @@ function Session({ code, onLeave }: { code: string; onLeave: () => void }) {
       .filter(x => x.match >= FIRE_MATCH_FLOOR)
       .sort((a, b) => b.match - a.match)
       .slice(0, FIRE_CAP_PER_MEMBER);
-    const color = colorById.get(member.user_id) ?? chopColorFor(member.user_id);
+    const color = colorFor(member.user_id);
     for (const t of top) {
       const arr = fireByKey.get(t.key) ?? [];
       arr.push({ userId: member.user_id, color });
@@ -579,9 +423,9 @@ function Session({ code, onLeave }: { code: string; onLeave: () => void }) {
         {state.items.map((item, i) => {
           const stamps = stampsByKey.get(item.key) ?? [];
           // Picked = my own stamp is present, full stop — never a separate flag
-          // that could say something different than the "W" everyone (including
+          // that could say something different than the chop everyone (including
           // me) sees under the dish (owner correction, 2026-07-21).
-          const picked = stamps.some(s => s.user_id === state.you);
+          const picked = isPicked(item);
           return (
             <DishListRow
               key={item.key}
@@ -593,29 +437,17 @@ function Session({ code, onLeave }: { code: string; onLeave: () => void }) {
               rank={i + 1}
               picked={picked}
               fireFor={fireByKey.get(item.key)}
-              onSelect={() => {
-                if (picking) return; // ignore a second tap while the first is still in flight
-                if (picked) unpickDish(item, state); else pickDish(item, state);
-              }}
+              // Toggle owns the double-tap guard and the pick/unpick choice — the
+              // same call /scan makes, so the two can't diverge on what a tap means.
+              onSelect={() => toggle(item, {
+                cuisine: item.cuisine, attributes: item.attributes ?? {},
+                cooking_method: item.cooking_method, heaviness: item.heaviness,
+                diet: item.diet, ingredients: item.ingredients,
+              })}
               // No pickedBy text — the chop stamp already carries who (owner
               // feedback, 2026-07-21): stacking a stamp AND a repeated "{name}
               // 也選了" line under every picked dish was the crowding.
-              stamps={stamps.length > 0 ? (
-                // Right-aligned under the price, spaced not overlapped (owner
-                // request, 2026-07-21) — capped at STAMP_CAP with a "+N" overflow
-                // badge so a table of 12 people piling onto one dish doesn't blow
-                // out the row's width. Each chop's key is stable (item.key +
-                // user_id), so its mount pop-in animation plays exactly once, the
-                // moment IT specifically joins.
-                <div className="chop-stamp-row" style={{ marginTop: 5 }} aria-label={t('table.stampedby', { n: stamps.length })}>
-                  {stamps.slice(0, STAMP_CAP).map(s => (
-                    <span className="chop-stamp-pop" key={`${item.key}:${s.user_id}`}>
-                      <Chop name={s.name} color={colorById.get(s.user_id) ?? chopColorFor(s.user_id)} size={26} />
-                    </span>
-                  ))}
-                  {stamps.length > STAMP_CAP && <span className="chop-stamp-overflow">+{stamps.length - STAMP_CAP}</span>}
-                </div>
-              ) : undefined}
+              stamps={<ChopStampRow itemKey={item.key} stamps={stamps} colorFor={colorFor} />}
             />
           );
         })}
