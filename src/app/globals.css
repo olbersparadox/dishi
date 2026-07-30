@@ -902,10 +902,12 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 .qty-stepper button:disabled { opacity: 0.35; cursor: default; }
 .qty-stepper span { min-width: 18px; text-align: center; font-weight: 800; font-variant-numeric: tabular-nums; }
 .cart-bar {
+  /* Just the pill floating over the menu — no plate behind it (owner, 2026-07-30:
+     wanted the white strip gone, only the black pill on top of the list). */
   position: fixed; left: 0; right: 0; bottom: 62px; padding: 10px 16px;
-  background: #ffffffee; backdrop-filter: blur(8px); border-top: 1px solid var(--line);
-  max-width: 420px; margin: 0 auto; z-index: 40;
+  max-width: 420px; margin: 0 auto; z-index: 40; pointer-events: none;
 }
+.cart-bar > * { pointer-events: auto; }
 
 /* --- owner tabs --- */
 .owner-tabs { display: flex; gap: 6px; margin: 12px 0 16px; flex-wrap: wrap; }
