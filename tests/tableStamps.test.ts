@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { stampsFromPicks, pickMatchesItem, mergeStamps, applyStampEvent, pruneOverlaysBefore, countStampedDishes, type Stamp, type StampOverlay } from '../src/lib/tableStamps';
+import { scanCandidateKey } from '../src/lib/tableMenuItems';
 
 const pick = (over: Partial<Parameters<typeof stampsFromPicks>[1][number]> = {}) => ({
   user_id: 'u1', name: 'Seafood donburi', name_zh: '海鮮丼',
@@ -346,5 +347,27 @@ describe('pruneOverlaysBefore — an in-flight write outranks the poll that race
   it('defaults to protecting nothing, so the guard must be passed deliberately', () => {
     const overlays = { dishA: { u2: unpickAt('u2', 100) } };
     expect(pruneOverlaysBefore(overlays, 200)).toEqual({});
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Key matching between scanner's displayItems and session's menu_items
+// ---------------------------------------------------------------------------
+describe('scanCandidateKey — the key must be stable across scanner and session', () => {
+  it('generates the same key when name_original is present', () => {
+    const scannedItem = { name_original: 'Fish Soup', name: 'fish soup' };
+    const menuItem = { name_original: 'Fish Soup', name: 'fish soup' };
+    expect(scanCandidateKey(scannedItem, 0)).toBe(scanCandidateKey(menuItem, 0));
+  });
+
+  it('falls back to name if name_original is missing', () => {
+    const menuItemWithoutOriginal = { name: 'fish soup', name_original: undefined };
+    const key = scanCandidateKey(menuItemWithoutOriginal, 0);
+    expect(key).toBe('fish soup');
+  });
+
+  it('uses index as ultimate fallback for degenerate items', () => {
+    const empty = {};
+    expect(scanCandidateKey(empty, 5)).toBe('menu-5');
   });
 });
