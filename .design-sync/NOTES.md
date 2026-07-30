@@ -39,7 +39,13 @@ Repo-specific gotchas for future syncs. Read this before re-running.
 
 ## Scope
 
-- **52 exports synced**: 24 single-component files, 3 from `TasteForm.tsx`
+- **54 exports synced.** `TableWaitLayer` and `TableSettle` joined 2026-07-30
+  (the done-picking handshake and the bill). Both take everything as props with
+  no Supabase and no fetch, so they belong in scope rather than with the 18
+  data-coupled exclusions below. Both needed `cardMode: single` — each contains
+  a fixed-position element (the wait layer's scrim, the bill's 去評分 bar) and
+  tripped `[GRID_OVERFLOW]` exactly like `ExplainModal`/`SnapRating` did.
+- Of those, **52 came from the first sync**: 24 single-component files, 3 from `TasteForm.tsx`
   (`TasteFormSnapshot`/`TasteFormLive`/`TasteFormReveal` — this file has **no**
   default export), and the 25 named icons from `icons.tsx`.
 - **18 components deliberately excluded** — they need Supabase, `next/navigation`,
@@ -122,6 +128,14 @@ Repo-specific gotchas for future syncs. Read this before re-running.
   state with no prop access, but both are just `ExplainModal` compositions — so
   the `ExplainModal` preview ports them verbatim. The state gets taught without
   faking open-state props.
+- **Never pin a height on a frame that contains a fixed element.** The
+  `translateZ(0)` wrapper makes the box the containing block, so a fixed child
+  positions against the WRAPPER's bottom, not the viewport's. `TableSettle`'s
+  first pass pinned the frame at 660px while the bill ran ~750px, which dropped
+  the fixed 去評分 bar straight onto the 如何付款 pills — a preview artefact that
+  looks exactly like a component bug (the live app renders it correctly). Let the
+  frame grow to its content and the bar lands back inside the component's own
+  bottom padding.
 - **Absolutely-positioned menus need room.** `.row-menu` is `right: 0` with a
   140px min-width; if its parent sits near the cell's left edge the dropdown
   overhangs the capture region and vanishes. Give the wrapper left padding.

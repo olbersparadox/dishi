@@ -38,6 +38,10 @@ export { default as PickedCartBar } from '@/components/PickedCartBar';
 export { default as TableBar } from '@/components/TableBar';
 export { default as TableQR } from '@/components/TableQR';
 export { default as TableRestaurantLine } from '@/components/TableRestaurantLine';
+// The settle phase (2026-07-30). Both take everything as props — no Supabase, no
+// fetch — so they belong here rather than with the 18 data-coupled exclusions.
+export { default as TableWaitLayer } from '@/components/TableWaitLayer';
+export { default as TableSettle } from '@/components/TableSettle';
 
 // ── Comparison chassis (DuelOverlay is data-coupled; the side anatomy is not) ─
 export { default as DuelSide } from '@/components/DuelSide';

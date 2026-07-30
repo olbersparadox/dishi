@@ -67,7 +67,9 @@
     "TasteFormSnapshot": "src/components/TasteForm.tsx",
     "TasteRadar": "src/components/TasteRadar.tsx",
     "TrashIcon": "src/components/icons.tsx",
-    "UtensilsIcon": "src/components/icons.tsx"
+    "UtensilsIcon": "src/components/icons.tsx",
+    "TableWaitLayer": "src/components/TableWaitLayer.tsx",
+    "TableSettle": "src/components/TableSettle.tsx"
   },
   "guidelinesGlob": [
     "docs/session-a-spec.md"
@@ -106,6 +108,14 @@
     },
     "UtensilsIcon": {
       "cardMode": "column"
+    },
+    "TableSettle": {
+      "cardMode": "single",
+      "primaryStory": "EqualSplit"
+    },
+    "TableWaitLayer": {
+      "cardMode": "single",
+      "primaryStory": "FourAtTable"
     }
   }
 }
