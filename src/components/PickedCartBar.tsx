@@ -21,7 +21,19 @@ import { useLang } from '@/lib/i18n';
 import { sumPrices } from '@/lib/price';
 import { ArrowRightIcon } from '@/components/icons';
 
-export default function PickedCartBar({ picked }: { picked: { key: string; price?: string | null }[] }) {
+export default function PickedCartBar({ picked, onDone }: {
+  picked: { key: string; price?: string | null }[];
+  /**
+   * Table mode only (2+ members): the bar stops being a way OUT of picking and
+   * becomes "I'm done picking", which is a claim about me that the table then
+   * has to agree with before anything happens.
+   *
+   * Omitted for a solo scanner, who keeps the straight link to the rating queue
+   * — there is no handshake to make with yourself, and dropping a lone diner
+   * into a split-the-bill screen would be worse than the link they had.
+   */
+  onDone?: () => void;
+}) {
   const { t } = useLang();
   // Dedupe by key HERE, not at the call sites: the scanner's local item list is
   // never deduped (unlike the session's), so a menu printing one name twice would
@@ -46,15 +58,23 @@ export default function PickedCartBar({ picked }: { picked: { key: string; price
   // get up from the menu, and the next thing you want is to rate what you ate.
   // Both screens were pointerEvents:'none', so there was no way onward from
   // either (owner, 2026-07-30: "cannot go to next").
+  // Same pill either way — the chrome is the table's running bill in both modes,
+  // and only what the tap MEANS changes. A second bar styled to match would be
+  // the lookalike this component was extracted to kill.
+  const inner = (
+    <>
+      <span>{onDone ? t('table.ready.done') : t('scan.pickcount', { n: dishes.length })}</span>
+      <span className="cart-bar-end">
+        {priceLabel && <span className="cart-total">{priceLabel}</span>}
+        <ArrowRightIcon />
+      </span>
+    </>
+  );
   return (
     <div className="cart-bar">
-      <Link href="/profile#to-rate" className="btn primary cart-btn">
-        <span>{t('scan.pickcount', { n: dishes.length })}</span>
-        <span className="cart-bar-end">
-          {priceLabel && <span className="cart-total">{priceLabel}</span>}
-          <ArrowRightIcon />
-        </span>
-      </Link>
+      {onDone
+        ? <button type="button" className="btn primary cart-btn" onClick={onDone}>{inner}</button>
+        : <Link href="/profile#to-rate" className="btn primary cart-btn">{inner}</Link>}
     </div>
   );
 }

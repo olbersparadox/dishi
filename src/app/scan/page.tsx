@@ -21,6 +21,8 @@ import TableRestaurantLine from '@/components/TableRestaurantLine';
 import { useTableSession } from '@/lib/useTableSession';
 import { countStampedDishes } from '@/lib/tableStamps';
 import PickedCartBar from '@/components/PickedCartBar';
+import TableWaitLayer from '@/components/TableWaitLayer';
+import TableSettle from '@/components/TableSettle';
 import { sumPrices } from '@/lib/price';
 import { CameraIcon, MenuBookIcon, ArrowRightIcon, CloseIcon } from '@/components/icons';
 import { sameDishInSession, restaurantKeptNote } from '@/lib/menuMerge';
@@ -705,6 +707,26 @@ function Scanner() {
     setTableSession(null);
   }
 
+  // ---- the table settled while we were on this screen ----
+  // The scanner sits HERE, not on /table, so without this the host would keep
+  // staring at a menu while everyone who joined by code was already looking at
+  // the bill. Fed from the SESSION's item list rather than this screen's local
+  // `displayItems`, so the two screens cannot print different bills.
+  if (table.settled && table.state) {
+    const sessionItems = table.state.items.filter(it => table.stampsFor(it).length > 0);
+    return (
+      <TableSettle
+        dishes={sessionItems}
+        members={table.members}
+        you={table.you}
+        colorFor={table.colorFor}
+        payMethod={table.payMethod}
+        payerId={table.payerId}
+        onChoose={table.choosePayMethod}
+      />
+    );
+  }
+
   // ---- capture state ----
   if (!result) {
     return (
@@ -1011,7 +1033,14 @@ function Scanner() {
           the same table-wide list, so every member's bar shows one number (owner
           ruling, 2026-07-30 — see PickedCartBar's header). stampable() supplies the
           key; the bar dedupes repeated keys itself (this list is never deduped). */}
-      <PickedCartBar picked={displayItems.filter(i => stampsOf(i).length > 0).map(i => ({ ...stampable(i), price: i.price }))} />
+      <PickedCartBar
+        picked={displayItems.filter(i => stampsOf(i).length > 0).map(i => ({ ...stampable(i), price: i.price }))}
+        onDone={table.members.length >= 2 ? () => table.setReady(true) : undefined}
+      />
+
+      {table.members.length >= 2 && table.iAmReady && (
+        <TableWaitLayer members={table.members} colorFor={table.colorFor} onKeepPicking={() => table.setReady(false)} />
+      )}
     </div>
   );
 }

@@ -401,6 +401,38 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'table.copied': { zh: '連結已複製 — 發俾成檯人。', en: 'Link copied — send it to the table.' },
   'table.sharetitle': { zh: '來我這桌 — Dishi', en: 'Join my table on Dishi' },
 
+  // ---- the done-picking handshake ----
+  // 「我選好了」 states a fact about MYSELF, not a command to the table: the whole
+  // point of the handshake is that no one member declares picking over for
+  // everyone else. The waiting layer then says what is being waited for, because
+  // "please wait" with no count is indistinguishable from a hung screen.
+  'table.ready.done': { zh: '我選好了', en: 'I’m done' },
+  'table.ready.waiting': { zh: '等其他人選完', en: 'Waiting for the others' },
+  'table.ready.progress': { zh: '{n} / {total} 位已選好', en: '{n} of {total} ready' },
+  'table.ready.undo': { zh: '繼續選', en: 'Keep picking' },
+
+  // ---- settle: the bill and who carries it ----
+  'table.settle.title': { zh: '埋單', en: 'The bill' },
+  'table.settle.dishcount': { zh: '本檯共選 {n} 道菜', en: '{n} dishes for the table' },
+  'table.settle.total': { zh: '合計', en: 'Total' },
+  // The "+" on a partial total is load-bearing everywhere else in this app; a
+  // bill is the one place it MUST be spelled out, because a number people are
+  // about to hand money over on cannot quietly mean "at least".
+  'table.settle.partial': {
+    zh: '有菜式沒有標價，合計只是下限。',
+    en: 'Some dishes had no printed price, so this total is a floor.',
+  },
+  'table.settle.how': { zh: '如何付款', en: 'How to pay' },
+  'table.settle.equal': { zh: '平均分攤', en: 'Equal split' },
+  'table.settle.random': { zh: '隨機一人', en: 'Random' },
+  'table.settle.game': { zh: '大話骰', en: 'Liar’s dice' },
+  'table.settle.gamesub': { zh: '輸的人付款', en: 'Loser pays' },
+  'table.settle.soon': { zh: '即將推出', en: 'Coming soon' },
+  'table.settle.each': { zh: '每人 {amount}', en: '{amount} each' },
+  'table.settle.payer': { zh: '{name} 付這一餐', en: '{name} pays' },
+  'table.settle.payeryou': { zh: '你付這一餐', en: 'You pay' },
+  'table.settle.torate': { zh: '去評分', en: 'Rate what you ate' },
+
   // ---- order (QR) ----
   'order.session': { zh: '場次', en: 'session' },
   'order.yourtable': { zh: '你張檯', en: 'Your table' },

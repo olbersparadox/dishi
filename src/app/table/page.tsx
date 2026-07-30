@@ -16,6 +16,8 @@ import { createTaskPool } from '@/lib/concurrency';
 import { mergeFinalScanItems } from '@/lib/tableMenuItems';
 import { countStampedDishes } from '@/lib/tableStamps';
 import PickedCartBar from '@/components/PickedCartBar';
+import TableWaitLayer from '@/components/TableWaitLayer';
+import TableSettle from '@/components/TableSettle';
 import { shareLink } from '@/lib/share';
 import { supabaseBrowser } from '@/lib/supabase/client';
 // The table-session engine — poll, realtime, stamps, pick/unpick — lives in ONE
@@ -100,6 +102,7 @@ function Session({ code, onLeave }: { code: string; onLeave: () => void }) {
   const {
     state, error, refresh, toggle, stampsFor, isPicked, colorFor,
     restaurant, setRestaurant,
+    setReady, choosePayMethod, iAmReady, settled, payMethod, payerId,
   } = useTableSession(code);
   // Add a page (Table Mode item 6, 2026-07-22): any member can grow the
   // shared menu now, not just the host who started it — someone else at the
@@ -304,6 +307,28 @@ function Session({ code, onLeave }: { code: string; onLeave: () => void }) {
   // header count visibly disagreed with the rows underneath it.
   const anyPickedItems = state.items.filter(it => (stampsByKey.get(it.key) ?? []).length > 0);
 
+  // The bill REPLACES the menu rather than sitting over it: once the table has
+  // finished picking, the list of dishes to tap is not what anyone is looking at.
+  // Driven off the session's settled_at, so every member flips on the same fact
+  // (and stays flipped — a late joiner cannot pull the table back to picking).
+  if (settled) {
+    return (
+      <TableSettle
+        dishes={anyPickedItems}
+        members={state.members}
+        you={state.you}
+        colorFor={colorFor}
+        payMethod={payMethod}
+        payerId={payerId}
+        onChoose={choosePayMethod}
+      />
+    );
+  }
+
+  // The handshake only exists with someone to shake hands with. A lone member
+  // keeps the cart bar's original link straight to the rating queue.
+  const inGroup = state.members.length >= 2;
+
   // Per-member fire (owner request, 2026-07-21): same "genuinely positive, capped
   // for scarcity" discipline scan's own solo fire uses (there: top 2 by raw_score
   // past a confidence gate), adapted to member_matches' ABSOLUTE per-member percent
@@ -470,7 +495,14 @@ function Session({ code, onLeave }: { code: string; onLeave: () => void }) {
       {/* The table's picks + running bill — the SAME component /scan mounts, fed
           the same table-wide list, so every member's bar shows one number (owner
           ruling, 2026-07-30 — see PickedCartBar's header). */}
-      <PickedCartBar picked={anyPickedItems} />
+      <PickedCartBar picked={anyPickedItems} onDone={inGroup ? () => setReady(true) : undefined} />
+
+      {/* I've tapped, the table hasn't finished. Blocks the menu behind it so a
+          member who is done can't keep quietly changing the order everyone else
+          has already agreed to. */}
+      {inGroup && iAmReady && (
+        <TableWaitLayer members={state.members} colorFor={colorFor} onKeepPicking={() => setReady(false)} />
+      )}
     </div>
   );
 }

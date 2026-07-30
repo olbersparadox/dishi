@@ -1587,6 +1587,68 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 }
 .cart-total { font-weight: var(--fw-btn); }
 
+/* --- the done-picking handshake, and the bill it opens (2026-07-30) --- */
+/* A real alpha layer, unlike .explain-scrim's invisible click-catcher: this one
+   has to READ as "the menu is behind this and is not yours to touch right now".
+   It deliberately carries no click handler either — a stray tap outside must not
+   quietly un-ready someone the rest of the table is waiting on. */
+.wait-scrim { position: fixed; inset: 0; z-index: 70; background: rgba(20, 16, 12, 0.42); }
+.wait-layer { text-align: center; }
+.wait-progress {
+  font-size: var(--fs-caption); color: var(--ink-soft); text-align: center;
+  font-variant-numeric: tabular-nums; margin-bottom: 18px;
+}
+.wait-chops { display: flex; flex-wrap: wrap; justify-content: center; gap: 16px 18px; }
+/* Members who haven't tapped sit back rather than disappear: the whole reason to
+   show the roster is to name who the table is waiting for. */
+.wait-chop {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  opacity: 0.3; transition: opacity 220ms ease;
+}
+.wait-chop.is-ready { opacity: 1; }
+.wait-chop-name, .settle-chop-name {
+  font-size: var(--fs-micro); color: var(--ink-soft); max-width: 68px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* The bill. Leaves room at the bottom for the fixed bar onward to rating. */
+.settle { padding-bottom: 76px; }
+.settle-line {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 14px;
+  padding: 11px 0; border-bottom: 1px solid var(--line);
+}
+.settle-line:first-child { padding-top: 0; }
+.settle-price {
+  font-size: var(--fs-subtitle-a); color: var(--ink-soft);
+  font-variant-numeric: tabular-nums; flex-shrink: 0;
+}
+.settle-total {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 14px;
+  padding-top: 15px;
+}
+.settle-total > span:first-child { font-size: var(--fs-body); color: var(--ink-soft); }
+.settle-total-num {
+  font-family: var(--font-display); font-size: var(--fs-title-a); font-weight: 700;
+  color: var(--ink); font-variant-numeric: tabular-nums;
+}
+.settle-note { margin-top: 9px; }
+.settle-chops { display: flex; flex-wrap: wrap; gap: 14px 16px; margin: 18px 2px 24px; }
+.settle-chop { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.settle-how { font-size: var(--fs-caption); color: var(--ink-soft); margin-bottom: 10px; }
+.settle-methods { display: flex; gap: 8px; }
+.settle-method {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 12px 8px; font-size: var(--fs-caption); text-align: center;
+}
+/* The chosen way ink-fills — the same "this is settled" treatment .btn.primary
+   carries everywhere else. Never vermillion: that is the seal's alone. */
+.settle-method.is-chosen { background: var(--ink); border-color: var(--ink); color: var(--glaze); }
+.settle-method-sub { font-size: var(--fs-micro); font-weight: 400; opacity: 0.7; }
+.settle-verdict {
+  font-family: var(--font-display); font-size: var(--fs-title-a); font-weight: 700;
+  color: var(--ink); text-align: center; margin: 24px 0 0;
+}
+
 /* --- AI-palate install flow (owner spec 2026-07-23, title/body reuse 2026-07-24) --- */
 /* Title row: "dishi.Spoon → [host logo]" — the persona name in the shared
    .explain-modal-title styling (untouched), an arrow, and the tapped host's
