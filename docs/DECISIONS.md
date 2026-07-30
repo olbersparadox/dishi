@@ -4481,3 +4481,105 @@ attribute probes (rejected — dishes are the interface).
 **Follow-up worth watching:** all 4 answered duels sealed at p≈0.5 and all went
 the predicted way — a hint DUEL_K=2 under-scales the gap (model UNDER-confident).
 Recalibrate DUEL_K against accumulated duel outcomes once n is respectable.
+
+---
+
+# Batch: Table Mode two-account field test — the scanner was on a lookalike — SHIPPED `7da5b12` `2e8a459` `54ad4b4` `1be46d5` (2026-07-30)
+
+Owner report, four symptoms from one session (user 1 scanned a menu, user 2 joined
+by code): picking a dish was slow; user 1 saw no chop for user 2, "just a line
+under chips"; the signal arrived slowly; and **user 1 picked dishes and user 2
+never saw them at all**.
+
+## The single cause
+
+`/scan` had grown its OWN implementation of the table view — its own poll, its own
+pick semantics, its own picker rendering — described in its source as "a
+lightweight glance." Three of the four symptoms fell out of that one fact. The
+scanner is the most engaged person at the table and was sitting on the weakest
+surface: everyone who JOINED got the real view, the host got a degraded copy.
+
+Diagnosis was empirical, not read off the code. Session `SA9YZ`: 2 members, 2
+picks, **both belonging to the joiner**, zero rows from the host. Vercel logs
+agreed — exactly 2 `POST /api/dishes/pick` in six hours.
+
+- **Symptom 4** was not a sync bug. `/table` wrote a pick on tap; `/scan` mutated
+  a local `Set` and wrote nothing until a 3-step confirm (cart bar → CTA →
+  restaurant chips). The scanner's taps never left the browser.
+- **Symptom 3**: `/scan` had no realtime channel at all, only a 5s poll, and never
+  broadcast its own actions either.
+- **Symptom 2**: `Chop` wasn't even imported in `scan/page.tsx`; pickers rendered
+  as `handles.join('、')`.
+- **Symptom 1**: the pick awaited the full round trip before any stamp appeared,
+  and the endpoint serialised a members SELECT + companion-edge upsert after the
+  insert — both explicitly best-effort, both on the response path.
+
+## The fifth bug, unreported
+
+A scan-shared session never set `restaurant_id`. All 5 recent sessions were null,
+and both of the joiner's picks logged null. **Joiners' picks lost restaurant
+attribution entirely** — and `restaurant x dish` is the moat. The scan screen's
+confirm sheet was the only place a restaurant was ever attached, which is why the
+pick couldn't simply be made immediate without first moving attribution.
+
+## Decisions taken (owner, 2026-07-30)
+
+1. **Restaurant resolved once at session create, silently** — not asked up front,
+   not per pick. Coords are warmed when a scan STARTS (geolocation takes seconds;
+   asking at stream end would stall the moment the code appears).
+2. **Extract one shared chassis** rather than patch the scan screen in place.
+
+## What that produced
+
+- `src/lib/tableRestaurant.ts` — a pure, conservative confidence gate. Adopts only
+  a lone nearby place, or a nearest beating its runner-up by more than GPS wobble;
+  anything denser returns `ambiguous` and leaves the column null. **A confidently
+  wrong restaurant is worse than none**: a null is a gap someone can still fill, a
+  wrong answer silently poisons the data and nobody goes looking. Hong Kong is why
+  it isn't "nearest wins" — several restaurants routinely share one street number
+  on different floors, well inside the wobble.
+- `/api/dishes/pick` reads the session's restaurant back **server-side** and lets
+  it win over the client's. Attribution stops being every client's job.
+- `src/lib/useTableSession.ts` + `src/components/ChopStampRow.tsx` — one engine,
+  one stamp row, mounted by both screens. `/table` no longer imports `Chop` at all.
+- Picks are **optimistic**, with rollback (broadcast included) on failure. The poll
+  no longer clears overlay entries whose write is in flight, or an optimistic stamp
+  would blink out when a poll landed mid-flight.
+- `TableRestaurantLine` inside `TableBar` — the one-tap path for the ambiguous case
+  and the correction path for a wrong guess. It **re-attributes picks already
+  made**, scoped to rows still carrying the session's previous value so a
+  deliberate per-dish edit is never stomped.
+
+## Two things that would have broken quietly
+
+- **The seal.** Sealing at pick time lived in scan's `confirmPicks`, which was
+  deleted. It moved into the engine's `pick` — so the sealed-bet contract survived,
+  and `/table` picks are now sealed too, which they never were before.
+- **`source`.** Every scan auto-creates a session, so `tableSessionId ? 'table'`
+  would have recorded every SOLO scanner's pick as eaten at a shared table. It now
+  reflects real membership, which the pick route already had in hand.
+
+## Deletions (kill legacy on replacement)
+
+scan's poll and its `pickersFor` (a near-copy of `pickMatchesItem` returning bare
+handle strings, useless for colouring a chop); the confirm sheet and its state;
+`DishListRow`'s `pickedBy` prop and rendering; `tests/scanPickConfirmCancel.test.ts`
+(its subject is gone); two orphaned i18n keys; `scanSession`'s `picked` /
+`pickRestaurant` mirroring.
+
+`tableComponentIdentity`'s old assertion that "the stamps slot is the one
+legitimate host/joiner difference" **was the tolerance that allowed this bug**. The
+rows are now byte-identical with nothing excused first, and
+`tests/tableChassis.test.tsx` pins each of the three shared-cause symptoms —
+verified non-vacuous: every banned marker it asserts against was present in the
+pre-fix source.
+
+## Not verified
+
+The real logged-in two-account flow. `/scan` and `/table` are behind `AuthGate`,
+the owner's credentials are not the agent's to use, and the external tester's
+account is off-limits (`CLAUDE.local.md`). Pixel evidence covers the new CSS
+surface only, rendered against the real `globals.css` in a throwaway harness (four
+states: resolved, unset, read-only QR, long name). The underline was `--line` at
+first and invisible against `--paper-inset`, which made 餐廳未定 read as inert
+text — now `--ink-faint`. **The two-account run itself still needs the owner.**

@@ -421,6 +421,16 @@ nothing CAN diverge between passes. When it lands, the reauthor sync in
 scan/page.tsx's performScan shrinks to the append case (or goes entirely,
 if append also reads back from the session).
 
+**Scope narrowed 2026-07-30** (see DECISIONS.md, "the scanner was on a
+lookalike"): the PICK half of this divergence is gone. Picks, stamps, realtime
+and pick/unpick now live in one shared engine (`src/lib/useTableSession.ts`)
+that both screens mount, so the scanner no longer holds a private copy of who
+picked what. What remains open is exactly the hard part this item was always
+about: `result.items` itself, i.e. splitting each scan item into a shared-truth
+half (names/chips/attributes) and a personal half (match/reason/fire/raw_score)
+so the list can read from the session. The chassis is the place that merge
+belongs when someone takes it on.
+
 ---
 
 # Batch: export positioning (2026-07-26)
