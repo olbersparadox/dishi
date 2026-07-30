@@ -4594,6 +4594,14 @@ the rating queue, you rate what you ordered"), the owner immediately reported th
 cross-device disagreement as the same sync bug a third time ("user 1's counter
 doesn't count user 2").
 
+**Owner correction, same evening:** the my-picks-only version was never asked for
+and should not have shipped — changing what a surface MEANS is a product decision,
+not a step in a bugfix. The owner's own reason for table-wide is stronger than the
+one reasoned out here: this bar's total is the INPUT to the 埋單 endgame (BACKLOG:
+均分 equal split, 抽印 seal draw, "one footer line on the table surface — total,
+加一 toggle, ÷ headcount"). It is the bill, not a receipt, so per-person totals
+would have severed that path at its source. See memory: no-unilateral-semantics.
+
 **The rule that settles it: a counter on a SHARED surface must show the same
 number on every member's screen.** A deliberate per-viewer number is
 indistinguishable from broken sync to the people at the table, however defensible
