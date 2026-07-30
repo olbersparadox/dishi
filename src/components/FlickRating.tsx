@@ -131,6 +131,13 @@ export default function FlickRating({
           // No photo: the dish's own NAME becomes the surface you flick. Shown in
           // the current display language (Chinese by default), large — it's the
           // title of what you're rating, not a caption.
+          //
+          // The overlay chrome below (hint pill, verdict word, gauge, arrows) is
+          // coloured and placed for a PHOTO — white-on-dark, centred over an image
+          // that has nothing to read. This surface is light and its whole content
+          // is text, so both of those assumptions invert: globals.css re-homes the
+          // chrome via `.flick-stage:has(.flick-nophoto)`, keyed off this element
+          // so there's no separate flag to keep in sync with the branch.
           <div className="card-photo flick-photo flick-nophoto" style={{ filter: `saturate(${saturation})`, transform: `scale(${scale})` }}>
             <span>{displayName ?? '🍽️'}</span>
           </div>

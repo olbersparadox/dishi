@@ -1292,8 +1292,33 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
   display: flex; align-items: center; justify-content: center;
   background: linear-gradient(160deg, var(--glaze), var(--porcelain));
   font-family: var(--font-display), system-ui; font-weight: 800; font-size: var(--fs-title-b);
-  line-height: 1.25; color: var(--ink); text-align: center; padding: 28px;
+  line-height: 1.25; color: var(--ink); text-align: center;
+  /* Deep bottom inset, not a symmetric 28px: the flick chrome that normally sits
+     over a photo (the hint pill at rest, the verdict word once rated) has to land
+     SOMEWHERE, and here the card's content is itself text. Reserving the bottom
+     band keeps the name out of it — a centred name and a centred hint pill used
+     to render on top of each other and left both illegible (seen live on
+     home-cooking and never-photographed menu picks). The name still reads as
+     centred because it optically sits slightly above the card's middle. */
+  padding: 28px 28px 76px;
 }
+/* The no-photo surface inverts every assumption the photo chrome is built on:
+   it is LIGHT (so white ink vanishes) and it is entirely text (so nothing may be
+   centred over it). Keyed off `:has(.flick-nophoto)` rather than a class on the
+   stage, so the branch that renders the name surface stays the single source of
+   truth for which chrome applies. */
+.flick-stage:has(.flick-nophoto) .flick-hint {
+  top: auto; bottom: 14px; transform: translateX(-50%);
+}
+/* Ink, and clear of the name: white-on-white made the verdict a ghost. */
+.flick-stage:has(.flick-nophoto) .flick-word {
+  color: var(--ink); text-shadow: none;
+}
+/* Ink at the same weights the white chrome carried over a photo — a #ffffff55
+   gauge track and 55%-white arrows are simply invisible on paper, so the drag
+   affordance disappeared exactly where the surface looks least draggable. */
+.flick-stage:has(.flick-nophoto) .flick-gauge { background: #2b292522; }
+.flick-stage:has(.flick-nophoto) .flick-arrow { color: var(--ink); opacity: 0.4; }
 
 /* --- log page: dishes-to-rate placeholders --- */
 .pick-card {

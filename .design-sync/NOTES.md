@@ -157,6 +157,13 @@ the 18 excluded from this sync, so the call site was invisible to it. Do not
 propagate that claim. The related finding IS real and reachable: with a null
 `photoUrl`, `.flick-hint` renders on top of `.flick-nophoto`'s dish name.
 
+**Fixed 2026-07-30.** The whole no-photo branch's chrome was written for a photo:
+white-on-dark and centred over an image with nothing to read. `.flick-nophoto`
+now reserves a bottom band for the hint pill, and the pill, gauge, arrows and
+verdict word are re-homed in ink via `.flick-stage:has(.flick-nophoto)` in
+`globals.css` (keyed off the branch element, so there is no separate flag to
+drift). `FlickRating`'s `NameAtRest` cell shows the state and pins it.
+
 ## Re-sync risks — what can silently go stale
 
 - **`entry.tsx` and `componentSrcMap` must agree.** They are maintained by hand.
@@ -178,6 +185,6 @@ propagate that claim. The related finding IS real and reachable: with a null
   `public/` has none and capture is offline. Real photo assets would be better.
 - **Songti TC and Cascadia Mono stay unshipped by design** (system fonts). That
   `[FONT_MISSING]` warning is expected — it is not a regression.
-- **Two states are deliberately uncaptured**: `TableRestaurantLine`'s expanded
-  picker and `FlickRating`'s no-photo rest state (the latter until the overlap
-  bug is fixed, at which point it should gain a cell that pins the fix).
+- **One state is deliberately uncaptured**: `TableRestaurantLine`'s expanded
+  picker. (`FlickRating`'s no-photo rest state was the other one; the overlap bug
+  it was dodging is fixed and it now has a `NameAtRest` cell.)

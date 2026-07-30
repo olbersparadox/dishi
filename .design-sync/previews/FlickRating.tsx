@@ -4,12 +4,13 @@ import { FlickRating } from 'dishi';
 // state: the photo with the gauge + arrows, the centre "how to" pill, and the
 // full tap-chip scale beneath — which is exactly the state a person sees
 // before their first flick, and the state that teaches the rating vocabulary.
-// Dragged/rated states are internal and not composable from props. The
-// photoUrl=null name surface is deliberately NOT shown: at rest the centred
-// hint pill lands exactly on the centred dish name and the two are illegible
-// together (the component's own behaviour, not a composition choice — see
-// learnings); the .flick-nophoto surface itself is taught by SnapRating's
-// PickWithoutPhoto cell, where it renders clean.
+// Dragged/rated states are internal and not composable from props.
+//
+// All three cells are that same rest state, across the range of surface the
+// overlay chrome has to stay legible on: a dark photo, a pale photo, and no
+// photo at all. The third one used to be unshowable — the centred hint pill
+// landed on the centred dish name and left both illegible — so it is now here
+// deliberately, to pin the fix.
 
 // Stand-in dish photo (inline SVG data URI): capture runs offline, so a real
 // JPEG can't be fetched — this stays warm and food-shaped so the photo-overlay
@@ -79,6 +80,21 @@ export function LightPhotoAtRest() {
   return (
     <div style={{ maxWidth: 340 }}>
       <FlickRating photoUrl={CHICKEN} dishName="Poached Chicken" dishNameZh="白切雞" onRate={() => {}} />
+    </div>
+  );
+}
+
+/** No photo ever taken — home cooking, or a menu pick that was never
+ *  photographed. The dish's NAME becomes the surface you flick, so the chrome
+ *  inverts: the hint pill drops to a reserved bottom band instead of the centre
+ *  (where it would sit on the name), and the gauge, arrows and verdict word turn
+ *  ink because white vanishes on paper. A deliberately two-line name — a short
+ *  one clears the pill by accident and would not catch the reserve regressing. */
+export function NameAtRest() {
+  return (
+    <div style={{ maxWidth: 340 }}>
+      <FlickRating photoUrl={null} dishName="Steamed Minced Pork with Salted Egg"
+        dishNameZh="鹹蛋蒸肉餅（加辣）配油菜" onRate={() => {}} />
     </div>
   );
 }
