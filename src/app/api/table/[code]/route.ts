@@ -36,8 +36,12 @@ export async function GET(_req: NextRequest, { params }: { params: { code: strin
 
   // Members + their profiles (cross-user read, server-side only).
   const { data: memberRows } = await admin
-    .from('table_members').select('user_id').eq('session_id', session.id);
+    .from('table_members').select('user_id, ready_at').eq('session_id', session.id);
   const memberIds = (memberRows ?? []).map(m => m.user_id);
+  // "I'm done picking" rides this same poll rather than getting a channel of its
+  // own — the handshake is exactly the kind of shared state the 5s poll already
+  // exists to keep identical on every screen.
+  const readyAtById = new Map((memberRows ?? []).map(m => [m.user_id, m.ready_at as string | null]));
   if (!memberIds.includes(user.id)) {
     return NextResponse.json({ error: 'Join this table first.' }, { status: 403 });
   }
@@ -187,7 +191,14 @@ export async function GET(_req: NextRequest, { params }: { params: { code: strin
       username_claimed: usernameClaimedById.get(m.user_id) ?? false,
       has_profile: !!m.vector && m.rating_count > 0,
       rating_count: m.rating_count,
+      ready_at: readyAtById.get(m.user_id) ?? null,
     })),
+    // The settle phase. settled_at is STICKY: once the last member has tapped,
+    // a late joiner (or someone un-tapping) can never pull the table back into
+    // picking — the bill has already been put on screen for everyone.
+    settled_at: session.settled_at ?? null,
+    pay_method: session.pay_method ?? null,
+    pay_payer_id: session.pay_payer_id ?? null,
     // Visible to everyone at the table: what's been picked so far, and by whom —
     // shared awareness, not a shared cart. Each pick is still an individual dish
     // row the picker rates on their own.

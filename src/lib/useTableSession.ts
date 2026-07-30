@@ -23,10 +23,13 @@ import {
   stampsFromPicks, pickMatchesItem, mergeStamps, applyStampEvent, pruneOverlaysBefore,
   type Stamp, type StampOverlay, type StampEvent,
 } from '@/lib/tableStamps';
+import { readyCount as countReady } from '@/lib/tableSettle';
 
 export type Member = {
   user_id: string; handle: string; display_name: string | null;
   username_claimed: boolean; has_profile: boolean; rating_count: number;
+  /** When this member tapped "done picking". Null until they do. */
+  ready_at: string | null;
 };
 export type RankedItem = {
   key: string; name: string; name_zh?: string | null; name_original?: string; price?: string | null;
@@ -54,6 +57,10 @@ export type SessionState = {
   restaurant: { id: string; name: string; name_zh: string | null } | null;
   status: string; is_host: boolean; has_menu: boolean; orderable: boolean;
   you: string; members: Member[]; items: RankedItem[]; table_picks: TablePick[];
+  /** Stamped once every member has tapped done. Sticky — see the GET route. */
+  settled_at: string | null;
+  pay_method: 'equal' | 'random' | 'game' | null;
+  pay_payer_id: string | null;
 };
 
 /** The minimum an item needs for stamps to find its picks — so a /scan
@@ -64,6 +71,9 @@ export type StampableItem = { key: string; name: string; name_zh?: string | null
 export function useTableSession(code: string | null) {
   const [state, setState] = useState<SessionState | null>(null);
   const [error, setError] = useState('');
+  /** My own "done picking" tap before the poll has confirmed it. Null means "no
+   * claim of my own" — the server's answer, whatever it is. */
+  const [optimisticReady, setOptimisticReady] = useState<boolean | null>(null);
   /** Keys currently saving — a set, not one key, so tapping dish B never has to wait
    * on dish A. A single global busy key silently DROPPED taps while any other write
    * was in flight, which is precisely what ordering for a table looks like: several
@@ -157,6 +167,11 @@ export function useTableSession(code: string | null) {
       .on('broadcast', { event: 'unpick' }, ({ payload }) => {
         applyLocalStampEvent(payload.item_key, { type: 'unpick', user_id: payload.user_id, name: payload.name });
       })
+      // Readiness carries no overlay of its own — the broadcast just pulls the
+      // poll forward. Waiting up to 5s to learn the last person tapped is the one
+      // place in this flow where the delay is actually felt: everyone is sitting
+      // there looking at the screen waiting for exactly this.
+      .on('broadcast', { event: 'ready' }, () => { refresh(); })
       .subscribe();
     channelRef.current = channel;
     return () => { supabase.removeChannel(channel); channelRef.current = null; };
@@ -351,12 +366,66 @@ export function useTableSession(code: string | null) {
     await refresh();
   };
 
+  /**
+   * "I'm done picking", and the way back out of it.
+   *
+   * Optimistic like a pick is, and for the same reason: the tap's whole visible
+   * effect is the waiting layer appearing, so waiting on the round trip to show
+   * it would make the one moment the table is watching feel broken. Rolled back
+   * if the write fails; the poll is still the source of truth either way.
+   */
+  const setReady = async (ready: boolean) => {
+    if (!code) return;
+    setOptimisticReady(ready);
+    try {
+      const res = await fetch(`/api/table/${code}/ready`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ready }),
+      });
+      if (!res.ok) { setOptimisticReady(null); return; }
+      // Tell the others before refreshing ourselves — they are the ones whose
+      // screen is blocked on this tap.
+      channelRef.current?.send({ type: 'broadcast', event: 'ready', payload: { ready } });
+      await refresh();
+    } catch {
+      setOptimisticReady(null);
+    }
+  };
+
+  /** How the bill gets carried. The server owns the draw (see /pay) so every
+   *  screen names the same payer. */
+  const choosePayMethod = async (method: 'equal' | 'random') => {
+    if (!code) return;
+    await fetch(`/api/table/${code}/pay`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ method }),
+    });
+    channelRef.current?.send({ type: 'broadcast', event: 'ready', payload: { pay: method } });
+    await refresh();
+  };
+
+  const members = state?.members ?? [];
+  // Server truth wins the moment it agrees with the optimistic flag, which is
+  // what retires it — never a timer.
+  const serverReady = !!members.find(m => m.user_id === state?.you)?.ready_at;
+  const iAmReady = optimisticReady === null || optimisticReady === serverReady
+    ? serverReady : optimisticReady;
+
   return {
     state, error, refresh, setRestaurant,
     restaurant: state?.restaurant ?? null,
-    members: state?.members ?? [],
+    members,
     picks: state?.table_picks ?? [],
     you: state?.you ?? null,
     busyKeys, pick, unpick, toggle, stampsFor, isPicked, colorFor,
+    // The settle handshake. `settled` is read off the session rather than
+    // recomputed from members here, so it inherits the server's stickiness: a
+    // late joiner makes allMembersReady false again, and the table must NOT fall
+    // back out of the bill it is already looking at.
+    setReady, choosePayMethod, iAmReady,
+    readyCount: countReady(members),
+    settled: !!state?.settled_at,
+    payMethod: state?.pay_method ?? null,
+    payerId: state?.pay_payer_id ?? null,
   };
 }
