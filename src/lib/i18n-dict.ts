@@ -382,6 +382,11 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'table.leave': { zh: '離開', en: 'Leave' },
   'table.back': { zh: '返回', en: 'Back' },
   'table.invite': { zh: '+ 邀請', en: '+ Invite' },
+  // The restaurant line. 未定 rather than a question or an instruction: the
+  // restaurant is usually resolved automatically, so this state is "not settled
+  // yet", not a task anyone has been handed.
+  'table.restaurant.unset': { zh: '餐廳未定', en: 'Restaurant not set' },
+  'table.restaurant.which': { zh: '這一檯在哪間餐廳？', en: 'Which restaurant is this table at?' },
   'table.noprofile': { zh: '未有檔案', en: 'no profile yet' },
   'table.unanimous': { zh: '全檯啱', en: 'whole table' },
   'table.fairness': { zh: '公平之選', en: 'fairness call' },

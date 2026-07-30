@@ -1533,7 +1533,33 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   margin: 4px 0 22px; background: var(--paper-inset); border: none;
   border-radius: var(--r-session); padding: 12px 16px;
+  /* Wraps so the restaurant line can sit on its own full-width row INSIDE the
+     same inset block. The code/count/invite row above is unaffected — it never
+     wraps on its own at these widths. */
+  flex-wrap: wrap;
 }
+/* --- which restaurant this table is at (TableRestaurantLine) ---
+   A full row of its own inside the bar. Quiet by construction: the restaurant is
+   context for the picks, not the headline, and it's resolved automatically in the
+   common case (see tableRestaurant.ts) — this line only has to be reachable, not
+   loud. */
+.table-restaurant-line { flex-basis: 100%; min-width: 0; }
+/* Tappable but not a button-looking thing: same .card-meta voice as the bar's own
+   status text, with a dotted underline as the only affordance — the house
+   treatment for "this text does something" without adding a second pill next to
+   the invite button. */
+.table-restaurant-btn {
+  background: none; border: none; padding: 0; margin: 0;
+  font: inherit; color: var(--ink); text-align: left; cursor: pointer;
+  text-decoration: underline; text-decoration-style: dotted;
+  /* --ink-faint, not --line: at --line the underline was invisible against
+     --paper-inset (checked on screen), which made the one state that most needs to
+     invite a tap — 餐廳未定 — read as inert text. Still the quietest affordance in
+     the house set; vermillion stays reserved for the seal, the export CTA, and a
+     dirty save. */
+  text-underline-offset: 3px; text-decoration-color: var(--ink-faint);
+}
+.table-restaurant-btn:hover { text-decoration-color: var(--ink-soft); }
 .table-bar-left { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
 .table-bar-codewrap { display: inline-flex; align-items: baseline; gap: 4px; min-width: 0; }
 .table-bar-label { font-size: var(--fs-caption); color: var(--ink); }

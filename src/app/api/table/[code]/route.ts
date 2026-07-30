@@ -4,6 +4,7 @@ import { rankForGroup, GroupMember } from '@/lib/group';
 import { DishVector } from '@/lib/taste';
 import { shapeTableMenuItems, scanCandidateKey } from '@/lib/tableMenuItems';
 import { hasClaimedUsername } from '@/lib/username';
+import { resolveOrCreateRestaurant } from '@/lib/restaurant';
 
 // Total menu_items a session can ever hold — matches the cap POST /api/table's
 // own initial create already uses, so appending pages can't grow a session
@@ -128,6 +129,17 @@ export async function GET(_req: NextRequest, { params }: { params: { code: strin
     ? rankForGroup(candidates, members)
     : rankForGroup(candidates, members).slice(0, 15);
 
+  // The session's own restaurant, by name — what the table bar's restaurant line
+  // displays. Separate from `tableInfo` above, which only exists for QR/registered
+  // table sessions; a scan-shared session has a restaurant too now (resolved at
+  // create, correctable from that line) and had no way to show it.
+  let restaurant: { id: string; name: string; name_zh: string | null } | null = null;
+  if (session.restaurant_id) {
+    const { data: r } = await admin
+      .from('restaurants').select('id, name, name_zh').eq('id', session.restaurant_id).maybeSingle();
+    restaurant = r ?? null;
+  }
+
   const { data: tablePicks } = await admin
     .from('dishes')
     // dish_identities join: a pick that's been renamed or linked to a canonical
@@ -147,6 +159,7 @@ export async function GET(_req: NextRequest, { params }: { params: { code: strin
     code,
     session_id: session.id,
     restaurant_id: session.restaurant_id ?? null,
+    restaurant,
     status: session.status,
     is_host: session.host_id === user.id,
     has_menu: !!session.menu_items || !!session.table_id,
@@ -231,7 +244,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { code: stri
   const admin = supabaseAdmin();
 
   const { data: session } = await admin
-    .from('table_sessions').select('id, menu_items').eq('code', code).maybeSingle();
+    .from('table_sessions').select('id, menu_items, restaurant_id, table_id').eq('code', code).maybeSingle();
   if (!session) return NextResponse.json({ error: 'No table with that code.' }, { status: 404 });
 
   const { data: memberRow } = await admin
@@ -239,6 +252,59 @@ export async function PATCH(req: NextRequest, { params }: { params: { code: stri
   if (!memberRow) {
     return NextResponse.json({ error: 'Join this table first.' }, { status: 403 });
   }
+
+  const body0 = await req.clone().json().catch(() => null);
+
+  /**
+   * body: { restaurant: RestaurantChoice } — correct (or set) which restaurant this
+   * table is at. The session's restaurant is resolved automatically at create, but
+   * only when the answer was unambiguous (see tableRestaurant.ts) — this is the
+   * one-tap path for everything else, and the correction path when the guess was
+   * wrong.
+   *
+   * Any member, matching PATCH's existing open trust model above: whoever notices
+   * the wrong shop name is whoever should be able to fix it.
+   *
+   * Re-attributes the picks ALREADY made, not just future ones — a correction that
+   * left the existing rows wrong would be a worse trap than the blank it replaced,
+   * since nobody would think to go looking. Scoped to rows still carrying the
+   * session's PREVIOUS value (or null), so a deliberate per-dish restaurant edit
+   * someone made by hand is never stomped by a table-level correction.
+   */
+  if (body0 && 'restaurant' in body0) {
+    if (session.table_id) {
+      // A QR session belongs to the restaurant whose table it is; that isn't a
+      // diner's to reassign.
+      return NextResponse.json({ error: "This table's restaurant is set by the restaurant itself." }, { status: 400 });
+    }
+    const choice = body0.restaurant;
+    let nextId: string | null = null;
+    if (choice && choice.kind === 'existing' && typeof choice.id === 'string') {
+      nextId = choice.id;
+    } else if (choice && choice.kind === 'new') {
+      const resolved = await resolveOrCreateRestaurant(supabase, user.id, null, choice);
+      if (resolved.error) return NextResponse.json({ error: resolved.error }, { status: 400 });
+      nextId = resolved.id;
+    }
+    // choice null / {kind:'home'} clears it: "not a restaurant" is a real answer
+    // (equal-weight logging — home cooking counts the same), not a failed pick.
+
+    const previousId = session.restaurant_id ?? null;
+    const { error: upErr } = await admin
+      .from('table_sessions').update({ restaurant_id: nextId }).eq('id', session.id);
+    if (upErr) return NextResponse.json({ error: upErr.message }, { status: 500 });
+
+    let reattributed = 0;
+    const scoped = admin.from('dishes').update({ restaurant_id: nextId }).eq('table_session_id', session.id);
+    const { data: touched, error: dishErr } = previousId
+      ? await scoped.eq('restaurant_id', previousId).select('id')
+      : await scoped.is('restaurant_id', null).select('id');
+    if (dishErr) console.error('table restaurant: re-attribution failed', dishErr);
+    else reattributed = touched?.length ?? 0;
+
+    return NextResponse.json({ restaurant_id: nextId, reattributed });
+  }
+
   if (!session.menu_items) {
     // A QR/restaurant session or the bare community-pool fallback has no scanned
     // menu_items array to append to (or re-author) — both verbs are only
@@ -246,7 +312,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { code: stri
     return NextResponse.json({ error: 'This table has no scanned menu to add pages to.' }, { status: 400 });
   }
 
-  const body = await req.json().catch(() => null);
+  const body = body0;
 
   const reauthor = Array.isArray(body?.reauthor) ? body.reauthor : null;
   if (reauthor) {

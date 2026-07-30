@@ -9,11 +9,16 @@
 // own title row instead (owner feedback, 2026-07-21).
 import { useLang } from '@/lib/i18n';
 
-export default function TableBar({ code, memberCount, pickCount, onInvite }: {
+export default function TableBar({ code, memberCount, pickCount, onInvite, restaurantLine }: {
   code: string;
   memberCount: number;
   pickCount: number;
   onInvite: () => void;
+  /** Which restaurant this table is at (TableRestaurantLine). Lives INSIDE the bar
+   * so it reads as part of the same status block rather than a floating caption,
+   * and so both screens that mount TableBar get it without either one placing it
+   * itself. The bar wraps, and the line takes a full row of its own. */
+  restaurantLine?: React.ReactNode;
 }) {
   const { t } = useLang();
   return (
@@ -28,6 +33,7 @@ export default function TableBar({ code, memberCount, pickCount, onInvite }: {
         <span className="table-bar-stat">{t('scan.tablestatus', { n: memberCount, m: pickCount })}</span>
       </span>
       <button className="btn small" style={{ flexShrink: 0 }} onClick={onInvite}>{t('table.invite')}</button>
+      {restaurantLine}
     </div>
   );
 }

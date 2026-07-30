@@ -5,6 +5,7 @@ import AuthGate from '@/components/AuthGate';
 // Chop itself is deliberately NOT imported here: the stamp row is ChopStampRow's
 // job, and reaching for the bare glyph again is how a lookalike starts.
 import ChopStampRow from '@/components/ChopStampRow';
+import TableRestaurantLine from '@/components/TableRestaurantLine';
 import DishListRow from '@/components/DishListRow';
 import TableBar from '@/components/TableBar';
 import { LeaveIcon } from '@/components/icons';
@@ -96,6 +97,7 @@ function Session({ code, onLeave }: { code: string; onLeave: () => void }) {
   // all live in the shared engine now.
   const {
     state, error, refresh, busyKey, toggle, stampsFor, isPicked, colorFor,
+    restaurant, setRestaurant,
   } = useTableSession(code);
   // Add a page (Table Mode item 6, 2026-07-22): any member can grow the
   // shared menu now, not just the host who started it — someone else at the
@@ -384,7 +386,16 @@ function Session({ code, onLeave }: { code: string; onLeave: () => void }) {
           here doing that job; removed outright (owner request, 2026-07-21), the
           table bar's existing margin already does it. */}
       <TableBar code={state.code} memberCount={state.members.length} pickCount={anyPickedItems.length}
-        onInvite={share} />
+        onInvite={share}
+        restaurantLine={
+          <TableRestaurantLine
+            restaurant={restaurant}
+            onChange={setRestaurant}
+            // A QR/registered table's restaurant belongs to the restaurant itself,
+            // not to whoever sat down at it (the API refuses the change too).
+            editable={!state.orderable}
+          />
+        } />
 
       {/* One-time 名印 setup: only for the viewer's own row, only once per device
           (see CHOP_PROMPT_DISMISSED_KEY) — a genuinely optional identity touch,

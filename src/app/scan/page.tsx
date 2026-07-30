@@ -17,6 +17,7 @@ import TableBar from '@/components/TableBar';
 // The table-session chassis: the SAME engine and the SAME stamp row /table mounts,
 // not this screen's own rendering of the same ideas (see useTableSession's header).
 import ChopStampRow from '@/components/ChopStampRow';
+import TableRestaurantLine from '@/components/TableRestaurantLine';
 import { useTableSession } from '@/lib/useTableSession';
 import { sumPrices } from '@/lib/price';
 import { CameraIcon, MenuBookIcon, ArrowRightIcon, CloseIcon } from '@/components/icons';
@@ -900,6 +901,9 @@ function Scanner() {
           // stamps on the rows instead of lagging a poll behind them.
           pickCount={displayItems.filter(i => stampsOf(i).length > 0).length}
           onInvite={copyTableLink}
+          restaurantLine={
+            <TableRestaurantLine restaurant={table.restaurant} onChange={table.setRestaurant} />
+          }
         />
       )}
 

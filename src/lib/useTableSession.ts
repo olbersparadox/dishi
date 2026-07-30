@@ -48,6 +48,10 @@ export type TablePick = {
 };
 export type SessionState = {
   code: string; session_id: string; restaurant_id: string | null;
+  /** The session's restaurant by name, for the table bar's restaurant line. Null
+   * when create-time resolution wasn't confident enough to guess (see
+   * tableRestaurant.ts) — a blank the line fills in one tap. */
+  restaurant: { id: string; name: string; name_zh: string | null } | null;
   status: string; is_host: boolean; has_menu: boolean; orderable: boolean;
   you: string; members: Member[]; items: RankedItem[]; table_picks: TablePick[];
 };
@@ -279,8 +283,22 @@ export function useTableSession(code: string | null) {
   const colorById = chopColorMap((state?.members ?? []).map(m => m.user_id));
   const colorFor = (userId: string) => colorById.get(userId) ?? chopColorFor(userId);
 
+  /** Set or correct which restaurant this table is at. The server re-attributes
+   * the picks already made (see PATCH /api/table/[code]) — a correction that left
+   * existing rows wrong would be a worse trap than the blank it replaced. Refreshed
+   * after, so the line shows the resolved name rather than the raw choice. */
+  const setRestaurant = async (choice: unknown) => {
+    if (!code) return;
+    await fetch(`/api/table/${code}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ restaurant: choice }),
+    });
+    await refresh();
+  };
+
   return {
-    state, error, refresh,
+    state, error, refresh, setRestaurant,
+    restaurant: state?.restaurant ?? null,
     members: state?.members ?? [],
     picks: state?.table_picks ?? [],
     you: state?.you ?? null,
