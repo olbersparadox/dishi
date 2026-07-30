@@ -81,6 +81,23 @@ describe('one engine — both screens mount useTableSession', () => {
     expect(pickBody).toMatch(/type: 'unpick'/);
   });
 
+  it('a tap during an in-flight write is queued, never dropped', () => {
+    // Returning early left the dish in the state the user had just asked it to leave,
+    // with no feedback — "needs to wait if you want to unpick it" (owner, 2026-07-30).
+    const toggle = ENGINE_SRC.slice(ENGINE_SRC.indexOf('const toggle'));
+    expect(toggle).toMatch(/desiredRef\.current\.set\(item\.key, !isPicked\(item\)\)/);
+    // And both writes must honour that queued intent when they settle.
+    expect(ENGINE_SRC).toMatch(/desiredRef\.current\.get\(item\.key\) === false/);
+    expect(ENGINE_SRC).toMatch(/desiredRef\.current\.get\(item\.key\) === true/);
+  });
+
+  it('pending dish ids are a ref, readable by an unpick queued behind a pick', () => {
+    // Through useState the queued unpick reads a render-stale copy, finds no id, and
+    // silently returns — the same do-nothing tap in a different disguise.
+    expect(ENGINE_SRC).toMatch(/pendingDishIds = useRef/);
+    expect(ENGINE_SRC).toMatch(/pendingDishIds\.current\[item\.key\]\?\.id/);
+  });
+
   it('the seal is still written at pick time — the sealed-bet contract survived the move', () => {
     // This used to live in scan's confirmPicks, which no longer exists. Losing it
     // silently would break a hard product principle, so it is pinned here.
@@ -99,7 +116,10 @@ describe('one engine — both screens mount useTableSession', () => {
     const fetched = refresh.indexOf('await fetch(');
     expect(stampedAt).toBeGreaterThan(-1);
     expect(stampedAt).toBeLessThan(fetched);
-    expect(ENGINE_SRC).toMatch(/pruneOverlaysBefore\(prev, requestedAt\)/);
+    // ...and the in-flight set must be handed to it. Without the third argument the
+    // poll clears an optimistic entry whose write hasn't committed, which is exactly
+    // how un-picking a dish put the chop back (owner, 2026-07-30, second run).
+    expect(ENGINE_SRC).toMatch(/pruneOverlaysBefore\(prev, requestedAt, inFlightRef\.current\)/);
   });
 });
 

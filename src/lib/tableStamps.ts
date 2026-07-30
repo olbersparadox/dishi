@@ -137,15 +137,31 @@ export function applyStampEvent(
  * had arrived after it was issued; the reappearance was the NEXT poll, now genuinely
  * including the pick. Rapid pick/unpick showed the same flicker for the same reason.
  *
- * This replaces an earlier in-flight-keys guard that only ever protected the local
- * client's OWN writes — remote broadcasts, which is what the field test was
- * actually looking at, had nothing holding them.
+ * TWO things have to survive a landing poll, and an earlier version of this kept
+ * only one of each at a time:
+ *
+ *  1. Entries applied AFTER the request went out (`at >= requestedAt`) — a remote
+ *     broadcast that raced the poll.
+ *  2. Entries whose OWN write is still in flight (`protectedKeys`), whatever their
+ *     age. An optimistic entry is applied at tap time, but its write commits
+ *     later — so a poll issued *after* the tap and answered *before* the commit is
+ *     a snapshot that still shows the old truth. Clearing against it un-does the
+ *     tap on screen.
+ *
+ * Keeping only (1) is what broke un-picking (owner, 2026-07-30, second run): an
+ * unpick's overlay entry is stamped at tap time, so any poll issued in the ~0.5s
+ * before its DELETE committed cleared it while still reporting the pick — and the
+ * chop came back. With a 5s cycle that is roughly a 1-in-10 window, which is why it
+ * hit "exactly 1" dish per stress run rather than all of them, and why the two
+ * screens' headers then disagreed by exactly 1.
  */
 export function pruneOverlaysBefore(
   overlays: Record<string, StampOverlay>, requestedAt: number,
+  protectedKeys: ReadonlySet<string> = new Set(),
 ): Record<string, StampOverlay> {
   const out: Record<string, StampOverlay> = {};
   for (const [itemKey, overlay] of Object.entries(overlays)) {
+    if (protectedKeys.has(itemKey)) { out[itemKey] = overlay; continue; }
     const kept: StampOverlay = {};
     for (const [userId, entry] of Object.entries(overlay)) {
       if (entry.at >= requestedAt) kept[userId] = entry;

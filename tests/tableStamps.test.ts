@@ -309,3 +309,42 @@ describe('countStampedDishes — distinct dishes, not array rows', () => {
     expect(countStampedDishes([{ key: 'a' }, { key: 'b' }], () => [])).toBe(0);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Field test, 2026-07-30 (second run, owner): "User 2 unpick that dish, a few
+// seconds later it come back up... Exactly 1 would be like this." The count then
+// disagreed by exactly 1, for the same reason.
+// ---------------------------------------------------------------------------
+describe('pruneOverlaysBefore — an in-flight write outranks the poll that raced it', () => {
+  const unpickAt = (u: string, at: number) => ({ type: 'unpick' as const, user_id: u, name: u, at });
+
+  it('KEEPS an optimistic entry older than the request while its write is in flight', () => {
+    // The unpick was tapped at t=100. A poll issued at t=200 was answered from a
+    // snapshot taken BEFORE the DELETE committed, so it still reports the pick.
+    // Clearing the entry against it is what put the chop back on screen.
+    const overlays = { dishA: { u2: unpickAt('u2', 100) } };
+    expect(pruneOverlaysBefore(overlays, 200, new Set(['dishA']))).toEqual(overlays);
+  });
+
+  it('clears that same entry once the write has settled', () => {
+    // Self-healing must survive the protection: nothing is pinned permanently.
+    const overlays = { dishA: { u2: unpickAt('u2', 100) } };
+    expect(pruneOverlaysBefore(overlays, 200, new Set())).toEqual({});
+  });
+
+  it('protects only the keys actually in flight', () => {
+    const overlays = { dishA: { u2: unpickAt('u2', 100) }, dishB: { u2: unpickAt('u2', 100) } };
+    expect(Object.keys(pruneOverlaysBefore(overlays, 200, new Set(['dishA'])))).toEqual(['dishA']);
+  });
+
+  it('still keeps a mid-flight REMOTE broadcast on an unprotected key', () => {
+    // The first fix must not be undone by the second.
+    const overlays = { dishA: { other: { type: 'pick' as const, user_id: 'other', name: 'o', at: 300 } } };
+    expect(pruneOverlaysBefore(overlays, 200, new Set())).toEqual(overlays);
+  });
+
+  it('defaults to protecting nothing, so the guard must be passed deliberately', () => {
+    const overlays = { dishA: { u2: unpickAt('u2', 100) } };
+    expect(pruneOverlaysBefore(overlays, 200)).toEqual({});
+  });
+});

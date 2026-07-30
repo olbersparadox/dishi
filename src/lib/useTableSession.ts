@@ -72,7 +72,8 @@ export function useTableSession(code: string | null) {
   const [busyKeys, setBusyKeys] = useState<Set<string>>(new Set());
   const busyRef = useRef<Set<string>>(new Set());
   const markBusy = (key: string, busy: boolean) => {
-    if (busy) busyRef.current.add(key); else busyRef.current.delete(key);
+    if (busy) { busyRef.current.add(key); inFlightRef.current.add(key); }
+    else { busyRef.current.delete(key); inFlightRef.current.delete(key); }
     setBusyKeys(new Set(busyRef.current));
   };
   // Realtime overlay: pending pick/unpick events the poll hasn't confirmed yet.
@@ -81,11 +82,23 @@ export function useTableSession(code: string | null) {
   // unpick feel instant).
   const [realtimeStamps, setRealtimeStamps] = useState<Record<string, StampOverlay>>({});
   // Bridges the one gap stamps alone can't: which dish ROW to DELETE if I un-pick
-  // before the next poll has caught up with a pick I *just* made.
-  // Carries the time it was recorded, for the same reason the overlay does — a poll
-  // may only forget a pending id it was actually in a position to have seen.
-  const [pendingDishIds, setPendingDishIds] = useState<Record<string, { id: string; at: number }>>({});
+  // before the next poll has caught up with a pick I *just* made. Carries the time
+  // it was recorded, for the same reason the overlay does — a poll may only forget a
+  // pending id it was actually in a position to have seen.
+  //
+  // A ref, not state: nothing renders it, and an unpick queued behind a pick has to
+  // read the id that pick just produced. Through useState it would have read the
+  // render-stale copy, found nothing, and silently done nothing.
+  const pendingDishIds = useRef<Record<string, { id: string; at: number }>>({});
   const channelRef = useRef<RealtimeChannel | null>(null);
+  // Keys with a write in flight. Both the poll (which must not clear an optimistic
+  // entry whose write hasn't committed) and toggle (which queues rather than drops)
+  // read this.
+  const inFlightRef = useRef<Set<string>>(new Set());
+  // The state the user last ASKED for on a key whose write was still going, so a tap
+  // during a round trip is honoured when that round trip ends instead of vanishing.
+  const desiredRef = useRef<Map<string, boolean>>(new Map());
+  const unpickRef = useRef<((item: StampableItem) => void) | null>(null);
 
   const refresh = useCallback(async () => {
     if (!code) return;
@@ -102,9 +115,10 @@ export function useTableSession(code: string | null) {
       // A stale overlay entry (e.g. an unpick broadcast this client missed) still
       // can't outlive DB truth by more than one cycle: the next poll is issued after
       // it and prunes it.
-      setRealtimeStamps(prev => pruneOverlaysBefore(prev, requestedAt));
-      setPendingDishIds(prev =>
-        Object.fromEntries(Object.entries(prev).filter(([, v]) => v.at >= requestedAt)));
+      setRealtimeStamps(prev => pruneOverlaysBefore(prev, requestedAt, inFlightRef.current));
+      pendingDishIds.current = Object.fromEntries(
+        Object.entries(pendingDishIds.current)
+          .filter(([k, v]) => v.at >= requestedAt || inFlightRef.current.has(k)));
     } catch (e: any) {
       setError(e.message || 'Lost the table.');
     }
@@ -196,7 +210,7 @@ export function useTableSession(code: string | null) {
       const json = await res.json().catch(() => null);
       const dishId = json?.picked?.[0]?.id as string | undefined;
       if (res.ok && dishId) {
-        setPendingDishIds(prev => ({ ...prev, [item.key]: { id: dishId, at: Date.now() } }));
+        pendingDishIds.current = { ...pendingDishIds.current, [item.key]: { id: dishId, at: Date.now() } };
         // Seal at PICK time — the moment you commit to ordering a dish, the engine
         // commits its prediction, rather than waiting until you next open the Taste
         // tab. A picked dish already carries real attributes from the scan, so the
@@ -222,6 +236,11 @@ export function useTableSession(code: string | null) {
       broadcastStamp(item.key, undo);
     } finally {
       markBusy(item.key, false);
+      // Tapped again while this was in flight? They wanted it OFF.
+      if (desiredRef.current.get(item.key) === false) {
+        desiredRef.current.delete(item.key);
+        unpickRef.current?.(item);
+      } else desiredRef.current.delete(item.key);
     }
   };
 
@@ -235,7 +254,7 @@ export function useTableSession(code: string | null) {
     const s = state;
     if (!s) return;
     const mine = s.table_picks.find(p => p.user_id === s.you && pickMatchesItem(p, item));
-    const dishId = mine?.id ?? pendingDishIds[item.key]?.id;
+    const dishId = mine?.id ?? pendingDishIds.current[item.key]?.id;
     if (!dishId) return;
     const event: StampEvent = { type: 'unpick', user_id: s.you, name: myName(s) };
     markBusy(item.key, true);
@@ -247,7 +266,8 @@ export function useTableSession(code: string | null) {
         body: JSON.stringify({ dish_id: dishId }),
       });
       if (res.ok) {
-        setPendingDishIds(prev => { const { [item.key]: _drop, ...rest } = prev; return rest; });
+        const { [item.key]: _drop, ...rest } = pendingDishIds.current;
+        pendingDishIds.current = rest;
       } else {
         const undo: StampEvent = { type: 'pick', user_id: s.you, name: myName(s) };
         applyLocalStampEvent(item.key, undo);
@@ -259,14 +279,25 @@ export function useTableSession(code: string | null) {
       broadcastStamp(item.key, undo);
     } finally {
       markBusy(item.key, false);
+      if (desiredRef.current.get(item.key) === true) {
+        desiredRef.current.delete(item.key);
+        pick(item);
+      } else desiredRef.current.delete(item.key);
     }
   };
+  unpickRef.current = unpick;
 
   /** Toggle — "picked" is always derived from whether MY stamp is present, never a
    * separate local flag that could disagree with the chop everyone sees. */
   const toggle = (item: StampableItem, extras?: Parameters<typeof pick>[1]) => {
-    // Only THIS dish's own write blocks it — see busyKeys.
-    if (busyRef.current.has(item.key)) return;
+    // Only THIS dish's own write blocks it — see busyKeys. And it QUEUES rather than
+    // drops: un-picking within the pick's own round trip used to do nothing at all,
+    // so the dish stayed picked and you had to wait and tap again (owner, 2026-07-30:
+    // "picking a dish is quick, but needs to wait if you want to unpick it").
+    if (busyRef.current.has(item.key)) {
+      desiredRef.current.set(item.key, !isPicked(item));
+      return;
+    }
     if (isPicked(item)) unpick(item); else pick(item, extras);
   };
 
