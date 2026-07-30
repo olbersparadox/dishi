@@ -1611,8 +1611,11 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 
-/* The bill. Leaves room at the bottom for the fixed bar onward to rating. */
-.settle { padding-bottom: 76px; }
+/* The bill. The verdict line ("每人 $152") is the LAST thing on this screen and
+   the fixed bar onward to rating floats over it, so the clearance has to cover
+   the bar's own height plus its 62px offset — 76px only cleared the offset and
+   cut the number in half. */
+.settle { padding-bottom: 150px; }
 .settle-line {
   display: flex; align-items: baseline; justify-content: space-between; gap: 14px;
   padding: 11px 0; border-bottom: 1px solid var(--line);
