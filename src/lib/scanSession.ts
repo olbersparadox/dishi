@@ -12,27 +12,31 @@
 // page reload (the heap is torn down) — matching the requirement exactly, with
 // no serialization and no stale-entry cleanup to get wrong.
 //
-// The result/restaurant shapes are owned by the scan page; typing them as
-// generics here avoids a circular import (scan page ← → this module) while the
-// call site casts back to its real types.
+// The result shape is owned by the scan page; typing it as a generic here avoids
+// a circular import (scan page ← → this module) while the call site casts back to
+// its real type.
+//
+// `picked` and `pickRestaurant` used to live here too. Both are gone because
+// neither is client state anymore: a pick is written the moment it's tapped (see
+// scan/page.tsx), so the shared session IS the restore path — a remount re-polls
+// and gets server truth rather than replaying a local Set that could disagree
+// with it. The restaurant is resolved once per session, server-side.
 
-export type ScanSessionSnapshot<TResult, TRestaurant> = {
+export type ScanSessionSnapshot<TResult> = {
   result: TResult;
   settled: boolean;
-  picked: string[];            // Set<string> serialized — keyed by printed dish name
-  pickRestaurant: TRestaurant; // RestaurantChoice
   keptNote: string | null;
   tableSession: { code: string; session_id: string } | null;
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-let snapshot: ScanSessionSnapshot<any, any> | null = null;
+let snapshot: ScanSessionSnapshot<any> | null = null;
 
-export function getScanSession<TResult, TRestaurant>(): ScanSessionSnapshot<TResult, TRestaurant> | null {
+export function getScanSession<TResult>(): ScanSessionSnapshot<TResult> | null {
   return snapshot;
 }
 
-export function setScanSession<TResult, TRestaurant>(snap: ScanSessionSnapshot<TResult, TRestaurant>): void {
+export function setScanSession<TResult>(snap: ScanSessionSnapshot<TResult>): void {
   snapshot = snap;
 }
 

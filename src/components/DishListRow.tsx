@@ -33,15 +33,17 @@ export type DishListRowItem = {
 export type FireFor = { userId: string; color: string };
 
 export default function DishListRow({
-  item, rank, picked, onSelect, pickedBy, stamps, fire = false, reason, fireFor, pair, menuLanguage,
+  item, rank, picked, onSelect, stamps, fire = false, reason, fireFor, pair, menuLanguage,
 }: {
   item: DishListRowItem;
   rank: number;
   picked: boolean;
   onSelect: () => void;
-  /** Names for the 「{name} 也選了」 line. */
-  pickedBy?: string[];
-  /** Chop-avatar slot — table-only; scan never passes this. */
+  /** Chop-avatar slot — who at the table has this picked. BOTH screens pass this
+   * now (a ChopStampRow); the old `pickedBy` string[] that rendered a
+   * 「{name} 也選了」 text line instead is gone. It was scan-only, and it was the
+   * lookalike the field test surfaced as "just a line under chips" where /table
+   * showed real chops. */
   stamps?: React.ReactNode;
   /** The single earned-mark claim (see scan/page.tsx's own settled-list
    * philosophy note). Only ever set by scan's own SOLO ranking — a group of
@@ -108,11 +110,6 @@ export default function DishListRow({
         {item.enriched ? (
           <div className="fade-in">
             <DishInfoDisplay info={item} hideHook />
-            {!!pickedBy?.length && (
-              <div className="card-meta" style={{ color: 'var(--ink)', fontWeight: 600, marginTop: 2 }}>
-                {t('scan.share.alsopicked', { handles: pickedBy.join('、') })}
-              </div>
-            )}
           </div>
         ) : (
           <div className="hook-shimmer" aria-hidden />

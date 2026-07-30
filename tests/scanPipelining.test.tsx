@@ -36,6 +36,15 @@ vi.mock('../src/lib/supabase/client', () => ({
       onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }),
     },
     from: () => dbChain(),
+    // The scan screen subscribes to its table session's realtime channel now (it
+    // mounts useTableSession, the same engine /table does, instead of its old
+    // poll-only copy). Nothing here exercises broadcasts; this just has to be a
+    // no-op channel so the subscription doesn't throw during these render tests.
+    channel: () => {
+      const ch: any = { on: () => ch, subscribe: () => ch, send: () => {} };
+      return ch;
+    },
+    removeChannel: () => {},
   }),
 }));
 vi.mock('../src/lib/image', () => ({ normalizePhoto: async (f: File) => f }));

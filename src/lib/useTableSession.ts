@@ -191,6 +191,20 @@ export function useTableSession(code: string | null) {
       const dishId = json?.picked?.[0]?.id as string | undefined;
       if (res.ok && dishId) {
         setPendingDishIds(prev => ({ ...prev, [item.key]: dishId }));
+        // Seal at PICK time — the moment you commit to ordering a dish, the engine
+        // commits its prediction, rather than waiting until you next open the Taste
+        // tab. A picked dish already carries real attributes from the scan, so the
+        // seal is meaningful now. Server-gated (>= SEAL_GATE ratings) and
+        // idempotent, so this no-ops when the engine is too young or a seal already
+        // exists. NOT awaited: the stamp is cosmetic to this interaction and the
+        // Taste-tab queue load re-seals as a backstop; blocking the tap on it is
+        // what this whole change is undoing. This used to live in scan's
+        // confirmPicks, which no longer exists — it belongs with the pick itself,
+        // so /table picks get sealed too (they never were before).
+        fetch('/api/seals', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ dish_id: dishId }),
+        }).catch(() => { /* a missing stamp is cosmetic; never surface it */ });
       } else {
         const undo: StampEvent = { type: 'unpick', user_id: s.you, name: myName(s) };
         applyLocalStampEvent(item.key, undo);

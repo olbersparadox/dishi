@@ -7,7 +7,6 @@ import DishName from '@/components/DishName';
 import PhotoPicker from '@/components/PhotoPicker';
 import ScanBenefitDemo from '@/components/ScanBenefitDemo';
 import ExplainModal from '@/components/ExplainModal';
-import RestaurantPicker, { RestaurantChoice } from '@/components/RestaurantPicker';
 import { createTaskPool } from '@/lib/concurrency';
 import { createScanTelemetry, type ScanSummary } from '@/lib/scanTelemetry';
 import { mergeFinalScanItems } from '@/lib/tableMenuItems';
@@ -15,6 +14,10 @@ import { shareLink } from '@/lib/share';
 import DishInfoDisplay from '@/components/DishInfoDisplay';
 import DishListRow from '@/components/DishListRow';
 import TableBar from '@/components/TableBar';
+// The table-session chassis: the SAME engine and the SAME stamp row /table mounts,
+// not this screen's own rendering of the same ideas (see useTableSession's header).
+import ChopStampRow from '@/components/ChopStampRow';
+import { useTableSession } from '@/lib/useTableSession';
 import { sumPrices } from '@/lib/price';
 import { CameraIcon, MenuBookIcon, ArrowRightIcon, CloseIcon } from '@/components/icons';
 import { sameDishInSession, restaurantKeptNote } from '@/lib/menuMerge';
@@ -103,7 +106,7 @@ function Scanner() {
   // previous mount, and the results view doesn't need either — it renders from
   // `result`. See scanSession.ts for why this is in-memory (survives tab switch,
   // clears on refresh) rather than Web Storage.
-  const restored = getScanSession<ScanResponse | null, RestaurantChoice>();
+  const restored = getScanSession<ScanResponse | null>();
   const [preview, setPreview] = useState<string | null>(null);
   const [scanning, setScanning] = useState(false);
   const [scanHelp, setScanHelp] = useState(false); // tap the ⓘ on the banner → what a scan returns
@@ -128,8 +131,6 @@ function Scanner() {
   // itself, who's joined, and a quiet "X also picked this" on matching cards, so
   // the value of doing this together is visible without leaving the scan screen.
   const [tableSession, setTableSession] = useState<{ code: string; session_id: string } | null>(restored?.tableSession ?? null);
-  const [tableMemberCount, setTableMemberCount] = useState(0);
-  const [tablePicks, setTablePicks] = useState<{ name: string; name_zh: string | null; handle: string; identity_name?: string | null; identity_name_zh?: string | null; table_item_key?: string | null }[]>([]);
 
   // Foreign-menu preset (Fix 5). Computed here at the top — before any early
   // return — so the header globe can be told about it and so the results render
@@ -202,24 +203,11 @@ function Scanner() {
     if (await shareLink({ title: t('table.sharetitle'), url }) === 'copied') alert(t('table.copied'));
   }
 
-  // Poll the same endpoint /table itself polls, at the same interval — this is
-  // genuinely the same shared state, just glanced at from a second screen.
-  useEffect(() => {
-    if (!tableSession) return;
-    let cancelled = false;
-    async function poll() {
-      try {
-        const res = await fetch(`/api/table/${tableSession!.code}`);
-        const json = await res.json();
-        if (!res.ok || cancelled) return;
-        setTableMemberCount(json.members?.length ?? 0);
-        setTablePicks(json.table_picks ?? []);
-      } catch { /* a missed poll just means slightly stale numbers next tick */ }
-    }
-    poll();
-    const timer = setInterval(poll, 5000);
-    return () => { cancelled = true; clearInterval(timer); };
-  }, [tableSession]);
+  // The SAME engine /table mounts — poll, realtime channel, stamp overlay, and
+  // pick/unpick (src/lib/useTableSession.ts). This screen used to run its own
+  // poll-only copy with no realtime at all, which is why the scanner received
+  // everything up to 5s late while joiners saw each other instantly.
+  const table = useTableSession(tableSession?.code ?? null);
 
   // Joining a table from here reuses the exact same endpoint/session model the
   // standalone /table page already uses — this is purely a second entry point
@@ -248,14 +236,22 @@ function Scanner() {
     }
   }
 
-  // "Pick" mode: tap a scanned dish to mark it for later rating (no photo needed —
-  // the taste engine already has its attributes from scoring). Keyed by the printed
-  // name, which stays stable even when the list re-sorts into ranked order.
-  const [picked, setPicked] = useState<Set<string>>(() => new Set(restored?.picked ?? []));
-  const [confirmingPick, setConfirmingPick] = useState(false);
-  const [pickRestaurant, setPickRestaurant] = useState<RestaurantChoice>(restored?.pickRestaurant ?? null);
-  const [pickSaving, setPickSaving] = useState(false);
-  const [pickError, setPickError] = useState('');
+  // "Pick": tap a scanned dish to mark it for later rating (no photo needed — the
+  // taste engine already has its attributes from scoring).
+  //
+  // A pick is WRITTEN THE MOMENT IT IS TAPPED, through the shared engine, exactly
+  // as it is on /table. It used to only mutate a local Set here, with nothing
+  // reaching the server until a three-step confirm (cart bar -> CTA -> restaurant
+  // chips). In a two-account field test that meant the scanner tapped dishes all
+  // through the meal and the other person saw NOTHING: verified in the DB, both
+  // picks on session SA9YZ belonged to the joiner and the host had written zero
+  // rows. The restaurant those picks needed is now resolved once at session level
+  // (see createTableSession / POST /api/table), which is what freed the tap to be
+  // immediate — there is nothing left to batch a confirm step for.
+  //
+  // "Picked" is therefore no longer local state at all: it's whether MY chop is on
+  // the dish, the same rule /table uses, so it can never disagree with the stamp
+  // shown underneath.
 
   // Keep the module-level store in sync with the on-screen menu, so leaving and
   // returning to this tab restores it. Only mirrors once a scan exists — with no
@@ -264,74 +260,11 @@ function Scanner() {
   // none of which can (or should) be resurrected on a remount.
   useEffect(() => {
     if (!result) return;
-    setScanSession({
-      result, settled, keptNote, tableSession,
-      picked: Array.from(picked),
-      pickRestaurant,
-    });
-  }, [result, settled, keptNote, tableSession, picked, pickRestaurant]);
-
-  function togglePick(key: string) {
-    setPicked(prev => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key); else next.add(key);
-      return next;
-    });
-  }
-
-  // Accepts the just-picked restaurant directly rather than only reading
-  // `pickRestaurant` state: the auto-advance-on-chip-tap below calls this in
-  // the SAME tick as setPickRestaurant(c), before that state update has
-  // landed — reading the state here would see the stale (previous) value.
-  async function confirmPicks(restaurantOverride?: RestaurantChoice) {
-    if (!result) return;
-    const restaurant = restaurantOverride !== undefined ? restaurantOverride : pickRestaurant;
-    setPickSaving(true); setPickError('');
-    const chosen = result.items.filter(i => picked.has(i.name_original));
-    try {
-      const res = await fetch('/api/dishes/pick', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          restaurant_id: restaurant?.kind === 'existing' ? restaurant.id : undefined,
-          new_restaurant: restaurant?.kind === 'new' ? restaurant : undefined,
-          table_session_id: tableSession?.session_id,
-          items: chosen.map(i => ({
-            name: i.name, name_zh: i.name_zh, cuisine: i.cuisine, attributes: i.attributes ?? {},
-            cooking_method: i.cooking_method, heaviness: i.heaviness, diet: i.diet,
-            ingredients: i.ingredients,
-            table_item_key: i.name_original,
-          })),
-        }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'Could not save your picks.');
-      // Seal at PICK time — the moment you commit to ordering these dishes, the
-      // engine commits its prediction, instead of waiting until you next open the
-      // Taste tab. Picked dishes already carry real attributes from the scan, so the
-      // seal is meaningful now. Server-gated (>= SEAL_GATE ratings) + idempotent, so
-      // this no-ops when the engine's too young or a seal already exists; awaited so
-      // the seal is committed BEFORE the Taste tab can let you rate (contentScore/
-      // composeReason only — no LLM, so it's quick). The Taste-tab queue-load
-      // sealing stays as the backstop for dishes born WITHOUT attributes yet (typed
-      // names, whose enrichment is deferred) — those can only be sealed once enriched.
-      const pickedIds: string[] = (json.picked ?? []).map((p: { id?: string }) => p.id).filter(Boolean) as string[];
-      await Promise.all(pickedIds.map(id =>
-        fetch('/api/seals', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ dish_id: id }),
-        }).catch(() => { /* a missing stamp is cosmetic; never block the pick on it */ }),
-      ));
-      // The 待評菜式 queue and its rate action both live on the Taste tab now
-      // (RatingStack, picksMode) — the old single-dish /log page these picks used
-      // to bounce out to is gone.
-      router.push('/profile');
-    } catch (e: any) {
-      setPickError(e.message || 'Something went wrong saving those picks.');
-    } finally {
-      setPickSaving(false);
-    }
-  }
+    // Picks are no longer mirrored here: they live on the server the moment they're
+    // tapped, so the session state IS the restore path — a remount re-polls and
+    // gets the truth, instead of replaying a local Set that could disagree with it.
+    setScanSession({ result, settled, keptNote, tableSession });
+  }, [result, settled, keptNote, tableSession]);
 
   // Cycle the status line while scanning so the wait feels alive, not stuck.
   useEffect(() => {
@@ -353,9 +286,6 @@ function Scanner() {
       resetPreset(); // new menu -> re-evaluate the foreign-language preset fresh (Fix 5)
       setResult(null);
       setSettled(false);
-      setPicked(new Set());
-      setConfirmingPick(false);
-      setPickError('');
       setPreview(URL.createObjectURL(file));
       setScanning(true);
       warmCoords(); // in flight during the scan, ready when the session is created
@@ -764,18 +694,12 @@ function Scanner() {
     setPreview(null);
     setError('');
     setSettled(false);
-    // Everything below is state about the PREVIOUS menu and must not survive into
-    // the next one. `picked` is keyed by printed dish name, so a leftover set kept
-    // the cart bar showing the old menu's pick count while none of those dishes
-    // exist in the new scan; and the table session kept polling a session that no
-    // longer relates to what's on screen.
-    setPicked(new Set());
-    setConfirmingPick(false);
-    setPickRestaurant(null);
-    setPickError('');
+    // The table session is state about the PREVIOUS menu and must not survive into
+    // the next one — it kept polling a session that no longer relates to what's on
+    // screen. Clearing it is now the ONLY thing needed: picks and their stamps hang
+    // off the session inside useTableSession, so dropping the code drops them with
+    // it, and there is no local pick Set left to go stale against the new menu.
     setTableSession(null);
-    setTableMemberCount(0);
-    setTablePicks([]);
   }
 
   // ---- capture state ----
@@ -891,6 +815,25 @@ function Scanner() {
   );
   const displayItems = result.items;
 
+  // ---- picks, through the shared table engine ----
+  // One adapter from this screen's ScannedItem to the engine's item shape. The key
+  // IS name_original — scanCandidateKey's contract (see tableMenuItems.ts), which
+  // is what makes a pick made HERE and a pick made on /table land on the same
+  // candidate. Index keys made cross-view stamps invisible in both directions once
+  // before (2026-07-24); nothing here may reintroduce one.
+  const stampable = (item: ScannedItem) => ({
+    key: item.name_original, name: item.name, name_zh: item.name_zh,
+  });
+  // The scan's own enrichment/scoring output, carried into the stored dish row so
+  // nothing the scan already computed has to be re-inferred server-side.
+  const togglePick = (item: ScannedItem) => table.toggle(stampable(item), {
+    cuisine: item.cuisine, attributes: item.attributes ?? {},
+    cooking_method: item.cooking_method, heaviness: item.heaviness,
+    diet: item.diet, ingredients: item.ingredients,
+  });
+  const isPicked = (item: ScannedItem) => table.isPicked(stampable(item));
+  const stampsOf = (item: ScannedItem) => table.stampsFor(stampable(item));
+
   // Foreign-menu preset: if the menu's language is one we can display but is in
   // NEITHER slot of the active pair, show it as the secondary for THIS scan only
   // (the persisted pair is untouched — leaving the scan restores it). Passing
@@ -948,7 +891,16 @@ function Scanner() {
           are the SAME live numbers /table itself polls — just visible without
           leaving the scan screen. */}
       {tableSession && (
-        <TableBar code={tableSession.code} memberCount={tableMemberCount} pickCount={tablePicks.length} onInvite={copyTableLink} />
+        <TableBar
+          code={tableSession.code}
+          memberCount={table.members.length}
+          // DISTINCT dishes with a stamp, not raw pick rows: two people picking the
+          // same dish used to inflate this count (owner correction, 2026-07-21, on
+          // /table's own copy of the same bug). Live-merged, so it agrees with the
+          // stamps on the rows instead of lagging a poll behind them.
+          pickCount={displayItems.filter(i => stampsOf(i).length > 0).length}
+          onInvite={copyTableLink}
+        />
       )}
 
       {result.mock && (
@@ -969,8 +921,8 @@ function Scanner() {
       {/* Under-threshold: an honest plain list — no rings, no reasons, no hero.
           Hook + day-0 chips still fill in progressively via Stage 2 enrichment. */}
       {!result.profile_ready && result.items.map((item, i) => (
-        <article className={`card scan-pickable ${picked.has(item.name_original) ? 'picked' : ''}`} key={`plain-${i}`}
-          onClick={() => togglePick(item.name_original)}>
+        <article className={`card scan-pickable ${isPicked(item) ? 'picked' : ''}`} key={`plain-${i}`}
+          onClick={() => togglePick(item)}>
           <div className="card-body">
             <div className="scan-item">
               <span className="scan-rank">{i + 1}.</span>
@@ -983,7 +935,8 @@ function Scanner() {
                 {item.enriched && <DishInfoDisplay info={item} hookOnly />}
               </div>
             </div>
-            <DishDetails item={item} t={t} lang={lang} pickedBy={pickersFor(item, tablePicks)} hideHook />
+            <DishDetails item={item} hideHook />
+            <ChopStampRow itemKey={item.name_original} stamps={stampsOf(item)} colorFor={table.colorFor} />
           </div>
         </article>
       ))}
@@ -991,8 +944,8 @@ function Scanner() {
       {/* Scoring in progress OR all failed: every dish visible immediately, in
           original order, each ring reflecting its own individual state. */}
       {result.profile_ready && !readyToRank && result.items.map((item, i) => (
-        <article className={`card scan-pickable ${picked.has(item.name_original) ? 'picked' : ''}`} key={`scoring-${i}`}
-          onClick={() => togglePick(item.name_original)}>
+        <article className={`card scan-pickable ${isPicked(item) ? 'picked' : ''}`} key={`scoring-${i}`}
+          onClick={() => togglePick(item)}>
           <div className="card-body">
             <div className="scan-item">
               <span className="scan-rank">{i + 1}.</span>
@@ -1007,7 +960,8 @@ function Scanner() {
                 {item.enriched && <DishInfoDisplay info={item} hookOnly />}
               </div>
             </div>
-            <DishDetails item={item} t={t} lang={lang} pickedBy={pickersFor(item, tablePicks)} hideHook />
+            <DishDetails item={item} hideHook />
+            <ChopStampRow itemKey={item.name_original} stamps={stampsOf(item)} colorFor={table.colorFor} />
           </div>
         </article>
       ))}
@@ -1027,9 +981,11 @@ function Scanner() {
                 diet: item.diet, ingredients: item.ingredients, enriched: item.enriched, isNew: item.isNew,
               }}
               rank={i + 1}
-              picked={picked.has(item.name_original)}
-              onSelect={() => togglePick(item.name_original)}
-              pickedBy={pickersFor(item, tablePicks)}
+              picked={isPicked(item)}
+              onSelect={() => togglePick(item)}
+              // The chop stamp carries who — never a "X 也選了" line alongside it
+              // (owner feedback, 2026-07-21): that stacking was the crowding.
+              stamps={<ChopStampRow itemKey={item.name_original} stamps={stampsOf(item)} colorFor={table.colorFor} />}
               fire={fireWinners.has(item.name_original)}
               reason={item.reason}
               pair={scanPair}
@@ -1043,13 +999,17 @@ function Scanner() {
         {t('scan.logged')}
       </p>
 
-      {/* Pick-mode confirm: tapping any dish above marks it for later rating (no
-          photo needed — attributes already came from scoring). This works even
-          before profile_ready, since picking dishes to rate is exactly how a new
-          user reaches the 5-rating threshold fastest. */}
+      {/* Running summary of what MY OWN picks come to — count + price, read-only.
+          There is no confirm step to reach anymore: each pick was already written
+          the moment it was tapped (see the pick note above), so this is a receipt,
+          not a button. Same .cart-bar chrome /table's own footer uses, for the same
+          reason it's read-only there. Picking works before profile_ready too, since
+          picking dishes to rate is how a new user reaches the 5-rating threshold
+          fastest. */}
       {(() => {
-        const pickedItems = result.items.filter(i => picked.has(i.name_original));
-        const priceSummary = sumPrices(pickedItems.map(i => i.price));
+        const myPicks = displayItems.filter(i => isPicked(i));
+        if (!myPicks.length) return null;
+        const priceSummary = sumPrices(myPicks.map(i => i.price));
         // Only worth showing once at least one picked dish has a real price —
         // otherwise this would just be a count with extra steps. When some (but
         // not all) picked prices are unreadable/missing, the "+" is load-bearing:
@@ -1060,58 +1020,13 @@ function Scanner() {
         // "揀咗 X 碟" on the left, running total hard-right — the two are different
         // KINDS of information (what you did vs what it costs), so they're pushed to
         // opposite ends rather than run together into one comma-joined string.
-        const countLabel = t('scan.pickcount', { n: picked.size });
-
         return (
-          <>
-            {picked.size > 0 && !confirmingPick && (
-              <div className="cart-bar">
-                <button className="btn primary cart-btn" onClick={() => setConfirmingPick(true)}>
-                  <span>{countLabel}</span>
-                  {priceLabel && <span className="cart-total">{priceLabel}</span>}
-                </button>
-              </div>
-            )}
-
-            {confirmingPick && (
-              <div className="cart-bar" style={{ bottom: 0, paddingBottom: 16 }}>
-                <div className="card" style={{ marginBottom: 8, maxHeight: '60vh', overflowY: 'auto' }}>
-                  <div className="card-body">
-                    <p style={{ fontWeight: 700, marginBottom: 8 }}>{t('scan.pickrestaurant')}</p>
-                    {/* Picking a real restaurant (a nearby chip, a search result, or a
-                        confirmed typed name) IS the decision — advance straight into
-                        saving instead of making the person also find and tap the
-                        "已選 N 道" bar separately. 略過/住家菜 stay manual: those are
-                        answering "no restaurant", not picking one, and the price/count
-                        on the confirm bar is worth a second the person can still see. */}
-                    <RestaurantPicker onChange={c => {
-                      setPickRestaurant(c);
-                      if (c?.kind === 'existing' || c?.kind === 'new') confirmPicks(c);
-                    }} />
-                    {pickError && <p style={{ color: 'var(--lacquer)', marginTop: 8 }}>{pickError}</p>}
-                  </div>
-                </div>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  {/* Icon-only circle, matching the house close convention (icon
-                      carries the meaning; aria-label/title carry the a11y text) —
-                      same round .icon-btn treatment as the pick-card's own
-                      rate/delete pair, just larger to sit beside the primary CTA. */}
-                  <button className="icon-btn lg" onClick={() => setConfirmingPick(false)} disabled={pickSaving}
-                    aria-label={t('home.cancel')} title={t('home.cancel')}>
-                    <CloseIcon size={18} />
-                  </button>
-                  <button className="btn primary cart-btn" style={{ flex: 1 }} onClick={() => confirmPicks()} disabled={pickSaving}>
-                    {pickSaving ? <span>{t('log.saving')}</span> : (
-                      <>
-                        <span>{countLabel}</span>
-                        {priceLabel && <span className="cart-total">{priceLabel}</span>}
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-            )}
-          </>
+          <div className="cart-bar">
+            <div className="btn primary cart-btn" style={{ pointerEvents: 'none' }}>
+              <span>{t('scan.pickcount', { n: myPicks.length })}</span>
+              {priceLabel && <span className="cart-total">{priceLabel}</span>}
+            </div>
+          </div>
         );
       })()}
     </div>
@@ -1129,35 +1044,13 @@ function Scanner() {
  * enrichment lands) and everything fades in once `enriched` flips true, rather
  * than popping in abruptly.
  */
-/** Which table members (if any) also picked this exact dish. Matches on
- * table_item_key (item.name_original — this scan's own stable per-dish key,
- * since a shared session's picks always carry it) when the pick has one,
- * exact and unambiguous; falls back to the old name/name_zh matching only for
- * picks made before this existed. Name-only matching cross-stamped every dish
- * sharing a printed name from a single pick — a real menu can print the same
- * short name on a standalone dish, a combo, and a rice set (found live on a
- * real 32-dish menu, 2026-07-21) — so it's no longer the primary signal. */
-function pickersFor(
-  item: ScannedItem,
-  tablePicks: { name: string; name_zh: string | null; handle: string; identity_name?: string | null; identity_name_zh?: string | null; table_item_key?: string | null }[],
-): string[] {
-  const norm = (s: string | null | undefined) => (s ?? '').trim().toLowerCase();
-  const target = norm(item.name);
-  const targetZh = norm(item.name_zh);
-  return tablePicks
-    .filter(p => {
-      if (p.table_item_key) return p.table_item_key === item.name_original;
-      // Match the menu's printed name against the pick's own names AND its
-      // canonical identity's names — so a pick renamed after logging (or linked
-      // to a canonical identity under a different spelling) still shows as
-      // "also picked" instead of silently fragmenting.
-      const aliases = [p.name, p.name_zh, p.identity_name, p.identity_name_zh].map(norm).filter(Boolean);
-      return aliases.includes(target) || (!!targetZh && aliases.includes(targetZh));
-    })
-    .map(p => p.handle);
-}
+// pickersFor is gone: matching a pick to a dish is pickMatchesItem's job (see
+// tableStamps.ts), reached through useTableSession's stampsFor. This screen had
+// its own near-copy of that rule, which is precisely the kind of second
+// implementation the chassis extraction removed — and it returned bare handle
+// STRINGS for a text line, where the stamp needs a user_id to colour a chop from.
 
-function DishDetails({ item, t, lang, pickedBy, hideHook = false }: { item: ScannedItem; t: (key: string, params?: Record<string, string | number>) => string; lang: 'zh' | 'en'; pickedBy?: string[]; hideHook?: boolean }) {
+function DishDetails({ item, hideHook = false }: { item: ScannedItem; hideHook?: boolean }) {
   if (!item.enriched) {
     return <div className="hook-shimmer" aria-hidden />;
   }
@@ -1167,11 +1060,6 @@ function DishDetails({ item, t, lang, pickedBy, hideHook = false }: { item: Scan
   return (
     <div className="fade-in">
       <DishInfoDisplay info={item} hideHook={hideHook} />
-      {!!pickedBy?.length && (
-        <div className="card-meta" style={{ color: 'var(--ink)', fontWeight: 600, marginTop: 2 }}>
-          {t('scan.share.alsopicked', { handles: pickedBy.join('、') })}
-        </div>
-      )}
     </div>
   );
 }

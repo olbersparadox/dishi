@@ -54,8 +54,24 @@ describe('buildPickRows — pick time IS the eaten time', () => {
     expect(rows.map(r => r.name)).toEqual(['A', 'B']);
     expect(rows[0].source).toBe('scan');
     expect(rows[0].restaurant_id).toBe('r1');
-    const tableRows = buildPickRows([{ name: 'A' }], { ...ctx, tableSessionId: 'ts1' });
+    const tableRows = buildPickRows([{ name: 'A' }], { ...ctx, tableSessionId: 'ts1', shared: true });
     expect(tableRows[0].source).toBe('table');
+  });
+
+  // Every successful scan now auto-creates a table session, so a session id no
+  // longer implies company — only real membership does. Without this, every solo
+  // scanner's pick would be recorded as having been eaten at a shared table.
+  it('records a solo scan as `scan` even though a table session exists', () => {
+    const alone = buildPickRows([{ name: 'A' }], { ...ctx, tableSessionId: 'ts1' });
+    expect(alone[0].source).toBe('scan');
+    expect(alone[0].table_session_id).toBe('ts1'); // still linked, just not "shared"
+    const explicitlyAlone = buildPickRows([{ name: 'A' }], { ...ctx, tableSessionId: 'ts1', shared: false });
+    expect(explicitlyAlone[0].source).toBe('scan');
+  });
+
+  it('never calls a pick shared when there is no session at all', () => {
+    const rows = buildPickRows([{ name: 'A' }], { ...ctx, shared: true });
+    expect(rows[0].source).toBe('scan');
   });
 
   // Backlog: "[S] Persist ingredients on dishes" — the scan's own enrichment

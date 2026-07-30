@@ -75,6 +75,9 @@ export async function POST(req: NextRequest) {
     userId: user.id,
     restaurantId: sessionRestaurantId ?? restaurantId,
     tableSessionId,
+    // Real company, not merely a session id — see PickRowContext.shared. The
+    // member list is already in hand for the companion-edge write below.
+    shared: (memberRows?.data?.length ?? 0) > 1,
   });
 
   if (rows.length === 0) return NextResponse.json({ error: 'None of those dishes had a usable name.' }, { status: 400 });

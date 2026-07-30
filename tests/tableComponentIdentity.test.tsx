@@ -17,13 +17,14 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { cleanup, render } from '@testing-library/react';
 import DishListRow, { type DishListRowItem } from '../src/components/DishListRow';
-import Chop from '../src/components/Chop';
+import ChopStampRow from '../src/components/ChopStampRow';
 import { LanguageProvider } from '../src/lib/i18n';
 
 afterEach(cleanup);
 
 const SCAN_SRC = readFileSync(path.resolve(__dirname, '../src/app/scan/page.tsx'), 'utf8');
 const TABLE_SRC = readFileSync(path.resolve(__dirname, '../src/app/table/page.tsx'), 'utf8');
+const ROW_SRC = readFileSync(path.resolve(__dirname, '../src/components/DishListRow.tsx'), 'utf8');
 
 describe('Table Mode item 1 — host and joiner render the SAME list component', () => {
   it('both scan and table import DishListRow from the same module (not a look-alike)', () => {
@@ -54,25 +55,33 @@ describe('Table Mode item 1 — host and joiner render the SAME list component',
     enriched: true,
   };
 
-  // Mirrors scan/page.tsx's own DishListRow call site (src/app/scan/page.tsx:824).
-  // fire/reason/pair are host-only extras scan legitimately has; everything else
-  // must match the joiner call exactly.
+  // Both call sites now pass the SAME props, including the same stamps slot.
+  //
+  // This used to be the interesting asymmetry: scan passed `pickedBy` (a handle
+  // text line) and table passed `stamps` (real chops), and this test asserted the
+  // stamps slot was "the one legitimate host/joiner difference". That tolerance is
+  // exactly what the 2026-07-30 field test walked into — the owner scanned a menu,
+  // the other account joined, and the scanner saw "just a line under chips" where
+  // the joiner saw chops. So the difference is gone and `pickedBy` is gone with it;
+  // the assertion below is now identity with NOTHING removed first.
+  const stampSlot = () => (
+    <ChopStampRow itemKey="menu-7" stamps={[{ user_id: 'u1', name: 'mosuko' }]} colorFor={() => '#3B82F6'} />
+  );
+
   function renderAsHost() {
     return render(
       <LanguageProvider>
         <DishListRow item={sessionItem} rank={3} picked={false} onSelect={() => {}}
-          pickedBy={['mosuko']} fire={false} reason={null} />
+          stamps={stampSlot()} fire={false} reason={null} />
       </LanguageProvider>,
     );
   }
 
-  // Mirrors table/page.tsx's own DishListRow call site.
   function renderAsJoiner() {
     return render(
       <LanguageProvider>
         <DishListRow item={sessionItem} rank={3} picked={false} onSelect={() => {}}
-          pickedBy={['mosuko']}
-          stamps={<span className="chop-stamp-row"><Chop name="mosuko" color="#3B82F6" size={22} /></span>} />
+          stamps={stampSlot()} />
       </LanguageProvider>,
     );
   }
@@ -85,17 +94,29 @@ describe('Table Mode item 1 — host and joiner render the SAME list component',
       expect(container.textContent).toContain('$68');
       expect(container.querySelectorAll('.scan-chip').length).toBeGreaterThan(0); // diet + ingredient chips
       expect(container.querySelector('.heaviness-dots')).toBeTruthy();
-      expect(container.textContent).toContain('mosuko 也選了');
+      // A real chop, not a handles text line. Both roles, same anatomy.
+      expect(container.querySelector('.chop-stamp-row')).toBeTruthy();
+      expect(container.textContent).not.toContain('也選了');
       // banned anatomy: no cuisine chip, no fire mark, no inline pick button
       expect(container.querySelector('.scan-fire')).toBeFalsy();
       expect(container.querySelector('button')).toBeFalsy();
     }
   });
 
-  it('the only rendered difference between host and joiner is the stamps slot — never a second implementation', () => {
+  it('host and joiner rows are now byte-identical — no slot has to be excused first', () => {
     const hostRoot = renderAsHost().container.querySelector('.scan-settle-row')!;
     const joinerRoot = renderAsJoiner().container.querySelector('.scan-settle-row')!;
-    joinerRoot.querySelector('.chop-stamp-row')?.remove(); // the one legitimate host/joiner difference
     expect(joinerRoot.outerHTML).toBe(hostRoot.outerHTML);
+  });
+
+  it('neither screen renders a picker-handle text line anymore', () => {
+    // The prop that rendered it is gone from the component; these assert no
+    // caller quietly reintroduces the idea locally instead.
+    expect(SCAN_SRC).not.toMatch(/alsopicked/);
+    expect(TABLE_SRC).not.toMatch(/alsopicked/);
+    // Precise, not a substring sweep — the component's comment explains what
+    // `pickedBy` WAS and why it went, and a bare /pickedBy/ would flag that prose.
+    expect(ROW_SRC).not.toMatch(/pickedBy\?:/);   // the prop declaration
+    expect(ROW_SRC).not.toMatch(/pickedBy\.join/); // its rendering
   });
 });

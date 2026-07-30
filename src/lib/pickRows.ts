@@ -10,6 +10,16 @@ export type PickRowContext = {
   userId: string;
   restaurantId: string | null;
   tableSessionId: string | null;
+  /** Was anyone else actually at the table? Every successful scan now gets a
+   * table session automatically (see scan/page.tsx's createTableSession), so
+   * "has a session id" stopped meaning "was eaten with people" — a solo
+   * scanner's pick would have been labelled `table` purely because a code
+   * existed that nobody used. `source` is a record of how the row was born and
+   * has to stay true to that, so the caller passes real membership (it already
+   * has the member list for the companion-edge write) rather than letting the
+   * presence of an id imply company. Defaults false: absent information means
+   * solo, never a shared table. */
+  shared?: boolean;
   /** Injectable clock for tests; defaults to now. */
   now?: () => Date;
 };
@@ -38,7 +48,7 @@ export function buildPickRows(items: unknown[], ctx: PickRowContext) {
         diet: sanitizeDietFlags(raw?.diet),
         ingredients: sanitizeIngredients(raw?.ingredients),
         photo_url: null,
-        source: ctx.tableSessionId ? 'table' : 'scan',
+        source: ctx.tableSessionId && ctx.shared ? 'table' : 'scan',
         // Which ranked candidate this came from — lets table-mode "who picked
         // this" stamps match unambiguously when two candidates share a printed
         // name (see dishes.table_item_key's migration comment).
