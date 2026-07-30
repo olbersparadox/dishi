@@ -18,10 +18,14 @@
 // puts every card back to blank. See process-shim.ts for why.
 import './process-shim';
 
-// ── Provider ────────────────────────────────────────────────────────────────
-// Nearly every component reads i18n context; without this wrapper they render
-// blank. Wired as cfg.provider in .design-sync/config.json.
+// ── Providers ───────────────────────────────────────────────────────────────
+// The same chain Shell.tsx mounts at the app root, in the same order, wired as
+// the nested cfg.provider in .design-sync/config.json. Nearly every component
+// reads i18n context and renders blank without it; DishName additionally reads
+// the translation cache, and LanguagePicker the scan preset.
 export { LanguageProvider } from '@/lib/i18n';
+export { TranslationProvider } from '@/lib/translation';
+export { ScanPresetProvider } from '@/lib/scanPreset';
 
 // ── Seal (the sealed-bet mechanic) ──────────────────────────────────────────
 export { default as SealStamp } from '@/components/SealStamp';

@@ -7,7 +7,13 @@
   "tsconfig": "tsconfig.json",
   "cssEntry": "src/app/globals.css",
   "provider": {
-    "component": "LanguageProvider"
+    "component": "LanguageProvider",
+    "inner": {
+      "component": "TranslationProvider",
+      "inner": {
+        "component": "ScanPresetProvider"
+      }
+    }
   },
   "componentSrcMap": {
     "ArrowLeftIcon": "src/components/icons.tsx",
@@ -62,5 +68,8 @@
     "TasteRadar": "src/components/TasteRadar.tsx",
     "TrashIcon": "src/components/icons.tsx",
     "UtensilsIcon": "src/components/icons.tsx"
-  }
+  },
+  "guidelinesGlob": [
+    "docs/session-a-spec.md"
+  ]
 }
