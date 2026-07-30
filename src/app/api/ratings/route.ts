@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
 
   const { data: dish, error: dishErr } = await supabase
     .from('dishes')
-    .select('id, attributes, cuisine, dish_identity_id, canonical_dish_id, name, name_zh, photo_url, restaurants(name)')
+    .select('id, attributes, cuisine, dish_identity_id, canonical_dish_id, name, name_zh, photo_url, restaurants(id, name)')
     .eq('id', dish_id).single();
   if (dishErr || !dish) return NextResponse.json({ error: 'Dish not found.' }, { status: 404 });
 
@@ -173,10 +173,11 @@ export async function POST(req: NextRequest) {
     const mine: ExecRow = {
       dish: {
         id: dish_id, name: anyDish.name, name_zh: anyDish.name_zh ?? null,
-        photo_url: anyDish.photo_url ?? null, restaurant: anyDish.restaurants?.name ?? null,
+        photo_url: anyDish.photo_url ?? null, restaurant: anyDish.restaurants?.name ?? null, restaurant_id: anyDish.restaurants?.id ?? null,
       },
       ...range,
       value: (rating0?.execution_score ?? null) as number | null,
+      verdictScore: effectiveScore,
     };
 
     // The most recent OTHER instance of the same dish the person has rated —

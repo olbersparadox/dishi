@@ -25,6 +25,7 @@
 import { useState } from 'react';
 import { useLang } from '@/lib/i18n';
 import { CloseIcon, CheckIcon } from './icons';
+import { wordKeyFor } from '@/lib/flickWords';
 import DuelSide, { type DuelDish } from './DuelSide';
 
 /** One dish on the card. `min`/`max` come from the server — each row is bounded
@@ -35,6 +36,10 @@ export type ExecutionRow = {
   max: number;
   /** Where the slider starts: a previously recorded score, or null for mid-range. */
   value: number | null;
+  /** The dish's own flick score (raw), so the reference row's "上次" label can
+   * fall back to its verdict word (wordKeyFor) when `value` is null — which
+   * it usually is, since most rated dishes never get execution-scored. */
+  verdictScore: number;
 };
 
 export default function ExecutionSlider({ rows, onDone }: {
@@ -50,10 +55,10 @@ export default function ExecutionSlider({ rows, onDone }: {
   const [values, setValues] = useState<number[]>(rows.map(r => r.value ?? mid(r)));
   const [busy, setBusy] = useState(false);
   const [closing, setClosing] = useState(false);
-  // A brief acknowledgement before the card leaves, so an answer feels received
-  // rather than swallowed. Deliberately short — this is a beat, not a screen.
-  const [saved, setSaved] = useState(false);
   const comparing = rows.length > 1;
+  // The comparing shape asks a sharper question once a second instance is on
+  // screen ("which one"), so it gets its own title — see exec.title.compare.
+  const title = t(comparing ? 'exec.title.compare' : 'exec.title');
 
   function close(scored: boolean) {
     if (closing) return;
@@ -87,42 +92,53 @@ export default function ExecutionSlider({ rows, onDone }: {
         }),
       });
       if (!res.ok) { close(false); return; }
-      setSaved(true);
-      setTimeout(() => close(true), 500);
+      close(true); // ends right here — no separate "收到" acknowledgement beat
     } catch {
       close(false); // a failed save must not trap the person in the card
     } finally { setBusy(false); }
   }
 
   return (
-    <div className={`duel-overlay ${closing ? 'closing' : ''}`} role="dialog" aria-modal="true" aria-label={t('exec.title')}>
+    <div className={`duel-overlay ${closing ? 'closing' : ''}`} role="dialog" aria-modal="true" aria-label={title}>
       <div className="duel-backdrop" onClick={() => close(false)} />
       <div className="card duel-card duel-floating">
         <div className="card-body">
           <div className="duel-head">
             <div className="duel-head-center">
-              <span className="duel-title">{t('exec.title')}</span>
+              <span className="duel-title">{title}</span>
             </div>
             <button className="duel-x" onClick={() => close(false)} aria-label={t('home.cancel')}><CloseIcon /></button>
           </div>
 
-          {saved ? (
-            <p className="exec-saved" role="status">{t('exec.saved')}</p>
-          ) : (
-          <p className="duel-q">{t(comparing ? 'exec.q.compare' : 'exec.q')}</p>
-          )}
+          {/* The anchor shape still explains what's being asked (not whether you
+              like the dish); the comparing shape's title already says exactly
+              that ("which one"), so no sub-line repeats it underneath. */}
+          {!comparing && <p className="duel-q">{t('exec.q')}</p>}
 
           {/* Each dish sits in the duel card's own two-up pair, with its OWN scale
               directly beneath it — so which slider belongs to which plate is never
               in question. Sides are STATIC: the answer is the scale, and a tappable
               side would invite duel muscle memory to answer a question this card
               isn't asking. One row (the anchor shape) spans the full width. */}
-          {!saved && (
           <div className={`duel-pair ${comparing ? '' : 'exec-single'}`}>
             {rows.map((r, i) => (
               <div className="duel-option exec-col" key={r.dish.id}>
                 <DuelSide dish={r.dish} />
-                {comparing && i === 0 && <span className="exec-prior">{t('exec.reference')}</span>}
+                {/* The STORED value, not values[i] — a fixed historical anchor
+                    even as the person drags the (still-editable) reference
+                    slider right below it, so the label and the live number
+                    can visibly diverge. Most reference dishes have never been
+                    execution-scored (that ask only fires on a strong flick or
+                    an existing sibling — see ratings/route.ts's ANCHOR_THRESHOLD),
+                    so this falls back to the dish's own flick verdict word —
+                    the SAME wordKeyFor every other rated-dish row in the app
+                    reads off (MyDishes, TasteGrowth, the feed) — never a
+                    number invented for a slider nobody has touched yet. */}
+                {comparing && i === 0 && (
+                  <span className="exec-prior">
+                    {t('exec.prior').replace('{n}', r.value != null ? String(r.value) : t(wordKeyFor(r.verdictScore)))}
+                  </span>
+                )}
                 <div className="exec-scale">
                   <output className="exec-value" aria-live="polite">{values[i]}</output>
                   {/* Full 1-10 track always; the shaded band marks what this
@@ -138,6 +154,7 @@ export default function ExecutionSlider({ rows, onDone }: {
                       aria-label={r.dish.restaurant ?? t('exec.title')}
                       aria-valuemin={r.min}
                       aria-valuemax={r.max}
+                      style={{ ['--val' as string]: `${pos(values[i])}%` }}
                     />
                   </div>
                   <div className="exec-ends">
@@ -148,19 +165,12 @@ export default function ExecutionSlider({ rows, onDone }: {
               </div>
             ))}
           </div>
-          )}
 
-          {/* Always shown now: every track spans the full 1-10, so the passing
-              line is always a real position on it. */}
-          {!saved && <span className="exec-pass">{t('exec.pass')}</span>}
-
-          {!saved && (
-            <div className="ok-circle-wrap">
-              <button className="ok-circle" onClick={submit} disabled={busy} aria-label={t('duel.ok')}>
-                <CheckIcon size={26} />
-              </button>
-            </div>
-          )}
+          <div className="ok-circle-wrap">
+            <button className="ok-circle" onClick={submit} disabled={busy} aria-label={t('duel.ok')}>
+              {busy ? <span className="icon-btn-spinner ok-circle-spinner" aria-hidden /> : <CheckIcon size={26} />}
+            </button>
+          </div>
         </div>
       </div>
     </div>

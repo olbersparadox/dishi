@@ -13,38 +13,25 @@ import { useState } from 'react';
 import { useLang } from '@/lib/i18n';
 import DuelOverlay from './DuelOverlay';
 import ExecutionSlider from './ExecutionSlider';
+import InteractionRow from './InteractionRow';
 import {
   useInteractions, notifyInteractionsChanged, interactionId,
   type Interaction,
 } from '@/lib/useInteractions';
 
 export default function DailyInteractions() {
-  const { t, lang } = useLang();
+  const { t } = useLang();
   const { interactions, refresh } = useInteractions();
   const [open, setOpen] = useState<Interaction | null>(null);
 
   const cards = interactions.slice(0, 2); // journal shows two; the bell hosts the rest
   if (cards.length === 0) return null;
 
-  const title = (n: Interaction) => (n.kind === 'duel' ? t('duel.title') : t('exec.title'));
-  const sub = (n: Interaction) => {
-    if (n.kind === 'duel') return t(n.rematch ? 'notif.duel.rematch' : 'notif.duel.sub');
-    const d = n.rows[n.rows.length - 1]?.dish;
-    const name = (lang === 'zh' ? d?.name_zh : null) ?? d?.name ?? '';
-    return t('notif.exec.sub').replace('{dish}', name);
-  };
-
   return (
     <>
       <div className="daily-interactions" role="list" aria-label={t('daily.title')}>
         {cards.map(n => (
-          <button key={interactionId(n)} className="daily-card" role="listitem" onClick={() => setOpen(n)}>
-            <span className={`notif-item-seal${n.kind === 'duel' ? '' : ' ink'}`} aria-hidden>{n.kind === 'duel' ? '印' : '比'}</span>
-            <span className="notif-item-text">
-              <span className="notif-item-label">{title(n)}</span>
-              <span className="notif-item-sub">{sub(n)}</span>
-            </span>
-          </button>
+          <InteractionRow key={interactionId(n)} interaction={n} variant="pair" role="listitem" onClick={() => setOpen(n)} />
         ))}
       </div>
 

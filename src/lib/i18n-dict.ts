@@ -163,9 +163,9 @@ export const dict: Record<string, { zh: string; en: string }> = {
   // 對決 (pairwise taste duels) — the 印 stamp signals a sealed prediction, same
   // honesty contract as the rating seal. 揀唔落 is a TIE (a real "these two are equal
   // for me" signal), distinct from the ✕ dismiss which teaches nothing.
-  // duel.title also doubles as the notification-bell row label for a pending
-  // duel (NotificationBell.tsx) — "如果要你揀" still reads fine there, paired
-  // with notif.duel.sub's own elaboration below it.
+  // duel.title also labels a pending duel in the interactions feed: the row
+  // heading in the bell's text list, and the aria-label on the journal's photo
+  // pair (same for exec.title below). See InteractionRow's two variants.
   'duel.title': { zh: '如果要你揀', en: 'If you had to pick' },
   'duel.tie': { zh: '揀唔到', en: 'Can’t decide' },
   'duel.hit': { zh: 'dishi 估中咗', en: 'dishi called it' },
@@ -182,20 +182,23 @@ export const dict: Record<string, { zh: string; en: string }> = {
   // was the dish or the cooking — that is answered by comparing instances.
   // Register stays 書面 per the standing shift.
   'exec.title': { zh: '佢哋整得點？', en: 'How was it made?' },
+  // The COMPARING shape's own title (owner call, 2026-07-30): once a second
+  // instance is on screen the question is directly "which one", so the title
+  // says that instead of the generic anchor phrasing above — and carries the
+  // question alone, with no sub-line under it (exec.q.compare, "both scales
+  // can move", removed as redundant: the two live sliders already show that).
+  'exec.title.compare': { zh: '兩間，邊間整得好啲？', en: 'Which one did it better?' },
   // Body copy is 書面 per the standing register shift; the TITLE keeps its
   // Cantonese voice as a deliberate exception, exactly like 係咪同一味？ above.
   'exec.q': { zh: '只評廚房的功夫，與你喜不喜歡這道菜無關', en: 'Just the kitchen’s work — not whether you like the dish' },
-  // The comparison shape. Says plainly that BOTH scales move — the earlier one
-  // is a judgement to revise, not a record to read.
-  'exec.q.compare': { zh: '同上次比較，兩邊都可以調', en: 'Compare with last time — both scales can move' },
-  'exec.reference': { zh: '上次', en: 'Last time' },
-  // Shown for a beat after saving, then the card closes itself — an answer
-  // should feel received, not swallowed.
-  'exec.saved': { zh: '收到', en: 'Got it' },
   'exec.low': { zh: '整得差', en: 'Badly made' },
   'exec.high': { zh: '整得好', en: 'Well made' },
-  'exec.pass': { zh: '5 分合格', en: '5 is a pass' },
-  'exec.prior': { zh: '你之前畀 {n} 分', en: 'You gave this {n}' },
+  // {n} is either the reference dish's actual execution score (a real number
+  // ONLY when it was itself already execution-scored — see ratings/route.ts's
+  // ANCHOR_THRESHOLD) or, more often, its flick VERDICT WORD (一般般/幾好食/
+  // etc., via wordKeyFor) when it wasn't. Never an invented placeholder either
+  // way — always something the person actually said about this exact dish.
+  'exec.prior': { zh: '上次評 {n}', en: 'Rated {n} last time' },
 
   // 係咪同一味？ — identity-confirm card (gate 3 of the identity pipeline, on
   // the duel chassis). Header/buttons keep the spec's own Cantonese wording —
@@ -217,13 +220,30 @@ export const dict: Record<string, { zh: string; en: string }> = {
   // Notification bell list
   'notif.title': { zh: '通知', en: 'Notifications' },
   'notif.empty': { zh: '暫無新通知', en: 'Nothing new right now' },
-  'notif.duel.sub': { zh: '揀一樣，幫個引擎調校口味', en: 'Pick one to refine your taste' },
+  // Bell rows are ONE line each (owner call, 2026-07-30): no title above, no
+  // sub below, one sentence that carries the whole ask. Register is 書面 per
+  // the standing shift; the titles keep their Cantonese voice on the CARDS
+  // (duel.title / exec.title above), where they remain the headline.
+  // Two lines, not one long wrap — same \n + white-space:pre-line pattern as
+  // .auth-tagline / .explain-modal-body (owner call, 2026-07-30, for tidier
+  // reading in the 300px bell dropdown).
+  'notif.duel.sub': { zh: '二選一\n讓 dishi 更懂你的口味', en: 'Pick one,\nso dishi learns your taste' },
   // Rematch framing: the engine ADMITS the last bet missed and re-checks — the
   // taste-understanding claim made visible, not an apology.
-  'notif.duel.rematch': { zh: '上次估錯了，再驗證一次', en: 'Got it wrong last time — checking again' },
+  'notif.duel.rematch': { zh: '上次猜錯了你的口味\n這次再驗證一次', en: 'dishi guessed wrong last time,\nverifying again' },
   'duel.rematch': { zh: '上次估錯了你的口味，這局再驗證一次', en: 'The last bet on your taste missed — this one double-checks' },
-  // {dish} is substituted client-side with the dish being asked about.
-  'notif.exec.sub': { zh: '你食過兩次{dish}——邊間整得好啲？', en: 'You’ve had {dish} twice — which kitchen did it better?' },
+  // 佢哋整得點？ serves TWO comparison shapes and the line must say which, or it
+  // reads as a mix-up (owner call, 2026-07-29 — the old single line said
+  // 「邊間」, "which shop", even when both plates came from one kitchen).
+  // Which variant is chosen: InteractionRow.execComparisonKind.
+  //   .same  — one venue, two visits. Names the place: the whole point is that
+  //            the SHOP is held constant and only the day changed.
+  //   .cross — two venues. The card names them, so the line needn't.
+  //   .again — anything we can't state confidently (home cooking, one side with
+  //            no restaurant). Place-free, so it can never claim a venue wrong.
+  'notif.exec.sub.same': { zh: '{place}的{dish}\n兩次水準有分別嗎？', en: '{place}’s {dish},\nwas the standard the same twice?' },
+  'notif.exec.sub.cross': { zh: '兩間餐廳的{dish}\n哪間做得更好？', en: '{dish} at two places,\nwhich kitchen did it better?' },
+  'notif.exec.sub.again': { zh: '吃過兩次的{dish}\n水準有分別嗎？', en: '{dish}, twice,\nwas the standard the same?' },
   'daily.title': { zh: '今日互動', en: 'Today' },
   'log.toRate': { zh: '待評菜式', en: 'Dishes to rate' },
   'log.rateNow': { zh: '而家評', en: 'Rate now' },

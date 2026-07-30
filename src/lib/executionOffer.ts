@@ -14,8 +14,21 @@ import {
 } from './taste';
 
 export type ExecRow = {
-  dish: { id: string; name: string; name_zh: string | null; photo_url: string | null; restaurant: string | null };
+  dish: {
+    id: string; name: string; name_zh: string | null; photo_url: string | null;
+    restaurant: string | null;
+    /** The VENUE, by id. The offer is served for two shapes — the same dish at
+     * two shops, and one shop's kitchen across two visits — and the wording has
+     * to say which (InteractionRow.execComparisonKind). Names can't decide it:
+     * HK chains give branches identical names. */
+    restaurant_id: string | null;
+  };
   min: number; max: number; value: number | null;
+  /** The dish's own flick score (raw — the same value wordKeyFor/seal bands
+   * read elsewhere, NOT the centred one taste.ts learns from). A rated dish
+   * always has one, even when `value` (its execution score) is null — the
+   * card's "上次" label falls back to this so it never reads as bare filler. */
+  verdictScore: number;
 };
 
 type RatedRow = {
@@ -23,7 +36,7 @@ type RatedRow = {
   dishes: {
     dish_identity_id: string | null; canonical_dish_id: string | null;
     name: string; name_zh: string | null; photo_url: string | null;
-    restaurants: { name: string } | null;
+    restaurants: { id: string; name: string } | null;
   } | null;
 };
 
@@ -32,7 +45,7 @@ type RatedRow = {
 export async function fetchRatedRows(supabase: SupabaseClient, userId: string): Promise<RatedRow[]> {
   const { data } = await supabase
     .from('ratings')
-    .select('dish_id, score, execution_score, created_at, dishes!inner(dish_identity_id, canonical_dish_id, name, name_zh, photo_url, restaurants(name))')
+    .select('dish_id, score, execution_score, created_at, dishes!inner(dish_identity_id, canonical_dish_id, name, name_zh, photo_url, restaurants(id, name))')
     .eq('user_id', userId)
     .order('created_at', { ascending: false });
   return (data ?? []) as unknown as RatedRow[];
@@ -54,9 +67,11 @@ function rowFor(r: RatedRow, all: RatedRow[]): ExecRow {
     dish: {
       id: r.dish_id, name: r.dishes?.name ?? '', name_zh: r.dishes?.name_zh ?? null,
       photo_url: r.dishes?.photo_url ?? null, restaurant: r.dishes?.restaurants?.name ?? null,
+      restaurant_id: r.dishes?.restaurants?.id ?? null,
     },
     ...range,
     value: r.execution_score ?? null,
+    verdictScore: r.score,
   };
 }
 

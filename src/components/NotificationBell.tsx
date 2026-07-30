@@ -17,6 +17,7 @@ import { useLang } from '@/lib/i18n';
 import { BellIcon } from './icons';
 import DuelOverlay from './DuelOverlay';
 import ExecutionSlider from './ExecutionSlider';
+import InteractionRow from './InteractionRow';
 import {
   useInteractions, notifyInteractionsChanged, interactionId,
   type Interaction,
@@ -36,22 +37,12 @@ function saveSeen(ids: Set<string>) {
 }
 
 export default function NotificationBell() {
-  const { t, lang } = useLang();
+  const { t } = useLang();
   const path = usePathname();
   const { interactions, refresh } = useInteractions(path);
   const [listOpen, setListOpen] = useState(false);
   const [overlay, setOverlay] = useState<Interaction | null>(null);
   const [seen, setSeen] = useState<Set<string>>(() => (typeof window === 'undefined' ? new Set() : loadSeen()));
-
-  const label = (n: Interaction) =>
-    n.kind === 'duel' ? t('duel.title') : t('exec.title');
-  const sub = (n: Interaction) => {
-    if (n.kind === 'duel') return t(n.rematch ? 'notif.duel.rematch' : 'notif.duel.sub');
-    // The execution item names its dish — "去邊度食" is answered by the card.
-    const d = n.rows[n.rows.length - 1]?.dish;
-    const name = (lang === 'zh' ? d?.name_zh : null) ?? d?.name ?? '';
-    return t('notif.exec.sub').replace('{dish}', name);
-  };
 
   const hasUnseen = interactions.some(n => !seen.has(interactionId(n)));
 
@@ -99,14 +90,8 @@ export default function NotificationBell() {
             {interactions.length === 0 ? (
               <div className="notif-empty">{t('notif.empty')}</div>
             ) : interactions.map(n => (
-              <button key={interactionId(n)} className="notif-item" role="menuitem"
-                onClick={() => { setOverlay(n); setListOpen(false); }}>
-                <span className={`notif-item-seal${n.kind === 'duel' ? '' : ' ink'}`} aria-hidden>{n.kind === 'duel' ? '印' : '比'}</span>
-                <span className="notif-item-text">
-                  <span className="notif-item-label">{label(n)}</span>
-                  <span className="notif-item-sub">{sub(n)}</span>
-                </span>
-              </button>
+              <InteractionRow key={interactionId(n)} interaction={n} variant="text" role="menuitem"
+                onClick={() => { setOverlay(n); setListOpen(false); }} />
             ))}
           </div>
         </>

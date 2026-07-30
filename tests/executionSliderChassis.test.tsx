@@ -21,7 +21,7 @@ const DUEL_SRC = readFileSync(path.resolve(__dirname, '../src/components/DuelOve
 const DISH = { id: 'd1', name: 'Macaroni with ham', name_zh: '通心粉配火腿煎蛋', photo_url: null, restaurant: '茶餐廳' };
 const SIBLING = { id: 'd2', name: 'Macaroni with ham', name_zh: '通心粉配火腿煎蛋', photo_url: null, restaurant: '另一間' };
 
-const row = (dish: typeof DISH, min = 1, max = 10, value: number | null = null) => ({ dish, min, max, value });
+const row = (dish: typeof DISH, min = 1, max = 10, value: number | null = null) => ({ dish, min, max, value, verdictScore: 0.35 });
 
 function mount(rows = [row(DISH)], onDone = vi.fn()) {
   render(
@@ -165,5 +165,44 @@ describe('answering and skipping', () => {
     expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
       scores: [{ dish_id: 'd2', execution_score: 6 }, { dish_id: 'd1', execution_score: 2 }],
     });
+  });
+});
+
+describe('the OK button, submitting (2026-07-30)', () => {
+  it('shows a spinner in place of the checkmark while the POST is in flight', async () => {
+    let resolveFetch!: (v: unknown) => void;
+    vi.stubGlobal('fetch', vi.fn().mockReturnValue(new Promise(r => { resolveFetch = r; })));
+    mount([row(DISH, 1, 10)]);
+
+    const ok = document.querySelector('.ok-circle') as HTMLButtonElement;
+    expect(ok.querySelector('.ok-circle-spinner')).toBeNull(); // idle: the checkmark
+    fireEvent.click(ok);
+    await waitFor(() => expect(ok.querySelector('.ok-circle-spinner')).toBeTruthy());
+    expect(ok.disabled).toBe(true); // can't double-submit while spinning
+
+    resolveFetch({ ok: true, json: async () => ({ ok: true }) });
+  });
+
+  it('never shows a "收到"-style acknowledgement — a successful save ends the card directly', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) });
+    vi.stubGlobal('fetch', fetchMock);
+    const onDone = mount([row(DISH, 1, 10)]);
+    (document.querySelector('.ok-circle') as HTMLButtonElement).click();
+    await waitFor(() => expect(onDone).toHaveBeenCalledWith(true));
+    expect(document.querySelector('.exec-saved')).toBeNull();
+    expect(screen.queryByText('收到')).toBeNull();
+  });
+
+  it('the acknowledgement copy key is gone, not just unused in this file', () => {
+    expect(SRC).not.toContain('exec.saved');
+  });
+});
+
+describe('dish names match the rest of the app (2026-07-30 — "have all dish names follow the exec card")', () => {
+  it('the shared chassis rule (not a card-specific override) sets the size', () => {
+    const css = readFileSync(path.resolve(__dirname, '../src/app/globals.css'), 'utf8');
+    expect(css).toMatch(/\.duel-option \.card-title \.dishname-primary\s*\{\s*font-size:\s*var\(--fs-subtitle-a\)/);
+    // No separate .exec-col override left duplicating (or diverging from) it.
+    expect(css).not.toMatch(/\.exec-col \.card-title \.dishname-primary/);
   });
 });
