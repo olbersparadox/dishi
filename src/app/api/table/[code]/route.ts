@@ -125,9 +125,20 @@ export async function GET(_req: NextRequest, { params }: { params: { code: strin
 
   // A real restaurant menu must never be truncated — diners need every option.
   // The 15-cap only applies to the open-ended community pool.
-  const ranked = session.table_id
-    ? rankForGroup(candidates, members)
-    : rankForGroup(candidates, members).slice(0, 15);
+  //
+  // This tested `session.table_id`, which is set ONLY for QR/registered tables — so
+  // every SCAN-SHARED session (table_id null, menu_items set) was silently cut to
+  // its top 15 despite having a real menu, contradicting the line above. Found by a
+  // two-account test of "add a page" (owner, 2026-07-30): the joiner never saw the
+  // appended dishes, because the enlarged menu still returned 15 ranked candidates
+  // and the new page mostly ranked below the cut. Re-joining showed 15 items mixed
+  // from both scans, which is the same truncation seen from the other end. The
+  // scanner saw everything throughout because /scan renders its own local scan
+  // result, not the session — so the cap was invisible from the host's side.
+  const isCommunityPool = !session.table_id && !session.menu_items;
+  const ranked = isCommunityPool
+    ? rankForGroup(candidates, members).slice(0, 15)
+    : rankForGroup(candidates, members);
 
   // The session's own restaurant, by name — what the table bar's restaurant line
   // displays. Separate from `tableInfo` above, which only exists for QR/registered
