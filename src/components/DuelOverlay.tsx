@@ -78,7 +78,7 @@ export default function DuelOverlay({ duel, rematch, onClose }: { duel: Duel; re
                   <SealStamp />
                 </>
               ) : (
-                <span className="duel-title">
+                <span className="duel-title reveal">
                   {reveal.tie
                     ? <>{FACE.near} {t('duel.tieresult')}</>
                     : <>{t(reveal.predicted_correct ? 'duel.hit' : 'duel.miss')} {FACE[reveal.predicted_correct ? 'hit' : 'miss']}</>}
@@ -98,7 +98,16 @@ export default function DuelOverlay({ duel, rematch, onClose }: { duel: Duel; re
                 disabled={busy || resolving}
                 onClick={() => resolve(dish.id, { winner_dish_id: dish.id })}
               >
-                <DuelSide dish={dish} />
+                <DuelSide
+                  dish={dish}
+                  // The gap between tapping a side and the reveal landing — the
+                  // OTHER side is simply disabled, but the TAPPED one needs its
+                  // own signal that the pick registered and the answer is in
+                  // flight, not just sitting inert.
+                  photoOverlay={busy && chosen === dish.id ? (
+                    <span className="duel-photo-loading" aria-hidden><span className="duel-photo-loading-spinner" /></span>
+                  ) : undefined}
+                />
               </button>
             ))}
           </div>

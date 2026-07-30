@@ -699,6 +699,10 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 }
 .ok-circle:hover { transform: translateY(-1px); }
 .ok-circle-wrap { display: flex; justify-content: center; margin: 20px 0 4px; }
+/* .icon-btn-spinner's own size (15px, for a small inline save button) reads as
+   lost inside this 60px circle, which normally holds a 26px CheckIcon — scaled
+   up to match (owner call, 2026-07-30: a submitting exec-slider OK button). */
+.ok-circle-spinner { width: 24px; height: 24px; border-width: 3px; }
 .grow-okwrap { display: flex; justify-content: center; margin: 26px 0 4px; }
 @media (prefers-reduced-motion: reduce) {
   .learn-row, .learn-row.is-working .learn-thumb { animation: none; }
@@ -1719,28 +1723,43 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 }
 .notif-item:last-child { border-bottom: none; }
 .notif-item:active { background: rgba(20, 16, 12, 0.04); }
-.notif-item-seal { font-family: 'PingFang TC', 'Heiti TC', sans-serif; font-size: var(--fs-micro); font-weight: 700; color: var(--seal); border: 1px solid var(--seal); border-radius: 3px; padding: 1px 3px; flex-shrink: 0; }
-/* Non-duel interaction markers stay INK — vermillion is the seal's color, and
-   only the duel is a sealed bet. */
-.notif-item-seal.ink { color: var(--ink-soft); border-color: var(--ink-soft); }
+/* No 印/比 chip on these rows any more (owner call, 2026-07-29): the two marks
+   were indistinguishable to anyone who hadn't been told, so the row states the
+   comparison instead of badging it. 印 keeps its meaning on the duel card,
+   where the sealed bet actually is.
 
-/* 今日 daily interaction cards at the top of the 食記 journal — the same row
-   anatomy as the bell's list items (shared classes above), framed as one quiet
-   card. Gone entirely when nothing is waiting. */
+   TEXT variant — the bell's list: ONE sentence per row, no heading above it
+   (owner call, 2026-07-30). Body size and full ink, not caption-grey — this
+   line is the entire notification, not a sub-line under one. */
+.notif-item-line { font-size: var(--fs-body); color: var(--ink); line-height: 1.5; min-width: 0; white-space: pre-line; }
+
+/* PAIR variant — the journal's 今日 strip: the two dishes, VS between them, no
+   words at all. Thumbs keep .duel-photo's 4:3 crop and object-fit so the shots
+   are framed exactly as the overlay the row opens will frame them. Centred
+   because the strip is full-width and a pair pinned left strands half the row
+   in empty paper. */
+.notif-thumbs { display: flex; flex: 1; justify-content: center; align-items: center; gap: 12px; min-width: 0; }
+.notif-thumb { width: 96px; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 8px; display: block; flex-shrink: 0; }
+.notif-thumb-blank { background: var(--line); }
+/* Deliberately NOT --font-display: this mark is a fight between two plates, and
+   the serif reads as a caption. Heavy upright sans, sized to hold its own
+   between two photos. */
+.notif-vs {
+  font-family: var(--font-body), system-ui, sans-serif;
+  font-size: var(--fs-title-a); font-weight: 800; letter-spacing: 0.02em;
+  color: var(--ink); flex-shrink: 0;
+}
+
+/* 今日 daily interaction cards at the top of the 食記 journal — the SAME rows
+   the bell lists (one InteractionRow, .notif-item styling above), framed as one
+   quiet card. Outline only, no fill (owner call, 2026-07-30): the strip sits
+   on the journal's own paper, and a raised white slab read as a foreign
+   surface. Gone entirely when nothing is waiting. */
 .daily-interactions {
   display: flex; flex-direction: column; margin-bottom: 16px;
-  background: var(--paper-raised); border: 1px solid var(--line); border-radius: var(--radius);
+  border: 1px solid var(--line); border-radius: var(--radius);
   overflow: hidden;
 }
-.daily-card {
-  display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
-  padding: 12px 14px; background: none; border: none; border-bottom: 1px solid var(--line); cursor: pointer;
-}
-.daily-card:last-child { border-bottom: none; }
-.daily-card:active { background: rgba(20, 16, 12, 0.04); }
-.notif-item-text { display: flex; flex-direction: column; min-width: 0; }
-.notif-item-label { font-family: var(--font-display); font-size: var(--fs-body); color: var(--ink); }
-.notif-item-sub { font-size: var(--fs-micro); color: var(--ink-soft); }
 
 /* 語言對 globe picker (replaces the 中/EN switcher) */
 .lang-picker { position: relative; display: inline-flex; }
@@ -1799,6 +1818,13 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 /* Floating overlay */
 .duel-overlay { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; padding: 20px; animation: duel-fade-in 240ms ease; }
 .duel-overlay.closing { animation: duel-fade-out 340ms ease forwards; }
+/* Warmer than .card's own --paper-raised white (owner call, 2026-07-30) — the
+   same --glaze paper tone the notification list already sits on, not a new
+   color. Scoped to .duel-card, not .card itself: this is the one shared
+   chassis (DuelOverlay / ExecutionSlider / IdentityConfirmCard), so the
+   warmth reaches everywhere it's mounted without touching unrelated cards
+   (feed posts, dish rows) that still want the flat white raised surface. */
+.duel-card { background: var(--glaze); }
 @keyframes duel-fade-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes duel-fade-out { from { opacity: 1; } to { opacity: 0; } }
 .duel-backdrop { position: absolute; inset: 0; background: rgba(20, 16, 12, 0.42); }
@@ -1811,6 +1837,15 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 .duel-head { display: flex; align-items: center; justify-content: center; gap: 4px; margin-bottom: 14px; position: relative; }
 .duel-head-center { display: flex; align-items: center; gap: 4px; }
 .duel-title { font-family: var(--font-display); font-size: var(--fs-title-a); }
+/* The reveal's own weight, restored (2026-07-30): before ff14422 folded the
+   verdict into this shared title, it lived in its own .duel-verdict rule —
+   which carried font-weight:700 at EVERY size it was ever tuned to (16→18→
+   38→34px→title-b, always bold). That weight never made the move when the
+   text merged into .duel-title, leaving "dishi 估中咗" at whatever the
+   default resolves to. The pre-pick title ("如果要你揀") was never bold in its
+   own separate history, so this stays scoped to .reveal rather than changing
+   .duel-title itself. */
+.duel-title.reveal { font-weight: 700; }
 /* The 印 stamp up here scales with the title — a square, not just bigger text, so it
    still reads as the same stamped-icon shape. It's a SealStamp (<button>); the
    .seal-stamp-btn reset lives with the shared modal CSS. Tapping it opens the shared
@@ -1851,6 +1886,19 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 .duel-photo-wrap { position: relative; }
 .duel-photo { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 10px; display: block; }
 .duel-photo-blank { background: var(--line); }
+/* The tapped side's own answer-in-flight signal (DuelOverlay's photoOverlay
+   slot), owner call 2026-07-30 — a dark scrim (matching .feed-photo-share-btn's
+   own reasoning: a photo's brightness is unpredictable, so a plain ink spinner
+   alone could vanish against it) with a white ring, matching .duel-photo's crop. */
+.duel-photo-loading {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  background: rgba(20, 16, 12, 0.4); border-radius: 10px;
+}
+.duel-photo-loading-spinner {
+  width: 28px; height: 28px; border: 3px solid #fff; border-top-color: transparent;
+  border-radius: 50%; animation: ringSpin 0.7s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) { .duel-photo-loading-spinner { animation: none; } }
 /* Feed post's Share badge, corner-overlaid on the food shot itself (owner
    call) — right-aligned with the bookmark control's own right:8px further
    down the card (both measured from the same .duel-option 8px padding), same
@@ -1865,9 +1913,13 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
   background: rgba(0, 0, 0, 0.1); color: #fff; border: none;
 }
 .feed-photo-share-btn:hover, .feed-photo-share-btn:focus-visible { background: rgba(0, 0, 0, 0.2); }
-/* Dish names: the journal/scan .card-title treatment, but bigger + centred here (the
-   dish IS the choice on this screen), and a tighter gap between the two name lines. */
-.duel-option .card-title .dishname-primary { font-size: var(--fs-title-a); }
+/* Dish names: the journal/scan .card-title treatment, centred here (the dish IS
+   the choice on this screen), and a tighter gap between the two name lines.
+   subtitle-a — the exec card's own size (owner call, 2026-07-30: "have all
+   dish names follow the exec card"), now the ONE size for every consumer of
+   this chassis (對決 / 佢哋整得點？ / 係咪同一味？), not just the exec card that
+   originally needed the room for its slider. */
+.duel-option .card-title .dishname-primary { font-size: var(--fs-subtitle-a); }
 .duel-option .card-title .dishname-secondary { font-size: var(--fs-body); margin-top: -1px; }
 .duel-option-rest { font-size: var(--fs-body); color: var(--ink-soft); margin-top: 2px; }
 /* The prompt: bigger, bolder, black — per the design call. */
@@ -1881,7 +1933,14 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
    beneath it. The anchor shape has one row and spans the full width. */
 .duel-pair.exec-single { grid-template-columns: 1fr; }
 .exec-col { display: flex; flex-direction: column; }
-.exec-scale { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 100%; margin-top: 8px; }
+/* margin-top: auto pins the scale to the BOTTOM of the column rather than
+   however far down its own content happens to end. .duel-pair's stretch
+   already equalises the two columns' height to the taller one — the
+   reference side alone carries the "上次" label (exec-prior) above its scale
+   — so without this the two sliders sit at different heights. padding-top
+   holds a floor gap for the (usual) case where both columns are already the
+   same height and there is no free space for the auto margin to consume. */
+.exec-scale { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 100%; margin-top: auto; padding-top: 8px; }
 .exec-value { font-family: var(--font-display); font-weight: 800; font-size: var(--fs-title-a); color: var(--ink); line-height: 1; }
 /* The track is ALWAYS the full 1-10 so two scales are directly comparable; the
    band shows what this flick permits and the thumb clamps to it. --lo/--hi are
@@ -1892,11 +1951,36 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
   top: 50%; transform: translateY(-50%); height: 6px; border-radius: 3px;
   background: color-mix(in srgb, var(--ink) 14%, transparent); pointer-events: none;
 }
-.exec-range { width: 100%; accent-color: var(--ink); position: relative; z-index: 1; background: transparent; }
+/* Fully custom track + thumb (owner call, 2026-07-30): the same flat filled-pill
+   treatment as .xp-bar/.xp-fill elsewhere in the app, not the browser's own
+   range-input chrome — accent-color alone left a dark ring around the native
+   thumb that .xp-bar never has. --val (the value's own position, set inline
+   per row in ExecutionSlider.tsx, same pattern as --lo/--hi above) draws the
+   ink fill up to the thumb, exactly like .xp-fill's width does for a static bar. */
+.exec-range {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: 20px; /* generous drag/touch target; drawn track is 8px */
+  background: transparent; margin: 0; display: block;
+  position: relative; z-index: 1; cursor: pointer;
+}
+.exec-range::-webkit-slider-runnable-track {
+  height: 8px; border-radius: 999px;
+  background: linear-gradient(to right, var(--ink) var(--val), var(--line) var(--val));
+}
+.exec-range::-moz-range-track { height: 8px; border-radius: 999px; background: var(--line); }
+.exec-range::-moz-range-progress { height: 8px; border-radius: 999px 0 0 999px; background: var(--ink); }
+.exec-range::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 16px; height: 16px; border-radius: 50%; margin-top: -4px; /* (8 - 16) / 2, centres on the track */
+  background: var(--ink); border: none; box-shadow: none;
+}
+.exec-range::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; background: var(--ink); border: none; box-shadow: none; }
+/* Keyboard focus only (never on drag/tap) — a soft ink ring, not a hard outline. */
+.exec-range:focus { outline: none; }
+.exec-range:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 4px color-mix(in srgb, var(--ink) 20%, transparent); }
+.exec-range:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 4px color-mix(in srgb, var(--ink) 20%, transparent); }
+.exec-range::-moz-focus-outer { border: 0; }
 .exec-ends { width: 100%; display: flex; justify-content: space-between; font-size: var(--fs-micro); color: var(--ink-soft); }
-.exec-pass { display: block; margin-top: 10px; text-align: center; font-size: var(--fs-micro); color: var(--ink-soft); }
-/* The half-second acknowledgement, sized like the card's own question line. */
-.exec-saved { text-align: center; margin: 28px 0; font-family: var(--font-display); font-weight: 800; font-size: var(--fs-title-a); color: var(--ink); }
 /* A previously-scored instance sits alongside as context, not as a choice. */
 .exec-sibling { opacity: 0.72; }
 .exec-prior { display: block; margin-top: 4px; text-align: center; font-size: var(--fs-micro); color: var(--ink-soft); }
