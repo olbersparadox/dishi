@@ -86,9 +86,22 @@ describe('one engine — both screens mount useTableSession', () => {
     // with no feedback — "needs to wait if you want to unpick it" (owner, 2026-07-30).
     const toggle = ENGINE_SRC.slice(ENGINE_SRC.indexOf('const toggle'));
     expect(toggle).toMatch(/desiredRef\.current\.set\(item\.key, !isPicked\(item\)\)/);
-    // And both writes must honour that queued intent when they settle.
+    // A pick must honour a queued unpick when it settles. (There is no converse:
+    // un-picking no longer blocks, so nothing can queue behind it.)
     expect(ENGINE_SRC).toMatch(/desiredRef\.current\.get\(item\.key\) === false/);
-    expect(ENGINE_SRC).toMatch(/desiredRef\.current\.get\(item\.key\) === true/);
+  });
+
+  it('un-picking never blocks on its own DELETE, but still guards the overlay', () => {
+    // DELETE /api/my/dishes is the journal's trash endpoint (lock check, rating
+    // count, points detach, delete, profile replay). Awaiting it is the reported
+    // unpick latency. Dropping the await must NOT also drop the in-flight guard, or
+    // a racing poll resurrects the chop.
+    const unpickSrc = ENGINE_SRC.slice(ENGINE_SRC.indexOf('const unpick = async'), ENGINE_SRC.indexOf('unpickRef.current = unpick'));
+    expect(unpickSrc).not.toMatch(/await fetch/);
+    expect(unpickSrc).toMatch(/markInFlight\(item\.key, true\)/);
+    expect(unpickSrc).toMatch(/markInFlight\(item\.key, false\)/);
+    // ...and it must not re-acquire the tap lock it just gave up.
+    expect(unpickSrc).not.toMatch(/markBusy/);
   });
 
   it('pending dish ids are a ref, readable by an unpick queued behind a pick', () => {

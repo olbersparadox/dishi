@@ -20,6 +20,7 @@ import ChopStampRow from '@/components/ChopStampRow';
 import TableRestaurantLine from '@/components/TableRestaurantLine';
 import { useTableSession } from '@/lib/useTableSession';
 import { countStampedDishes } from '@/lib/tableStamps';
+import PickedCartBar from '@/components/PickedCartBar';
 import { sumPrices } from '@/lib/price';
 import { CameraIcon, MenuBookIcon, ArrowRightIcon, CloseIcon } from '@/components/icons';
 import { sameDishInSession, restaurantKeptNote } from '@/lib/menuMerge';
@@ -1006,36 +1007,10 @@ function Scanner() {
         {t('scan.logged')}
       </p>
 
-      {/* Running summary of what MY OWN picks come to — count + price, read-only.
-          There is no confirm step to reach anymore: each pick was already written
-          the moment it was tapped (see the pick note above), so this is a receipt,
-          not a button. Same .cart-bar chrome /table's own footer uses, for the same
-          reason it's read-only there. Picking works before profile_ready too, since
-          picking dishes to rate is how a new user reaches the 5-rating threshold
-          fastest. */}
-      {(() => {
-        const myPicks = displayItems.filter(i => isPicked(i));
-        if (!myPicks.length) return null;
-        const priceSummary = sumPrices(myPicks.map(i => i.price));
-        // Only worth showing once at least one picked dish has a real price —
-        // otherwise this would just be a count with extra steps. When some (but
-        // not all) picked prices are unreadable/missing, the "+" is load-bearing:
-        // it's an honest floor, not the real total, and must never be shown as one.
-        const priceLabel = priceSummary.parsedCount > 0
-          ? `${priceSummary.currency}${priceSummary.total}${priceSummary.complete ? '' : '+'}`
-          : null;
-        // "揀咗 X 碟" on the left, running total hard-right — the two are different
-        // KINDS of information (what you did vs what it costs), so they're pushed to
-        // opposite ends rather than run together into one comma-joined string.
-        return (
-          <div className="cart-bar">
-            <div className="btn primary cart-btn" style={{ pointerEvents: 'none' }}>
-              <span>{t('scan.pickcount', { n: myPicks.length })}</span>
-              {priceLabel && <span className="cart-total">{priceLabel}</span>}
-            </div>
-          </div>
-        );
-      })()}
+      {/* My picks this session, and the way on to rating them. Shared with
+          /table (PickedCartBar) — the two screens' own copies had drifted into
+          counting different things. */}
+      <PickedCartBar picked={displayItems.filter(i => isPicked(i))} />
     </div>
   );
 }

@@ -1571,6 +1571,14 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 
 /* --- cart bar: what you picked (left) vs what it costs (right) ---
    Handoff Screen 4 total bar: full-width ink pill, 15px/22px padding. */
+/* The bar became an <a>, and the app's link styles underline anchors — which on a
+   filled button reads as a mistake. The whole bar is the target; the text is a
+   label, not a link within it. */
+.cart-btn, .cart-btn:hover { text-decoration: none; }
+.cart-bar-end { display: inline-flex; align-items: center; gap: 8px; }
+/* The bar is a link now, so its arrow gets the same quiet treatment the rest of
+   the app's forward affordances use rather than shouting on a filled button. */
+.cart-bar-end svg { opacity: .75; }
 .cart-btn {
   width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 10px;
   padding: 15px 22px; font-size: var(--fs-body);

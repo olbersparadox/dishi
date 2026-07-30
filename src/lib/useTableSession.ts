@@ -71,9 +71,18 @@ export function useTableSession(code: string | null) {
    * so a genuine double-tap in one tick is caught); this state exists for rendering. */
   const [busyKeys, setBusyKeys] = useState<Set<string>>(new Set());
   const busyRef = useRef<Set<string>>(new Set());
+  // Two SEPARATE concerns that used to be one flag:
+  //  - inFlight protects the overlay from a poll that raced this write (see
+  //    pruneOverlaysBefore). Every write needs it, for as long as it runs.
+  //  - busy blocks a second tap on the same dish. Only writes we actually want to
+  //    serialise need it, and un-picking deliberately does NOT (its endpoint is slow
+  //    enough that blocking on it is the latency the owner reported).
+  const markInFlight = (key: string, active: boolean) => {
+    if (active) inFlightRef.current.add(key); else inFlightRef.current.delete(key);
+  };
   const markBusy = (key: string, busy: boolean) => {
-    if (busy) { busyRef.current.add(key); inFlightRef.current.add(key); }
-    else { busyRef.current.delete(key); inFlightRef.current.delete(key); }
+    markInFlight(key, busy);
+    if (busy) busyRef.current.add(key); else busyRef.current.delete(key);
     setBusyKeys(new Set(busyRef.current));
   };
   // Realtime overlay: pending pick/unpick events the poll hasn't confirmed yet.
@@ -257,33 +266,37 @@ export function useTableSession(code: string | null) {
     const dishId = mine?.id ?? pendingDishIds.current[item.key]?.id;
     if (!dishId) return;
     const event: StampEvent = { type: 'unpick', user_id: s.you, name: myName(s) };
-    markBusy(item.key, true);
     applyLocalStampEvent(item.key, event);
     broadcastStamp(item.key, event);
-    try {
-      const res = await fetch('/api/my/dishes', {
-        method: 'DELETE', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dish_id: dishId }),
-      });
-      if (res.ok) {
-        const { [item.key]: _drop, ...rest } = pendingDishIds.current;
-        pendingDishIds.current = rest;
-      } else {
+    // Deliberately NOT awaited, and no busy flag. DELETE /api/my/dishes is the
+    // rating queue's own trash endpoint: it checks the dish lock, counts ratings,
+    // detaches points_ledger, deletes, and may replay the taste profile — four-plus
+    // sequential round trips, entirely appropriate for deleting a RATED dish from
+    // the journal and far too slow to hold a chop on screen behind (owner,
+    // 2026-07-30: "needs to wait if you want to unpick it"). The screen is already
+    // correct the instant it's tapped; all this has to do is land, or undo itself.
+    const { [item.key]: _drop, ...rest } = pendingDishIds.current;
+    pendingDishIds.current = rest;
+    // Not busy (taps stay live), but very much in flight: without this a poll
+    // issued before the DELETE commits would prune the unpick and the chop would
+    // come straight back — the 2026-07-30 reappearing-chop bug, exactly.
+    markInFlight(item.key, true);
+    fetch('/api/my/dishes', {
+      method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dish_id: dishId }),
+    })
+      .then(res => { if (!res.ok) throw new Error('unpick rejected'); })
+      .catch(() => {
+        markInFlight(item.key, false);
+        // Put it back — including on everyone else's screen, so nobody is left
+        // missing a stamp for a pick that is still in the database. A missed undo
+        // still self-heals on the next poll.
         const undo: StampEvent = { type: 'pick', user_id: s.you, name: myName(s) };
         applyLocalStampEvent(item.key, undo);
         broadcastStamp(item.key, undo);
-      }
-    } catch {
-      const undo: StampEvent = { type: 'pick', user_id: s.you, name: myName(s) };
-      applyLocalStampEvent(item.key, undo);
-      broadcastStamp(item.key, undo);
-    } finally {
-      markBusy(item.key, false);
-      if (desiredRef.current.get(item.key) === true) {
-        desiredRef.current.delete(item.key);
-        pick(item);
-      } else desiredRef.current.delete(item.key);
-    }
+        pendingDishIds.current = { ...pendingDishIds.current, [item.key]: { id: dishId, at: Date.now() } };
+      })
+      .finally(() => markInFlight(item.key, false));
   };
   unpickRef.current = unpick;
 

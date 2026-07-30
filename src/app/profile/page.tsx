@@ -333,7 +333,8 @@ function TasteProfile() {
           Dishi to get more relevant" — so the training queue belongs on the
           Taste tab, where the training itself is the point of being here. */}
       {toRate !== null && toRate.length > 0 && (
-        <div style={{ marginBottom: 16 }}>
+        // id: the scan/table cart bar links straight here ("done picking").
+        <div id="to-rate" style={{ marginBottom: 16 }}>
           <h3 style={{ marginBottom: 2 }}>{t('log.toRate')}</h3>
           {toRate.map(p => (
             <div key={p.id} className="pick-card">

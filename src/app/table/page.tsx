@@ -15,6 +15,7 @@ import { normalizePhoto } from '@/lib/image';
 import { createTaskPool } from '@/lib/concurrency';
 import { mergeFinalScanItems } from '@/lib/tableMenuItems';
 import { countStampedDishes } from '@/lib/tableStamps';
+import PickedCartBar from '@/components/PickedCartBar';
 import { shareLink } from '@/lib/share';
 import { supabaseBrowser } from '@/lib/supabase/client';
 // The table-session engine — poll, realtime, stamps, pick/unpick — lives in ONE
@@ -466,29 +467,12 @@ function Session({ code, onLeave }: { code: string; onLeave: () => void }) {
         })}
       </div>
 
-      {/* Footer bar: the WHOLE TABLE's picks THIS session (same anyPickedItems the
-          header count above uses — they can no longer disagree), count + running
-          price — same cart-bar chrome scan uses for its own (solo) pick summary,
-          read-only here (no batch confirm step; each pick already persisted the
-          moment it was tapped above). The per-row filled-card highlight stays
-          mine-only — that's a different, correct distinction ("did I pick this"),
-          not a bug. Appears once there's something to show. */}
-      {(() => {
-        const pickedItems = anyPickedItems;
-        if (!pickedItems.length) return null;
-        const priceSummary = sumPrices(pickedItems.map(i => i.price ?? null));
-        const priceLabel = priceSummary.parsedCount > 0
-          ? `${priceSummary.currency}${priceSummary.total}${priceSummary.complete ? '' : '+'}`
-          : null;
-        return (
-          <div className="cart-bar">
-            <div className="btn primary cart-btn" style={{ pointerEvents: 'none' }}>
-              <span>{t('scan.pickcount', { n: pickedItems.length })}</span>
-              {priceLabel && <span className="cart-total">{priceLabel}</span>}
-            </div>
-          </div>
-        );
-      })()}
+      {/* My picks this session, and the way on to rating them. The SAME component
+          /scan mounts: this used to count the whole table's picks while scan's
+          look-alike counted only your own, which is why one table showed two
+          different numbers (owner, 2026-07-30). The table-wide count lives in
+          TableBar above. */}
+      <PickedCartBar picked={state.items.filter(it => isPicked(it))} />
     </div>
   );
 }
