@@ -71,5 +71,8 @@
   },
   "guidelinesGlob": [
     "docs/session-a-spec.md"
+  ],
+  "extraFonts": [
+    ".design-sync/fonts/noto-serif-tc.css"
   ]
 }
