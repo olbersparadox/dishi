@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase/server';
 import { generateTableCode } from '@/lib/group';
 import { shapeTableMenuItems } from '@/lib/tableMenuItems';
+import { resolveSessionRestaurant } from '@/lib/tableRestaurantResolve';
 
 /**
  * POST /api/table
@@ -33,13 +34,40 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'No scanned dishes to share.' }, { status: 400 });
   }
 
+  // The session's restaurant, decided once, here — so every member's picks
+  // inherit ONE attribution (see /api/dishes/pick, which reads it back
+  // server-side). Before this, a scan-shared session never had a restaurant at
+  // all and joiners' picks all wrote null (found live 2026-07-30).
+  //
+  // Silent by design: the scanner is standing in the restaurant holding its
+  // menu, and asking them to name it before anyone can even look at the dishes
+  // gets the common case wrong — the same reasoning that made the table code
+  // itself automatic (see scan/page.tsx's createTableSession). But silence only
+  // extends as far as certainty does: the gate in tableRestaurant.ts refuses to
+  // guess between neighbours it can't separate, and a `verdict` of anything but
+  // `confident` leaves restaurant_id null for the table bar's restaurant line to
+  // resolve with one tap. Never fails the session — a table with no restaurant
+  // yet is fully usable, and a wrong guess would be worse than a blank.
+  const lat = Number(body?.lat), lng = Number(body?.lng);
+  let restaurantId: string | null = null;
+  if (Number.isFinite(lat) && Number.isFinite(lng)) {
+    try {
+      const resolved = await resolveSessionRestaurant(
+        supabase, user.id, lat, lng, body?.lang === 'en' ? 'en' : 'zh-HK',
+      );
+      restaurantId = resolved.restaurantId;
+    } catch (e) {
+      console.error('table restaurant: auto-attribution failed', e);
+    }
+  }
+
   // Generate a code, retrying on the (rare) collision.
   let session = null;
   for (let attempt = 0; attempt < 5 && !session; attempt++) {
     const code = generateTableCode();
     const { data, error } = await supabase
       .from('table_sessions')
-      .insert({ code, host_id: user.id, menu_items: menuItems })
+      .insert({ code, host_id: user.id, menu_items: menuItems, restaurant_id: restaurantId })
       .select()
       .single();
     if (!error) session = data;

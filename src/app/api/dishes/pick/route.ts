@@ -38,9 +38,44 @@ export async function POST(req: NextRequest) {
 
   const tableSessionId = typeof body?.table_session_id === 'string' ? body.table_session_id : null;
 
+  // A table session's restaurant is decided ONCE, at session level, and every
+  // member's pick inherits it — the session WINS over whatever the client sent.
+  //
+  // This is the fix for a silent data-loss bug found live 2026-07-30: nothing on
+  // the /table side ever had a restaurant to send (POST /api/table never set
+  // restaurant_id), so every dish a joiner picked was written with
+  // restaurant_id null while the scanner's own confirm sheet quietly captured
+  // one. Two members at ONE table were producing differently-attributed rows.
+  // Reading it server-side makes that structurally impossible rather than
+  // relying on every client to pass the right thing: restaurant x dish is the
+  // demand data this product is built on, so it cannot be the client's job.
+  // Deliberately admin: the session row is readable by any member, and
+  // membership is already what /api/table/[code] gates on.
+  //
+  // Fetched IN PARALLEL with the member list the companion-edge write below
+  // needs, and both BEFORE the insert. A pick is a tap on a dish and it has to
+  // feel like one, so nothing that isn't the insert itself gets to sit on the
+  // response path in series: this turned four sequential round trips (auth ->
+  // session -> insert -> members -> edges) into two, without making any write
+  // fire-and-forget. Fire-and-forget was the obvious alternative and is
+  // specifically wrong here — a serverless function can be frozen the moment it
+  // responds, and "the write path never seems to run" is this repo's documented
+  // failure class.
+  const [sessionRow, memberRows] = tableSessionId
+    ? await Promise.all([
+        supabaseAdmin().from('table_sessions').select('restaurant_id').eq('id', tableSessionId).maybeSingle(),
+        supabaseAdmin().from('table_members').select('user_id').eq('session_id', tableSessionId),
+      ])
+    : [null, null];
+  const sessionRestaurantId: string | null = sessionRow?.data?.restaurant_id ?? null;
+
   // Row construction extracted to pickRows.ts (pure) so the eaten_at rule —
   // pick time IS the eaten time — is unit-tested, not just asserted here.
-  const rows = buildPickRows(items, { userId: user.id, restaurantId, tableSessionId });
+  const rows = buildPickRows(items, {
+    userId: user.id,
+    restaurantId: sessionRestaurantId ?? restaurantId,
+    tableSessionId,
+  });
 
   if (rows.length === 0) return NextResponse.json({ error: 'None of those dishes had a usable name.' }, { status: 400 });
 
@@ -58,10 +93,8 @@ export async function POST(req: NextRequest) {
   if (tableSessionId && data && data.length > 0) {
     try {
       const admin = supabaseAdmin();
-      const { data: members } = await admin
-        .from('table_members').select('user_id').eq('session_id', tableSessionId);
       const edgeRows = edgeRowsForPick(
-        (members ?? []).map(m => m.user_id),
+        (memberRows?.data ?? []).map(m => m.user_id),
         data.map(d => d.id),
         tableSessionId,
       );

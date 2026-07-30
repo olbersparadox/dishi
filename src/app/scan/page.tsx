@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AuthGate from '@/components/AuthGate';
 import { normalizePhoto } from '@/lib/image';
@@ -156,12 +156,29 @@ function Scanner() {
    * watching `result` — result.items grows during streaming, and a session created
    * mid-stream would snapshot a half-read menu for everyone who joined.
    */
+  // Where the scanner is standing, warmed the moment a scan STARTS rather than
+  // read when it's needed. The session's restaurant is resolved from this at
+  // create time (POST /api/table), and geolocation can take seconds — asking for
+  // it at the end of the stream would put a visible stall between "the menu is
+  // on screen" and "the table code exists", which is exactly the moment someone
+  // leans over to ask what's good. A denied or absent fix is not a failure:
+  // restaurant_id stays null and the table bar's restaurant line asks instead.
+  const coordsRef = useRef<{ lat: number; lng: number } | null>(null);
+  function warmCoords() {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      pos => { coordsRef.current = { lat: pos.coords.latitude, lng: pos.coords.longitude }; },
+      () => { /* no fix — the restaurant line handles it; never blocks a scan */ },
+      { enableHighAccuracy: true, timeout: 8000 },
+    );
+  }
+
   async function createTableSession(items: ScannedItem[]): Promise<{ code: string; session_id: string } | null> {
     try {
       const res = await fetch('/api/table', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items }),
+        body: JSON.stringify({ items, ...(coordsRef.current ?? {}), lang }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Could not create a table code.');
@@ -341,6 +358,7 @@ function Scanner() {
       setPickError('');
       setPreview(URL.createObjectURL(file));
       setScanning(true);
+      warmCoords(); // in flight during the scan, ready when the session is created
     } else {
       // Append (加掃一版): keep the current menu, restaurant, picks, and table
       // session on screen. Only the incremental capture UI changes. Clear any

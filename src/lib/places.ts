@@ -139,7 +139,10 @@ export async function searchPlacesText(
   })).filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lng));
 }
 
-function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
+/** Exported so the table-session auto-attribution gate (tableRestaurant.ts) ranks
+ * Google candidates by real distance instead of re-deriving the same formula —
+ * Places Nearby Search returns prominence order and no distance of its own. */
+export function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371000;
   const dLat = (lat2 - lat1) * Math.PI / 180;
   const dLng = (lng2 - lng1) * Math.PI / 180;
