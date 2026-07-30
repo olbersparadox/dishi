@@ -18,7 +18,12 @@ import { useTranslation } from '@/lib/translation';
 // Per-slot script tag so CSS can track Latin and CJK differently: the 0.05em base
 // tracking suits Han/Kana/Hangul but runs Latin text visibly loose. A name with ANY
 // CJK char (e.g. "300g 牛胸腹") counts as CJK — the Han glyphs are what need the room.
-const CJK_RE = /[　-鿿㐀-䶿가-힯豈-﫿＀-￯]/;
+// Escapes rather than literal glyphs — the same five ranges either way. This
+// regex is the one place in the bundle that THROWS instead of degrading when the
+// file is decoded as anything but UTF-8 (a <script> on a page that declares no
+// charset inherits the document's encoding), and a SyntaxError inside a character
+// class kills the whole module rather than garbling one string.
+const CJK_RE = /[\u3000-\u9FFF\u3400-\u4DBF\uAC00-\uD7AF\uF900-\uFAFF\uFF00-\uFFEF]/;
 function scriptClass(s: string): string {
   return CJK_RE.test(s) ? 'dn-cjk' : 'dn-latin';
 }
