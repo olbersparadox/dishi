@@ -75,5 +75,37 @@
   "extraFonts": [
     ".design-sync/fonts/noto-serif-tc.css"
   ],
-  "readmeHeader": ".design-sync/conventions.md"
+  "readmeHeader": ".design-sync/conventions.md",
+  "overrides": {
+    "ExplainModal": {
+      "cardMode": "single",
+      "primaryStory": "SealExplainer"
+    },
+    "PickedCartBar": {
+      "cardMode": "single",
+      "primaryStory": "OverMenu"
+    },
+    "SnapRating": {
+      "cardMode": "single",
+      "primaryStory": "AlbumFirstCard"
+    },
+    "HomeIcon": {
+      "cardMode": "column"
+    },
+    "InteractionRow": {
+      "cardMode": "column"
+    },
+    "PhotoIcon": {
+      "cardMode": "column"
+    },
+    "PhotoPicker": {
+      "cardMode": "column"
+    },
+    "TasteFormSnapshot": {
+      "cardMode": "column"
+    },
+    "UtensilsIcon": {
+      "cardMode": "column"
+    }
+  }
 }

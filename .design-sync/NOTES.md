@@ -157,6 +157,33 @@ the 18 excluded from this sync, so the call site was invisible to it. Do not
 propagate that claim. The related finding IS real and reachable: with a null
 `photoUrl`, `.flick-hint` renders on top of `.flick-nophoto`'s dish name.
 
+## Known render warns (triaged as legitimate — a warn NOT listed here is new)
+
+- `[RENDER_THIN]` on **ArrowLeftIcon, LinkIcon, LockIcon** — their cells contain
+  no text at all, which is correct for an icon. They render; the heuristic is
+  measuring text, not pixels.
+- `variantsIdentical` on **TasteFormReveal** — its two cells are the Taste-tab
+  mount and the PublicDossier mount, which differ by the presence of the centre
+  glyph. The dimension labels around the blob are the same in both, so a
+  text-based comparison sees them as identical. The visual difference is real.
+- `[TOKENS_MISSING]` for `--x`, `--y`, `--lo`, `--hi`, `--val`, `--porcelain` —
+  set at runtime from JS/inline style, so they are expected to be absent from a
+  static stylesheet. `--font-body` and `--font-wordmark` come from `next/font`
+  in `layout.tsx`, which the DS bundle does not carry.
+- `[FONT_MISSING]` for **Songti TC** and **Cascadia Mono** — system fonts with
+  no shippable `@font-face`, accepted deliberately (owner, 2026-07-30). Noto
+  Serif TC now backs the Chinese display face for non-macOS viewers.
+
+## Card presentation overrides
+
+Nine components needed `cfg.overrides` after the first full render check:
+`ExplainModal`, `PickedCartBar` and `SnapRating` are fixed/portal surfaces whose
+content escapes any grid cell, so they use `cardMode: single` with a chosen
+`primaryStory`; `HomeIcon`, `InteractionRow`, `PhotoIcon`, `PhotoPicker`,
+`TasteFormSnapshot` and `UtensilsIcon` render wider than a grid cell and use
+`cardMode: column`, which keeps every export at full card width. These are
+presentation-only and carry their grades.
+
 ## Re-sync risks — what can silently go stale
 
 - **`entry.tsx` and `componentSrcMap` must agree.** They are maintained by hand.
