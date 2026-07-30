@@ -33,15 +33,16 @@ const EARLY: Record<string, number> = {
   rich: 0, fresh: 0, grilled: 0, braised: 0, steamed: 0, raw: 0, baked: 0,
 };
 
-// An English-primary dessert regular (楊枝甘露/菠蘿油 person): sweet, creamy,
-// chewy on top. NOTE for composers: long Latin callout labels sitting near the
-// horizontal rim (umami, grilled) clip against the SVG edge at this size — pick
-// data whose top dims sit top/diagonal for en cells, as here.
-const DESSERT: Record<string, number> = {
-  sweet: 0.62, creamy: 0.55, chewy: 0.38, tender: 0.20, crispy: 0.18,
-  fresh: 0.15, sour: 0.12, umami: 0.10, baked: 0.24, salty: 0.05, rich: 0.05,
-  steamed: 0.08, braised: 0, grilled: 0, raw: -0.05, fried: -0.15,
-  bitter: -0.25, spicy: -0.40,
+// An English-primary 大牌檔 regular, with the top three dims deliberately on the
+// HORIZONTAL rim: umami sits at 3 o'clock, grilled and braised at 9 — the
+// longest Latin words landing where the chart has the least room sideways.
+// This cell exists to hold the radar to that case: those labels used to clip
+// against the SVG edge ("umam", "raised"), so an en cell has to be the one that
+// would show it. Don't swap in a top/diagonal palate to make it look tidier.
+const WOK: Record<string, number> = {
+  umami: 0.72, grilled: 0.58, braised: 0.52, crispy: 0.30, rich: 0.24, fried: 0.20,
+  tender: 0.18, salty: 0.14, spicy: 0.10, steamed: 0.08, chewy: 0.06, fresh: 0.05,
+  creamy: 0.02, baked: 0, sour: -0.10, sweet: -0.22, raw: -0.28, bitter: -0.45,
 };
 
 /** The shape a well-fed profile makes: top three loves (鮮味/脆/炸) called out in
@@ -57,7 +58,11 @@ export function EarlyPalate() {
 }
 
 /** An English-primary user — labelFor hands back the en strings t() resolves.
- *  A dessert palate: 甜/香滑/煙韌 called out as sweet, creamy, chewy. */
+ *  A wok-shop palate whose callouts (umami, grilled, braised) sit on the
+ *  horizontal rim, where a Latin label has the least room: the chart widens its
+ *  viewBox by however much the longest one overhangs, so the words stay whole
+ *  and the plot is drawn a touch smaller inside the same square box. A zh
+ *  profile never triggers that and renders at full size. */
 export function EnglishLabels() {
-  return <TasteRadar vector={DESSERT} size={295} labelFor={(dim) => EN[dim] ?? dim} />;
+  return <TasteRadar vector={WOK} size={295} labelFor={(dim) => EN[dim] ?? dim} />;
 }
