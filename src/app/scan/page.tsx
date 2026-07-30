@@ -19,6 +19,7 @@ import TableBar from '@/components/TableBar';
 import ChopStampRow from '@/components/ChopStampRow';
 import TableRestaurantLine from '@/components/TableRestaurantLine';
 import { useTableSession } from '@/lib/useTableSession';
+import { countStampedDishes } from '@/lib/tableStamps';
 import { sumPrices } from '@/lib/price';
 import { CameraIcon, MenuBookIcon, ArrowRightIcon, CloseIcon } from '@/components/icons';
 import { sameDishInSession, restaurantKeptNote } from '@/lib/menuMerge';
@@ -895,11 +896,13 @@ function Scanner() {
         <TableBar
           code={tableSession.code}
           memberCount={table.members.length}
-          // DISTINCT dishes with a stamp, not raw pick rows: two people picking the
-          // same dish used to inflate this count (owner correction, 2026-07-21, on
-          // /table's own copy of the same bug). Live-merged, so it agrees with the
-          // stamps on the rows instead of lagging a poll behind them.
-          pickCount={displayItems.filter(i => stampsOf(i).length > 0).length}
+          // DISTINCT dishes with a stamp, not raw pick rows and not raw ARRAY ROWS:
+          // two people picking the same dish inflated this once (owner, 2026-07-21),
+          // and a menu printing one name_original twice inflated it again on this
+          // screen only (owner, 2026-07-30) — countStampedDishes counts keys, and is
+          // the same function /table's header calls. Live-merged, so it agrees with
+          // the stamps on the rows instead of lagging a poll behind them.
+          pickCount={countStampedDishes(displayItems.map(stampable), table.stampsFor)}
           onInvite={copyTableLink}
           restaurantLine={
             <TableRestaurantLine restaurant={table.restaurant} onChange={table.setRestaurant} />

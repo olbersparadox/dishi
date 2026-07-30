@@ -14,6 +14,7 @@ import { sumPrices } from '@/lib/price';
 import { normalizePhoto } from '@/lib/image';
 import { createTaskPool } from '@/lib/concurrency';
 import { mergeFinalScanItems } from '@/lib/tableMenuItems';
+import { countStampedDishes } from '@/lib/tableStamps';
 import { shareLink } from '@/lib/share';
 import { supabaseBrowser } from '@/lib/supabase/client';
 // The table-session engine — poll, realtime, stamps, pick/unpick — lives in ONE
@@ -96,7 +97,7 @@ function Session({ code, onLeave }: { code: string; onLeave: () => void }) {
   // from server truth on reload. That rule, the realtime overlay, and pick/unpick
   // all live in the shared engine now.
   const {
-    state, error, refresh, busyKey, toggle, stampsFor, isPicked, colorFor,
+    state, error, refresh, toggle, stampsFor, isPicked, colorFor,
     restaurant, setRestaurant,
   } = useTableSession(code);
   // Add a page (Table Mode item 6, 2026-07-22): any member can grow the
@@ -385,7 +386,8 @@ function Session({ code, onLeave }: { code: string; onLeave: () => void }) {
           settled-list neighbor for the same math) — palate-blend copy used to sit
           here doing that job; removed outright (owner request, 2026-07-21), the
           table bar's existing margin already does it. */}
-      <TableBar code={state.code} memberCount={state.members.length} pickCount={anyPickedItems.length}
+      <TableBar code={state.code} memberCount={state.members.length}
+        pickCount={countStampedDishes(state.items, stampsFor)}
         onInvite={share}
         restaurantLine={
           <TableRestaurantLine

@@ -20,7 +20,7 @@ import { supabaseBrowser } from '@/lib/supabase/client';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { chopColorMap, chopColorFor } from '@/lib/chop';
 import {
-  stampsFromPicks, pickMatchesItem, mergeStamps, applyStampEvent,
+  stampsFromPicks, pickMatchesItem, mergeStamps, applyStampEvent, pruneOverlaysBefore,
   type Stamp, type StampOverlay, type StampEvent,
 } from '@/lib/tableStamps';
 
@@ -64,8 +64,17 @@ export type StampableItem = { key: string; name: string; name_zh?: string | null
 export function useTableSession(code: string | null) {
   const [state, setState] = useState<SessionState | null>(null);
   const [error, setError] = useState('');
-  /** item.key currently saving — screens use it to ignore a double-tap. */
-  const [busyKey, setBusyKey] = useState<string | null>(null);
+  /** Keys currently saving — a set, not one key, so tapping dish B never has to wait
+   * on dish A. A single global busy key silently DROPPED taps while any other write
+   * was in flight, which is precisely what ordering for a table looks like: several
+   * dishes tapped in a couple of seconds. Guarding is done off busyRef (synchronous,
+   * so a genuine double-tap in one tick is caught); this state exists for rendering. */
+  const [busyKeys, setBusyKeys] = useState<Set<string>>(new Set());
+  const busyRef = useRef<Set<string>>(new Set());
+  const markBusy = (key: string, busy: boolean) => {
+    if (busy) busyRef.current.add(key); else busyRef.current.delete(key);
+    setBusyKeys(new Set(busyRef.current));
+  };
   // Realtime overlay: pending pick/unpick events the poll hasn't confirmed yet.
   // See tableStamps.ts for the full architecture note (it is bidirectional — an
   // 'unpick' entry HIDES a stamp the poll still has, which is what makes your own
@@ -73,35 +82,29 @@ export function useTableSession(code: string | null) {
   const [realtimeStamps, setRealtimeStamps] = useState<Record<string, StampOverlay>>({});
   // Bridges the one gap stamps alone can't: which dish ROW to DELETE if I un-pick
   // before the next poll has caught up with a pick I *just* made.
-  const [pendingDishIds, setPendingDishIds] = useState<Record<string, string>>({});
+  // Carries the time it was recorded, for the same reason the overlay does — a poll
+  // may only forget a pending id it was actually in a position to have seen.
+  const [pendingDishIds, setPendingDishIds] = useState<Record<string, { id: string; at: number }>>({});
   const channelRef = useRef<RealtimeChannel | null>(null);
-  // Keys with a write still in flight. The poll clears the overlay when it lands
-  // (it's authoritative), but an OPTIMISTIC stamp is applied before its insert has
-  // committed — so a poll landing mid-flight would clear a stamp the poll cannot
-  // possibly know about yet and the chop would blink out and back. These keys are
-  // held back from that clear until their request settles.
-  const inFlightRef = useRef<Set<string>>(new Set());
 
   const refresh = useCallback(async () => {
     if (!code) return;
+    // Stamped BEFORE the request goes out, because that is the instant the response
+    // describes. Clearing anything newer than this would discard an event the server
+    // hadn't been asked about yet — see pruneOverlaysBefore for the live symptom.
+    const requestedAt = Date.now();
     try {
       const res = await fetch(`/api/table/${code}`);
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
       setState(json);
       setError('');
-      // The poll is authoritative the moment it lands, so a stale overlay entry
-      // (e.g. an unpick broadcast this client missed) can never outlive DB truth
-      // by more than one cycle — except for writes still in flight, see above.
-      const keep = inFlightRef.current;
-      setRealtimeStamps(prev => {
-        if (keep.size === 0) return {};
-        return Object.fromEntries(Object.entries(prev).filter(([k]) => keep.has(k)));
-      });
-      setPendingDishIds(prev => {
-        if (keep.size === 0) return {};
-        return Object.fromEntries(Object.entries(prev).filter(([k]) => keep.has(k)));
-      });
+      // A stale overlay entry (e.g. an unpick broadcast this client missed) still
+      // can't outlive DB truth by more than one cycle: the next poll is issued after
+      // it and prunes it.
+      setRealtimeStamps(prev => pruneOverlaysBefore(prev, requestedAt));
+      setPendingDishIds(prev =>
+        Object.fromEntries(Object.entries(prev).filter(([, v]) => v.at >= requestedAt)));
     } catch (e: any) {
       setError(e.message || 'Lost the table.');
     }
@@ -170,8 +173,7 @@ export function useTableSession(code: string | null) {
     const s = state;
     if (!s) return;
     const event: StampEvent = { type: 'pick', user_id: s.you, name: myName(s) };
-    inFlightRef.current.add(item.key);
-    setBusyKey(item.key);
+    markBusy(item.key, true);
     applyLocalStampEvent(item.key, event);
     broadcastStamp(item.key, event);
     try {
@@ -194,7 +196,7 @@ export function useTableSession(code: string | null) {
       const json = await res.json().catch(() => null);
       const dishId = json?.picked?.[0]?.id as string | undefined;
       if (res.ok && dishId) {
-        setPendingDishIds(prev => ({ ...prev, [item.key]: dishId }));
+        setPendingDishIds(prev => ({ ...prev, [item.key]: { id: dishId, at: Date.now() } }));
         // Seal at PICK time — the moment you commit to ordering a dish, the engine
         // commits its prediction, rather than waiting until you next open the Taste
         // tab. A picked dish already carries real attributes from the scan, so the
@@ -219,8 +221,7 @@ export function useTableSession(code: string | null) {
       applyLocalStampEvent(item.key, undo);
       broadcastStamp(item.key, undo);
     } finally {
-      inFlightRef.current.delete(item.key);
-      setBusyKey(null);
+      markBusy(item.key, false);
     }
   };
 
@@ -234,11 +235,10 @@ export function useTableSession(code: string | null) {
     const s = state;
     if (!s) return;
     const mine = s.table_picks.find(p => p.user_id === s.you && pickMatchesItem(p, item));
-    const dishId = mine?.id ?? pendingDishIds[item.key];
+    const dishId = mine?.id ?? pendingDishIds[item.key]?.id;
     if (!dishId) return;
     const event: StampEvent = { type: 'unpick', user_id: s.you, name: myName(s) };
-    inFlightRef.current.add(item.key);
-    setBusyKey(item.key);
+    markBusy(item.key, true);
     applyLocalStampEvent(item.key, event);
     broadcastStamp(item.key, event);
     try {
@@ -258,15 +258,15 @@ export function useTableSession(code: string | null) {
       applyLocalStampEvent(item.key, undo);
       broadcastStamp(item.key, undo);
     } finally {
-      inFlightRef.current.delete(item.key);
-      setBusyKey(null);
+      markBusy(item.key, false);
     }
   };
 
   /** Toggle — "picked" is always derived from whether MY stamp is present, never a
    * separate local flag that could disagree with the chop everyone sees. */
   const toggle = (item: StampableItem, extras?: Parameters<typeof pick>[1]) => {
-    if (busyKey) return; // ignore a second tap while the first is in flight
+    // Only THIS dish's own write blocks it — see busyKeys.
+    if (busyRef.current.has(item.key)) return;
     if (isPicked(item)) unpick(item); else pick(item, extras);
   };
 
@@ -302,6 +302,6 @@ export function useTableSession(code: string | null) {
     members: state?.members ?? [],
     picks: state?.table_picks ?? [],
     you: state?.you ?? null,
-    busyKey, pick, unpick, toggle, stampsFor, isPicked, colorFor,
+    busyKeys, pick, unpick, toggle, stampsFor, isPicked, colorFor,
   };
 }

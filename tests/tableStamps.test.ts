@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { stampsFromPicks, pickMatchesItem, mergeStamps, applyStampEvent, type Stamp, type StampOverlay } from '../src/lib/tableStamps';
+import { stampsFromPicks, pickMatchesItem, mergeStamps, applyStampEvent, pruneOverlaysBefore, countStampedDishes, type Stamp, type StampOverlay } from '../src/lib/tableStamps';
 
 const pick = (over: Partial<Parameters<typeof stampsFromPicks>[1][number]> = {}) => ({
   user_id: 'u1', name: 'Seafood donburi', name_zh: '海鮮丼',
@@ -117,13 +117,13 @@ describe('mergeStamps', () => {
 
   it('adds an overlay pick the poll has not caught up to yet', () => {
     const poll: Stamp[] = [{ user_id: 'u1', name: 'a' }];
-    const overlay: StampOverlay = { u2: { type: 'pick', user_id: 'u2', name: 'b' } };
+    const overlay: StampOverlay = { u2: { type: 'pick', user_id: 'u2', name: 'b', at: 0 } };
     expect(mergeStamps(poll, overlay).map(s => s.user_id).sort()).toEqual(['u1', 'u2']);
   });
 
   it('poll wins over a stale overlay pick duplicate of the same user', () => {
     const poll: Stamp[] = [{ user_id: 'u1', name: 'poll-name' }];
-    const overlay: StampOverlay = { u1: { type: 'pick', user_id: 'u1', name: 'stale-overlay-name' } };
+    const overlay: StampOverlay = { u1: { type: 'pick', user_id: 'u1', name: 'stale-overlay-name', at: 0 } };
     expect(mergeStamps(poll, overlay)).toEqual([{ user_id: 'u1', name: 'poll-name' }]);
   });
 
@@ -133,41 +133,41 @@ describe('mergeStamps', () => {
   // to 5s, until the next poll. The overlay must be able to SUPPRESS a poll stamp.
   it('an overlay unpick HIDES a stamp the poll still has (self-unpick, poll not yet caught up)', () => {
     const poll: Stamp[] = [{ user_id: 'u1', name: 'a' }, { user_id: 'u2', name: 'b' }];
-    const overlay: StampOverlay = { u1: { type: 'unpick', user_id: 'u1', name: 'a' } };
+    const overlay: StampOverlay = { u1: { type: 'unpick', user_id: 'u1', name: 'a', at: 0 } };
     expect(mergeStamps(poll, overlay)).toEqual([{ user_id: 'u2', name: 'b' }]);
   });
 
   it('an overlay unpick for someone the poll never had is a harmless no-op', () => {
     const poll: Stamp[] = [{ user_id: 'u2', name: 'b' }];
-    const overlay: StampOverlay = { u1: { type: 'unpick', user_id: 'u1', name: 'a' } };
+    const overlay: StampOverlay = { u1: { type: 'unpick', user_id: 'u1', name: 'a', at: 0 } };
     expect(mergeStamps(poll, overlay)).toEqual(poll);
   });
 });
 
 describe('applyStampEvent — overlay reducer', () => {
   it('a pick event adds a pending entry', () => {
-    const out = applyStampEvent({}, { type: 'pick', user_id: 'u1', name: 'a' });
-    expect(out).toEqual({ u1: { type: 'pick', user_id: 'u1', name: 'a' } });
+    const out = applyStampEvent({}, { type: 'pick', user_id: 'u1', name: 'a' }, 0);
+    expect(out).toEqual({ u1: { type: 'pick', user_id: 'u1', name: 'a', at: 0 } });
   });
 
   it('a duplicate pick event is a no-op (idempotent — redelivery-safe)', () => {
-    const current: StampOverlay = { u1: { type: 'pick', user_id: 'u1', name: 'a' } };
-    const out = applyStampEvent(current, { type: 'pick', user_id: 'u1', name: 'a' });
+    const current: StampOverlay = { u1: { type: 'pick', user_id: 'u1', name: 'a', at: 0 } };
+    const out = applyStampEvent(current, { type: 'pick', user_id: 'u1', name: 'a' }, 0);
     expect(out).toBe(current); // same reference: no unnecessary re-render
   });
 
   it('an unpick event supersedes a pending pick for the same user', () => {
-    const current: StampOverlay = { u1: { type: 'pick', user_id: 'u1', name: 'a' } };
-    const out = applyStampEvent(current, { type: 'unpick', user_id: 'u1', name: 'a' });
-    expect(out).toEqual({ u1: { type: 'unpick', user_id: 'u1', name: 'a' } });
+    const current: StampOverlay = { u1: { type: 'pick', user_id: 'u1', name: 'a', at: 0 } };
+    const out = applyStampEvent(current, { type: 'unpick', user_id: 'u1', name: 'a' }, 0);
+    expect(out).toEqual({ u1: { type: 'unpick', user_id: 'u1', name: 'a', at: 0 } });
   });
 
   it('an unpick event for someone with no pending entry is still recorded (so it can suppress a poll stamp)', () => {
-    const current: StampOverlay = { u2: { type: 'pick', user_id: 'u2', name: 'b' } };
-    const out = applyStampEvent(current, { type: 'unpick', user_id: 'u1', name: 'a' });
+    const current: StampOverlay = { u2: { type: 'pick', user_id: 'u2', name: 'b', at: 0 } };
+    const out = applyStampEvent(current, { type: 'unpick', user_id: 'u1', name: 'a' }, 0);
     expect(out).toEqual({
-      u2: { type: 'pick', user_id: 'u2', name: 'b' },
-      u1: { type: 'unpick', user_id: 'u1', name: 'a' },
+      u2: { type: 'pick', user_id: 'u2', name: 'b', at: 0 },
+      u1: { type: 'unpick', user_id: 'u1', name: 'a', at: 0 },
     });
   });
 
@@ -221,5 +221,91 @@ describe('cross-view stamps: scan glance ↔ /table (two-account field test, 202
       display_name: null, handle: 'old', table_item_key: 'menu-3',
     };
     expect(pickMatchesItem(legacyPick, { key: KEY, name: 'Mackerel Set', name_zh: null })).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Field test, 2026-07-30 (owner): "user 1 tap a dish, user 2 see the profile chop
+// almost immediately. But sometimes it would gone disappear in a second. Then after
+// a few seconds, reappear again." Same flicker on fast pick/unpick.
+// ---------------------------------------------------------------------------
+describe('pruneOverlaysBefore — a poll may only clear what it could have seen', () => {
+  const pick = (u: string, at: number) => ({ type: 'pick' as const, user_id: u, name: u, at });
+
+  it('clears an entry older than the poll request (the poll response contains it)', () => {
+    const overlays = { dishA: { u1: pick('u1', 100) } };
+    expect(pruneOverlaysBefore(overlays, 200)).toEqual({});
+  });
+
+  it('KEEPS an entry that arrived while the poll was in flight', () => {
+    // The response was generated at t=200 and cannot describe an event from t=250.
+    // Clearing it is exactly the reported vanish: the chop disappears until the
+    // NEXT poll, ~5s later, finally returns the pick.
+    const overlays = { dishA: { u1: pick('u1', 250) } };
+    expect(pruneOverlaysBefore(overlays, 200)).toEqual(overlays);
+  });
+
+  it('protects a REMOTE broadcast, not just this client\'s own writes', () => {
+    // The bug this replaces: the old in-flight guard was keyed on the local
+    // client's own pending writes, so someone else's pick — the only thing user 2
+    // was looking at — had nothing holding it through an in-flight poll.
+    const overlays = { dishA: { someoneElse: pick('someoneElse', 300) } };
+    expect(pruneOverlaysBefore(overlays, 200)).toEqual(overlays);
+  });
+
+  it('prunes per entry, not per item: one stale user does not evict a fresh one', () => {
+    const overlays = { dishA: { u1: pick('u1', 100), u2: pick('u2', 300) } };
+    expect(pruneOverlaysBefore(overlays, 200)).toEqual({ dishA: { u2: pick('u2', 300) } });
+  });
+
+  it('drops an item key entirely once its last entry is superseded (no empty shells)', () => {
+    const overlays = { dishA: { u1: pick('u1', 100) }, dishB: { u2: pick('u2', 300) } };
+    expect(Object.keys(pruneOverlaysBefore(overlays, 200))).toEqual(['dishB']);
+  });
+
+  it('still lets a stale entry go on the FOLLOWING poll (self-healing preserved)', () => {
+    // The overlay must never become permanent: an unpick broadcast this client
+    // missed has to expire, or the stamp it hides never comes back.
+    const overlays = { dishA: { u1: pick('u1', 250) } };
+    const afterInFlightPoll = pruneOverlaysBefore(overlays, 200);
+    expect(pruneOverlaysBefore(afterInFlightPoll, 400)).toEqual({});
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Field test, 2026-07-30 (owner): "User 1's total dish counter is incorrect.
+// User 2's total dish counter is correct."
+// ---------------------------------------------------------------------------
+describe('countStampedDishes — distinct dishes, not array rows', () => {
+  const stamped = { user_id: 'u1', name: 'a' };
+  const stampsFor = (i: { key: string }) => (i.key === 'picked' ? [stamped] : []);
+
+  it('counts a dish once even when the item list repeats its key', () => {
+    // The scanner's LOCAL list is never deduped, unlike the session's. A menu that
+    // prints one name_original twice gave the scanner two rows sharing a key, and
+    // pickMatchesItem is an exact key comparison — so one pick stamped both rows and
+    // the header counted 2. Real menus do this (sessions J754Z, BPGWZ).
+    const scannerLocal = [{ key: 'picked' }, { key: 'picked' }, { key: 'other' }];
+    expect(countStampedDishes(scannerLocal, stampsFor)).toBe(1);
+    // The naive count this replaces, kept explicit so the regression is legible:
+    expect(scannerLocal.filter(i => stampsFor(i).length > 0).length).toBe(2);
+  });
+
+  it('agrees with the deduped session list for the same picks', () => {
+    // The whole point: both screens must report the same number for one table.
+    const scannerLocal = [{ key: 'picked' }, { key: 'picked' }, { key: 'other' }];
+    const sessionDeduped = [{ key: 'picked' }, { key: 'other' }];
+    expect(countStampedDishes(scannerLocal, stampsFor))
+      .toBe(countStampedDishes(sessionDeduped, stampsFor));
+  });
+
+  it('counts a dish once when several people picked it', () => {
+    const two = (i: { key: string }) =>
+      i.key === 'picked' ? [stamped, { user_id: 'u2', name: 'b' }] : [];
+    expect(countStampedDishes([{ key: 'picked' }], two)).toBe(1);
+  });
+
+  it('is zero when nothing is stamped', () => {
+    expect(countStampedDishes([{ key: 'a' }, { key: 'b' }], () => [])).toBe(0);
   });
 });

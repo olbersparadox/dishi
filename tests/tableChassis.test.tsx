@@ -88,9 +88,18 @@ describe('one engine — both screens mount useTableSession', () => {
     expect(ENGINE_SRC).toMatch(/dish_id: dishId/);
   });
 
-  it('the poll does not clear an overlay entry whose write is still in flight', () => {
-    // Otherwise an optimistic stamp blinks out when a poll lands mid-flight.
-    expect(ENGINE_SRC).toMatch(/inFlightRef/);
+  it('the poll clears the overlay against when the request was ISSUED, not when it landed', () => {
+    // Otherwise a stamp blinks out when a poll lands mid-flight. This started as an
+    // in-flight-keys guard covering only this client's OWN writes; the field test on
+    // 2026-07-30 was watching a REMOTE pick, which that guard never protected. The
+    // timestamp must be taken before the fetch — taking it after would make the
+    // window it protects empty and silently restore the bug.
+    const refresh = ENGINE_SRC.slice(ENGINE_SRC.indexOf('const refresh'));
+    const stampedAt = refresh.indexOf('requestedAt = Date.now()');
+    const fetched = refresh.indexOf('await fetch(');
+    expect(stampedAt).toBeGreaterThan(-1);
+    expect(stampedAt).toBeLessThan(fetched);
+    expect(ENGINE_SRC).toMatch(/pruneOverlaysBefore\(prev, requestedAt\)/);
   });
 });
 

@@ -82,8 +82,12 @@ export type StampEvent = { type: 'pick' | 'unpick'; user_id: string; name: strin
 /** One item's pending realtime events, latest per user_id — not yet confirmed by
  * a poll. This is what makes the overlay bidirectional: a 'pick' entry ADDS a
  * stamp the poll doesn't have yet, an 'unpick' entry SUPPRESSES one the poll still
- * has. */
-export type StampOverlay = Record<string, StampEvent>;
+ * has.
+ *
+ * `at` is when the event was applied locally, and exists solely so a landing poll
+ * can tell which entries it is actually entitled to clear — see
+ * pruneOverlaysBefore. */
+export type StampOverlay = Record<string, StampEvent & { at: number }>;
 
 /** Poll (authoritative once it lands) + overlay (pending local/realtime events the
  * poll hasn't caught up to). An overlay 'unpick' hides a poll stamp for that user
@@ -108,7 +112,65 @@ export function mergeStamps(poll: Stamp[], overlay: StampOverlay): Stamp[] {
  * unpick (or vice versa) supersedes rather than stacking, matching how a real
  * interaction only ever has one pending state per user at a time. Idempotent: the
  * exact same event repeated (e.g. a redelivered broadcast) is a no-op. */
-export function applyStampEvent(current: StampOverlay, event: StampEvent): StampOverlay {
+export function applyStampEvent(
+  current: StampOverlay, event: StampEvent, at: number = Date.now(),
+): StampOverlay {
+  // Deliberately keeps the ORIGINAL `at` on a repeat: the question pruning asks is
+  // "when did this state first become true locally", not "when did we last hear
+  // about it", or a redelivered broadcast could hold an entry alive indefinitely.
   if (current[event.user_id]?.type === event.type) return current;
-  return { ...current, [event.user_id]: event };
+  return { ...current, [event.user_id]: { ...event, at } };
+}
+
+/**
+ * Drop the overlay entries a landed poll has definitively superseded — and ONLY
+ * those.
+ *
+ * The poll is authoritative, but only about events that happened before its request
+ * was ISSUED: the response is a snapshot from that instant. An event applied while
+ * the request was in flight cannot possibly appear in it, so clearing that entry
+ * un-draws a stamp the server was never asked about.
+ *
+ * Found live (owner, 2026-07-30): a remote pick appeared on the other screen almost
+ * instantly, vanished about a second later, then reappeared a few seconds after
+ * that. The vanish was an in-flight poll landing and clearing the broadcast that
+ * had arrived after it was issued; the reappearance was the NEXT poll, now genuinely
+ * including the pick. Rapid pick/unpick showed the same flicker for the same reason.
+ *
+ * This replaces an earlier in-flight-keys guard that only ever protected the local
+ * client's OWN writes — remote broadcasts, which is what the field test was
+ * actually looking at, had nothing holding them.
+ */
+export function pruneOverlaysBefore(
+  overlays: Record<string, StampOverlay>, requestedAt: number,
+): Record<string, StampOverlay> {
+  const out: Record<string, StampOverlay> = {};
+  for (const [itemKey, overlay] of Object.entries(overlays)) {
+    const kept: StampOverlay = {};
+    for (const [userId, entry] of Object.entries(overlay)) {
+      if (entry.at >= requestedAt) kept[userId] = entry;
+    }
+    if (Object.keys(kept).length > 0) out[itemKey] = kept;
+  }
+  return out;
+}
+
+/**
+ * How many DISTINCT dishes have at least one stamp.
+ *
+ * Counts distinct KEYS, not array entries. The session's item list is deduped when
+ * it's written, but a scanner's LOCAL scan result never is — so a menu that prints
+ * the same name_original twice leaves the scanner holding two rows sharing one key,
+ * and because pickMatchesItem is an exact key comparison, a single pick stamps BOTH.
+ * The scanner's header then counted one dish twice while every joiner's header
+ * agreed with the DB (owner, 2026-07-30: "user 1's total dish counter is incorrect,
+ * user 2's is correct"). Real menus do this — sessions J754Z and BPGWZ each carried
+ * a duplicate key through.
+ */
+export function countStampedDishes<T extends { key: string }>(
+  items: T[], stampsOf: (item: T) => Stamp[],
+): number {
+  const keys = new Set<string>();
+  for (const item of items) if (stampsOf(item).length > 0) keys.add(item.key);
+  return keys.size;
 }
