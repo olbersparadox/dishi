@@ -81,11 +81,17 @@ describe('one engine — both screens mount useTableSession', () => {
     expect(pickBody).toMatch(/type: 'unpick'/);
   });
 
-  it('a tap during an in-flight write is queued, never dropped', () => {
+  it('a tap during an in-flight write is queued, never dropped — and flips the stamp NOW', () => {
     // Returning early left the dish in the state the user had just asked it to leave,
     // with no feedback — "needs to wait if you want to unpick it" (owner, 2026-07-30).
     const toggle = ENGINE_SRC.slice(ENGINE_SRC.indexOf('const toggle'));
-    expect(toggle).toMatch(/desiredRef\.current\.set\(item\.key, !isPicked\(item\)\)/);
+    expect(toggle).toMatch(/desiredRef\.current\.set\(item\.key, want\)/);
+    // The queued branch must apply + broadcast the flip at TAP time. Queueing only
+    // the write left the chop up until the pick's round trip settled — the residual
+    // "still a bit lag" on unpick after the DELETE itself stopped blocking.
+    const queued = toggle.slice(0, toggle.indexOf('desiredRef.current.set'));
+    expect(queued).toMatch(/applyLocalStampEvent\(item\.key, ev\)/);
+    expect(queued).toMatch(/broadcastStamp\(item\.key, ev\)/);
     // A pick must honour a queued unpick when it settles. (There is no converse:
     // un-picking no longer blocks, so nothing can queue behind it.)
     expect(ENGINE_SRC).toMatch(/desiredRef\.current\.get\(item\.key\) === false/);
@@ -184,5 +190,35 @@ describe('one stamp row — case 3, the "just a line under chips" report', () =>
 
   it('keys each chop by item+user so its pop-in plays once, not on every re-render', () => {
     expect(ROW_SRC).toMatch(/key=\{`\$\{itemKey\}:\$\{s\.user_id\}`\}/);
+  });
+});
+
+describe('one cart bar — table-wide, same number on every screen', () => {
+  // Owner ruling, 2026-07-30 (after two rounds of "counter out of sync" reports):
+  // a counter on a SHARED surface must show the same number on every member's
+  // screen. The first unification made the bar my-picks-only on both screens, and
+  // a cross-device disagreement — however intentional — reads as a sync bug.
+
+  it('both screens mount PickedCartBar; neither keeps a lookalike cart bar', () => {
+    expect(SCAN_SRC).toMatch(/<PickedCartBar/);
+    expect(TABLE_SRC).toMatch(/<PickedCartBar/);
+    // The old inline copies were a div styled as .cart-btn with pointerEvents off.
+    for (const src of [SCAN_SRC, TABLE_SRC]) {
+      expect(src).not.toMatch(/className="btn primary cart-btn"/);
+      expect(src).not.toMatch(/pointerEvents: 'none'/);
+    }
+  });
+
+  it('both feed it the TABLE\'s picks, never an isPicked (mine-only) list', () => {
+    const scanBar = SCAN_SRC.match(/<PickedCartBar[^/]*\/>/)?.[0] ?? '';
+    const tableBar = TABLE_SRC.match(/<PickedCartBar[^/]*\/>/)?.[0] ?? '';
+    // Mine-only is exactly the regression this pins against: it looked like the
+    // fix and re-created the desync one report later.
+    expect(scanBar).not.toMatch(/isPicked/);
+    expect(tableBar).not.toMatch(/isPicked/);
+    // Stamped-by-anyone is the table-wide test both screens' lists go through.
+    expect(scanBar).toMatch(/stampsOf\(i\)\.length > 0/);
+    expect(tableBar).toMatch(/anyPickedItems/);
+    expect(TABLE_SRC).toMatch(/anyPickedItems = state\.items\.filter\(it => \(stampsByKey\.get\(it\.key\) \?\? \[\]\)\.length > 0\)/);
   });
 });

@@ -467,12 +467,10 @@ function Session({ code, onLeave }: { code: string; onLeave: () => void }) {
         })}
       </div>
 
-      {/* My picks this session, and the way on to rating them. The SAME component
-          /scan mounts: this used to count the whole table's picks while scan's
-          look-alike counted only your own, which is why one table showed two
-          different numbers (owner, 2026-07-30). The table-wide count lives in
-          TableBar above. */}
-      <PickedCartBar picked={state.items.filter(it => isPicked(it))} />
+      {/* The table's picks + running bill — the SAME component /scan mounts, fed
+          the same table-wide list, so every member's bar shows one number (owner
+          ruling, 2026-07-30 — see PickedCartBar's header). */}
+      <PickedCartBar picked={anyPickedItems} />
     </div>
   );
 }

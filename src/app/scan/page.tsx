@@ -1007,10 +1007,11 @@ function Scanner() {
         {t('scan.logged')}
       </p>
 
-      {/* My picks this session, and the way on to rating them. Shared with
-          /table (PickedCartBar) — the two screens' own copies had drifted into
-          counting different things. */}
-      <PickedCartBar picked={displayItems.filter(i => isPicked(i))} />
+      {/* The table's picks + running bill — the SAME component /table mounts, fed
+          the same table-wide list, so every member's bar shows one number (owner
+          ruling, 2026-07-30 — see PickedCartBar's header). stampable() supplies the
+          key; the bar dedupes repeated keys itself (this list is never deduped). */}
+      <PickedCartBar picked={displayItems.filter(i => stampsOf(i).length > 0).map(i => ({ ...stampable(i), price: i.price }))} />
     </div>
   );
 }

@@ -303,12 +303,23 @@ export function useTableSession(code: string | null) {
   /** Toggle — "picked" is always derived from whether MY stamp is present, never a
    * separate local flag that could disagree with the chop everyone sees. */
   const toggle = (item: StampableItem, extras?: Parameters<typeof pick>[1]) => {
+    const s = state;
+    if (!s) return;
     // Only THIS dish's own write blocks it — see busyKeys. And it QUEUES rather than
     // drops: un-picking within the pick's own round trip used to do nothing at all,
     // so the dish stayed picked and you had to wait and tap again (owner, 2026-07-30:
     // "picking a dish is quick, but needs to wait if you want to unpick it").
     if (busyRef.current.has(item.key)) {
-      desiredRef.current.set(item.key, !isPicked(item));
+      // The WRITE has to wait (an unpick can't run before the pick returns the dish
+      // id it deletes) — the VISUAL must not. Queueing without flipping the stamp
+      // left the chop up until the pick's round trip settled, which read as unpick
+      // lag even after the unpick itself stopped blocking (owner, 2026-07-30:
+      // "still a bit lag"). Flip it now, everywhere; the queued write catches up.
+      const want = !isPicked(item);
+      const ev: StampEvent = { type: want ? 'pick' : 'unpick', user_id: s.you, name: myName(s) };
+      applyLocalStampEvent(item.key, ev);
+      broadcastStamp(item.key, ev);
+      desiredRef.current.set(item.key, want);
       return;
     }
     if (isPicked(item)) unpick(item); else pick(item, extras);

@@ -4583,3 +4583,34 @@ surface only, rendered against the real `globals.css` in a throwaway harness (fo
 states: resolved, unset, read-only QR, long name). The underline was `--line` at
 first and invisible against `--paper-inset`, which made 餐廳未定 read as inert
 text — now `--ink-faint`. **The two-account run itself still needs the owner.**
+
+---
+
+# Amendment: shared-surface counters (owner ruling, 2026-07-30 evening)
+
+Follow-up to "the scanner was on a lookalike". After the cart bars were unified
+onto one component counting MY OWN picks (reasoned from "the bar is the door to
+the rating queue, you rate what you ordered"), the owner immediately reported the
+cross-device disagreement as the same sync bug a third time ("user 1's counter
+doesn't count user 2").
+
+**The rule that settles it: a counter on a SHARED surface must show the same
+number on every member's screen.** A deliberate per-viewer number is
+indistinguishable from broken sync to the people at the table, however defensible
+its semantics. Per-viewer information belongs on per-viewer surfaces (the rating
+queue, the filled-card highlight on your own rows — that one stays mine-only
+because it marks rows, not a total).
+
+PickedCartBar therefore counts the whole table's picks and totals the table's
+running bill, agreeing with TableBar's 已選 N 道 by construction. Pinned in
+tests/tableChassis.test.tsx ("one cart bar — table-wide"), which asserts neither
+screen feeds it an isPicked list — that WAS the fix once, and it re-created the
+desync one report later.
+
+Also in this round: un-picking stopped blocking on DELETE /api/my/dishes (the
+journal's trash endpoint — lock check, rating count, points detach, delete,
+possible profile replay — right for the journal, too slow to hold a chop behind),
+which required splitting overlay-protection (every write, whole duration) from
+tap-blocking (only writes worth serialising); and a tap queued behind an in-flight
+write now flips the stamp AT TAP TIME, everywhere, with only the write waiting —
+queueing the visual along with the write was the residual "still a bit lag".
