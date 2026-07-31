@@ -918,10 +918,13 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
    pointer-events:none because it is a statement, not a control: it must never
    swallow a tap meant for whatever is underneath while it fades. */
 .toast-pill {
-  background: var(--glaze); color: var(--ink);
+  background: var(--glaze); color: var(--ink-soft);
   border: 1px solid var(--line); border-radius: 14px;
   box-shadow: 0 12px 32px rgba(20, 16, 12, 0.16);
-  font-size: var(--fs-caption); font-weight: var(--fw-btn);
+  /* Typography copied from .notif-empty, deliberately: caption size, --ink-soft,
+     and NO font-weight so it inherits normal. --fw-btn (650) made it the boldest
+     text on the screen for the quietest message on it (owner, 2026-07-31). */
+  font-size: var(--fs-caption);
   padding: 12px 16px; max-width: 100%; text-align: center;
   animation: duel-pop 200ms ease;
 }
@@ -930,16 +933,22 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 }
 
 /* ANCHORED: drops directly under whatever was tapped, the way .notif-list drops
-   under the bell — "at that area", where the eye already is. Needs a positioned,
-   transform-free ancestor; .table-bar-left is exactly that (position:relative,
-   and a transform anywhere up the tree would silently trap it — see MyDishes'
-   own note on that biting .row-menu-backdrop). */
+   under the bell — "at that area", where the eye already is. The 8px gap is
+   .notif-list's own.
+   Only needs a POSITIONED ancestor (position:relative), not a transform-free one:
+   absolute positioning resolves against the nearest positioned box, so unlike
+   position:fixed it is immune to the containing-block trap MyDishes documents on
+   .rated-dish-row's entrance animation. That is what lets this hang off a journal
+   row at all. */
 .toast-anchored {
-  position: absolute; top: calc(100% + 8px); left: 0;
+  position: absolute; top: calc(100% + 8px);
   z-index: 56; /* .notif-list's own layer: same kind of thing, same stacking */
-  display: flex; justify-content: flex-start;
-  pointer-events: none; white-space: nowrap;
+  display: flex; pointer-events: none; white-space: nowrap;
 }
+/* Which edge it hangs from — the side the trigger itself sits on, so the panel
+   grows INTO the screen rather than off it. */
+.toast-anchor-left { left: 0; justify-content: flex-start; }
+.toast-anchor-right { right: 0; justify-content: flex-end; }
 
 /* FLOATING: for surfaces with no single trigger to hang off (a journal row's
    kebab, a feed card) — bottom-anchored, clearing the cart bar whose top edge
@@ -2032,7 +2041,12 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 .row-menu button {
   display: flex; align-items: center; gap: 10px; width: 100%;
   padding: 11px 14px; background: none; border: none; text-align: left;
-  font-size: var(--fs-caption); color: var(--ink-soft); font-weight: 500;
+  /* No font-weight: this is the same KIND of thing as a notification row, and
+     .notif-item sets none either — it inherits the body's normal weight. The 500
+     here read heavier than the notification list beside it (owner, 2026-07-31).
+     Family/size come from the global `button { font: inherit }` at the top of
+     this file, so nothing needs restating. */
+  font-size: var(--fs-caption); color: var(--ink-soft);
 }
 .row-menu button:hover, .row-menu button:focus-visible { background: var(--paper-inset); }
 /* Kebab menu button, pinned to the row's top-right (own flex child). */

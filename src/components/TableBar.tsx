@@ -59,7 +59,7 @@ export default function TableBar({ code, memberCount, pickCount, onInvite, resta
         {/* Inside .table-bar-left (position:relative, no transform) so it drops
             directly under the code — the notification panel's own behaviour,
             where the eye already is. */}
-        <Toast message={toast.message} onDone={toast.onDone} anchored />
+        <Toast message={toast.message} onDone={toast.onDone} anchor="left" />
       </span>
       <button className="table-invite-btn" onClick={onInvite} aria-label={t('table.invite')} title={t('table.invite')}>
         <InviteIcon size={20} />

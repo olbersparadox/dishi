@@ -142,7 +142,12 @@ export default function MyDishes({ t, lang, onPublished }: {
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   // The share confirmation — the same pill the table bar shows, replacing the
   // window.alert this used to raise for a link that was already on the clipboard.
+  // It hangs off the ROW that was shared (owner, 2026-07-31: sharing row 1 must
+  // not confirm at the bottom of the screen), so the pill needs to know which one
+  // — a list-level message with no row identity can only float.
   const toast = useToast();
+  const [toastDishId, setToastDishId] = useState<string | null>(null);
+  const dismissToast = useCallback(() => { toast.onDone(); setToastDishId(null); }, [toast]);
   // Which dish's 貼文 sheet is open. Publishing is a deliberate, separate act —
   // never a side effect of rating or editing. The sheet only ever serves the
   // publish act now — Share (owner call: simplified) no longer opens it.
@@ -177,7 +182,10 @@ export default function MyDishes({ t, lang, onPublished }: {
   async function sendDishLink(dishId: string) {
     const url = await resolveDishUrl(dishId);
     if (!url) { setShareNeedsName(true); return; }
-    if (await shareLink({ title: t('post.share.title'), url }) === 'copied') toast.show(t('share.linkcopied'));
+    if (await shareLink({ title: t('post.share.title'), url }) === 'copied') {
+      setToastDishId(dishId);
+      toast.show(t('share.linkcopied'));
+    }
   }
 
   /** The kebab's "分享" — simplified (owner call): no consent card, no
@@ -761,6 +769,12 @@ export default function MyDishes({ t, lang, onPublished }: {
                   aria-label={t('home.more')} title={t('home.more')} aria-haspopup="menu" aria-expanded={menuOpenId === d.id}>
                   <MoreIcon size={20} />
                 </button>
+                {/* Hangs under THIS row's kebab — .dish-actions is position:relative,
+                    and anchoring right keeps it growing into the screen rather than
+                    off the edge, the same way .row-menu itself hangs. */}
+                {toastDishId === d.id && (
+                  <Toast message={toast.message} onDone={dismissToast} anchor="right" />
+                )}
                 {menuOpenId === d.id && (
                   <>
                     <div className="row-menu-backdrop" onClick={() => setMenuOpenId(null)} aria-hidden />
@@ -807,7 +821,8 @@ export default function MyDishes({ t, lang, onPublished }: {
       })}
       <div ref={sentinelRef} style={{ height: 1 }} aria-hidden />
       {loadingMore && <p className="card-meta" style={{ textAlign: 'center', padding: '8px 0' }}>{t('home.loadingmore')}</p>}
-      <Toast message={toast.message} onDone={toast.onDone} />
+      {/* No list-level Toast: it lives on the shared ROW now (see .dish-actions).
+          Leaving one here too would render two pills for one share. */}
     </>
   );
 }

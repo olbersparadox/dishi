@@ -16,7 +16,7 @@ afterEach(cleanup);
 
 const read = (p: string) => readFileSync(path.resolve(__dirname, p), 'utf8');
 /** Every surface that confirms a copy. */
-const SURFACES = {
+const SURFACES: Record<string, string> = {
   'TableBar.tsx': read('../src/components/TableBar.tsx'),
   'MyDishes.tsx': read('../src/components/MyDishes.tsx'),
   'FeedCard.tsx': read('../src/components/FeedCard.tsx'),
@@ -28,20 +28,27 @@ describe('one confirmation pill, mounted by every surface', () => {
   it('every copy-confirming surface imports and mounts the shared Toast', () => {
     for (const [name, src] of Object.entries(SURFACES)) {
       expect(src, name).toMatch(/import Toast, \{ useToast \} from '@\/components\/Toast'/);
-      expect(src, name).toMatch(/<Toast message=\{toast\.message\} onDone=\{toast\.onDone\}/);
+      // onDone may be composed (the journal also clears which row it belongs to),
+      // so assert the mount and the shared message source, not one exact spelling.
+      expect(src, name).toMatch(/<Toast message=\{toast\.message\} onDone=\{/);
     }
   });
 
-  it('anchors under the trigger where there IS one, floats where there is not', () => {
-    // The table code is a single fixed trigger, so its confirmation drops right
-    // under it (the notification panel's behaviour, owner call 2026-07-31). A
-    // journal row's kebab is not: anchoring to a row that may be mid-scroll,
-    // inside an ancestor carrying an entrance animation, is how a panel gets
-    // clipped to a containing block nobody meant to create.
-    expect(SURFACES['TableBar.tsx']).toMatch(/<Toast [^>]*anchored/);
-    for (const name of ['MyDishes.tsx', 'FeedCard.tsx', 'scan/page.tsx', 'table/page.tsx']) {
-      expect(SURFACES[name], name).not.toMatch(/<Toast [^>]*anchored/);
-    }
+  it('anchors to the trigger, on the edge the trigger sits on', () => {
+    // Owner, 2026-07-31: sharing the FIRST row must not confirm at the bottom of
+    // the screen. Anchoring is per-trigger, and the edge matters — the panel has
+    // to grow into the screen, not off it.
+    expect(SURFACES['TableBar.tsx']).toMatch(/<Toast [^>]*anchor="left"/);
+    expect(SURFACES['MyDishes.tsx']).toMatch(/<Toast [^>]*anchor="right"/);
+  });
+
+  it('the journal pill belongs to ONE row, and only that row', () => {
+    // Guards two regressions: a list-level pill (confirming row 1's share at the
+    // bottom of the screen), and BOTH mounts existing at once — which would show
+    // two pills for one share.
+    const src = SURFACES['MyDishes.tsx'];
+    expect(src).toMatch(/toastDishId === d\.id && \(\s*<Toast/);
+    expect(src.match(/<Toast/g) ?? []).toHaveLength(1);
   });
 
   it('NOTHING confirms a copy with alert() any more', () => {

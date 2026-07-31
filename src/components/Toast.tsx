@@ -26,23 +26,27 @@ export function useToast() {
   return { message, onDone, show: setMessage };
 }
 
-export default function Toast({ message, onDone, ms = DEFAULT_MS, anchored = false }: {
+export default function Toast({ message, onDone, ms = DEFAULT_MS, anchor }: {
   /** The line to show. Null renders nothing — the caller's state IS the trigger. */
   message: string | null;
   onDone: () => void;
   ms?: number;
   /**
-   * Drop it under the thing that was tapped (like the notification panel under
-   * the bell) instead of floating at the bottom of the screen. Requires a
-   * positioned, TRANSFORM-FREE ancestor to hang off.
+   * Drop it under the thing that was tapped — like the notification panel under
+   * the bell — instead of floating at the bottom of the screen. The value is the
+   * EDGE it hangs from, which should be the edge the trigger sits on so the panel
+   * grows into the screen: 'left' for the table code, 'right' for a journal row's
+   * kebab.
    *
-   * Anchored is the better read wherever there is one obvious trigger — the
-   * message appears where the eye already is. Surfaces where the trigger is a
-   * per-row kebab (the journal, a feed card) stay floating: anchoring to a row
-   * that may be mid-scroll, inside an ancestor carrying an entrance animation,
-   * is how a panel ends up clipped to a containing block nobody meant to create.
+   * Anchoring is the better read wherever a trigger has a location at all: a
+   * confirmation for the FIRST row of a list has no business appearing at the
+   * bottom of the screen (owner, 2026-07-31). Needs only a position:relative
+   * ancestor — absolute resolves against the nearest positioned box, so this is
+   * immune to the transform/containing-block trap that would bite position:fixed.
+   *
+   * Omit it only where the trigger genuinely has no anchor to speak of.
    */
-  anchored?: boolean;
+  anchor?: 'left' | 'right';
 }) {
   // onDone via ref, not in the dep array: callers pass a fresh closure on most
   // renders, and depending on it would restart the timer mid-life so a toast
@@ -59,8 +63,10 @@ export default function Toast({ message, onDone, ms = DEFAULT_MS, anchored = fal
   // role=status + aria-live=polite: announced to a screen reader without
   // stealing focus, which is the accessible shape of "said, not asked".
   return (
-    <div className={`toast ${anchored ? 'toast-anchored' : 'toast-floating'}`}
-      role="status" aria-live="polite">
+    <div
+      className={`toast ${anchor ? `toast-anchored toast-anchor-${anchor}` : 'toast-floating'}`}
+      role="status" aria-live="polite"
+    >
       <span className="toast-pill">{message}</span>
     </div>
   );
