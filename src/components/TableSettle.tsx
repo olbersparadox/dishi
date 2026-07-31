@@ -156,18 +156,29 @@ export default function TableSettle({
       {/* The draw's answer, under the chops it just travelled (owner, 2026-07-31).
           Held back while the ring is still moving — printing the name mid-spin
           would answer the question the spin is in the middle of asking. The remark
-          below it only starts from the second draw; see revealRemarkKey. */}
-      {!playing && payMethod === 'random' && payer && !spinUserId && (
-        <>
-          <p className="settle-verdict settle-verdict-tight">
-            {payer.user_id === you
-              ? t('table.settle.payeryou')
-              : t('table.settle.payer', { name: payer.display_name ?? payer.handle })}
-          </p>
-          {revealRemarkKey(payDrawCount) && (
-            <p className="settle-remark">{t(revealRemarkKey(payDrawCount)!)}</p>
+          below it only starts from the second draw; see revealRemarkKey.
+
+          The slot is ALWAYS here while the three ways are on screen, empty or not,
+          and it is sized to sit inside the gap that was already above 邊個埋單 —
+          so the question and its three buttons hold their position whatever this
+          says (owner, 2026-07-31). Otherwise they were shoved down once when the
+          ring stopped and again when the remark joined it. Same reasoning as the
+          blank line reserved under every chop above. */}
+      {!playing && (
+        <div className="settle-reveal">
+          {payMethod === 'random' && payer && !spinUserId && (
+            <>
+              <p className="settle-verdict settle-reveal-name">
+                {payer.user_id === you
+                  ? t('table.settle.payeryou')
+                  : t('table.settle.payer', { name: payer.display_name ?? payer.handle })}
+              </p>
+              {revealRemarkKey(payDrawCount) && (
+                <p className="settle-remark">{t(revealRemarkKey(payDrawCount)!)}</p>
+              )}
+            </>
           )}
-        </>
+        </div>
       )}
 
       {playing && game && (

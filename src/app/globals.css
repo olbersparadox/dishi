@@ -1765,9 +1765,12 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 }
 /* It is the question the whole screen exists to ask, so it sits at subtitle
    size over the circles rather than as a caption above buttons. */
+/* Separates this line from the reveal slot above it. The slot holds its own height,
+   so this margin is the only thing between the remark and the question — and it is
+   what stops the two reading as one stacked block. */
 .settle-how {
   font-family: var(--font-display); font-size: var(--fs-subtitle-a); font-weight: 500;
-  letter-spacing: 0.06em; color: var(--ink); text-align: center; margin: 50px 0 16px;
+  letter-spacing: 0.06em; color: var(--ink); text-align: center; margin: 24px 0 16px;
 }
 .settle-methods { display: flex; justify-content: center; gap: 28px; }
 .settle-method-wrap { display: flex; flex-direction: column; align-items: center; gap: 6px; }
@@ -1797,15 +1800,37 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
   font-family: var(--font-display); font-size: var(--fs-title-a); font-weight: 700;
   color: var(--ink); text-align: center; margin: 24px 0 0;
 }
-/* 隨機一人's answer sits directly under the chop the ring stopped on, so it needs
-   less air above it than the game's verdict (which follows a whole reveal grid). */
-.settle-verdict-tight { margin-top: 14px; }
-/* The aside to a table that keeps re-drawing. Caption weight on purpose: it is a
-   remark ABOUT the answer, and matching the answer's size would make the joke
-   compete with the fact. */
+/* A reserved slot for 隨機一人's answer, held open whether or not there is one, so
+   邊個埋單 and its three circles never move (owner, 2026-07-31). Its height plus
+   the trimmed margins below reproduce the ~50px of air that was already sitting
+   here, which is why the empty state looks unchanged: the reveal now lives in that
+   gap instead of being inserted above it.
+   min-height, not height: a long name that wraps to two lines should overflow
+   downward rather than be clipped, since that is rare and losing a person's name is
+   worse than a one-off nudge.
+   The negative top margin cancels the roster's own 13px bottom margin, so the slot
+   starts right under the chops the ring travelled. Done here rather than by trimming
+   .settle-chops because the game screen also follows those chops and must keep its
+   spacing untouched.
+   The slot is a little TALLER than the old 50px gap, which moves 邊個埋單 down once
+   and then never again. Reserving only the old gap did hold everything still, but it
+   left the answer, its remark and the question stacked with no air between them,
+   reading as one block. Line heights are pinned so the reserved height is a fact
+   rather than a guess about the font. */
+.settle-reveal {
+  margin-top: -13px; min-height: 44px; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 2px;
+}
+/* Two steps down from the game's verdict (23px -> 20px): it has to share a slot
+   with the remark under it, and it is answering a question that is still on screen
+   two lines below rather than closing out a whole reveal. */
+.settle-reveal-name { font-size: var(--fs-subtitle-b); line-height: 1.2; margin: 0; }
+/* The aside to a table that keeps re-drawing. Deliberately the smallest step on
+   the scale: it is a remark ABOUT the answer, and any larger and the joke competes
+   with the fact directly above it. */
 .settle-remark {
-  font-size: var(--fs-caption); color: var(--ink-soft);
-  text-align: center; margin: 5px 0 0;
+  font-size: var(--fs-micro); line-height: 1.3; color: var(--ink-soft);
+  text-align: center; margin: 0;
 }
 
 /* --- 大話骰: the game, inside the bill's own chassis --- */
