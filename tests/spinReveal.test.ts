@@ -226,6 +226,28 @@ describe('wiring', () => {
     expect(ENGINE).toMatch(/Date\.now\(\) - since < WRITE_GUARD_MS/);
   });
 
+  it('the per-head figure can be styled without losing the rest of the sentence', () => {
+    // The equal-split line prints its amount in the MENU's price face, which means
+    // splitting the translated sentence around the placeholder. Two ways that goes
+    // wrong silently, both pinned here:
+    const dict = read('../src/lib/i18n-dict.ts');
+    const entry = dict.slice(dict.indexOf("'table.settle.eachhead':")).split('\n')[0];
+    //   1. a language whose copy drops {amount} splits into one piece, and the
+    //      figure disappears from that language only.
+    expect((entry.match(/\{amount\}/g) ?? []).length, entry).toBe(2); // zh + en
+    //   2. splitting on a space would truncate the zh line, which has spaces of its
+    //      own around the placeholder (位位 {amount} 加一未計).
+    expect(SETTLE).toMatch(/const SLOT = '\\u0000'/);
+    expect(SETTLE).not.toMatch(/eachhead', \{ amount: ' ' \}/);
+  });
+
+  it('the figure reuses the menu price face rather than restating its font', () => {
+    expect(SETTLE).toMatch(/<span className="dish-price">\{amount\}<\/span>/);
+    // A second copy of the font stack here is the drift CLAUDE.md's reuse rule exists
+    // to stop — .dish-price owns what a price looks like.
+    expect(SETTLE).not.toMatch(/system-ui/);
+  });
+
   it('neither settle write awaits a refresh — that was the ~2s of dead air', () => {
     // Both endpoints already answer with everything the screen needs, so a
     // trailing full-session fetch only delays the tap landing.
