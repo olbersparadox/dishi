@@ -451,20 +451,26 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'table.settle.game': { zh: '大話骰', en: 'Liar’s dice' },
   'table.settle.payer': { zh: '{name} 付這一餐', en: '{name} pays' },
   'table.settle.payeryou': { zh: '你付這一餐', en: 'You pay' },
-  // 隨機一人 is re-rollable (owner, 2026-07-31), so the screen starts commenting on
-  // a table that keeps drawing. Remarks only — the payer line above them says who
-  // pays, which is why none of these carry a name or need a you-form. The first
-  // draw gets none of them: it is the ceremony.
+  // 隨機一人's reveal, one line per draw, written by the owner 2026-08-01. The draw
+  // is re-rollable, so the ladder is the screen's patience running out: it thanks
+  // the payer, announces them, then starts needling, then offers to pay itself, and
+  // finally gives up and tells the table to take all night.
+  //
+  // {name} is always the profile name — no you-form, by design, so one key serves
+  // whoever is looking. Rungs 6 and 7 deliberately carry NO name: they are the app
+  // talking about itself and to the table, not announcing a payer. Anything that
+  // "fixes" that by adding {name} back breaks the joke.
   //
   // Deliberately Cantonese against the 書面化 register shift, on the same grounds
-  // as the flick verdicts: these are the app's voice having a laugh, and 書面語
+  // as the flick verdicts: this is the app's voice having a laugh, and 書面語
   // teasing reads as a memo. Sits alongside 等埋其他人 as a kept exception.
-  'table.settle.remark2': { zh: '再抽一次', en: 'Drawn again' },
-  'table.settle.remark3': { zh: '第三次了', en: 'Third time lucky?' },
-  'table.settle.remark4': { zh: '唔服氣呀', en: 'Still not happy?' },
-  'table.settle.remark5': { zh: '玩唔停手', en: 'Cannot stop, can you?' },
-  'table.settle.remark6': { zh: '夠了啦', en: 'Enough already' },
-  'table.settle.remark7': { zh: '隨你抽到幾時', en: 'Draw all night if you like' },
+  'table.settle.draw1': { zh: '多謝 {name}', en: 'Thank You {name}' },
+  'table.settle.draw2': { zh: '今次 {name} 請', en: '{name} is getting this round' },
+  'table.settle.draw3': { zh: '請食飯嘅係...... {name}!', en: '{name} is going to pay the bill!' },
+  'table.settle.draw4': { zh: '仲嚟? {name} 囉', en: 'Again? {name} shall pay' },
+  'table.settle.draw5': { zh: '不如算吧啦 {name} 請唔請呀', en: 'Just let it be... {name}?' },
+  'table.settle.draw6': { zh: '不如我請啦....', en: 'Maybe I should pay to end this' },
+  'table.settle.draw7': { zh: '收舖未啊? 你地慢慢', en: 'Closing yet? Feel free to do this all night' },
   'table.settle.torate': { zh: '去評分', en: 'Rate what you ate' },
 
   // ---- 大話骰 ----

@@ -3,7 +3,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { buildSpin, spinIndexAt, revealRemarkKey, SPIN_MS } from '../src/lib/spinReveal';
+import { buildSpin, spinIndexAt, revealLineKey, SPIN_MS } from '../src/lib/spinReveal';
 import { drawPayer } from '../src/lib/tableSettle';
 
 const read = (p: string) => readFileSync(path.resolve(__dirname, p), 'utf8');
@@ -115,29 +115,63 @@ describe('the re-roll, and the remarks that ride on it', () => {
     expect(shapes.size).toBe(8);
   });
 
-  it('the first draw is ceremony: no remark', () => {
-    expect(revealRemarkKey(1)).toBeNull();
-    expect(revealRemarkKey(0)).toBeNull();
-  });
-
-  it('remarks start on the second draw and escalate', () => {
-    expect(revealRemarkKey(2)).toBe('table.settle.remark2');
-    expect(revealRemarkKey(5)).toBe('table.settle.remark5');
+  it('every draw has a line of its own, the first one included', () => {
+    // Owner rewrite 2026-08-01: one line per draw, so draw 1 is a rung like any
+    // other rather than a plain announcement with nothing under it.
+    expect(revealLineKey(1)).toBe('table.settle.draw1');
+    expect(revealLineKey(2)).toBe('table.settle.draw2');
+    expect(revealLineKey(5)).toBe('table.settle.draw5');
   });
 
   it('holds on the last rung forever rather than running dry', () => {
-    expect(revealRemarkKey(7)).toBe('table.settle.remark7');
-    expect(revealRemarkKey(40)).toBe('table.settle.remark7');
+    expect(revealLineKey(7)).toBe('table.settle.draw7');
+    expect(revealLineKey(40)).toBe('table.settle.draw7');
   });
 
-  it('every remark it can name actually exists, in both languages', () => {
+  it('never returns a rung below the first, whatever the count says', () => {
+    // A count of 0 reaches here on the render between the tap and the write.
+    expect(revealLineKey(0)).toBe('table.settle.draw1');
+    expect(revealLineKey(-3)).toBe('table.settle.draw1');
+  });
+
+  it('every line it can name actually exists, in both languages', () => {
     // A missing key renders the key itself on a real screen, which is the kind of
     // thing that only shows up on the sixth tap in a restaurant.
     const dict = read('../src/lib/i18n-dict.ts');
-    for (let n = 2; n <= 40; n++) {
-      const key = revealRemarkKey(n)!;
+    for (let n = 1; n <= 40; n++) {
+      const key = revealLineKey(n);
       expect(dict, `${key} (draw ${n})`).toContain(`'${key}':`);
     }
+  });
+
+  it('the late rungs name nobody, which is the joke', () => {
+    // 不如我請啦 is the screen offering to pay and 收舖未啊? 你地慢慢 is it addressing
+    // the table. A {name} slot creeping back into either turns them into ordinary
+    // payer announcements.
+    const dict = read('../src/lib/i18n-dict.ts');
+    for (const key of ['table.settle.draw6', 'table.settle.draw7']) {
+      const line = dict.slice(dict.indexOf(`'${key}':`)).split('\n')[0];
+      expect(line, key).not.toContain('{name}');
+    }
+    // And the early ones DO name someone — that is what they are for.
+    for (const key of ['table.settle.draw1', 'table.settle.draw5']) {
+      const line = dict.slice(dict.indexOf(`'${key}':`)).split('\n')[0];
+      expect(line, key).toContain('{name}');
+    }
+  });
+
+  it('the reveal is one line, not a line plus a remark under it', () => {
+    // The two-element layout could not express a rung that names nobody.
+    const settle = read('../src/components/TableSettle.tsx');
+    expect(settle).not.toMatch(/settle-remark/);
+    expect(read('../src/app/globals.css')).not.toMatch(/\.settle-remark/);
+  });
+
+  it('the reveal never uses a you-form — one key serves whoever is looking', () => {
+    const settle = read('../src/components/TableSettle.tsx');
+    const reveal = settle.slice(settle.indexOf('className="settle-reveal"'));
+    const upToMethods = reveal.slice(0, reveal.indexOf('settle-how'));
+    expect(upToMethods).not.toMatch(/payeryou/);
   });
 });
 

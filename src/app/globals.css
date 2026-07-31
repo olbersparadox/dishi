@@ -1781,7 +1781,7 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
    what stops the two reading as one stacked block. */
 .settle-how {
   font-family: var(--font-display); font-size: var(--fs-subtitle-a); font-weight: 500;
-  letter-spacing: 0.06em; color: var(--ink); text-align: center; margin: 24px 0 16px;
+  letter-spacing: 0.06em; color: var(--ink); text-align: center; margin: 20px 0 16px;
 }
 .settle-methods { display: flex; justify-content: center; gap: 28px; }
 .settle-method-wrap { display: flex; flex-direction: column; align-items: center; gap: 6px; }
@@ -1829,19 +1829,16 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
    reading as one block. Line heights are pinned so the reserved height is a fact
    rather than a guess about the font. */
 .settle-reveal {
-  margin-top: -13px; min-height: 44px; display: flex; flex-direction: column;
-  align-items: center; justify-content: center; gap: 2px;
+  margin-top: -13px; min-height: 48px; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
 }
-/* Two steps down from the game's verdict (23px -> 20px): it has to share a slot
-   with the remark under it, and it is answering a question that is still on screen
-   two lines below rather than closing out a whole reveal. */
-.settle-reveal-name { font-size: var(--fs-subtitle-b); line-height: 1.2; margin: 0; }
-/* The aside to a table that keeps re-drawing. Deliberately the smallest step on
-   the scale: it is a remark ABOUT the answer, and any larger and the joke competes
-   with the fact directly above it. */
-.settle-remark {
-  font-size: var(--fs-micro); line-height: 1.3; color: var(--ink-soft);
-  text-align: center; margin: 0;
+/* Two steps down from the game's verdict (23px -> 20px): it is answering a question
+   that is still on screen two lines below rather than closing out a whole reveal.
+   The slot reserves TWO lines of this, so the longest rung can wrap without moving
+   anything under it. */
+.settle-reveal-name {
+  font-size: var(--fs-subtitle-b); line-height: 1.2; margin: 0;
+  text-align: center; text-wrap: balance;
 }
 
 /* --- 大話骰: the game, inside the bill's own chassis --- */

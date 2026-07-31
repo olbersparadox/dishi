@@ -76,26 +76,28 @@ export function buildSpin(
 }
 
 /**
- * The aside under the reveal, chosen by how many times the table has drawn.
+ * The whole reveal, as ONE line, chosen by how many times the table has drawn.
  *
- * Null on the first draw: that one is the ceremony and wants no commentary. From
- * the second on, the screen starts noticing — which is the point of making the
- * draw re-rollable at all (owner, 2026-07-31: "if they keep playing it or someone
- * refuse to pay, it's part of the fun"). The remark is a REMARK only, never the
- * answer: who pays is said by the payer line it sits under, so these lines carry
- * no name and need no separate you-form.
+ * Owner rewrite, 2026-08-01. It was a payer line with a remark stacked under it;
+ * it is now a single line per draw, which is what lets the last two rungs stop
+ * naming anyone at all — 不如我請啦 is the screen offering to pay, and 收舖未啊?
+ * 你地慢慢 is it addressing the table. Neither has a payer slot to fill, and a
+ * two-element layout could not express that without printing a name the line was
+ * pointedly not about.
+ *
+ * Every rung uses the profile name, never a you-form (owner, same note), so one
+ * key serves whoever is looking. Rung 1 is a line like any other now: the plain
+ * announcement it replaced was the only reason the ladder used to start empty.
  *
  * Keyed off shared state rather than a per-phone tally, so the whole table reads
  * the same line at the same time — a private count would have four people looking
  * at four different jokes about one draw.
  */
-export function revealRemarkKey(drawCount: number): string | null {
-  const n = Math.floor(drawCount);
-  if (n <= 1) return null;
+export function revealLineKey(drawCount: number): string {
   // Past the ladder it holds on the last rung. A table on its tenth draw being met
   // with the same flat line is funnier than a fresh quip, and it never runs dry.
-  const rung = Math.min(n, 7);
-  return `table.settle.remark${rung}`;
+  const rung = Math.min(Math.max(Math.floor(drawCount), 1), 7);
+  return `table.settle.draw${rung}`;
 }
 
 /** Where the ring sits `elapsed` ms in. Separate from buildSpin so the component
