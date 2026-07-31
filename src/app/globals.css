@@ -1562,6 +1562,7 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
    treatment for "this text does something" without adding a second pill next to
    the invite button. */
 .table-restaurant-btn {
+  display: inline-flex; align-items: center; gap: 5px;
   background: none; border: none; padding: 0; margin: 0;
   font: inherit; color: var(--ink); text-align: left; cursor: pointer;
   text-decoration: underline; text-decoration-style: dotted;
@@ -1573,12 +1574,15 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
   text-underline-offset: 3px; text-decoration-color: var(--ink-faint);
 }
 .table-restaurant-btn:hover { text-decoration-color: var(--ink-soft); }
+/* Non-editable (QR/registered table) mirrors the button's icon+text layout with
+   no affordance styling — it's a fact, not a tap target. */
+.table-restaurant-static { display: inline-flex; align-items: center; gap: 5px; }
 .table-bar-left { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
 .table-bar-codewrap { display: inline-flex; align-items: baseline; gap: 4px; min-width: 0; }
 .table-bar-label { font-size: var(--fs-caption); color: var(--ink); }
 .table-bar-code {
   font-family: var(--font-body), system-ui, sans-serif; font-weight: 700; font-size: var(--fs-body);
-  letter-spacing: 0.05em; color: var(--ink);
+  letter-spacing: 0.05em; color: var(--seal);
 }
 .table-bar-stat { font-size: var(--fs-caption); color: var(--ink); white-space: pre-wrap; }
 

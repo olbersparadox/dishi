@@ -14,6 +14,7 @@
 // stopped being a confirm sheet in front of the menu.
 import { useState } from 'react';
 import RestaurantPicker, { type RestaurantChoice } from '@/components/RestaurantPicker';
+import { LocationIcon } from '@/components/icons';
 import { useLang } from '@/lib/i18n';
 
 export default function TableRestaurantLine({ restaurant, onChange, editable = true }: {
@@ -52,13 +53,17 @@ export default function TableRestaurantLine({ restaurant, onChange, editable = t
       {/* Named or not, the line reads the same shape — a quiet meta line, the same
           .card-meta voice the table bar's own status text uses, never a banner. */}
       {!editable ? (
-        <span className="card-meta">{label}</span>
+        <span className="card-meta table-restaurant-static">
+          <LocationIcon size={14} />
+          {label}
+        </span>
       ) : (
         <button
           className="table-restaurant-btn card-meta"
           onClick={() => setOpen(o => !o)}
           aria-expanded={open}
         >
+          <LocationIcon size={14} />
           {label ?? t('table.restaurant.unset')}
         </button>
       )}

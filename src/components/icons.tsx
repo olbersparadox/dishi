@@ -239,6 +239,17 @@ export function CameraIcon({ size = 18, strokeWidth = 1.8 }: IconProps & { strok
   );
 }
 
+/** Pin — which restaurant a table session is at (table.restaurant.unset). */
+export function LocationIcon({ size = 16 }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor"
+      strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 21s-7-6.1-7-11.5A7 7 0 0119 9.5C19 14.9 12 21 12 21z" />
+      <circle cx="12" cy="9.5" r="2.4" />
+    </svg>
+  );
+}
+
 /** Fork + knife — dining out at a restaurant (餐廳菜). */
 export function UtensilsIcon({ size = 22 }: IconProps) {
   return (
