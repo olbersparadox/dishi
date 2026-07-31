@@ -10,6 +10,36 @@ const MODEL = process.env.OPENROUTER_MODEL || 'qwen/qwen3.7-plus';
 
 const ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
 
+/**
+ * WHICH company actually answers the call, not just which model.
+ *
+ * OpenRouter is a broker: several providers serve the same model id, and without
+ * this field it picks one per request. That made scan reliability a lottery
+ * (diagnosed 2026-07-31 from a report of "a menu photo that always worked
+ * stopped working" — the photo was never the variable):
+ *   - Alibaba answered a vision call with a hard 400, "InternalError.Algo.
+ *     InvalidParameter: The image format is illegal and cannot be opened".
+ *     Caught by the daily canary at 01:01, same pipeline and same encoding that
+ *     had just succeeded. It rejects our images, so it is not eligible.
+ *   - The SAME deployment returned 6 items at 09:19 and 0 items at 09:28
+ *     (`0 items in 50005ms, is_menu=true` — the model recognised the menu, then
+ *     burned the whole 50s overall cap emitting tokens without finishing an
+ *     item). Provider-side degradation, not a code change: no commit ran
+ *     between those two requests.
+ *
+ * `ignore` blacklists the provider proven to refuse our payload. This does NOT
+ * fix the stall — a pinned-but-slow provider can still eat the 50s cap — and
+ * the honest next step is an `order:` of providers chosen from live uptime
+ * (`/api/v1/models/qwen/qwen3.7-plus/endpoints`), which needs the API key.
+ * Deliberately NOT a timeout bump: raising the cap is the whack-a-mole the scan
+ * latency program exists to stop, and it cannot help against a provider that
+ * refuses the image outright.
+ *
+ * allow_fallbacks keeps a degraded-but-working provider reachable rather than
+ * failing the scan closed when the preferred one is down.
+ */
+const PROVIDER_ROUTING = { ignore: ['Alibaba'], allow_fallbacks: true };
+
 type ContentPart =
   | { type: 'text'; text: string }
   | { type: 'image_url'; image_url: { url: string } };
@@ -123,6 +153,7 @@ async function callClaudeOnce(
     },
     body: JSON.stringify({
       model: MODEL,
+      provider: PROVIDER_ROUTING,
       max_tokens: opts.maxTokens ?? 1000,
       // OpenRouter-normalized reasoning control (see CallOpts). Absent unless a
       // caller explicitly opted in, so default behavior is byte-identical.
@@ -220,6 +251,7 @@ export async function* callClaudeStream(
       },
       body: JSON.stringify({
         model: MODEL,
+        provider: PROVIDER_ROUTING,
         max_tokens: opts.maxTokens ?? 1000,
         stream: true,
         messages: [

@@ -1,4 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach, afterAll } from 'vitest';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import {
   sanitizeItem, sanitizeSkeletonItem, sanitizeDietFlags, sanitizeCookingMethod,
   sanitizeHeaviness, sanitizeIngredients, DIET_FLAGS, COOKING_METHODS, HEAVINESS,
@@ -249,5 +251,29 @@ describe('cookingBucket — coarse 5-category grouping for the scan card\u2019s 
   it('every bucket in the exported vocabulary is reachable from at least one method', () => {
     const reached = new Set(COOKING_METHODS.map(cookingBucket).filter(Boolean));
     for (const b of COOKING_BUCKETS) expect(reached.has(b)).toBe(true);
+  });
+});
+
+describe('OpenRouter provider routing', () => {
+  // Diagnosed 2026-07-31: a menu photo that had always worked started failing.
+  // Not the photo and not a commit — the SAME deployment returned 6 items at
+  // 09:19 and 0 items at 09:28. OpenRouter brokers one model id across several
+  // providers and picks per request, and one of them (Alibaba) answers vision
+  // calls with a hard 400, "The image format is illegal and cannot be opened".
+  // Both request bodies must carry the routing constraint or the scan is a
+  // lottery again on whichever path forgot it.
+  const SRC = readFileSync(path.resolve(__dirname, '../src/lib/openrouter.ts'), 'utf8');
+
+  it('sends provider routing on BOTH the one-shot and streaming calls', () => {
+    const bodies = SRC.match(/body: JSON\.stringify\(\{[\s\S]*?\}\),/g) ?? [];
+    expect(bodies).toHaveLength(2);
+    for (const body of bodies) expect(body).toMatch(/provider: PROVIDER_ROUTING/);
+  });
+
+  it('excludes the provider that rejects our images, and still allows fallbacks', () => {
+    // allow_fallbacks matters as much as the exclusion: failing closed when the
+    // preferred provider is down would trade a wrong answer for no answer.
+    expect(SRC).toMatch(/const PROVIDER_ROUTING = \{[^}]*ignore: \['Alibaba'\]/);
+    expect(SRC).toMatch(/const PROVIDER_ROUTING = \{[^}]*allow_fallbacks: true/);
   });
 });
