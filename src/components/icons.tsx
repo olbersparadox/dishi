@@ -358,12 +358,12 @@ export function LinkIcon({ size = 16 }: IconProps) {
 /** Person + plus — invite someone to join a table session. */
 export function InviteIcon({ size = 16 }: IconProps) {
   return (
-    <svg viewBox="0 0 24 24" width={size} height={size} aria-hidden="true"
+    <svg viewBox="0 0 27 24" width={size} height={size} aria-hidden="true"
       fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="10" cy="7.5" r="4" />
       <path d="M2.5 20.5c0-4.7 3.4-8 7.5-8s7.5 3.3 7.5 8" />
-      <path d="M19.5 5v7" />
-      <path d="M16 8.5h7" />
+      <path d="M22 5v7" />
+      <path d="M18.5 8.5h7" />
     </svg>
   );
 }
