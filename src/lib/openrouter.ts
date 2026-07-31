@@ -27,13 +27,26 @@ const ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
  *     item). Provider-side degradation, not a code change: no commit ran
  *     between those two requests.
  *
- * `ignore` blacklists the provider proven to refuse our payload. This does NOT
- * fix the stall — a pinned-but-slow provider can still eat the 50s cap — and
- * the honest next step is an `order:` of providers chosen from live uptime
- * (`/api/v1/models/qwen/qwen3.7-plus/endpoints`), which needs the API key.
- * Deliberately NOT a timeout bump: raising the cap is the whack-a-mole the scan
- * latency program exists to stop, and it cannot help against a provider that
- * refuses the image outright.
+ * WHY EXCLUDING ALIBABA COSTS NO SPEED, even if it was once the fast one: its
+ * failure is a hard 400, not slowness. It refuses to open the image rather than
+ * answering late, and a fast 400 is worth less than a slow success. Excluding it
+ * can only cost capacity, never latency on a request it would have completed.
+ *
+ * PROVISIONAL, and stated as such (owner challenge, 2026-07-31: "what if Alibaba
+ * was the fast provider and only got slow just now?"). It rests on ONE observed
+ * 400, and `InternalError.Algo.InvalidParameter` reads like their internal fault
+ * dressed as a parameter complaint — which would make it transient and this line
+ * the wrong shape. It stands only because the two errors are not symmetric: a 400
+ * breaks the scan outright, while slow merely degrades it, so the tourniquet is
+ * the right trade WHILE blind. What overturns it: provider-attributed logs (added
+ * alongside this) showing Alibaba serving vision calls successfully, or an
+ * `order:` built from live uptime (`/api/v1/models/qwen/qwen3.7-plus/endpoints`,
+ * needs the API key). Delete the `ignore` the moment either lands.
+ *
+ * This does NOT fix the stall — a pinned-but-slow provider can still eat the 50s
+ * cap, and the stalling provider was never even identified. Deliberately NOT a
+ * timeout bump: raising the cap is the whack-a-mole the scan latency program
+ * exists to stop, and it cannot help against a provider that refuses the image.
  *
  * allow_fallbacks keeps a degraded-but-working provider reachable rather than
  * failing the scan closed when the preferred one is down.
@@ -176,7 +189,15 @@ async function callClaudeOnce(
 
   try {
     const json = await res.json();
-    return json?.choices?.[0]?.message?.content ?? null;
+    const content = json?.choices?.[0]?.message?.content ?? null;
+    // Only on the EMPTY-answer case, not every call: these run per dish (enrich
+    // + score), so a line each would add ~12 per scan and drown the one-line
+    // stream summary. An HTTP 200 carrying no content is the interesting one —
+    // it is indistinguishable from a model failure until you know who served it.
+    if (content === null) {
+      console.error(`OpenRouter empty content provider=${json?.provider ?? 'unknown'} model=${MODEL}`);
+    }
+    return content;
   } catch {
     console.error('OpenRouter returned non-JSON');
     return null;
@@ -276,6 +297,15 @@ export async function* callClaudeStream(
   const decoder = new TextDecoder();
   let lineBuffer = '';
   let accumulated = '';
+  // WHO answered. Every chunk carries it; we read it off the first one that
+  // does. Without this, a provider is only ever identifiable when its name
+  // happens to leak into an error string — which is exactly how the 2026-07-31
+  // diagnosis went: Alibaba was named in a 400 body, while the stall that
+  // actually broke the scan had no attribution at all and still doesn't.
+  // A provider-health question you cannot answer from the logs is a question you
+  // end up answering by guessing.
+  let provider: string | null = null;
+  const startedAt = Date.now();
 
   try {
     while (true) {
@@ -294,6 +324,7 @@ export async function* callClaudeStream(
         if (payload === '[DONE]' || payload === '') continue;
         try {
           const chunk = JSON.parse(payload);
+          if (!provider && typeof chunk?.provider === 'string') provider = chunk.provider;
           const delta = chunk?.choices?.[0]?.delta?.content;
           if (typeof delta === 'string' && delta.length > 0) {
             accumulated += delta;
@@ -304,8 +335,12 @@ export async function* callClaudeStream(
         }
       }
     }
+    // One line per scan, on the happy path too: comparing a fast scan's provider
+    // against a slow one's is the whole point, and only logging failures would
+    // leave the "who serves the GOOD scans" half of that unanswerable.
+    console.log(`openrouter-stream provider=${provider ?? 'unknown'} model=${MODEL} ms=${Date.now() - startedAt} chars=${accumulated.length}`);
   } catch (e) {
-    console.error('OpenRouter stream read failed mid-stream', e);
+    console.error(`OpenRouter stream read failed mid-stream provider=${provider ?? 'unknown'} ms=${Date.now() - startedAt}`, e);
     // Fall through: whatever was already yielded stays valid. The caller's
     // partial-JSON parser will have already surfaced any complete items found
     // before this failure — a mid-stream drop degrades to "fewer dishes," not
