@@ -27,31 +27,34 @@ const ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
  *     item). Provider-side degradation, not a code change: no commit ran
  *     between those two requests.
  *
- * WHY EXCLUDING ALIBABA COSTS NO SPEED, even if it was once the fast one: its
- * failure is a hard 400, not slowness. It refuses to open the image rather than
- * answering late, and a fast 400 is worth less than a slow success. Excluding it
- * can only cost capacity, never latency on a request it would have completed.
+ * The ignore list is EMPTY by owner decision (2026-07-31), and that emptiness is
+ * load-bearing — do not "restore" an exclusion without new evidence. The history,
+ * because it is a decision record:
  *
- * PROVISIONAL, and stated as such (owner challenge, 2026-07-31: "what if Alibaba
- * was the fast provider and only got slow just now?"). It rests on ONE observed
- * 400, and `InternalError.Algo.InvalidParameter` reads like their internal fault
- * dressed as a parameter complaint — which would make it transient and this line
- * the wrong shape. It stands only because the two errors are not symmetric: a 400
- * breaks the scan outright, while slow merely degrades it, so the tourniquet is
- * the right trade WHILE blind. What overturns it: provider-attributed logs (added
- * alongside this) showing Alibaba serving vision calls successfully, or an
- * `order:` built from live uptime (`/api/v1/models/qwen/qwen3.7-plus/endpoints`,
- * needs the API key). Delete the `ignore` the moment either lands.
+ * An `ignore: ['Alibaba']` briefly existed here (78ba0c4, never deployed).
+ * Grounds: the daily canary caught Alibaba answering a vision call with a hard
+ * 400 ("InternalError.Algo.InvalidParameter: The image format is illegal and
+ * cannot be opened") on the same encoding that had just succeeded elsewhere.
+ * The owner reversed it before it shipped, and the reversal is the sounder call:
+ * it rested on ONE 400, the error reads like the provider's internal fault
+ * dressed as a parameter complaint (i.e. plausibly transient), and we could not
+ * name who served the FAST scans — so for all anyone knew, the exclusion banned
+ * the very provider the good speed came from, permanently, over a bad hour.
  *
- * This does NOT fix the stall — a pinned-but-slow provider can still eat the 50s
- * cap, and the stalling provider was never even identified. Deliberately NOT a
- * timeout bump: raising the cap is the whack-a-mole the scan latency program
- * exists to stop, and it cannot help against a provider that refuses the image.
+ * The instrument that settles it is the provider attribution logged below: every
+ * stream now names who answered on success AND failure. Re-arm an exclusion (or
+ * better, an `order:` preference) only from that data — a provider seen failing
+ * vision calls repeatedly across days, or an uptime-ranked list via
+ * `/api/v1/models/<model>/endpoints`. One bad answer is weather; the logs are
+ * climate.
  *
- * allow_fallbacks keeps a degraded-but-working provider reachable rather than
- * failing the scan closed when the preferred one is down.
+ * The field still ships with allow_fallbacks (OpenRouter's default, stated
+ * explicitly) so the plumbing stays wired and tested: when the data does name a
+ * culprit, the fix is a one-line edit here, not a re-derivation of where
+ * routing goes.
  */
-const PROVIDER_ROUTING = { ignore: ['Alibaba'], allow_fallbacks: true };
+const PROVIDER_ROUTING: { ignore: string[]; allow_fallbacks: boolean } =
+  { ignore: [], allow_fallbacks: true };
 
 type ContentPart =
   | { type: 'text'; text: string }

@@ -270,10 +270,14 @@ describe('OpenRouter provider routing', () => {
     for (const body of bodies) expect(body).toMatch(/provider: PROVIDER_ROUTING/);
   });
 
-  it('excludes the provider that rejects our images, and still allows fallbacks', () => {
-    // allow_fallbacks matters as much as the exclusion: failing closed when the
-    // preferred provider is down would trade a wrong answer for no answer.
-    expect(SRC).toMatch(/const PROVIDER_ROUTING = \{[^}]*ignore: \['Alibaba'\]/);
-    expect(SRC).toMatch(/const PROVIDER_ROUTING = \{[^}]*allow_fallbacks: true/);
+  it('keeps the ignore list EMPTY — the owner reversal is load-bearing', () => {
+    // An ignore: ['Alibaba'] briefly existed (78ba0c4, never deployed) off ONE
+    // canary 400. Owner reversed it 2026-07-31: nobody could name who served the
+    // FAST scans, so the exclusion risked permanently banning the provider the
+    // good speed came from, over what may have been a bad hour. Re-arming an
+    // exclusion requires provider-attributed log evidence across days — if this
+    // test is failing because you added one, bring that evidence to the comment
+    // block above PROVIDER_ROUTING and update both together.
+    expect(SRC).toMatch(/\{ ignore: \[\], allow_fallbacks: true \}/);
   });
 });
