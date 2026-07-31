@@ -5,7 +5,7 @@ import RestaurantPicker, { RestaurantChoice } from '@/components/RestaurantPicke
 import FlickRating from '@/components/FlickRating';
 import { cuisineLabel } from '@/lib/i18n';
 import { wordKeyFor } from '@/lib/flickWords';
-import { EditIcon, TrashIcon, MoreIcon, CheckIcon, CloseIcon, GlobeIcon, LinkIcon, ShareIcon } from './icons';
+import { EditIcon, TrashIcon, MoreIcon, CheckIcon, CloseIcon, GlobeIcon, ShareIcon } from './icons';
 import { shareLink } from '@/lib/share';
 import Toast, { useToast } from '@/components/Toast';
 import { cookingBucket, type CookingMethod } from '@/lib/menuScan';
@@ -177,7 +177,7 @@ export default function MyDishes({ t, lang, onPublished }: {
   async function sendDishLink(dishId: string) {
     const url = await resolveDishUrl(dishId);
     if (!url) { setShareNeedsName(true); return; }
-    if (await shareLink({ title: t('post.share.title'), url }) === 'copied') toast.show(t('table.copied'));
+    if (await shareLink({ title: t('post.share.title'), url }) === 'copied') toast.show(t('share.linkcopied'));
   }
 
   /** The kebab's "分享" — simplified (owner call): no consent card, no
@@ -740,19 +740,22 @@ export default function MyDishes({ t, lang, onPublished }: {
                 OS share sheet with no card). */}
             {editing !== d.id && !d.locked && (
               <div className="dish-actions">
-                {d.posted && (
-                  /* "The world can find this" and "only people holding the
-                     link can" are different promises and must not render
-                     alike (sharing batch item 2). */
-                  d.post_visibility === 'link' ? (
-                    <span className="dish-public-badge" aria-label={t('post.linkonly')} title={t('post.linkonly')}>
-                      <LinkIcon size={16} />
-                    </span>
-                  ) : (
-                    <span className="dish-public-badge" aria-label={t('post.public')} title={t('post.public')}>
-                      <GlobeIcon size={16} />
-                    </span>
-                  )
+                {/* Only 公開 earns a badge. The link-only glyph is gone (owner,
+                    2026-07-31) — it read as a second, confusable "published"
+                    marker beside the globe, and it had stopped meaning what a
+                    badge should mean: Share silently upgrades an unposted dish to
+                    link-only (see shareDish), so simply SENDING a dish to someone
+                    stamped it as though the person had published it. A badge
+                    should report a decision they made, and link-only is no longer
+                    one. This knowingly reverses 152a4ec, which restored the glyph
+                    on the grounds that the two promises must not render alike —
+                    still true, and now honoured by only one of them rendering.
+                    The promise itself is unchanged: visibility is still 'link' vs
+                    'public' server-side, and the kebab still says which. */}
+                {d.posted && d.post_visibility !== 'link' && (
+                  <span className="dish-public-badge" aria-label={t('post.public')} title={t('post.public')}>
+                    <GlobeIcon size={16} />
+                  </span>
                 )}
                 <button className="icon-btn lg" onClick={() => setMenuOpenId(v => v === d.id ? null : d.id)}
                   aria-label={t('home.more')} title={t('home.more')} aria-haspopup="menu" aria-expanded={menuOpenId === d.id}>

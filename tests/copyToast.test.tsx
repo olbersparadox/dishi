@@ -28,7 +28,19 @@ describe('one confirmation pill, mounted by every surface', () => {
   it('every copy-confirming surface imports and mounts the shared Toast', () => {
     for (const [name, src] of Object.entries(SURFACES)) {
       expect(src, name).toMatch(/import Toast, \{ useToast \} from '@\/components\/Toast'/);
-      expect(src, name).toMatch(/<Toast message=\{toast\.message\} onDone=\{toast\.onDone\} \/>/);
+      expect(src, name).toMatch(/<Toast message=\{toast\.message\} onDone=\{toast\.onDone\}/);
+    }
+  });
+
+  it('anchors under the trigger where there IS one, floats where there is not', () => {
+    // The table code is a single fixed trigger, so its confirmation drops right
+    // under it (the notification panel's behaviour, owner call 2026-07-31). A
+    // journal row's kebab is not: anchoring to a row that may be mid-scroll,
+    // inside an ancestor carrying an entrance animation, is how a panel gets
+    // clipped to a containing block nobody meant to create.
+    expect(SURFACES['TableBar.tsx']).toMatch(/<Toast [^>]*anchored/);
+    for (const name of ['MyDishes.tsx', 'FeedCard.tsx', 'scan/page.tsx', 'table/page.tsx']) {
+      expect(SURFACES[name], name).not.toMatch(/<Toast [^>]*anchored/);
     }
   });
 
@@ -65,13 +77,44 @@ describe('Toast behaviour', () => {
   });
 });
 
-describe('the table code says CODE copied, not link copied', () => {
-  it('uses the code-specific string, and names the code in it', () => {
+describe('each surface confirms what it ACTUALLY copied', () => {
+  const dict = read('../src/lib/i18n-dict.ts');
+
+  it('the table code says CODE copied, and names the code', () => {
     // table.copied ("Link copied — send it to the table") is the INVITE's
     // confirmation. The code button has never put a link on the clipboard, so
     // reusing that string would be a lie about what was copied.
     expect(SURFACES['TableBar.tsx']).toMatch(/toast\.show\(t\('table\.codecopied', \{ code \}\)\)/);
-    const dict = read('../src/lib/i18n-dict.ts');
     expect(dict).toMatch(/'table\.codecopied':[^}]*\{code\}/);
+  });
+
+  it('a DISH share never says "send it to the table"', () => {
+    // The bug (owner, 2026-07-31): both dish surfaces borrowed table.copied, so
+    // sharing a dish from 食記 told you to send it to a table you may not be at.
+    for (const name of ['MyDishes.tsx', 'FeedCard.tsx']) {
+      expect(SURFACES[name], name).toMatch(/toast\.show\(t\('share\.linkcopied'\)\)/);
+      expect(SURFACES[name], name).not.toMatch(/toast\.show\(t\('table\.copied'\)\)/);
+    }
+    expect(dict).toMatch(/'share\.linkcopied': \{ zh: '已複製連結', en: 'Link copied' \}/);
+  });
+
+  it('the table INVITE keeps its table-specific line — it really is a table link', () => {
+    for (const name of ['scan/page.tsx', 'table/page.tsx']) {
+      expect(SURFACES[name], name).toMatch(/toast\.show\(t\('table\.copied'\)\)/);
+    }
+  });
+});
+
+describe('the link-only badge is gone from the journal', () => {
+  it('only 公開 earns a glyph; link-only renders none', () => {
+    // Owner, 2026-07-31: the chain link beside the globe read as a second kind of
+    // "published", and Share silently makes a dish link-only — so it badged
+    // something the person never chose. Knowingly reverses 152a4ec.
+    expect(SURFACES['MyDishes.tsx']).toMatch(/d\.posted && d\.post_visibility !== 'link'/);
+    expect(SURFACES['MyDishes.tsx']).not.toMatch(/LinkIcon/);
+  });
+
+  it('LinkIcon is not importable, so the confusion cannot be re-added by reflex', () => {
+    expect(read('../src/components/icons.tsx')).not.toMatch(/export function LinkIcon/);
   });
 });

@@ -342,18 +342,13 @@ export function BellIcon({ size = 22 }: IconProps) {
 /** Bookmark ribbon — add a feed dish to 待評 ("dishes to be rated"). Outline
  *  when not yet bookmarked, solid ink when it is — same idle/filled language
  *  as .picker-confirm-circle. */
-/** Chain link — a dish published LINK-ONLY (dish_posts.visibility='link').
- *  Deliberately not the globe: "anyone can find this" and "only people holding
- *  the link can" are different promises, and a journal row has to say which. */
-export function LinkIcon({ size = 16 }: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" width={size} height={size} aria-hidden="true"
-      fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-      <path d="M10 13.5a3.5 3.5 0 005 0l3.5-3.5a3.5 3.5 0 00-5-5l-1.2 1.2" />
-      <path d="M14 10.5a3.5 3.5 0 00-5 0L5.5 14a3.5 3.5 0 005 5l1.2-1.2" />
-    </svg>
-  );
-}
+/* LinkIcon (chain link, the link-only publish badge) was deleted 2026-07-31 with
+   its last consumer. It sat beside the globe in a journal row and the two read as
+   two kinds of "published" — and Share silently makes a dish link-only, so it
+   badged something the person never chose to do. Left NON-importable on purpose:
+   an unused glyph in this file is an invitation to re-add exactly the confusion
+   that was just removed. Recover from git if a real link-only surface ever needs
+   it. */
 
 /** Person + plus — invite someone to join a table session. */
 export function InviteIcon({ size = 16 }: IconProps) {

@@ -56,16 +56,15 @@ export default function TableBar({ code, memberCount, pickCount, onInvite, resta
         {/* Headcount + dishes picked as one quiet meta line, sitting right after
             the code (separated by a "|") — status, not a dashboard. */}
         <span className="table-bar-stat">{t('scan.tablestatus', { n: memberCount, m: pickCount })}</span>
+        {/* Inside .table-bar-left (position:relative, no transform) so it drops
+            directly under the code — the notification panel's own behaviour,
+            where the eye already is. */}
+        <Toast message={toast.message} onDone={toast.onDone} anchored />
       </span>
       <button className="table-invite-btn" onClick={onInvite} aria-label={t('table.invite')} title={t('table.invite')}>
         <InviteIcon size={20} />
       </button>
       {restaurantLine}
-      {/* Safe inside the bar: .table-bar is position:relative with no transform,
-          so a position:fixed child still anchors to the viewport. A transform
-          anywhere up this tree would silently trap it (see MyDishes' own note on
-          exactly that bug biting .row-menu-backdrop). */}
-      <Toast message={toast.message} onDone={toast.onDone} />
     </div>
   );
 }

@@ -909,38 +909,47 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 }
 .cart-bar > * { pointer-events: auto; }
 
-/* --- the transient confirmation pill (components/Toast.tsx) ---
-   Bottom-anchored ABOVE the cart bar (which sits at 62px, itself clearing the
-   62px tabbar), so the one screen carrying all three never stacks them. Screens
-   with no cart bar simply show it a little higher — one position everywhere beats
-   a per-screen offset that drifts the moment a surface grows a footer.
+/* --- the transient confirmation panel (components/Toast.tsx) ---
+   Wears the NOTIFICATION PANEL's language, by owner call (2026-07-31): the
+   little bordered paper rectangle that drops under the bell, not an ink pill.
+   Same tokens and the same duel-pop entrance as .notif-list, so the app has one
+   idea of "a small thing that appears, says something, and goes" rather than two.
+   An ink pill read as chrome — a sibling of the cart bar rather than a message.
    pointer-events:none because it is a statement, not a control: it must never
-   swallow a tap meant for the list underneath while it fades. */
-.toast {
-  /* 142px = the cart bar's own top edge, measured at 126px off the bottom
-     (bottom:62px + its pill), plus 16px of air. At 130px the two read as one
-     stacked black mass with a 4px seam — the pill has to look like a separate,
-     temporary thing, not a second row of the bar. */
+   swallow a tap meant for whatever is underneath while it fades. */
+.toast-pill {
+  background: var(--glaze); color: var(--ink);
+  border: 1px solid var(--line); border-radius: 14px;
+  box-shadow: 0 12px 32px rgba(20, 16, 12, 0.16);
+  font-size: var(--fs-caption); font-weight: var(--fw-btn);
+  padding: 12px 16px; max-width: 100%; text-align: center;
+  animation: duel-pop 200ms ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .toast-pill { animation: none; }
+}
+
+/* ANCHORED: drops directly under whatever was tapped, the way .notif-list drops
+   under the bell — "at that area", where the eye already is. Needs a positioned,
+   transform-free ancestor; .table-bar-left is exactly that (position:relative,
+   and a transform anywhere up the tree would silently trap it — see MyDishes'
+   own note on that biting .row-menu-backdrop). */
+.toast-anchored {
+  position: absolute; top: calc(100% + 8px); left: 0;
+  z-index: 56; /* .notif-list's own layer: same kind of thing, same stacking */
+  display: flex; justify-content: flex-start;
+  pointer-events: none; white-space: nowrap;
+}
+
+/* FLOATING: for surfaces with no single trigger to hang off (a journal row's
+   kebab, a feed card) — bottom-anchored, clearing the cart bar whose top edge
+   measures 126px off the bottom, plus 16px of air. */
+.toast-floating {
   position: fixed; left: 0; right: 0; bottom: calc(142px + env(safe-area-inset-bottom));
   z-index: 90; /* above the wait scrim (70) and cart bar (40) — a confirmation
                   that appears BEHIND the chrome it refers to reads as a bug. */
   display: flex; justify-content: center; padding: 0 16px;
   pointer-events: none;
-}
-.toast-pill {
-  background: var(--ink); color: var(--glaze);
-  font-size: var(--fs-caption); font-weight: var(--fw-btn);
-  padding: 10px 18px; border-radius: 999px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
-  max-width: 100%; text-align: center;
-  animation: toastIn 200ms cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-@keyframes toastIn {
-  from { opacity: 0; transform: translateY(6px); }
-  to { opacity: 1; transform: none; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .toast-pill { animation: none; }
 }
 
 /* --- owner tabs --- */

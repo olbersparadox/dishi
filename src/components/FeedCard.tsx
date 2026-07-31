@@ -107,7 +107,7 @@ export default function FeedCard({ item, onBookmarked }: {
     e.stopPropagation();
     if (!item.dish.id || item.author.kind !== 'user') return;
     const url = `${window.location.origin}/${item.author.username}/d/${item.dish.id}`;
-    if (await shareLink({ title: t('post.share.title'), url }) === 'copied') toast.show(t('table.copied'));
+    if (await shareLink({ title: t('post.share.title'), url }) === 'copied') toast.show(t('share.linkcopied'));
   };
 
   // Chop color has no user_id to key off here (FeedAuthor carries only a

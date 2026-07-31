@@ -26,11 +26,23 @@ export function useToast() {
   return { message, onDone, show: setMessage };
 }
 
-export default function Toast({ message, onDone, ms = DEFAULT_MS }: {
+export default function Toast({ message, onDone, ms = DEFAULT_MS, anchored = false }: {
   /** The line to show. Null renders nothing — the caller's state IS the trigger. */
   message: string | null;
   onDone: () => void;
   ms?: number;
+  /**
+   * Drop it under the thing that was tapped (like the notification panel under
+   * the bell) instead of floating at the bottom of the screen. Requires a
+   * positioned, TRANSFORM-FREE ancestor to hang off.
+   *
+   * Anchored is the better read wherever there is one obvious trigger — the
+   * message appears where the eye already is. Surfaces where the trigger is a
+   * per-row kebab (the journal, a feed card) stay floating: anchoring to a row
+   * that may be mid-scroll, inside an ancestor carrying an entrance animation,
+   * is how a panel ends up clipped to a containing block nobody meant to create.
+   */
+  anchored?: boolean;
 }) {
   // onDone via ref, not in the dep array: callers pass a fresh closure on most
   // renders, and depending on it would restart the timer mid-life so a toast
@@ -47,7 +59,8 @@ export default function Toast({ message, onDone, ms = DEFAULT_MS }: {
   // role=status + aria-live=polite: announced to a screen reader without
   // stealing focus, which is the accessible shape of "said, not asked".
   return (
-    <div className="toast" role="status" aria-live="polite">
+    <div className={`toast ${anchored ? 'toast-anchored' : 'toast-floating'}`}
+      role="status" aria-live="polite">
       <span className="toast-pill">{message}</span>
     </div>
   );

@@ -405,6 +405,10 @@ export const dict: Record<string, { zh: string; en: string }> = {
   // the code, and one string covering both would be wrong on one of them.
   'table.codecopied': { zh: '已複製檯號 {code}', en: 'Table code {code} copied' },
   'table.copycode': { zh: '複製檯號', en: 'Copy table code' },
+  // A DISH permalink's confirmation. It used to borrow table.copied, so sharing a
+  // dish from 食記 said "send it to the table" — a dish link has nothing to do
+  // with a table, and the person may not be at one (owner, 2026-07-31).
+  'share.linkcopied': { zh: '已複製連結', en: 'Link copied' },
   'table.sharetitle': { zh: '來我這桌 — Dishi', en: 'Join my table on Dishi' },
   // Rides the share sheet's message body, ahead of the URL. The code is spelled
   // out for humans on purpose: titles get dropped by messengers, and a mangled
@@ -771,7 +775,6 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'post.share.title': { zh: '分享畀朋友', en: 'Share with a friend' },
   'post.share.cta': { zh: '分享', en: 'Share' },
   // Status glyph beside the kebab — non-interactive, just "this is posted".
-  'post.linkonly': { zh: '只限連結', en: 'Link only' },
   // Share needs a URL, and only a CLAIMED username mints one.
   'post.share.needname.title': { zh: '先改個名', en: 'Claim your name first' },
   'post.share.needname.body': {
