@@ -1614,7 +1614,15 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
   width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 10px;
   padding: 15px 22px; font-size: var(--fs-body);
 }
-.cart-total { font-weight: var(--fw-btn); }
+/* The running bill, in the body sans one step up the scale (15 -> 18): it is the
+   one figure on this bar people actually read off, and the button's display serif
+   made it a word among words. tabular-nums so the digits don't jitter as picks
+   land — the same treatment .settle-total-num gives the bill's own total. */
+.cart-total {
+  font-family: var(--font-body), system-ui, sans-serif;
+  font-size: var(--fs-subtitle-a); font-weight: var(--fw-btn);
+  font-variant-numeric: tabular-nums;
+}
 
 /* --- the done-picking handshake, and the bill it opens (2026-07-30) --- */
 /* A real alpha layer, unlike .explain-scrim's invisible click-catcher: this one
@@ -1783,7 +1791,16 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 /* The leading count is sans while the CJK is serif: a sans numeral reads
    visually smaller than serif Han at the same px, so it is nudged up to match
    rather than left looking like a subscript. */
-.other-call-num { font-family: var(--font-body); font-size: calc(1.15em - 1px); position: relative; top: 2px; }
+/* Sans numerals inside serif CJK — see components/SansNum.tsx. Sized in em and
+   nudged by a fraction of the same em so ONE rule serves the 15px cart bar and a
+   28px dice call: a sans digit reads smaller than serif Han at equal size, and
+   left uncorrected it sits low and small like a subscript. Was .other-call-num,
+   renamed when the cart bar turned out to need the identical treatment. */
+.sans-num {
+  font-family: var(--font-body), system-ui, sans-serif;
+  font-size: calc(1.15em - 1px); position: relative; top: 0.07em;
+  font-variant-numeric: tabular-nums;
+}
 
 /* The opener's one extra decision: which way the bidding travels. */
 .turn-dir { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-top: 26px; }

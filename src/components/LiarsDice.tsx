@@ -15,6 +15,7 @@
 // hand and nobody else's.
 import { useEffect, useState } from 'react';
 import Chop from '@/components/Chop';
+import SansNum from '@/components/SansNum';
 import { CheckIcon, DieFaceIcon, ArrowLeftIcon, ArrowRightIcon } from '@/components/icons';
 import { useLang } from '@/lib/i18n';
 import { DICE_PER_PLAYER, type Die, type Direction } from '@/lib/liarsDice';
@@ -270,14 +271,8 @@ function CallHistory({ items, colorFor }: {
   );
 }
 
-/** A made call, as it is said out loud. The count is sans inside serif CJK —
- *  a sans numeral reads smaller than serif Han at the same size, so it is
- *  nudged up rather than left looking like a subscript. */
+/** A made call, as it is said out loud. The count's sans-inside-serif correction
+ *  is SansNum's — extracted from here when the cart bar needed the same thing. */
 function CallText({ text }: { text: string }) {
-  const m = text.match(/^(\d+)([\s\S]*)$/);
-  return (
-    <span className="other-call-text">
-      {m ? <><span className="other-call-num">{m[1]}</span>{m[2]}</> : text}
-    </span>
-  );
+  return <span className="other-call-text"><SansNum>{text}</SansNum></span>;
 }

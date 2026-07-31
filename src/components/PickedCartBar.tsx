@@ -20,6 +20,7 @@ import Link from 'next/link';
 import { useLang } from '@/lib/i18n';
 import { sumPrices } from '@/lib/price';
 import { ArrowRightIcon } from '@/components/icons';
+import SansNum from '@/components/SansNum';
 
 export default function PickedCartBar({ picked, onDone }: {
   picked: { key: string; price?: string | null }[];
@@ -62,9 +63,13 @@ export default function PickedCartBar({ picked, onDone }: {
   // Same pill either way — the chrome is the table's running bill in both modes,
   // and only what the tap MEANS changes. A second bar styled to match would be
   // the lookalike this component was extracted to kill.
+  // Both numbers are set in the body sans, not the button's display serif — a
+  // count and a running total are figures to read, and SansNum carries the
+  // optical correction that keeps the count on the same line as the 已選…道
+  // around it (owner, 2026-07-31).
   const inner = (
     <>
-      <span>{t('scan.pickcount', { n: dishes.length })}</span>
+      <span><SansNum>{t('scan.pickcount', { n: dishes.length })}</SansNum></span>
       <span className="cart-bar-end">
         {priceLabel && <span className="cart-total">{priceLabel}</span>}
         <ArrowRightIcon />
