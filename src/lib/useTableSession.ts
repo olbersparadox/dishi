@@ -81,6 +81,10 @@ export type StampableItem = { key: string; name: string; name_zh?: string | null
  *  inFlightRef with picks, so they are prefixed to stay out of that namespace. */
 const PAY_KEY = '__pay';
 const DICE_KEY = '__dice';
+/** How long a session-level write may guard its own fields from the poll. Generous
+ *  next to a round trip, short next to a meal — it only has to outlast a real
+ *  request, never a hung one. */
+const WRITE_GUARD_MS = 15_000;
 
 /** The three settle fields that move together. Pulled out because they have to be
  *  written as a SET every time — a payer without its draw count leaves the screen
@@ -92,7 +96,24 @@ const settled = (src: { pay_method?: SessionState['pay_method']; pay_payer_id?: 
 });
 
 export function useTableSession(code: string | null) {
-  const [state, setState] = useState<SessionState | null>(null);
+  const [loadedState, setState] = useState<SessionState | null>(null);
+  /**
+   * State is only usable while it describes the table currently being asked for.
+   *
+   * The hook instance outlives a table: /scan keeps this mounted and swaps the code
+   * when a second menu is scanned and shared. Nothing used to enforce the match, so
+   * the new table opened wearing the OLD table's dishes, members, settle decision and
+   * 大話骰 round until a poll happened to replace them — user 1 landed inside a
+   * mid-round game on a table where nobody had started one, while user 2, whose
+   * client had only ever seen the new table, sat on the settle screen (owner,
+   * 2026-07-31).
+   *
+   * Derived rather than cleared in an effect, so it holds on the very render the new
+   * code arrives on. An effect would paint one frame of the old table first, and one
+   * frame is enough to mount the game.
+   */
+  const state = loadedState && code && loadedState.code?.toUpperCase() === code.toUpperCase()
+    ? loadedState : null;
   const [error, setError] = useState('');
   /** My own "done picking" tap before the poll has confirmed it. Null means "no
    * claim of my own" — the server's answer, whatever it is. */
@@ -111,7 +132,29 @@ export function useTableSession(code: string | null) {
   //    serialise need it, and un-picking deliberately does NOT (its endpoint is slow
   //    enough that blocking on it is the latency the owner reported).
   const markInFlight = (key: string, active: boolean) => {
-    if (active) inFlightRef.current.add(key); else inFlightRef.current.delete(key);
+    if (active) {
+      inFlightRef.current.add(key);
+      inFlightAtRef.current.set(key, Date.now());
+    } else {
+      inFlightRef.current.delete(key);
+      inFlightAtRef.current.delete(key);
+    }
+  };
+  /**
+   * Whether a SESSION-level write is still recent enough to keep guarding its fields
+   * from the poll.
+   *
+   * The time bound is the load-bearing part. A key is cleared in a finally, which
+   * covers every way a fetch can settle — but not a fetch that never settles at all.
+   * A request left hanging (dead network, sleeping phone) therefore pinned its fields
+   * against every future poll for the life of the mount, which is how a stale 大話骰
+   * round survived indefinitely instead of for one cycle. Past this window the
+   * server's answer wins, which is this file's default and the safe direction.
+   */
+  const holding = (key: string) => {
+    if (!inFlightRef.current.has(key)) return false;
+    const since = inFlightAtRef.current.get(key) ?? 0;
+    return Date.now() - since < WRITE_GUARD_MS;
   };
   const markBusy = (key: string, busy: boolean) => {
     markInFlight(key, busy);
@@ -137,6 +180,13 @@ export function useTableSession(code: string | null) {
   // entry whose write hasn't committed) and toggle (which queues rather than drops)
   // read this.
   const inFlightRef = useRef<Set<string>>(new Set());
+  /** When each in-flight key was marked, so a write that never returns cannot guard
+   *  its fields forever. See holding(). */
+  const inFlightAtRef = useRef<Map<string, number>>(new Map());
+  /** The table currently being asked for, readable from async code that started
+   *  before the latest swap. */
+  const codeRef = useRef(code);
+  codeRef.current = code;
   // The state the user last ASKED for on a key whose write was still going, so a tap
   // during a round trip is honoured when that round trip ends instead of vanishing.
   const desiredRef = useRef<Map<string, boolean>>(new Map());
@@ -144,6 +194,12 @@ export function useTableSession(code: string | null) {
 
   const refresh = useCallback(async () => {
     if (!code) return;
+    // Which table this request is FOR. A poll issued before a swap can answer after
+    // it, and its body describes a table this screen has left — applying it blanked
+    // the new table's state until the next poll came round, which is the screen
+    // "refreshing itself" (owner, 2026-07-31). A late answer for a table we are no
+    // longer showing is not stale data to reconcile, it is a different question.
+    const forCode = code;
     // Stamped BEFORE the request goes out, because that is the instant the response
     // describes. Clearing anything newer than this would discard an event the server
     // hadn't been asked about yet — see pruneOverlaysBefore for the live symptom.
@@ -151,6 +207,7 @@ export function useTableSession(code: string | null) {
     try {
       const res = await fetch(`/api/table/${code}`);
       const json = await res.json();
+      if (codeRef.current !== forCode) return;
       if (!res.ok) throw new Error(json.error);
       // A poll that raced a local write must not hand back the pre-write value.
       // The overlay has always been protected this way (see pruneOverlaysBefore);
@@ -160,11 +217,18 @@ export function useTableSession(code: string | null) {
       // second one. A spin that visibly restarts mid-flight (owner, 2026-07-31).
       setState(prev => {
         if (!prev) return json;
+        // ONLY ever hold fields within one session. Holding across a session swap is
+        // how a brand-new table inherited the previous table's 大話骰 mid-round while
+        // the other member sat on the settle screen (owner, 2026-07-31): user 1
+        // scanned a second menu, and the settle fields and game object from the FIRST
+        // table were copied onto the second table's poll response, over and over.
+        // A different session's answer is never "the pre-write value" of this one.
+        if (prev.session_id !== json.session_id) return json;
         const held: Partial<SessionState> = {};
-        if (inFlightRef.current.has(PAY_KEY)) Object.assign(held, settled(prev));
+        if (holding(PAY_KEY)) Object.assign(held, settled(prev));
         // Same hazard, same shape: a poll issued before a move can answer after
         // it, and would put the round back as it stood before the move landed.
-        if (inFlightRef.current.has(DICE_KEY)) held.game = prev.game;
+        if (holding(DICE_KEY)) held.game = prev.game;
         return Object.keys(held).length ? { ...json, ...held } : json;
       });
       setError('');
@@ -176,6 +240,7 @@ export function useTableSession(code: string | null) {
         Object.entries(pendingDishIds.current)
           .filter(([k, v]) => v.at >= requestedAt || inFlightRef.current.has(k)));
     } catch (e: any) {
+      if (codeRef.current !== forCode) return;
       setError(e.message || 'Lost the table.');
     }
   }, [code]);
@@ -183,6 +248,12 @@ export function useTableSession(code: string | null) {
   // Poll every 5s while open, so rankings shift live as people join.
   useEffect(() => {
     if (!code) return;
+    // A different code is a different table, and no write from the old one may go on
+    // guarding fields on the new one.
+    inFlightRef.current.clear();
+    inFlightAtRef.current.clear();
+    busyRef.current.clear();
+    pendingDishIds.current = {};
     refresh();
     const t = setInterval(refresh, 5000);
     return () => clearInterval(t);

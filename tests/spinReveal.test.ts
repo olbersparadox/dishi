@@ -169,13 +169,27 @@ describe('wiring', () => {
   it('a poll cannot revert a settle write that is still in flight', () => {
     // The regression: a poll landing mid-spin reverted pay_payer_id for one cycle,
     // which cancelled the spin and then started a second one.
-    expect(ENGINE).toMatch(/inFlightRef\.current\.has\(PAY_KEY\)/);
-    expect(ENGINE).toMatch(/inFlightRef\.current\.has\(DICE_KEY\)/);
+    expect(ENGINE).toMatch(/holding\(PAY_KEY\)/);
+    expect(ENGINE).toMatch(/holding\(DICE_KEY\)/);
     // Held keys must be RELEASED on every exit or the poll is frozen out for good.
     expect(body(ENGINE, 'const choosePayMethod', 'const playDice'))
       .toMatch(/finally \{\s*markInFlight\(PAY_KEY, false\)/);
     expect(body(ENGINE, 'const playDice', 'const startDiceGame'))
       .toMatch(/finally \{\s*markInFlight\(DICE_KEY, false\)/);
+  });
+
+  it('nothing from one table can survive onto the next one', () => {
+    // The live bug (owner, 2026-07-31): user 1 scanned a SECOND menu, and their screen
+    // opened inside a mid-round 大話骰 that belonged to the first table, while user 2
+    // — whose client had only ever seen the new table — sat on the settle screen.
+    // /scan keeps this hook mounted and just swaps the code, so three things have to
+    // hold, and all three are load-bearing:
+    //   1. state is unusable unless it describes the code being asked for
+    expect(ENGINE).toMatch(/loadedState\.code\?\.toUpperCase\(\) === code\.toUpperCase\(\)/);
+    //   2. a poll never merges across sessions
+    expect(ENGINE).toMatch(/prev\.session_id !== json\.session_id\) return json/);
+    //   3. a hung write cannot guard its fields forever
+    expect(ENGINE).toMatch(/Date\.now\(\) - since < WRITE_GUARD_MS/);
   });
 
   it('neither settle write awaits a refresh — that was the ~2s of dead air', () => {
