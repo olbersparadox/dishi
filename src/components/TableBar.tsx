@@ -8,7 +8,7 @@
 // the code/count/invite — it moved to an icon-only button on table/page.tsx's
 // own title row instead (owner feedback, 2026-07-21).
 import { useLang } from '@/lib/i18n';
-import { InviteIcon } from '@/components/icons';
+import { InviteIcon, CopyIcon } from '@/components/icons';
 
 export default function TableBar({ code, memberCount, pickCount, onInvite, restaurantLine }: {
   code: string;
@@ -22,13 +22,25 @@ export default function TableBar({ code, memberCount, pickCount, onInvite, resta
   restaurantLine?: React.ReactNode;
 }) {
   const { t } = useLang();
+  const copyCode = () => {
+    navigator.clipboard.writeText(code).catch(() => {
+      // Fallback for older browsers or insecure contexts.
+      const el = document.createElement('textarea');
+      el.value = code;
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand('copy');
+      document.body.removeChild(el);
+    });
+  };
   return (
     <div className="table-bar">
       <span className="table-bar-left">
-        <span className="table-bar-codewrap">
+        <button className="table-bar-codewrap" onClick={copyCode} type="button" title={t('table.copied')} aria-label={`${t('scan.tablelabel')} ${code}`}>
           <span className="table-bar-label">{t('scan.tablelabel')}</span>
           <span className="table-bar-code">{code}</span>
-        </span>
+          <CopyIcon size={16} />
+        </button>
         {/* Headcount + dishes picked as one quiet meta line, sitting right after
             the code (separated by a "|") — status, not a dashboard. */}
         <span className="table-bar-stat">{t('scan.tablestatus', { n: memberCount, m: pickCount })}</span>
