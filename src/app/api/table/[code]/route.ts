@@ -5,6 +5,8 @@ import { DishVector } from '@/lib/taste';
 import { shapeTableMenuItems, scanCandidateKey } from '@/lib/tableMenuItems';
 import { hasClaimedUsername } from '@/lib/username';
 import { resolveOrCreateRestaurant } from '@/lib/restaurant';
+import { viewForUser, type DiceRound } from '@/lib/tableDice';
+import type { Die } from '@/lib/liarsDice';
 
 // Total menu_items a session can ever hold — matches the cap POST /api/table's
 // own initial create already uses, so appending pages can't grow a session
@@ -170,6 +172,25 @@ export async function GET(_req: NextRequest, { params }: { params: { code: strin
     .eq('table_session_id', session.id)
     .order('created_at', { ascending: false });
 
+  // 大話骰 rides this same poll, the way readiness does — the turn engine is the
+  // 5s cycle plus the realtime nudge, not a second transport. Only loaded once a
+  // table has actually started a game, so an ordinary table pays nothing for it.
+  // viewForUser is the ONE gate on the dice: it hands this caller their own five
+  // and, until 開, nobody else's (see tableDice.ts).
+  let game = null;
+  if (session.pay_method === 'game') {
+    const { data: roundRow } = await admin
+      .from('table_dice_rounds').select('*')
+      .eq('session_id', session.id).order('round', { ascending: false }).limit(1).maybeSingle();
+    if (roundRow) {
+      const { data: rollRows } = await admin
+        .from('table_dice_rolls').select('user_id, dice').eq('round_id', roundRow.id);
+      const rolls = Object.fromEntries(
+        (rollRows ?? []).map(r => [r.user_id as string, (r.dice ?? []) as Die[]]));
+      game = viewForUser(roundRow as DiceRound, rolls, user.id);
+    }
+  }
+
   return NextResponse.json({
     code,
     session_id: session.id,
@@ -199,6 +220,7 @@ export async function GET(_req: NextRequest, { params }: { params: { code: strin
     settled_at: session.settled_at ?? null,
     pay_method: session.pay_method ?? null,
     pay_payer_id: session.pay_payer_id ?? null,
+    game,
     // Visible to everyone at the table: what's been picked so far, and by whom —
     // shared awareness, not a shared cart. Each pick is still an individual dish
     // row the picker rates on their own.

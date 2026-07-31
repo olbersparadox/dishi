@@ -24,6 +24,8 @@ import {
   type Stamp, type StampOverlay, type StampEvent,
 } from '@/lib/tableStamps';
 import { readyCount as countReady } from '@/lib/tableSettle';
+import type { DiceGameView } from '@/lib/tableDice';
+import type { Die, Direction } from '@/lib/liarsDice';
 
 export type Member = {
   user_id: string; handle: string; display_name: string | null;
@@ -61,6 +63,10 @@ export type SessionState = {
   settled_at: string | null;
   pay_method: 'equal' | 'random' | 'game' | null;
   pay_payer_id: string | null;
+  /** 大話骰, as this member is allowed to see it: their own five dice, the public
+   *  bidding, and — only after 開 — every cup. Null until a table starts a game.
+   *  Shaped server-side by viewForUser; the client never filters dice itself. */
+  game: DiceGameView | null;
 };
 
 /** The minimum an item needs for stamps to find its picks — so a /scan
@@ -404,6 +410,48 @@ export function useTableSession(code: string | null) {
     await refresh();
   };
 
+  /**
+   * 大話骰. Every move is one POST to the same endpoint, which answers with THIS
+   * player's view of the round as it now stands — so the mover's own screen
+   * updates from the server's answer rather than from a guess about it, and the
+   * others are nudged onto the poll that already carries the game.
+   *
+   * Deliberately not optimistic, unlike a pick. A pick is a tap on a dish and has
+   * to feel like one; a call is a claim in a game with money on it, and showing
+   * it as made before the server accepted it is how a table ends up arguing about
+   * a bid that was never legal. The round trip is one request and the poll is the
+   * backstop either way.
+   */
+  const playDice = async (payload: Record<string, unknown>) => {
+    if (!code) return;
+    try {
+      const res = await fetch(`/api/table/${code}/dice`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok) { setError(json?.error || 'That move did not land.'); return; }
+      // The response is this player's own view — safe to apply directly, and it
+      // is what makes your own call appear the instant it is accepted.
+      if (json?.game) setState(prev => (prev ? { ...prev, game: json.game, pay_method: 'game' } : prev));
+      // Same trick readiness uses: the broadcast carries no state, it just pulls
+      // everyone else's poll forward. Waiting up to 5s to learn the turn has
+      // reached you is precisely the delay this game cannot afford.
+      channelRef.current?.send({ type: 'broadcast', event: 'ready', payload: { dice: true } });
+      await refresh();
+    } catch {
+      setError('That move did not land.');
+    }
+  };
+  /** 搖骰 — open the round, and switch the bill's method to the game with it. */
+  const startDiceGame = () => playDice({ action: 'roll' });
+  /** 向左 / 向右, the opener's one extra decision. */
+  const pickDirection = (direction: Direction) => playDice({ action: 'direction', direction });
+  /** A call: this many of that face, across every cup on the table. */
+  const callBid = (quantity: number, face: Die) => playDice({ action: 'bid', quantity, face });
+  /** 開 — every cup lifts and somebody is holding the bill. */
+  const openCups = () => playDice({ action: 'challenge' });
+
   const members = state?.members ?? [];
   // Server truth wins the moment it agrees with the optimistic flag, which is
   // what retires it — never a timer.
@@ -427,5 +475,7 @@ export function useTableSession(code: string | null) {
     settled: !!state?.settled_at,
     payMethod: state?.pay_method ?? null,
     payerId: state?.pay_payer_id ?? null,
+    game: state?.game ?? null,
+    startDiceGame, pickDirection, callBid, openCups,
   };
 }
