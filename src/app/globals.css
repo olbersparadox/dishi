@@ -1577,6 +1577,15 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 /* Non-editable (QR/registered table) mirrors the button's icon+text layout with
    no affordance styling — it's a fact, not a tap target. */
 .table-restaurant-static { display: inline-flex; align-items: center; gap: 5px; }
+/* Was a "+ 邀請" text pill; a black circle icon button reads lighter next to the
+   code/count text without losing the action. Sits on the bar's first flex line
+   (align-items: center on .table-bar), so it centers against that row's own
+   height rather than the bar's full height once the restaurant line wraps below. */
+.table-invite-btn {
+  flex-shrink: 0; display: grid; place-items: center; width: 40px; height: 40px;
+  border-radius: 50%; background: var(--ink); color: var(--glaze); border: none; cursor: pointer;
+}
+.table-invite-btn:hover { background: #423d37; }
 .table-bar-left { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
 .table-bar-codewrap { display: inline-flex; align-items: baseline; gap: 4px; min-width: 0; }
 .table-bar-label { font-size: var(--fs-caption); color: var(--ink); }

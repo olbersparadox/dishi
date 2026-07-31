@@ -381,7 +381,7 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'table.joinbtn': { zh: '加入', en: 'Join' },
   'table.leave': { zh: '離開', en: 'Leave' },
   'table.back': { zh: '返回', en: 'Back' },
-  'table.invite': { zh: '+ 邀請', en: '+ Invite' },
+  'table.invite': { zh: '邀請', en: 'Invite' },
   // The restaurant line. 未定 rather than a question or an instruction: the
   // restaurant is usually resolved automatically, so this state is "not settled
   // yet", not a task anyone has been handed.
