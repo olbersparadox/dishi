@@ -34,7 +34,7 @@ export default function TableBar({ code, memberCount, pickCount, onInvite, resta
         <span className="table-bar-stat">{t('scan.tablestatus', { n: memberCount, m: pickCount })}</span>
       </span>
       <button className="table-invite-btn" onClick={onInvite} aria-label={t('table.invite')} title={t('table.invite')}>
-        <InviteIcon size={16} />
+        <InviteIcon size={20} />
       </button>
       {restaurantLine}
     </div>
