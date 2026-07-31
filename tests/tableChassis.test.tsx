@@ -222,3 +222,35 @@ describe('one cart bar — table-wide, same number on every screen', () => {
     expect(TABLE_SRC).toMatch(/anyPickedItems = state\.items\.filter\(it => \(stampsByKey\.get\(it\.key\) \?\? \[\]\)\.length > 0\)/);
   });
 });
+
+describe('the invite link is the join', () => {
+  // Owner report, 2026-07-31: tapping 邀請 shared /table?code=X, but the code in
+  // the URL was decoration — GET /api/table/[code] refuses non-members, and
+  // membership was only ever written by the join box where you TYPE the code.
+  // An invited person (signed in or not) tapped the link and landed on "Join
+  // this table first" with no join anywhere in reach. The invite is the spread
+  // path; a link that doesn't seat you at the table is not an invite.
+
+  it('/table joins via the join endpoint before mounting the session', () => {
+    expect(TABLE_SRC).toMatch(/fetch\('\/api\/table\/join'/);
+    // The code from the URL must never mount Session directly — that starts the
+    // poll, and the poll 403s a non-member. setCode only after the join took.
+    expect(TABLE_SRC).not.toMatch(/if \(p\) setCode\(p\.toUpperCase\(\)\)/);
+    const tableFn = TABLE_SRC.slice(TABLE_SRC.indexOf('function Table()'), TABLE_SRC.indexOf('function Session'));
+    const joinAt = tableFn.indexOf("fetch('/api/table/join'");
+    const okAt = tableFn.indexOf('if (!res.ok) throw');
+    const setAt = tableFn.indexOf('setCode(target)');
+    expect(joinAt).toBeGreaterThan(-1);
+    expect(okAt).toBeGreaterThan(joinAt);
+    expect(setAt).toBeGreaterThan(okAt);
+  });
+
+  it('both screens share the code in the message body, not only the query string', () => {
+    // Messengers drop titles freely; a mangled link still leaves five typable
+    // characters if the code itself is in the text.
+    expect(SCAN_SRC).toMatch(/text: t\('table\.sharetext', \{ code/);
+    expect(TABLE_SRC).toMatch(/text: t\('table\.sharetext', \{ code/);
+    expect(SCAN_SRC).toMatch(/\/table\?code=\$\{tableSession\.code\}/);
+    expect(TABLE_SRC).toMatch(/\/table\?code=\$\{code\}/);
+  });
+});

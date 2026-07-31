@@ -65,15 +65,58 @@ export default function TablePage() {
 // view for a code, reached via ?code= from a scan's invite link or its join box.
 function Table() {
   const router = useRouter();
+  const { t } = useLang();
+  // Set only once the join has taken — never straight from the URL. Mounting
+  // Session first would start the poll, and GET refuses non-members.
   const [code, setCode] = useState<string | null>(null);
+  const [joining, setJoining] = useState(false);
+  const [joinError, setJoinError] = useState<string | null>(null);
 
   useEffect(() => {
     const p = new URLSearchParams(window.location.search).get('code');
-    if (p) setCode(p.toUpperCase());
-    else router.replace('/scan');
+    if (!p) { router.replace('/scan'); return; }
+    const target = p.toUpperCase();
+    // The link IS the invite (owner, 2026-07-31): arriving with ?code= joins you
+    // before the session view mounts. Without this the code in the URL was
+    // decoration — GET /api/table/[code] refuses non-members, membership was
+    // only ever written by the join box on /scan where you TYPE the code, so an
+    // invited person tapped the link and landed on "Join this table first" with
+    // no join anywhere in reach. Tapping a shared code and typing one are the
+    // same act of consent, so they run the same endpoint. Join is idempotent
+    // (a member re-opening their own link is a no-op that also re-runs the
+    // companion-edge self-heal — see /api/table/join), and for a signed-out
+    // recipient AuthGate renders its OTP form ON this URL with no navigation,
+    // so the code survives the sign-in wall by construction.
+    let cancelled = false;
+    setJoining(true);
+    (async () => {
+      try {
+        const res = await fetch('/api/table/join', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code: target }),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(json.error || 'Could not join this table.');
+        if (!cancelled) setCode(target);
+      } catch (e: any) {
+        if (!cancelled) setJoinError(e.message || 'Could not join this table.');
+      } finally {
+        if (!cancelled) setJoining(false);
+      }
+    })();
+    return () => { cancelled = true; };
   }, [router]);
 
-  if (!code) return null; // redirecting to /scan
+  // No such table / table closed: the same quiet error-plus-exit Session itself
+  // uses when the poll fails, not a new surface.
+  if (joinError) return (
+    <div>
+      <p style={{ color: 'var(--lacquer)' }}>{joinError}</p>
+      <button className="btn ghost small" onClick={() => router.push('/scan')}>{t('table.back')}</button>
+    </div>
+  );
+  if (!code) return joining ? <p className="card-meta">{t('table.joining')}</p> : null;
   return <Session code={code} onLeave={() => router.push('/scan')} />;
 }
 
@@ -283,7 +326,15 @@ function Session({ code, onLeave }: { code: string; onLeave: () => void }) {
     // Behaviour change, deliberate: dismissing the OS sheet used to fall
     // through to the clipboard and alert about it. shareLink treats a
     // dismissal as the answer (see its AbortError note).
-    if (await shareLink({ title: t('table.sharetitle'), url }) === 'copied') alert(t('table.copied'));
+    // The code rides the message body as well as the query string: messengers
+    // drop the title freely, and a recipient whose link gets mangled can still
+    // type five characters into the join box. The invite must survive with the
+    // CODE legible, not just as a URL that works when nothing interferes.
+    if (await shareLink({
+      title: t('table.sharetitle'),
+      text: t('table.sharetext', { code }),
+      url,
+    }) === 'copied') alert(t('table.copied'));
   }
 
   if (error) return (

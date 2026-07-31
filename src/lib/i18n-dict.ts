@@ -400,6 +400,10 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'table.pulling': { zh: '正在取得餐桌資料…', en: 'Pulling up the table…' },
   'table.copied': { zh: '連結已複製 — 發俾成檯人。', en: 'Link copied — send it to the table.' },
   'table.sharetitle': { zh: '來我這桌 — Dishi', en: 'Join my table on Dishi' },
+  // Rides the share sheet's message body, ahead of the URL. The code is spelled
+  // out for humans on purpose: titles get dropped by messengers, and a mangled
+  // link still leaves five characters someone can type into the join box.
+  'table.sharetext': { zh: '一齊揀餸，入檯碼 {code}', en: 'Pick dishes together. Table code: {code}' },
 
   // ---- the done-picking handshake ----
   // 「我選好了」 states a fact about MYSELF, not a command to the table: the whole

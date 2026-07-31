@@ -205,7 +205,13 @@ function Scanner() {
     const url = `${window.location.origin}/table?code=${tableSession.code}`;
     // shareLink owns the sheet-then-clipboard chain (lib/share.ts); only the
     // "it's on your clipboard" feedback is this screen's to give.
-    if (await shareLink({ title: t('table.sharetitle'), url }) === 'copied') alert(t('table.copied'));
+    // Same payload as /table's own share: the code rides the message body too,
+    // so a recipient whose messenger mangles the link can still type it in.
+    if (await shareLink({
+      title: t('table.sharetitle'),
+      text: t('table.sharetext', { code: tableSession.code }),
+      url,
+    }) === 'copied') alert(t('table.copied'));
   }
 
   // The SAME engine /table mounts — poll, realtime channel, stamp overlay, and
