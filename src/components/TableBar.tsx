@@ -9,6 +9,7 @@
 // own title row instead (owner feedback, 2026-07-21).
 import { useLang } from '@/lib/i18n';
 import { InviteIcon, CopyIcon } from '@/components/icons';
+import Toast, { useToast } from '@/components/Toast';
 
 export default function TableBar({ code, memberCount, pickCount, onInvite, restaurantLine }: {
   code: string;
@@ -22,8 +23,14 @@ export default function TableBar({ code, memberCount, pickCount, onInvite, resta
   restaurantLine?: React.ReactNode;
 }) {
   const { t } = useLang();
+  const toast = useToast();
+  // Confirms in the SAME pill the journal's share uses (components/Toast), not an
+  // alert: a copy is a statement, and 5 characters on the clipboard don't warrant
+  // a dialog to dismiss. The pill names the code, so it doubles as proof that the
+  // right one was copied.
   const copyCode = () => {
-    navigator.clipboard.writeText(code).catch(() => {
+    const confirm = () => toast.show(t('table.codecopied', { code }));
+    navigator.clipboard.writeText(code).then(confirm).catch(() => {
       // Fallback for older browsers or insecure contexts.
       const el = document.createElement('textarea');
       el.value = code;
@@ -31,12 +38,17 @@ export default function TableBar({ code, memberCount, pickCount, onInvite, resta
       el.select();
       document.execCommand('copy');
       document.body.removeChild(el);
+      confirm();
     });
   };
   return (
     <div className="table-bar">
       <span className="table-bar-left">
-        <button className="table-bar-codewrap" onClick={copyCode} type="button" title={t('table.copied')} aria-label={`${t('scan.tablelabel')} ${code}`}>
+        {/* title/aria describe the ACTION. They said "Link copied — send it to the
+            table" before anything had been copied, and named a link this button
+            has never put on the clipboard. */}
+        <button className="table-bar-codewrap" onClick={copyCode} type="button"
+          title={t('table.copycode')} aria-label={`${t('table.copycode')} ${code}`}>
           <span className="table-bar-label">{t('scan.tablelabel')}</span>
           <span className="table-bar-code">{code}</span>
           <span className="table-bar-copy-icon"><CopyIcon size={16} /></span>
@@ -49,6 +61,11 @@ export default function TableBar({ code, memberCount, pickCount, onInvite, resta
         <InviteIcon size={20} />
       </button>
       {restaurantLine}
+      {/* Safe inside the bar: .table-bar is position:relative with no transform,
+          so a position:fixed child still anchors to the viewport. A transform
+          anywhere up this tree would silently trap it (see MyDishes' own note on
+          exactly that bug biting .row-menu-backdrop). */}
+      <Toast message={toast.message} onDone={toast.onDone} />
     </div>
   );
 }

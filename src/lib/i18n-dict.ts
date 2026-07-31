@@ -399,6 +399,12 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'table.chop.skip': { zh: '遲啲先', en: 'Not now' },
   'table.pulling': { zh: '正在取得餐桌資料…', en: 'Pulling up the table…' },
   'table.copied': { zh: '連結已複製 — 發俾成檯人。', en: 'Link copied — send it to the table.' },
+  // Names the code it just copied, because that is the whole point of tapping it:
+  // the confirmation doubles as proof the RIGHT five characters are on the
+  // clipboard. Says 檯號, not 連結 — the invite button copies a link, this copies
+  // the code, and one string covering both would be wrong on one of them.
+  'table.codecopied': { zh: '已複製檯號 {code}', en: 'Table code {code} copied' },
+  'table.copycode': { zh: '複製檯號', en: 'Copy table code' },
   'table.sharetitle': { zh: '來我這桌 — Dishi', en: 'Join my table on Dishi' },
   // Rides the share sheet's message body, ahead of the URL. The code is spelled
   // out for humans on purpose: titles get dropped by messengers, and a mangled

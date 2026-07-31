@@ -7,6 +7,7 @@ import { cuisineLabel } from '@/lib/i18n';
 import { wordKeyFor } from '@/lib/flickWords';
 import { EditIcon, TrashIcon, MoreIcon, CheckIcon, CloseIcon, GlobeIcon, LinkIcon, ShareIcon } from './icons';
 import { shareLink } from '@/lib/share';
+import Toast, { useToast } from '@/components/Toast';
 import { cookingBucket, type CookingMethod } from '@/lib/menuScan';
 import DishInfoDisplay from './DishInfoDisplay';
 import ExplainModal from './ExplainModal';
@@ -139,6 +140,9 @@ export default function MyDishes({ t, lang, onPublished }: {
   // kebab button replaces the previous always-visible edit+delete icon pair,
   // per the decided design; at most one row's menu is open at a time.
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
+  // The share confirmation — the same pill the table bar shows, replacing the
+  // window.alert this used to raise for a link that was already on the clipboard.
+  const toast = useToast();
   // Which dish's 貼文 sheet is open. Publishing is a deliberate, separate act —
   // never a side effect of rating or editing. The sheet only ever serves the
   // publish act now — Share (owner call: simplified) no longer opens it.
@@ -173,7 +177,7 @@ export default function MyDishes({ t, lang, onPublished }: {
   async function sendDishLink(dishId: string) {
     const url = await resolveDishUrl(dishId);
     if (!url) { setShareNeedsName(true); return; }
-    if (await shareLink({ title: t('post.share.title'), url }) === 'copied') alert(t('table.copied'));
+    if (await shareLink({ title: t('post.share.title'), url }) === 'copied') toast.show(t('table.copied'));
   }
 
   /** The kebab's "分享" — simplified (owner call): no consent card, no
@@ -800,6 +804,7 @@ export default function MyDishes({ t, lang, onPublished }: {
       })}
       <div ref={sentinelRef} style={{ height: 1 }} aria-hidden />
       {loadingMore && <p className="card-meta" style={{ textAlign: 'center', padding: '8px 0' }}>{t('home.loadingmore')}</p>}
+      <Toast message={toast.message} onDone={toast.onDone} />
     </>
   );
 }

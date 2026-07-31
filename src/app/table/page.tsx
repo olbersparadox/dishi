@@ -19,6 +19,7 @@ import PickedCartBar from '@/components/PickedCartBar';
 import TableWaitLayer from '@/components/TableWaitLayer';
 import TableSettle from '@/components/TableSettle';
 import { shareLink } from '@/lib/share';
+import Toast, { useToast } from '@/components/Toast';
 import { supabaseBrowser } from '@/lib/supabase/client';
 // The table-session engine — poll, realtime, stamps, pick/unpick — lives in ONE
 // place that /scan mounts too. This page used to own all of it inline, and /scan
@@ -137,6 +138,9 @@ function Table() {
 // earned mark's table-mode equivalent, rendered with the same 🔥 tag scan uses.
 function Session({ code, onLeave }: { code: string; onLeave: () => void }) {
   const { t, lang } = useLang();
+  // Confirms the invite-link copy (desktop, where there's no OS share sheet) in
+  // the app's own pill rather than a browser alert.
+  const toast = useToast();
   // "Picked" is never its own local flag (owner correction, 2026-07-21): a dish is
   // picked iff MY OWN stamp is present, derived from the same stamps list
   // everyone else's chops come from — a Set that only updated on click drifted
@@ -334,7 +338,7 @@ function Session({ code, onLeave }: { code: string; onLeave: () => void }) {
       title: t('table.sharetitle'),
       text: t('table.sharetext', { code }),
       url,
-    }) === 'copied') alert(t('table.copied'));
+    }) === 'copied') toast.show(t('table.copied'));
   }
 
   if (error) return (
@@ -560,6 +564,7 @@ function Session({ code, onLeave }: { code: string; onLeave: () => void }) {
       {inGroup && iAmReady && (
         <TableWaitLayer members={state.members} colorFor={colorFor} onKeepPicking={() => setReady(false)} />
       )}
+      <Toast message={toast.message} onDone={toast.onDone} />
     </div>
   );
 }

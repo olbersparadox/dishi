@@ -17,6 +17,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useLang } from '@/lib/i18n';
+import Toast, { useToast } from '@/components/Toast';
 import DuelSide from './DuelSide';
 import Chop from './Chop';
 import DishInfoDisplay from './DishInfoDisplay';
@@ -32,6 +33,7 @@ export default function FeedCard({ item, onBookmarked }: {
   onBookmarked: (id: string) => void;
 }) {
   const { t, pair } = useLang();
+  const toast = useToast();
   const [saving, setSaving] = useState(false);
   const [failed, setFailed] = useState(false);
   const [showOwnExplain, setShowOwnExplain] = useState(false);
@@ -105,7 +107,7 @@ export default function FeedCard({ item, onBookmarked }: {
     e.stopPropagation();
     if (!item.dish.id || item.author.kind !== 'user') return;
     const url = `${window.location.origin}/${item.author.username}/d/${item.dish.id}`;
-    if (await shareLink({ title: t('post.share.title'), url }) === 'copied') alert(t('table.copied'));
+    if (await shareLink({ title: t('post.share.title'), url }) === 'copied') toast.show(t('table.copied'));
   };
 
   // Chop color has no user_id to key off here (FeedAuthor carries only a
@@ -243,6 +245,7 @@ export default function FeedCard({ item, onBookmarked }: {
           onClose={() => setSignInOpen(false)}
         />
       )}
+      <Toast message={toast.message} onDone={toast.onDone} />
     </article>
   );
 }

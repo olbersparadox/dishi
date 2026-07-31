@@ -11,6 +11,7 @@ import { createTaskPool } from '@/lib/concurrency';
 import { createScanTelemetry, type ScanSummary } from '@/lib/scanTelemetry';
 import { mergeFinalScanItems } from '@/lib/tableMenuItems';
 import { shareLink } from '@/lib/share';
+import Toast, { useToast } from '@/components/Toast';
 import DishInfoDisplay from '@/components/DishInfoDisplay';
 import DishListRow from '@/components/DishListRow';
 import TableBar from '@/components/TableBar';
@@ -104,6 +105,8 @@ export default function ScanPage() {
 
 function Scanner() {
   const { t, lang, pair } = useLang();
+  // Invite-link copy confirmation, in the app's pill rather than a browser alert.
+  const toast = useToast();
   // Restore a scan left behind when the user switched tabs (Feed/Taste) and came
   // back. Read once, synchronously, so the very first render already shows the
   // menu instead of flashing the capture screen. `scanning`/`preview` are
@@ -211,7 +214,7 @@ function Scanner() {
       title: t('table.sharetitle'),
       text: t('table.sharetext', { code: tableSession.code }),
       url,
-    }) === 'copied') alert(t('table.copied'));
+    }) === 'copied') toast.show(t('table.copied'));
   }
 
   // The SAME engine /table mounts — poll, realtime channel, stamp overlay, and
@@ -1052,6 +1055,7 @@ function Scanner() {
       {table.members.length >= 2 && table.iAmReady && (
         <TableWaitLayer members={table.members} colorFor={table.colorFor} onKeepPicking={() => table.setReady(false)} />
       )}
+      <Toast message={toast.message} onDone={toast.onDone} />
     </div>
   );
 }

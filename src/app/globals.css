@@ -909,6 +909,40 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 }
 .cart-bar > * { pointer-events: auto; }
 
+/* --- the transient confirmation pill (components/Toast.tsx) ---
+   Bottom-anchored ABOVE the cart bar (which sits at 62px, itself clearing the
+   62px tabbar), so the one screen carrying all three never stacks them. Screens
+   with no cart bar simply show it a little higher — one position everywhere beats
+   a per-screen offset that drifts the moment a surface grows a footer.
+   pointer-events:none because it is a statement, not a control: it must never
+   swallow a tap meant for the list underneath while it fades. */
+.toast {
+  /* 142px = the cart bar's own top edge, measured at 126px off the bottom
+     (bottom:62px + its pill), plus 16px of air. At 130px the two read as one
+     stacked black mass with a 4px seam — the pill has to look like a separate,
+     temporary thing, not a second row of the bar. */
+  position: fixed; left: 0; right: 0; bottom: calc(142px + env(safe-area-inset-bottom));
+  z-index: 90; /* above the wait scrim (70) and cart bar (40) — a confirmation
+                  that appears BEHIND the chrome it refers to reads as a bug. */
+  display: flex; justify-content: center; padding: 0 16px;
+  pointer-events: none;
+}
+.toast-pill {
+  background: var(--ink); color: var(--glaze);
+  font-size: var(--fs-caption); font-weight: var(--fw-btn);
+  padding: 10px 18px; border-radius: 999px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+  max-width: 100%; text-align: center;
+  animation: toastIn 200ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .toast-pill { animation: none; }
+}
+
 /* --- owner tabs --- */
 .owner-tabs { display: flex; gap: 6px; margin: 12px 0 16px; flex-wrap: wrap; }
 .owner-tabs button {
