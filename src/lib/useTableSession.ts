@@ -23,7 +23,7 @@ import {
   stampsFromPicks, pickMatchesItem, mergeStamps, applyStampEvent, pruneOverlaysBefore,
   type Stamp, type StampOverlay, type StampEvent,
 } from '@/lib/tableStamps';
-import { readyCount as countReady } from '@/lib/tableSettle';
+import { readyCount as countReady, drawPayer } from '@/lib/tableSettle';
 import type { DiceGameView } from '@/lib/tableDice';
 import type { Die, Direction } from '@/lib/liarsDice';
 
@@ -398,16 +398,52 @@ export function useTableSession(code: string | null) {
     }
   };
 
-  /** How the bill gets carried. The server owns the draw (see /pay) so every
-   *  screen names the same payer. */
+  /**
+   * How the bill gets carried, applied the instant it is tapped.
+   *
+   * Optimistic, and — unlike a pick — WITHOUT guessing: drawPayer is deterministic
+   * on the session id, which is the same property /pay's own comment leans on, so
+   * the answer computed here is the answer the server is about to write, not a
+   * hopeful stand-in for it. The stickiness rule is mirrored for the same reason
+   * (an existing payer is kept, never re-rolled), because a client that re-drew
+   * would flash a different name for one round trip and let the table shop for an
+   * answer it liked. An equal split needs no draw at all — the screen computes the
+   * per-head figure from the total it is already showing.
+   *
+   * Two serialised round trips used to run before ANY of this appeared: the POST,
+   * then a full session refresh. The owner reported it as ~2s of dead air on every
+   * tap (2026-07-31). The POST already answers with pay_method and pay_payer_id,
+   * so the refresh was re-fetching the whole table to learn what the response had
+   * just said — the response is applied directly instead, and the poll remains the
+   * backstop it always was.
+   */
   const choosePayMethod = async (method: 'equal' | 'random') => {
     if (!code) return;
-    await fetch(`/api/table/${code}/pay`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ method }),
-    });
-    channelRef.current?.send({ type: 'broadcast', event: 'ready', payload: { pay: method } });
-    await refresh();
+    const prev = state;
+    if (!prev) return;
+    const optimisticPayer = method === 'random'
+      ? (prev.pay_payer_id ?? drawPayer(prev.members.map(m => m.user_id), prev.session_id))
+      : null;
+    setState(s => (s ? { ...s, pay_method: method, pay_payer_id: optimisticPayer } : s));
+    try {
+      const res = await fetch(`/api/table/${code}/pay`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ method }),
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok) {
+        // Back to what the server last told us, not to null: a failed switch must
+        // leave the previous decision standing rather than blanking the screen.
+        setState(s => (s ? { ...s, pay_method: prev.pay_method, pay_payer_id: prev.pay_payer_id } : s));
+        setError(json?.error || 'That choice did not land.');
+        return;
+      }
+      setState(s => (s ? { ...s, pay_method: json.pay_method, pay_payer_id: json.pay_payer_id } : s));
+      channelRef.current?.send({ type: 'broadcast', event: 'ready', payload: { pay: method } });
+    } catch {
+      setState(s => (s ? { ...s, pay_method: prev.pay_method, pay_payer_id: prev.pay_payer_id } : s));
+      setError('That choice did not land.');
+    }
   };
 
   /**
@@ -438,13 +474,28 @@ export function useTableSession(code: string | null) {
       // everyone else's poll forward. Waiting up to 5s to learn the turn has
       // reached you is precisely the delay this game cannot afford.
       channelRef.current?.send({ type: 'broadcast', event: 'ready', payload: { dice: true } });
-      await refresh();
+      // Deliberately NOT followed by a refresh: the response above already carried
+      // this player's whole view, so awaiting a second full session fetch only
+      // delayed the move landing on the screen that made it (owner, 2026-07-31).
+      // The 5s poll still reconciles anything the response didn't cover.
     } catch {
       setError('That move did not land.');
     }
   };
-  /** 搖骰 — open the round, and switch the bill's method to the game with it. */
-  const startDiceGame = () => playDice({ action: 'roll' });
+  /**
+   * 搖骰 — open the round, and switch the bill's method to the game with it.
+   *
+   * The method flips to 'game' before the POST so the tap registers immediately;
+   * the dice themselves cannot be optimistic and must not be faked — they are
+   * generated server-side and returned to their owner alone (the seal contract
+   * applied to a bill), so the cups appear when the server answers. Until then
+   * this is an honest intermediate state: the choice is visibly made, the round
+   * has not started.
+   */
+  const startDiceGame = () => {
+    setState(s => (s ? { ...s, pay_method: 'game' } : s));
+    return playDice({ action: 'roll' });
+  };
   /** 向左 / 向右, the opener's one extra decision. */
   const pickDirection = (direction: Direction) => playDice({ action: 'direction', direction });
   /** A call: this many of that face, across every cup on the table. */
