@@ -430,8 +430,12 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'table.ready.undo': { zh: '繼續選', en: 'Keep picking' },
 
   // ---- settle: the bill and who carries it ----
-  'table.settle.title': { zh: '埋單', en: 'The bill' },
-  'table.settle.dishcount': { zh: '本檯共選 {n} 道菜', en: '{n} dishes for the table' },
+  // Design handoff (2026-07-31, 大話骰): retitled from 埋單/本檯共選 to name the
+  // moment that actually opens this screen — everyone has finished picking,
+  // not yet decided who pays. 邊個埋單 two lines down still says 埋單, so the
+  // word is not gone from the screen, just not the h1 any more.
+  'table.settle.title': { zh: '大家揀左', en: 'What everyone picked' },
+  'table.settle.dishcount': { zh: '共 {n} 碟菜', en: '{n} dishes' },
   // The "+" on a partial total is load-bearing everywhere else in this app; a
   // bill is the one place it MUST be spelled out, because a number people are
   // about to hand money over on cannot quietly mean "at least". The service
@@ -445,7 +449,6 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'table.settle.equal': { zh: '平均分攤', en: 'Equal split' },
   'table.settle.random': { zh: '隨機一人', en: 'Random' },
   'table.settle.game': { zh: '大話骰', en: 'Liar’s dice' },
-  'table.settle.each': { zh: '每人 {amount}', en: '{amount} each' },
   'table.settle.payer': { zh: '{name} 付這一餐', en: '{name} pays' },
   'table.settle.payeryou': { zh: '你付這一餐', en: 'You pay' },
   'table.settle.torate': { zh: '去評分', en: 'Rate what you ate' },

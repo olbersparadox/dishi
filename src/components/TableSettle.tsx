@@ -124,6 +124,17 @@ export default function TableSettle({
                 style={ringed ? { '--chop-ring': colorFor(m.user_id) } as React.CSSProperties : undefined}>
                 <Chop name={m.display_name ?? m.handle} color={colorFor(m.user_id)} size={36} />
               </span>
+              {/* Design handoff, 2026-07-31: an equal split answers "how much do
+                  I owe" under each person's OWN chop instead of one centred
+                  line for the whole table — reserved as a blank line on every
+                  other method so switching methods before committing never
+                  shifts what sits below. Not shown once the game itself is
+                  the thing on screen; its own reveal carries the verdict. */}
+              {payMethod !== 'game' && (
+                <span className="settle-chop-each">
+                  {payMethod === 'equal' && hasTotal ? money(split.each) : ' '}
+                </span>
+              )}
             </div>
           );
         })}
@@ -170,15 +181,14 @@ export default function TableSettle({
         </>
       )}
 
-      {!playing && payMethod === 'equal' && hasTotal && (
-        <p className="settle-verdict">
-          {t('table.settle.each', { amount: money(split.each) })}
-        </p>
-      )}
-      {/* One line for both ways a single person ends up carrying it — drawn at
-          random, or having lost the round. The bill says who pays; it never says
-          how they were chosen, because the screen it came from already did. */}
-      {!playing && (payMethod === 'random' || payMethod === 'game') && payer && (
+      {/* Design handoff, 2026-07-31: an equal split's answer now lives under each
+          chop (above), not here — this centred line stays only for the one
+          case that still needs a sentence: the game's reveal names a LOSER,
+          which a ring alone doesn't explain. A random draw dropped its own
+          centred line here; the owner is deciding separately whether that
+          needs a word restored somewhere, so don't reintroduce it without
+          checking table.settle.payer's callers first. */}
+      {!playing && payMethod === 'game' && payer && (
         <p className="settle-verdict">
           {payer.user_id === you
             ? t('table.settle.payeryou')

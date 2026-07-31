@@ -1750,6 +1750,11 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
   margin: 30px 2px 13px;
 }
 .settle-chop { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+/* An equal split's per-person amount, directly under that person's own chop —
+   not a name (the colour and glyph still carry that). Every method reserves
+   this line, even blank, so nothing below the chops moves when a method is
+   merely being tried out before it's tapped. */
+.settle-chop-each { font-size: var(--fs-micro); color: var(--ink-soft); font-variant-numeric: tabular-nums; }
 /* A halo ring in the chop's OWN colour, floated off the disc by a paper gap.
    Two unrelated uses, kept visually identical on purpose: the random draw
    landing on someone, and whose turn it is in 大話骰. Both mean "this person,
