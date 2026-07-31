@@ -137,17 +137,6 @@ export default function TableSettle({
                 style={ringed ? { '--chop-ring': colorFor(m.user_id) } as React.CSSProperties : undefined}>
                 <Chop name={m.display_name ?? m.handle} color={colorFor(m.user_id)} size={36} />
               </span>
-              {/* Design handoff, 2026-07-31: an equal split answers "how much do
-                  I owe" under each person's OWN chop instead of one centred
-                  line for the whole table — reserved as a blank line on every
-                  other method so switching methods before committing never
-                  shifts what sits below. Not shown once the game itself is
-                  the thing on screen; its own reveal carries the verdict. */}
-              {payMethod !== 'game' && (
-                <span className="settle-chop-each">
-                  {payMethod === 'equal' && hasTotal ? money(split.each) : ' '}
-                </span>
-              )}
             </div>
           );
         })}
@@ -171,6 +160,21 @@ export default function TableSettle({
           {payMethod === 'random' && payer && !spinUserId && (
             <p className="settle-verdict settle-reveal-name">
               {t(revealLineKey(payDrawCount), { name: payer.display_name ?? payer.handle })}
+            </p>
+          )}
+          {/* An equal split's answer belongs in the SAME slot, not under each chop
+              where it used to sit (owner, 2026-08-01) — so the two methods answer in
+              one place and switching between them moves nothing. Silent without a
+              total: there is no per-head figure to state, and inventing one from a
+              partial bill would be the one number here someone actually pays on. */}
+          {payMethod === 'equal' && hasTotal && (
+            <p className="settle-verdict settle-reveal-name">
+              {/* The same "+" the total above carries, for the same reason: a bill with
+                  unpriced dishes divides into a per-head FLOOR, and this is the figure
+                  people actually hand money over on. Stating it bare read as exact. */}
+              {t('table.settle.eachhead', {
+                amount: `${money(split.each)}${price.complete ? '' : '+'}`,
+              })}
             </p>
           )}
         </div>

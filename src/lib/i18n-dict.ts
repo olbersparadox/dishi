@@ -445,6 +445,11 @@ export const dict: Record<string, { zh: string; en: string }> = {
     zh: '有些沒有標價和未計加一，合計只是下限和大概。',
     en: 'Some dishes had no printed price and service is not included, so this total is a floor.',
   },
+  // An equal split's answer, in the same slot the draw's reveal uses (owner,
+  // 2026-08-01). 加一未計 matches how table.settle.partial already says it — the
+  // printed prices never include the 10%, and a per-head figure that quietly ignored
+  // it would be the one number on this screen someone actually hands over money on.
+  'table.settle.eachhead': { zh: '位位 {amount} 加一未計', en: '{amount} each, service not included' },
   'table.settle.how': { zh: '邊個埋單', en: 'Who pays' },
   'table.settle.equal': { zh: '平均分攤', en: 'Equal split' },
   'table.settle.random': { zh: '隨機一人', en: 'Random' },
