@@ -39,7 +39,7 @@ export default function TableBar({ code, memberCount, pickCount, onInvite, resta
         <button className="table-bar-codewrap" onClick={copyCode} type="button" title={t('table.copied')} aria-label={`${t('scan.tablelabel')} ${code}`}>
           <span className="table-bar-label">{t('scan.tablelabel')}</span>
           <span className="table-bar-code">{code}</span>
-          <CopyIcon size={16} />
+          <span className="table-bar-copy-icon"><CopyIcon size={16} /></span>
         </button>
         {/* Headcount + dishes picked as one quiet meta line, sitting right after
             the code (separated by a "|") — status, not a dashboard. */}

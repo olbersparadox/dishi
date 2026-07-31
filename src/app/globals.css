@@ -1604,6 +1604,7 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
   font-family: var(--font-body), system-ui, sans-serif; font-weight: 700; font-size: var(--fs-body);
   letter-spacing: 0.05em; color: var(--seal);
 }
+.table-bar-copy-icon { position: relative; top: 2px; }
 .table-bar-stat { font-size: var(--fs-caption); color: var(--ink); white-space: pre-wrap; }
 
 /* --- cart bar: what you picked (left) vs what it costs (right) ---
