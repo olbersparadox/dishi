@@ -52,7 +52,8 @@ export default function PickedCartBar({ picked, onDone }: {
     : null;
   // Count on the left, running total hard-right — different KINDS of information
   // (what the table did vs what it costs), so they sit at opposite ends rather
-  // than run together into one comma-joined string.
+  // than run together into one comma-joined string. ALWAYS show the count, so
+  // every screen tells the table how many dishes they've picked (owner, 2026-07-31).
   //
   // A link, not the inert receipt this used to be: picking is finished when you
   // get up from the menu, and the next thing you want is to rate what you ate.
@@ -63,7 +64,7 @@ export default function PickedCartBar({ picked, onDone }: {
   // the lookalike this component was extracted to kill.
   const inner = (
     <>
-      <span>{onDone ? t('table.ready.done') : t('scan.pickcount', { n: dishes.length })}</span>
+      <span>{t('scan.pickcount', { n: dishes.length })}</span>
       <span className="cart-bar-end">
         {priceLabel && <span className="cart-total">{priceLabel}</span>}
         <ArrowRightIcon />
