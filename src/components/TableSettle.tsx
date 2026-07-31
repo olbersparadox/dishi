@@ -17,7 +17,7 @@
 // state of 大話骰 is still this screen, with the bill collapsed to its total and
 // the same chops above it. A separate game screen would have meant maintaining a
 // second copy of the bill for people to argue with.
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import Chop from '@/components/Chop';
 import DishName from '@/components/DishName';
@@ -25,6 +25,7 @@ import LiarsDice from '@/components/LiarsDice';
 import { useLang } from '@/lib/i18n';
 import { sumPrices } from '@/lib/price';
 import { equalSplit } from '@/lib/tableSettle';
+import { buildSpin, spinIndexAt, SPIN_MS } from '@/lib/spinReveal';
 import { ArrowRightIcon, DieIcon } from '@/components/icons';
 import type { Die, Direction } from '@/lib/liarsDice';
 import type { DiceGameView } from '@/lib/tableDice';
@@ -39,7 +40,7 @@ export type SettleDish = {
 };
 
 export default function TableSettle({
-  dishes, members, you, colorFor, payMethod, payerId, onChoose,
+  dishes, members, you, colorFor, payMethod, payerId, onChoose, sessionId = null,
   game = null, onStartGame, onPickDirection, onCallBid, onOpenCups,
 }: {
   /** The dishes with at least one stamp — the same live-merged list the cart bar
@@ -51,6 +52,10 @@ export default function TableSettle({
   payMethod: 'equal' | 'random' | 'game' | null;
   payerId: string | null;
   onChoose: (method: 'equal' | 'random') => void;
+  /** Seeds the 隨機一人 spin so every phone at the table runs the identical one.
+   *  Null only where a screen genuinely has no session yet — the ring then just
+   *  appears on the payer, which is the pre-animation behaviour. */
+  sessionId?: string | null;
   /** 大話骰, as this member may see it. Null until someone shakes the dice. */
   game?: DiceGameView | null;
   onStartGame?: () => void;
@@ -69,6 +74,9 @@ export default function TableSettle({
   const payer = members.find(m => m.user_id === payerId);
   const money = (n: number) => `${price.currency}${Number.isInteger(n) ? n : n.toFixed(2)}`;
 
+  // Non-null only while the draw is being revealed, and it outranks the settled
+  // ring below so the two can never both show.
+  const spinUserId = useSpinReveal(members, payMethod, payerId, sessionId);
   const playing = payMethod === 'game' && !!game && !(game.reveal && revealRead);
   // Sitting down (dice shaken, direction not yet picked) still shows the three
   // ways — the table can see what it just chose. Once the bidding actually
@@ -115,9 +123,11 @@ export default function TableSettle({
           on someone, or whose turn it is in the game. */}
       <div className="settle-chops">
         {members.map(m => {
-          const ringed = playing && !game?.reveal
-            ? game?.currentTurnUserId === m.user_id
-            : payMethod === 'random' && payerId === m.user_id;
+          const ringed = spinUserId
+            ? spinUserId === m.user_id
+            : playing && !game?.reveal
+              ? game?.currentTurnUserId === m.user_id
+              : payMethod === 'random' && payerId === m.user_id;
           return (
             <div key={m.user_id} className="settle-chop">
               <span className={ringed ? 'is-ringed' : undefined}
@@ -209,6 +219,69 @@ export default function TableSettle({
       )}
     </div>
   );
+}
+
+/**
+ * Runs the 隨機一人 spin and reports which member should wear the ring right now,
+ * or null when nothing is spinning.
+ *
+ * Starts only on the TRANSITION into a random payer, never on arriving at a table
+ * that already has one: replaying a 5-second draw on every page load would be
+ * tedious, and worse, would read as the answer being drawn again each time when it
+ * is in fact fixed. So a fresh mount shows the ring outright and only a live
+ * decision animates.
+ *
+ * Ends by returning null, at which point the caller's plain payer ring takes over.
+ * That handoff is invisible because buildSpin's last tick has already arrived on
+ * the payer — the override is dropped, not moved.
+ */
+function useSpinReveal(
+  members: Member[], payMethod: string | null, payerId: string | null, sessionId: string | null,
+): string | null {
+  const [spinUserId, setSpinUserId] = useState<string | null>(null);
+  /** undefined = haven't looked yet. Distinguishes "arrived with a payer" (don't
+   *  animate) from "a payer just appeared" (animate). */
+  const seenRef = useRef<string | null | undefined>(undefined);
+  // The roster and session are read through refs, and are deliberately NOT effect
+  // dependencies. The 5s poll hands down a fresh members array on every cycle, so
+  // depending on it would let React tear this effect down mid-spin — cleanup would
+  // cancel the frame loop and the ring would stall a second or two in. Freezing the
+  // roster at the moment the spin starts is also correct on its own terms: someone
+  // joining mid-spin must not renumber the seats the wheel is already travelling.
+  const membersRef = useRef(members); membersRef.current = members;
+  const sessionRef = useRef(sessionId); sessionRef.current = sessionId;
+
+  useEffect(() => {
+    const settled = payMethod === 'random' ? payerId : null;
+    if (seenRef.current === undefined) { seenRef.current = settled; return; }
+    if (settled === seenRef.current) return;
+    seenRef.current = settled;
+    if (!settled) { setSpinUserId(null); return; }
+
+    const roster = membersRef.current;
+    const sid = sessionRef.current;
+    const target = roster.findIndex(m => m.user_id === settled);
+    const reduced = typeof window !== 'undefined'
+      && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    if (!sid || reduced) { setSpinUserId(null); return; }
+
+    const spin = buildSpin(roster.length, target, sid);
+    if (!spin.ticks.length) { setSpinUserId(null); return; }
+
+    const startedAt = performance.now();
+    let raf = 0;
+    const frame = () => {
+      const elapsed = performance.now() - startedAt;
+      if (elapsed >= SPIN_MS) { setSpinUserId(null); return; }
+      setSpinUserId(roster[spinIndexAt(spin, roster.length, elapsed)]?.user_id ?? null);
+      raf = requestAnimationFrame(frame);
+    };
+    raf = requestAnimationFrame(frame);
+    return () => cancelAnimationFrame(raf);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [payMethod, payerId]);
+
+  return spinUserId;
 }
 
 /** One of the three ways to carry the bill: a 60px ink disc with a glyph, the

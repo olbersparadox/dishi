@@ -74,6 +74,11 @@ export type SessionState = {
  * converting to the other's shape. */
 export type StampableItem = { key: string; name: string; name_zh?: string | null };
 
+/** In-flight keys for the two SESSION-level writes. Not dish keys — they share
+ *  inFlightRef with picks, so they are prefixed to stay out of that namespace. */
+const PAY_KEY = '__pay';
+const DICE_KEY = '__dice';
+
 export function useTableSession(code: string | null) {
   const [state, setState] = useState<SessionState | null>(null);
   const [error, setError] = useState('');
@@ -135,7 +140,24 @@ export function useTableSession(code: string | null) {
       const res = await fetch(`/api/table/${code}`);
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
-      setState(json);
+      // A poll that raced a local write must not hand back the pre-write value.
+      // The overlay has always been protected this way (see pruneOverlaysBefore);
+      // the settle fields were not, and it showed the moment 隨機一人 grew an
+      // animation — a poll landing mid-spin reverted pay_payer_id for one cycle,
+      // which cancelled the spin, and the next poll restored it and started a
+      // second one. A spin that visibly restarts mid-flight (owner, 2026-07-31).
+      setState(prev => {
+        if (!prev) return json;
+        const held: Partial<SessionState> = {};
+        if (inFlightRef.current.has(PAY_KEY)) {
+          held.pay_method = prev.pay_method;
+          held.pay_payer_id = prev.pay_payer_id;
+        }
+        // Same hazard, same shape: a poll issued before a move can answer after
+        // it, and would put the round back as it stood before the move landed.
+        if (inFlightRef.current.has(DICE_KEY)) held.game = prev.game;
+        return Object.keys(held).length ? { ...json, ...held } : json;
+      });
       setError('');
       // A stale overlay entry (e.g. an unpick broadcast this client missed) still
       // can't outlive DB truth by more than one cycle: the next poll is issued after
@@ -425,6 +447,7 @@ export function useTableSession(code: string | null) {
       ? (prev.pay_payer_id ?? drawPayer(prev.members.map(m => m.user_id), prev.session_id))
       : null;
     setState(s => (s ? { ...s, pay_method: method, pay_payer_id: optimisticPayer } : s));
+    markInFlight(PAY_KEY, true);
     try {
       const res = await fetch(`/api/table/${code}/pay`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -443,6 +466,8 @@ export function useTableSession(code: string | null) {
     } catch {
       setState(s => (s ? { ...s, pay_method: prev.pay_method, pay_payer_id: prev.pay_payer_id } : s));
       setError('That choice did not land.');
+    } finally {
+      markInFlight(PAY_KEY, false);
     }
   };
 
@@ -460,6 +485,7 @@ export function useTableSession(code: string | null) {
    */
   const playDice = async (payload: Record<string, unknown>) => {
     if (!code) return;
+    markInFlight(DICE_KEY, true);
     try {
       const res = await fetch(`/api/table/${code}/dice`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -480,6 +506,8 @@ export function useTableSession(code: string | null) {
       // The 5s poll still reconciles anything the response didn't cover.
     } catch {
       setError('That move did not land.');
+    } finally {
+      markInFlight(DICE_KEY, false);
     }
   };
   /**

@@ -377,6 +377,7 @@ function Session({ code, onLeave }: { code: string; onLeave: () => void }) {
         payMethod={payMethod}
         payerId={payerId}
         onChoose={choosePayMethod}
+        sessionId={state.session_id}
         game={game}
         onStartGame={startDiceGame}
         onPickDirection={pickDirection}

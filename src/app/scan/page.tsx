@@ -732,6 +732,7 @@ function Scanner() {
         payMethod={table.payMethod}
         payerId={table.payerId}
         onChoose={table.choosePayMethod}
+        sessionId={table.state.session_id}
         game={table.game}
         onStartGame={table.startDiceGame}
         onPickDirection={table.pickDirection}
