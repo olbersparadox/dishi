@@ -65,10 +65,26 @@ describe('drawPayer', () => {
     expect(drawPayer(ids, 'session-abc')).toBe(first);
   });
 
-  it('cannot be rerolled: the answer is a function of the table itself', () => {
+  // The draw USED to be kept for the life of a session, so that a table couldn't
+  // re-tap until it liked the answer. Reversed by the owner 2026-07-31: re-tapping
+  // is the entertainment ("it's not about the rules that matters"), and /pay now
+  // advances pay_draw_count and seeds off `${session_id}:${draw}`.
+  //
+  // What survives that reversal, and matters more: the function is still PURE, so
+  // one seed is one answer on every phone at the table. Re-rolling comes from the
+  // seed moving, never from the draw being random.
+  it('one seed is one answer, however many times it is asked', () => {
     const ids = ['u1', 'u2', 'u3'];
-    const draws = Array.from({ length: 20 }, () => drawPayer(ids, 'session-abc'));
+    const draws = Array.from({ length: 20 }, () => drawPayer(ids, 'session-abc:3'));
     expect(new Set(draws).size).toBe(1);
+  });
+
+  it('successive draws on ONE session spread across the table', () => {
+    // This is the re-roll, and the reason it cannot be faked by the animation: the
+    // seed advances, so the answer genuinely moves.
+    const ids = ['u1', 'u2', 'u3', 'u4'];
+    const seen = new Set(Array.from({ length: 30 }, (_, i) => drawPayer(ids, `session-abc:${i + 1}`)));
+    expect(seen.size).toBe(4);
   });
 
   it('draws differently across sessions', () => {

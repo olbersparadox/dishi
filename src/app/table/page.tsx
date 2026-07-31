@@ -149,7 +149,7 @@ function Session({ code, onLeave }: { code: string; onLeave: () => void }) {
   const {
     state, error, refresh, toggle, stampsFor, isPicked, colorFor,
     restaurant, setRestaurant,
-    setReady, choosePayMethod, iAmReady, settled, payMethod, payerId,
+    setReady, choosePayMethod, iAmReady, settled, payMethod, payerId, payDrawCount,
     game, startDiceGame, pickDirection, callBid, openCups,
   } = useTableSession(code);
   // Add a page (Table Mode item 6, 2026-07-22): any member can grow the
@@ -378,6 +378,7 @@ function Session({ code, onLeave }: { code: string; onLeave: () => void }) {
         payerId={payerId}
         onChoose={choosePayMethod}
         sessionId={state.session_id}
+        payDrawCount={payDrawCount}
         game={game}
         onStartGame={startDiceGame}
         onPickDirection={pickDirection}

@@ -451,6 +451,20 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'table.settle.game': { zh: '大話骰', en: 'Liar’s dice' },
   'table.settle.payer': { zh: '{name} 付這一餐', en: '{name} pays' },
   'table.settle.payeryou': { zh: '你付這一餐', en: 'You pay' },
+  // 隨機一人 is re-rollable (owner, 2026-07-31), so the screen starts commenting on
+  // a table that keeps drawing. Remarks only — the payer line above them says who
+  // pays, which is why none of these carry a name or need a you-form. The first
+  // draw gets none of them: it is the ceremony.
+  //
+  // Deliberately Cantonese against the 書面化 register shift, on the same grounds
+  // as the flick verdicts: these are the app's voice having a laugh, and 書面語
+  // teasing reads as a memo. Sits alongside 等埋其他人 as a kept exception.
+  'table.settle.remark2': { zh: '再抽一次', en: 'Drawn again' },
+  'table.settle.remark3': { zh: '第三次了', en: 'Third time lucky?' },
+  'table.settle.remark4': { zh: '唔服氣呀', en: 'Still not happy?' },
+  'table.settle.remark5': { zh: '玩唔停手', en: 'Cannot stop, can you?' },
+  'table.settle.remark6': { zh: '夠了啦', en: 'Enough already' },
+  'table.settle.remark7': { zh: '隨你抽到幾時', en: 'Draw all night if you like' },
   'table.settle.torate': { zh: '去評分', en: 'Rate what you ate' },
 
   // ---- 大話骰 ----

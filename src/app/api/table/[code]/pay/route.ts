@@ -35,7 +35,7 @@ export async function POST(req: NextRequest, { params }: { params: { code: strin
 
   const { data: session } = await admin
     .from('table_sessions')
-    .select('id, settled_at, pay_payer_id')
+    .select('id, settled_at, pay_payer_id, pay_draw_count')
     .eq('code', code).maybeSingle();
   if (!session) return NextResponse.json({ error: 'No table with that code.' }, { status: 404 });
   if (!session.settled_at) {
@@ -49,19 +49,27 @@ export async function POST(req: NextRequest, { params }: { params: { code: strin
     return NextResponse.json({ error: 'Join this table first.' }, { status: 403 });
   }
 
-  // A drawn payer is kept for the life of the session. Switching to 平分 and back
-  // must not re-roll — otherwise the table can shop for an answer it likes, and
-  // "random" stops meaning anything. (drawPayer is deterministic on the session
-  // id anyway, so even a lost row would come back with the same name.)
-  const payerId = method === 'random'
-    ? (session.pay_payer_id ?? drawPayer(memberIds, session.id))
-    : null;
+  // EVERY tap of 隨機一人 draws again. This reverses the original rule (a single
+  // draw kept for the life of the session, so the table couldn't shop for an
+  // answer it liked) on an explicit owner call, 2026-07-31: re-tapping and
+  // arguing about the outcome is the entertainment, not abuse of it — "if they
+  // keep playing it or someone refuse to pay, it's part of the fun."
+  //
+  // The draw stays a pure function of (members, seed) rather than becoming
+  // server-side randomness, because that is what lets every phone compute the
+  // same payer on its own and start the reveal on the tap instead of after a
+  // round trip. The COUNT is the part that moves.
+  const draw = method === 'random' ? (session.pay_draw_count ?? 0) + 1 : (session.pay_draw_count ?? 0);
+  const payerId = method === 'random' ? drawPayer(memberIds, `${session.id}:${draw}`) : null;
 
   const { error } = await admin
     .from('table_sessions')
-    .update({ pay_method: method, pay_payer_id: payerId, pay_decided_at: new Date().toISOString() })
+    .update({
+      pay_method: method, pay_payer_id: payerId, pay_draw_count: draw,
+      pay_decided_at: new Date().toISOString(),
+    })
     .eq('id', session.id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  return NextResponse.json({ pay_method: method, pay_payer_id: payerId });
+  return NextResponse.json({ pay_method: method, pay_payer_id: payerId, pay_draw_count: draw });
 }

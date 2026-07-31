@@ -1797,6 +1797,16 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
   font-family: var(--font-display); font-size: var(--fs-title-a); font-weight: 700;
   color: var(--ink); text-align: center; margin: 24px 0 0;
 }
+/* 隨機一人's answer sits directly under the chop the ring stopped on, so it needs
+   less air above it than the game's verdict (which follows a whole reveal grid). */
+.settle-verdict-tight { margin-top: 14px; }
+/* The aside to a table that keeps re-drawing. Caption weight on purpose: it is a
+   remark ABOUT the answer, and matching the answer's size would make the joke
+   compete with the fact. */
+.settle-remark {
+  font-size: var(--fs-caption); color: var(--ink-soft);
+  text-align: center; margin: 5px 0 0;
+}
 
 /* --- 大話骰: the game, inside the bill's own chassis --- */
 /* Every state is the SAME settle screen (bill card collapsed to its total, the

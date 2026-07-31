@@ -63,6 +63,9 @@ export type SessionState = {
   settled_at: string | null;
   pay_method: 'equal' | 'random' | 'game' | null;
   pay_payer_id: string | null;
+  /** How many times 隨機一人 has been drawn. Seeds the draw AND picks the reveal
+   *  line, so both are shared facts rather than per-phone tallies. */
+  pay_draw_count: number;
   /** 大話骰, as this member is allowed to see it: their own five dice, the public
    *  bidding, and — only after 開 — every cup. Null until a table starts a game.
    *  Shaped server-side by viewForUser; the client never filters dice itself. */
@@ -78,6 +81,15 @@ export type StampableItem = { key: string; name: string; name_zh?: string | null
  *  inFlightRef with picks, so they are prefixed to stay out of that namespace. */
 const PAY_KEY = '__pay';
 const DICE_KEY = '__dice';
+
+/** The three settle fields that move together. Pulled out because they have to be
+ *  written as a SET every time — a payer without its draw count leaves the screen
+ *  seeding the next draw off a number the server never agreed to. */
+const settled = (src: { pay_method?: SessionState['pay_method']; pay_payer_id?: string | null; pay_draw_count?: number }) => ({
+  pay_method: src.pay_method ?? null,
+  pay_payer_id: src.pay_payer_id ?? null,
+  pay_draw_count: src.pay_draw_count ?? 0,
+});
 
 export function useTableSession(code: string | null) {
   const [state, setState] = useState<SessionState | null>(null);
@@ -149,10 +161,7 @@ export function useTableSession(code: string | null) {
       setState(prev => {
         if (!prev) return json;
         const held: Partial<SessionState> = {};
-        if (inFlightRef.current.has(PAY_KEY)) {
-          held.pay_method = prev.pay_method;
-          held.pay_payer_id = prev.pay_payer_id;
-        }
+        if (inFlightRef.current.has(PAY_KEY)) Object.assign(held, settled(prev));
         // Same hazard, same shape: a poll issued before a move can answer after
         // it, and would put the round back as it stood before the move landed.
         if (inFlightRef.current.has(DICE_KEY)) held.game = prev.game;
@@ -423,14 +432,15 @@ export function useTableSession(code: string | null) {
   /**
    * How the bill gets carried, applied the instant it is tapped.
    *
-   * Optimistic, and — unlike a pick — WITHOUT guessing: drawPayer is deterministic
-   * on the session id, which is the same property /pay's own comment leans on, so
-   * the answer computed here is the answer the server is about to write, not a
-   * hopeful stand-in for it. The stickiness rule is mirrored for the same reason
-   * (an existing payer is kept, never re-rolled), because a client that re-drew
-   * would flash a different name for one round trip and let the table shop for an
-   * answer it liked. An equal split needs no draw at all — the screen computes the
-   * per-head figure from the total it is already showing.
+   * Optimistic, and — unlike a pick — WITHOUT guessing: drawPayer is a pure
+   * function of (members, seed), so the answer computed here is the answer the
+   * server is about to write, not a hopeful stand-in for it. That is also why the
+   * seed rule has to be mirrored EXACTLY rather than approximated: server and
+   * client both use `${session_id}:${draw}` with the same next draw number, and any
+   * drift between the two spellings shows up as the payer's name changing one
+   * round trip after the reveal landed on someone else. An equal split needs no
+   * draw at all — the screen computes the per-head figure from the total it is
+   * already showing.
    *
    * Two serialised round trips used to run before ANY of this appeared: the POST,
    * then a full session refresh. The owner reported it as ~2s of dead air on every
@@ -443,10 +453,15 @@ export function useTableSession(code: string | null) {
     if (!code) return;
     const prev = state;
     if (!prev) return;
+    // Every tap of 隨機 is a new draw, so the count advances and the answer moves
+    // with it. Mirrors /pay exactly — see the seed note above.
+    const draw = method === 'random' ? (prev.pay_draw_count ?? 0) + 1 : (prev.pay_draw_count ?? 0);
     const optimisticPayer = method === 'random'
-      ? (prev.pay_payer_id ?? drawPayer(prev.members.map(m => m.user_id), prev.session_id))
+      ? drawPayer(prev.members.map(m => m.user_id), `${prev.session_id}:${draw}`)
       : null;
-    setState(s => (s ? { ...s, pay_method: method, pay_payer_id: optimisticPayer } : s));
+    setState(s => (s
+      ? { ...s, pay_method: method, pay_payer_id: optimisticPayer, pay_draw_count: draw }
+      : s));
     markInFlight(PAY_KEY, true);
     try {
       const res = await fetch(`/api/table/${code}/pay`, {
@@ -457,14 +472,16 @@ export function useTableSession(code: string | null) {
       if (!res.ok) {
         // Back to what the server last told us, not to null: a failed switch must
         // leave the previous decision standing rather than blanking the screen.
-        setState(s => (s ? { ...s, pay_method: prev.pay_method, pay_payer_id: prev.pay_payer_id } : s));
+        // The count rolls back with it, or the next tap would seed off a draw that
+        // never happened and diverge from the server for good.
+        setState(s => (s ? { ...s, ...settled(prev) } : s));
         setError(json?.error || 'That choice did not land.');
         return;
       }
-      setState(s => (s ? { ...s, pay_method: json.pay_method, pay_payer_id: json.pay_payer_id } : s));
+      setState(s => (s ? { ...s, ...settled(json) } : s));
       channelRef.current?.send({ type: 'broadcast', event: 'ready', payload: { pay: method } });
     } catch {
-      setState(s => (s ? { ...s, pay_method: prev.pay_method, pay_payer_id: prev.pay_payer_id } : s));
+      setState(s => (s ? { ...s, ...settled(prev) } : s));
       setError('That choice did not land.');
     } finally {
       markInFlight(PAY_KEY, false);
@@ -554,6 +571,7 @@ export function useTableSession(code: string | null) {
     settled: !!state?.settled_at,
     payMethod: state?.pay_method ?? null,
     payerId: state?.pay_payer_id ?? null,
+    payDrawCount: state?.pay_draw_count ?? 0,
     game: state?.game ?? null,
     startDiceGame, pickDirection, callBid, openCups,
   };

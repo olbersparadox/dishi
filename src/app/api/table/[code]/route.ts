@@ -220,6 +220,10 @@ export async function GET(_req: NextRequest, { params }: { params: { code: strin
     settled_at: session.settled_at ?? null,
     pay_method: session.pay_method ?? null,
     pay_payer_id: session.pay_payer_id ?? null,
+    // Which draw this is. Shared state on purpose: the reveal line under the chops
+    // is chosen by it, so every phone at the table reads the same remark rather
+    // than each counting its own taps.
+    pay_draw_count: session.pay_draw_count ?? 0,
     game,
     // Visible to everyone at the table: what's been picked so far, and by whom —
     // shared awareness, not a shared cart. Each pick is still an individual dish

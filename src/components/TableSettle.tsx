@@ -25,7 +25,7 @@ import LiarsDice from '@/components/LiarsDice';
 import { useLang } from '@/lib/i18n';
 import { sumPrices } from '@/lib/price';
 import { equalSplit } from '@/lib/tableSettle';
-import { buildSpin, spinIndexAt, SPIN_MS } from '@/lib/spinReveal';
+import { buildSpin, spinIndexAt, revealRemarkKey, SPIN_MS } from '@/lib/spinReveal';
 import { ArrowRightIcon, DieIcon } from '@/components/icons';
 import type { Die, Direction } from '@/lib/liarsDice';
 import type { DiceGameView } from '@/lib/tableDice';
@@ -41,7 +41,7 @@ export type SettleDish = {
 
 export default function TableSettle({
   dishes, members, you, colorFor, payMethod, payerId, onChoose, sessionId = null,
-  game = null, onStartGame, onPickDirection, onCallBid, onOpenCups,
+  payDrawCount = 0, game = null, onStartGame, onPickDirection, onCallBid, onOpenCups,
 }: {
   /** The dishes with at least one stamp — the same live-merged list the cart bar
    *  counted, so the bill can never disagree with the bar that led to it. */
@@ -51,6 +51,9 @@ export default function TableSettle({
   colorFor: (userId: string) => string;
   payMethod: 'equal' | 'random' | 'game' | null;
   payerId: string | null;
+  /** Which draw this is, from the session — so the remark under the reveal is the
+   *  same one on every phone at the table. */
+  payDrawCount?: number;
   onChoose: (method: 'equal' | 'random') => void;
   /** Seeds the 隨機一人 spin so every phone at the table runs the identical one.
    *  Null only where a screen genuinely has no session yet — the ring then just
@@ -76,7 +79,7 @@ export default function TableSettle({
 
   // Non-null only while the draw is being revealed, and it outranks the settled
   // ring below so the two can never both show.
-  const spinUserId = useSpinReveal(members, payMethod, payerId, sessionId);
+  const spinUserId = useSpinReveal(members, payMethod, payerId, payDrawCount, sessionId);
   const playing = payMethod === 'game' && !!game && !(game.reveal && revealRead);
   // Sitting down (dice shaken, direction not yet picked) still shows the three
   // ways — the table can see what it just chose. Once the bidding actually
@@ -149,6 +152,23 @@ export default function TableSettle({
           );
         })}
       </div>
+
+      {/* The draw's answer, under the chops it just travelled (owner, 2026-07-31).
+          Held back while the ring is still moving — printing the name mid-spin
+          would answer the question the spin is in the middle of asking. The remark
+          below it only starts from the second draw; see revealRemarkKey. */}
+      {!playing && payMethod === 'random' && payer && !spinUserId && (
+        <>
+          <p className="settle-verdict settle-verdict-tight">
+            {payer.user_id === you
+              ? t('table.settle.payeryou')
+              : t('table.settle.payer', { name: payer.display_name ?? payer.handle })}
+          </p>
+          {revealRemarkKey(payDrawCount) && (
+            <p className="settle-remark">{t(revealRemarkKey(payDrawCount)!)}</p>
+          )}
+        </>
+      )}
 
       {playing && game && (
         <LiarsDice
@@ -236,11 +256,19 @@ export default function TableSettle({
  * the payer — the override is dropped, not moved.
  */
 function useSpinReveal(
-  members: Member[], payMethod: string | null, payerId: string | null, sessionId: string | null,
+  members: Member[], payMethod: string | null, payerId: string | null,
+  drawCount: number, sessionId: string | null,
 ): string | null {
   const [spinUserId, setSpinUserId] = useState<string | null>(null);
   /** undefined = haven't looked yet. Distinguishes "arrived with a payer" (don't
-   *  animate) from "a payer just appeared" (animate). */
+   *  animate) from "a draw just happened" (animate).
+   *
+   *  Keyed on the DRAW, not on who won it. Keying on the payer meant a re-draw that
+   *  happened to land on the same person animated nothing at all — the table tapped
+   *  隨機 and the same name just sat there, which reads as broken and, worse, as
+   *  rigged. That is a coin flip at a table of two. The payer is in the key as well,
+   *  so the rare case of the server disagreeing with the optimistic draw restarts
+   *  the spin rather than letting it land on the wrong chop. */
   const seenRef = useRef<string | null | undefined>(undefined);
   // The roster and session are read through refs, and are deliberately NOT effect
   // dependencies. The 5s poll hands down a fresh members array on every cycle, so
@@ -252,23 +280,31 @@ function useSpinReveal(
   const sessionRef = useRef(sessionId); sessionRef.current = sessionId;
 
   useEffect(() => {
-    const settled = payMethod === 'random' ? payerId : null;
-    if (seenRef.current === undefined) { seenRef.current = settled; return; }
-    if (settled === seenRef.current) return;
-    seenRef.current = settled;
-    if (!settled) { setSpinUserId(null); return; }
+    const drawKey = payMethod === 'random' && payerId ? `${drawCount}:${payerId}` : null;
+    if (seenRef.current === undefined) { seenRef.current = drawKey; return; }
+    if (drawKey === seenRef.current) return;
+    seenRef.current = drawKey;
+    if (!drawKey || !payerId) { setSpinUserId(null); return; }
 
     const roster = membersRef.current;
     const sid = sessionRef.current;
-    const target = roster.findIndex(m => m.user_id === settled);
+    const target = roster.findIndex(m => m.user_id === payerId);
     const reduced = typeof window !== 'undefined'
       && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     if (!sid || reduced) { setSpinUserId(null); return; }
 
-    const spin = buildSpin(roster.length, target, sid);
+    // Seed carries the draw, so the same table never replays the same wheel — the
+    // pixel-identical second spin is what made a re-roll look predetermined.
+    const spin = buildSpin(roster.length, target, `${sid}:${drawCount}`);
     if (!spin.ticks.length) { setSpinUserId(null); return; }
 
+    // The ring takes its starting seat SYNCHRONOUSLY, not on the first frame. Two
+    // reasons: the tap should register instantly like every other control here, and
+    // until spinUserId is non-null the previous draw's reveal is still on screen —
+    // so waiting for a frame left the old name sitting under the chops while the
+    // new draw was already under way (visibly so on a throttled or hidden page).
     const startedAt = performance.now();
+    setSpinUserId(roster[spin.startIndex]?.user_id ?? null);
     let raf = 0;
     const frame = () => {
       const elapsed = performance.now() - startedAt;
@@ -277,9 +313,16 @@ function useSpinReveal(
       raf = requestAnimationFrame(frame);
     };
     raf = requestAnimationFrame(frame);
-    return () => cancelAnimationFrame(raf);
+    // rAF is the animation, but it must not be the only way this ENDS. Browsers
+    // throttle or pause frames on a hidden page, and while the spin is unfinished
+    // the reveal underneath is suppressed — so a phone put face-down mid-draw could
+    // come back to a ring that never resolved and a bill that never named anyone.
+    // A plain timer guarantees the landing regardless of frames (it fires late on a
+    // hidden page, which is harmless: the destination is fixed either way).
+    const end = setTimeout(() => setSpinUserId(null), SPIN_MS + 40);
+    return () => { cancelAnimationFrame(raf); clearTimeout(end); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [payMethod, payerId]);
+  }, [payMethod, payerId, drawCount]);
 
   return spinUserId;
 }

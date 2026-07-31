@@ -3,7 +3,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { buildSpin, spinIndexAt, SPIN_MS } from '../src/lib/spinReveal';
+import { buildSpin, spinIndexAt, revealRemarkKey, SPIN_MS } from '../src/lib/spinReveal';
 import { drawPayer } from '../src/lib/tableSettle';
 
 const read = (p: string) => readFileSync(path.resolve(__dirname, p), 'utf8');
@@ -97,6 +97,50 @@ describe('the motion itself', () => {
 
 // Source-level, the house technique for engine invariants (see tableChassis): the
 // wiring below was each a live bug, and none of them fail loudly when they break.
+describe('the re-roll, and the remarks that ride on it', () => {
+  it('every tap is a genuinely different draw, seeded off the count', () => {
+    // Owner reversal 2026-07-31: 隨機一人 used to keep one payer for the whole meal.
+    // Re-tapping now redraws, so the same table must land on different people.
+    const ids = ['u-a', 'u-b', 'u-c', 'u-d'];
+    const seen = new Set(Array.from({ length: 20 }, (_, i) => drawPayer(ids, `sess:${i + 1}`)));
+    expect(seen.size).toBe(4);
+  });
+
+  it('and the spin PATH changes with the draw, so no two reveals replay identically', () => {
+    // The rigged-looking bug this fixes: seeded on the session alone, a second tap
+    // replayed a pixel-identical spin (same start chop, same move count, same
+    // landing). The seed has to carry the draw number too.
+    const shapes = new Set(Array.from({ length: 8 }, (_, i) =>
+      JSON.stringify(buildSpin(4, i % 4, `sess:${i + 1}`))));
+    expect(shapes.size).toBe(8);
+  });
+
+  it('the first draw is ceremony: no remark', () => {
+    expect(revealRemarkKey(1)).toBeNull();
+    expect(revealRemarkKey(0)).toBeNull();
+  });
+
+  it('remarks start on the second draw and escalate', () => {
+    expect(revealRemarkKey(2)).toBe('table.settle.remark2');
+    expect(revealRemarkKey(5)).toBe('table.settle.remark5');
+  });
+
+  it('holds on the last rung forever rather than running dry', () => {
+    expect(revealRemarkKey(7)).toBe('table.settle.remark7');
+    expect(revealRemarkKey(40)).toBe('table.settle.remark7');
+  });
+
+  it('every remark it can name actually exists, in both languages', () => {
+    // A missing key renders the key itself on a real screen, which is the kind of
+    // thing that only shows up on the sixth tap in a restaurant.
+    const dict = read('../src/lib/i18n-dict.ts');
+    for (let n = 2; n <= 40; n++) {
+      const key = revealRemarkKey(n)!;
+      expect(dict, `${key} (draw ${n})`).toContain(`'${key}':`);
+    }
+  });
+});
+
 describe('wiring', () => {
   const SETTLE = read('../src/components/TableSettle.tsx');
   const ENGINE = read('../src/lib/useTableSession.ts');
@@ -106,7 +150,8 @@ describe('wiring', () => {
     src.slice(src.indexOf(from), src.indexOf(to));
 
   it('the component drives the shared schedule and holds no easing of its own', () => {
-    expect(SETTLE).toMatch(/import \{ buildSpin, spinIndexAt, SPIN_MS \} from '@\/lib\/spinReveal'/);
+    expect(SETTLE).toMatch(/import \{[^}]*\bbuildSpin\b[^}]*\} from '@\/lib\/spinReveal'/);
+    expect(SETTLE).toMatch(/import \{[^}]*\bspinIndexAt\b[^}]*\} from '@\/lib\/spinReveal'/);
     // A second copy of the curve in the component is how the landing guarantee
     // gets quietly broken — the arithmetic lives in one tested place.
     expect(SETTLE).not.toMatch(/Math\.sqrt|Math\.pow/);

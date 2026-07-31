@@ -75,6 +75,29 @@ export function buildSpin(
   return { startIndex, ticks };
 }
 
+/**
+ * The aside under the reveal, chosen by how many times the table has drawn.
+ *
+ * Null on the first draw: that one is the ceremony and wants no commentary. From
+ * the second on, the screen starts noticing — which is the point of making the
+ * draw re-rollable at all (owner, 2026-07-31: "if they keep playing it or someone
+ * refuse to pay, it's part of the fun"). The remark is a REMARK only, never the
+ * answer: who pays is said by the payer line it sits under, so these lines carry
+ * no name and need no separate you-form.
+ *
+ * Keyed off shared state rather than a per-phone tally, so the whole table reads
+ * the same line at the same time — a private count would have four people looking
+ * at four different jokes about one draw.
+ */
+export function revealRemarkKey(drawCount: number): string | null {
+  const n = Math.floor(drawCount);
+  if (n <= 1) return null;
+  // Past the ladder it holds on the last rung. A table on its tenth draw being met
+  // with the same flat line is funnier than a fresh quip, and it never runs dry.
+  const rung = Math.min(n, 7);
+  return `table.settle.remark${rung}`;
+}
+
 /** Where the ring sits `elapsed` ms in. Separate from buildSpin so the component
  *  holds no arithmetic of its own, and so the landing is testable without a clock:
  *  at elapsed ≥ durationMs this is always the payer's seat. */
