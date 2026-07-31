@@ -8,7 +8,7 @@
 // the code/count/invite — it moved to an icon-only button on table/page.tsx's
 // own title row instead (owner feedback, 2026-07-21).
 import { useLang } from '@/lib/i18n';
-import { ShareIcon } from '@/components/icons';
+import { InviteIcon } from '@/components/icons';
 
 export default function TableBar({ code, memberCount, pickCount, onInvite, restaurantLine }: {
   code: string;
@@ -34,7 +34,7 @@ export default function TableBar({ code, memberCount, pickCount, onInvite, resta
         <span className="table-bar-stat">{t('scan.tablestatus', { n: memberCount, m: pickCount })}</span>
       </span>
       <button className="table-invite-btn" onClick={onInvite} aria-label={t('table.invite')} title={t('table.invite')}>
-        <ShareIcon size={16} />
+        <InviteIcon size={16} />
       </button>
       {restaurantLine}
     </div>
