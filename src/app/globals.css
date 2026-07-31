@@ -1583,12 +1583,15 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
    centered against the bar's own full height (top: 50%) — in-flow it only ever
    centered against the first line's height, sitting above true-center once the
    restaurant line wraps below it. */
+/* Outline invite icon button — a hollow circle with the person+plus stroke
+   inside, matching the minimal-icon language elsewhere in the app. */
 .table-invite-btn {
   position: absolute; top: 50%; right: 16px; transform: translateY(-50%);
   display: grid; place-items: center; width: 40px; height: 40px;
-  border-radius: 50%; background: var(--ink); color: var(--glaze); border: none; cursor: pointer;
+  border-radius: 50%; background: transparent; color: var(--ink);
+  border: 1px solid var(--ink); cursor: pointer; transition: background 150ms, color 150ms;
 }
-.table-invite-btn:hover { background: #423d37; }
+.table-invite-btn:hover { background: var(--ink); color: var(--glaze); }
 /* Reserves the button's own width + gap so the code/count text never runs
    underneath it now that the button is positioned, not a flex sibling. */
 .table-bar-left { display: flex; align-items: baseline; gap: 10px; min-width: 0; padding-right: 52px; position: relative; top: 3px; }
