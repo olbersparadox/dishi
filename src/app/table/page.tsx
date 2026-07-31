@@ -103,6 +103,7 @@ function Session({ code, onLeave }: { code: string; onLeave: () => void }) {
     state, error, refresh, toggle, stampsFor, isPicked, colorFor,
     restaurant, setRestaurant,
     setReady, choosePayMethod, iAmReady, settled, payMethod, payerId,
+    game, startDiceGame, pickDirection, callBid, openCups,
   } = useTableSession(code);
   // Add a page (Table Mode item 6, 2026-07-22): any member can grow the
   // shared menu now, not just the host who started it — someone else at the
@@ -321,6 +322,11 @@ function Session({ code, onLeave }: { code: string; onLeave: () => void }) {
         payMethod={payMethod}
         payerId={payerId}
         onChoose={choosePayMethod}
+        game={game}
+        onStartGame={startDiceGame}
+        onPickDirection={pickDirection}
+        onCallBid={callBid}
+        onOpenCups={openCups}
       />
     );
   }

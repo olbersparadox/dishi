@@ -1606,10 +1606,6 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
   opacity: 0.3; transition: opacity 220ms ease;
 }
 .wait-chop.is-ready { opacity: 1; }
-.wait-chop-name, .settle-chop-name {
-  font-size: var(--fs-micro); color: var(--ink-soft); max-width: 68px;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
 
 /* The bill. The verdict line ("每人 $152") is the LAST thing on this screen and
    the fixed bar onward to rating floats over it, so the clearance has to cover
@@ -1621,36 +1617,197 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
   padding: 11px 0; border-bottom: 1px solid var(--line);
 }
 .settle-line:first-child { padding-top: 0; }
+/* A bill's dish names are still dish names, in the display serif every other
+   surface gets through .card-title — a wrapper this row deliberately doesn't
+   have (it is a bill line, not a menu card). */
+.settle-line .dishname-primary, .settle-line .dishname-secondary { font-family: var(--font-display); }
+.settle-line .dishname-primary { font-size: var(--fs-subtitle-a); }
 .settle-price {
   font-size: var(--fs-subtitle-a); color: var(--ink-soft);
   font-variant-numeric: tabular-nums; flex-shrink: 0;
 }
+/* The number is the fact. A 合計 label beside it says nothing the column of
+   prices above hasn't already said, so the total keeps the prices' right edge
+   alone, in sans — and the floor note becomes its left-hand flex sibling,
+   top-aligned with it, rather than trailing underneath in block flow. */
 .settle-total {
-  display: flex; align-items: baseline; justify-content: space-between; gap: 14px;
+  display: flex; align-items: flex-start; justify-content: flex-end; gap: 14px;
   padding-top: 15px;
 }
-.settle-total > span:first-child { font-size: var(--fs-body); color: var(--ink-soft); }
 .settle-total-num {
-  font-family: var(--font-display); font-size: var(--fs-title-a); font-weight: 700;
+  font-family: var(--font-body); font-size: var(--fs-title-a); font-weight: 700;
   color: var(--ink); font-variant-numeric: tabular-nums;
 }
-.settle-note { margin-top: 9px; }
-.settle-chops { display: flex; flex-wrap: wrap; gap: 14px 16px; margin: 18px 2px 24px; }
-.settle-chop { display: flex; flex-direction: column; align-items: center; gap: 6px; }
-.settle-how { font-size: var(--fs-caption); color: var(--ink-soft); margin-bottom: 10px; }
-.settle-methods { display: flex; gap: 8px; }
-.settle-method {
-  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px;
-  padding: 12px 8px; font-size: var(--fs-caption); text-align: center;
+.settle-note { margin-top: 0; max-width: 230px; text-align: left; }
+/* The chops are the table, so they sit centred. No name under them: the colour
+   and glyph ARE the identity, and the label repeated the roster the bill above
+   already listed. */
+.settle-chops {
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 14px 16px;
+  margin: 30px 2px 13px;
 }
-/* The chosen way ink-fills — the same "this is settled" treatment .btn.primary
-   carries everywhere else. Never vermillion: that is the seal's alone. */
-.settle-method.is-chosen { background: var(--ink); border-color: var(--ink); color: var(--glaze); }
-.settle-method-sub { font-size: var(--fs-micro); font-weight: 400; opacity: 0.7; }
+.settle-chop { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+/* A halo ring in the chop's OWN colour, floated off the disc by a paper gap.
+   Two unrelated uses, kept visually identical on purpose: the random draw
+   landing on someone, and whose turn it is in 大話骰. Both mean "this person,
+   right now". */
+.settle-chop .is-ringed { display: inline-flex; }
+.settle-chop .is-ringed .chop {
+  box-shadow: 0 0 0 2px var(--glaze), 0 0 0 3.5px var(--chop-ring, transparent);
+}
+/* It is the question the whole screen exists to ask, so it sits at subtitle
+   size over the circles rather than as a caption above buttons. */
+.settle-how {
+  font-family: var(--font-display); font-size: var(--fs-subtitle-a); font-weight: 500;
+  letter-spacing: 0.06em; color: var(--ink); text-align: center; margin: 50px 0 16px;
+}
+.settle-methods { display: flex; justify-content: center; gap: 28px; }
+.settle-method-wrap { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+/* Three ways to carry the bill, as the same 60px ink disc .ok-circle already
+   is — a glyph, not a word, with the word as a caption underneath so the
+   choice never loses its meaning. All three stay ink; never vermillion. */
+.settle-method {
+  display: grid; place-items: center; flex: none;
+  width: 60px; height: 60px; padding: 0; border-radius: 50%;
+  background: var(--ink); color: var(--glaze); border: 0; cursor: pointer;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+}
+.settle-method:hover { transform: translateY(-1px); }
+/* Chosen reads as a paper ring around the disc rather than a colour change,
+   since all three discs are already ink. */
+.settle-method.is-chosen { box-shadow: 0 0 0 3px var(--glaze), 0 0 0 5px var(--ink); }
+/* The game is live: the same halo ring, but in plain ink rather than a person's
+   colour — it marks a state of the table, not a player. */
+.settle-method.is-live {
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18), 0 0 0 2px var(--glaze), 0 0 0 4px var(--ink);
+}
+.settle-method-glyph { display: grid; place-items: center; width: 26px; height: 26px; }
+.settle-method-sym { font-family: var(--font-body); font-size: 22px; font-weight: 700; }
+.settle-method-cap { font-size: var(--fs-micro); color: var(--ink-soft); margin-top: 7px; }
+.settle-method.is-chosen + .settle-method-cap { color: var(--ink); }
 .settle-verdict {
   font-family: var(--font-display); font-size: var(--fs-title-a); font-weight: 700;
   color: var(--ink); text-align: center; margin: 24px 0 0;
 }
+
+/* --- 大話骰: the game, inside the bill's own chassis --- */
+/* Every state is the SAME settle screen (bill card collapsed to its total, the
+   table's chops, then this block) rather than a stack of separate screens. The
+   waiting state in particular is deliberately NOT a modal like TableWaitLayer:
+   bidding is sequential and public, so a player waiting on someone else still
+   has to see the live call, the history, and their own dice. */
+
+/* A rounded box that means "these dice belong to this person", bordered in that
+   person's own chop colour. One box for your own five; one per player in the
+   reveal; and the same shape again, smaller, for each call in the history. */
+.my-dice {
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  border: 5px solid var(--line); border-radius: var(--radius);
+  padding: 6px 14px; background: transparent;
+}
+.my-dice-row { display: flex; gap: 8px; color: var(--ink); }
+.other-turn-box { padding: 12px 14px; justify-content: center; }
+.other-turn-box:has(.other-call-text) { padding: 14px; }
+/* The run of calls that led here, each in its caller's colour, packed to the
+   right so the LIVE one sits under the turn label above it. Earlier calls push
+   left off the card's edge and stay reachable by scroll rather than wrapping. */
+/* Packed right and then pushed back by half the card, which parks the LIVE call
+   under the centred turn label and leaves it there: every new call pushes the
+   HISTORY left rather than moving the live box, so the thing you are waiting on
+   never wanders. Older calls spill off the left edge and stay reachable. */
+.call-history-strip {
+  display: flex; gap: 10px; overflow-x: auto; align-self: stretch;
+  padding: 4px calc(50% - 60px) 4px 0; scroll-snap-type: x proximity;
+  /* The call boxes stand ~34px taller than the six face chips they replace.
+     Absorbed here rather than left to push everything down, because this row
+     swaps in and out as the turn moves: without it the confirm button would sit
+     in one place on your turn and 34px lower while you waited, and jump between
+     the two every time somebody called. */
+  margin-block: -17px;
+}
+.call-history-item { flex: none; min-width: 92px; margin: 0; scroll-snap-align: start; }
+/* A growing spacer rather than justify-content: flex-end, which is the one way
+   to right-pack a scroller that still scrolls: flex-end overflows to the LEFT
+   and that overflow is unreachable (scrollWidth never grows), so the earliest
+   calls would be clipped forever. This collapses to zero the moment the run is
+   longer than the strip, handing the space back to the scroll. */
+.call-history-pad { flex: 1 0 0; }
+/* Still deciding: three OUTLINE dots in that player's colour. Outline, not
+   filled, because a filled dot in a chop colour reads as a chop. */
+.other-turn-dots { display: flex; gap: 10px; }
+.other-turn-dots span {
+  width: 12px; height: 12px; border-radius: 50%; background: transparent;
+  border: 2px solid var(--dot-color, var(--ink-soft));
+  animation: turnDotPulse 1.2s ease-in-out infinite;
+}
+.other-turn-dots span:nth-child(2) { animation-delay: 0.2s; }
+.other-turn-dots span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes turnDotPulse {
+  0%, 80%, 100% { opacity: 0.25; transform: scale(0.85); }
+  40% { opacity: 1; transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) { .other-turn-dots span { animation: none; opacity: 0.7; } }
+.other-call-text {
+  font-family: var(--font-display); font-size: var(--fs-title-b); font-weight: 700;
+  color: var(--ink); line-height: 1;
+}
+/* The leading count is sans while the CJK is serif: a sans numeral reads
+   visually smaller than serif Han at the same px, so it is nudged up to match
+   rather than left looking like a subscript. */
+.other-call-num { font-family: var(--font-body); font-size: calc(1.15em - 1px); position: relative; top: 2px; }
+
+/* The opener's one extra decision: which way the bidding travels. */
+.turn-dir { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-top: 26px; }
+.dice-turn-label { font-size: var(--fs-caption); color: var(--ink-soft); }
+.turn-dir-row { display: flex; gap: 28px; }
+.turn-dir-opt { display: flex; flex-direction: column; align-items: center; gap: 7px; }
+.turn-dir-btn {
+  display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%;
+  border: 1px solid var(--line); background: transparent; color: var(--ink); cursor: pointer;
+}
+.turn-dir-btn.is-chosen { background: var(--ink); border-color: var(--ink); color: var(--glaze); }
+.turn-dir-cap { font-size: var(--fs-micro); color: var(--ink-soft); }
+.turn-dir-btn.is-chosen + .turn-dir-cap { color: var(--ink); }
+
+/* The call composer: a face to claim, and how many of it. */
+.first-call { display: flex; flex-direction: column; align-items: center; gap: 12px; margin-top: 26px; }
+.first-call-chips { display: flex; gap: 8px; }
+.first-call-chip {
+  display: grid; place-items: center; width: 46px; height: 46px; border-radius: 50%;
+  border: 1px solid var(--line); background: var(--glaze); color: var(--ink); cursor: pointer;
+}
+.first-call-chip.is-chosen { background: var(--ink); border-color: var(--ink); color: var(--glaze); }
+.first-call-stepper { display: flex; align-items: center; gap: 18px; margin-top: 15px; }
+.first-call-step-btn {
+  width: 38px; height: 38px; background: var(--paper-inset); color: var(--ink);
+  font-size: var(--fs-subtitle-b); line-height: 1;
+}
+/* Sans, not the display serif — direct product feedback: the serif numeral read
+   as decorative where this number is the thing being argued about. */
+.first-call-num {
+  font-family: var(--font-body); font-size: var(--fs-title-b); font-weight: 700;
+  font-variant-numeric: tabular-nums; min-width: 2ch; text-align: center;
+}
+.first-call-say { font-size: var(--fs-body); color: var(--ink-soft); margin: 0; }
+/* 開 is a word, not a check, so it sets in sans inside the same 60px ink disc. */
+.ok-circle-glyph { font-family: var(--font-body); font-size: 22px; font-weight: 700; }
+
+/* 開盅 — every cup lifts, one box per player, stacked so the whole table reads
+   top to bottom. The dice that COUNT stay ink and the rest fade back (owner,
+   2026-07-31): the arithmetic is shown, not written out. */
+.reveal-grid { display: flex; flex-direction: column; gap: 12px; margin-top: 13px; }
+.reveal-count {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  margin-top: 20px; text-align: center;
+}
+.reveal-count-line { font-size: var(--fs-caption); color: var(--ink-soft); margin: 0; }
+.reveal-count-num-row { display: flex; align-items: center; gap: 12px; }
+.reveal-count-num {
+  font-family: var(--font-display); font-size: var(--fs-title-a); font-weight: 700;
+  color: var(--ink); margin: 0;
+}
+.reveal-count-chop { display: flex; align-items: center; gap: 8px; }
+.reveal-count-chop-label { font-size: var(--fs-body); font-weight: 650; color: var(--ink); }
 
 /* --- AI-palate install flow (owner spec 2026-07-23, title/body reuse 2026-07-24) --- */
 /* Title row: "dishi.Spoon → [host logo]" — the persona name in the shared

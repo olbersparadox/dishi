@@ -723,6 +723,11 @@ function Scanner() {
         payMethod={table.payMethod}
         payerId={table.payerId}
         onChoose={table.choosePayMethod}
+        game={table.game}
+        onStartGame={table.startDiceGame}
+        onPickDirection={table.pickDirection}
+        onCallBid={table.callBid}
+        onOpenCups={table.openCups}
       />
     );
   }

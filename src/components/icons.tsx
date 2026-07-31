@@ -30,6 +30,63 @@ export function ArrowLeftIcon({ size = 20 }: IconProps) {
   );
 }
 
+/** A die, five pips — 大話骰 as one of the three ways to carry the bill. Drawn in
+ *  the set's own language (24 viewBox, 1.7 stroke, rounded square) rather than a
+ *  ⚄ text glyph, which reads as a typo sitting next to real icons. */
+export function DieIcon({ size = 26 }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} aria-hidden="true">
+      <rect x="4" y="4" width="16" height="16" rx="3.5" fill="none" stroke="currentColor" strokeWidth="1.7" />
+      {[[8.5, 8.5], [15.5, 8.5], [12, 12], [8.5, 15.5], [15.5, 15.5]].map(([cx, cy]) => (
+        <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r="1.5" fill="currentColor" />
+      ))}
+    </svg>
+  );
+}
+
+/** Pip layouts per face. 6 splits into two columns of three rather than the
+ *  domino diagonal, so a 6 never reads as a 5 at 28px. */
+const DIE_PIPS: Record<number, [number, number][]> = {
+  1: [[12, 12]],
+  2: [[8, 8], [16, 16]],
+  3: [[8, 8], [12, 12], [16, 16]],
+  4: [[8, 8], [16, 8], [8, 16], [16, 16]],
+  5: [[8, 8], [16, 8], [12, 12], [8, 16], [16, 16]],
+  6: [[8, 7.5], [16, 7.5], [8, 12], [16, 12], [8, 16.5], [16, 16.5]],
+};
+
+/**
+ * One die face. The whole game is made of these: your own five, the six call
+ * chips, and every cup in the reveal.
+ *
+ * The 1's pip is vermillion — the ONE use of --seal outside the seal stamp, the
+ * export CTA and the dirty-save state, by explicit owner call (2026-07-31). It
+ * is the wild: a 1 counts toward whatever face is being argued about, and the
+ * colour is what makes that readable at a glance in the reveal grid instead of
+ * something you have to be told.
+ */
+export function DieFaceIcon({ value, size = 28, filled = false, dimmed = false }: {
+  value: number; size?: number;
+  /** Paper-filled, for a die sitting in a bordered cup box. */
+  filled?: boolean;
+  /** Faded back, for a revealed die that does NOT count toward the challenged
+   *  face — the reveal marks the counting dice by dimming the rest, rather than
+   *  printing an equation (owner, 2026-07-31). */
+  dimmed?: boolean;
+}) {
+  const pipFill = value === 1 ? 'var(--seal)' : 'currentColor';
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} aria-hidden="true"
+      style={dimmed ? { opacity: 0.22 } : undefined}>
+      <rect x="2.5" y="2.5" width="19" height="19" rx="5"
+        fill={filled ? 'var(--paper-raised)' : 'none'} stroke="currentColor" strokeWidth="1.7" />
+      {(DIE_PIPS[value] ?? []).map(([cx, cy]) => (
+        <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r="1.6" fill={pipFill} />
+      ))}
+    </svg>
+  );
+}
+
 /** Vertical three dots — "more actions" (edit/delete) on a rated-dish row. */
 export function MoreIcon({ size = 16 }: IconProps) {
   return (

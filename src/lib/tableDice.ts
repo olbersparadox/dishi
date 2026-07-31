@@ -62,8 +62,43 @@ export type DiceGameView = {
 };
 
 /** The bid a raise has to beat, or null when nobody has opened yet. */
+export function standingBidOf(bids: BidRecord[]): BidRecord | null {
+  return bids.length ? bids[bids.length - 1] : null;
+}
 export function standingBid(round: DiceRound): BidRecord | null {
-  return round.bids.length ? round.bids[round.bids.length - 1] : null;
+  return standingBidOf(round.bids);
+}
+
+/** The smallest call that still beats what stands — one face higher, or one more
+ *  die when the face is already 六. What the composer opens on, so the confirm
+ *  button is never sitting under an illegal call waiting to be tapped. */
+export function minimumRaise(standing: Bid): Bid {
+  return standing.face < 6
+    ? { quantity: standing.quantity, face: (standing.face + 1) as Die }
+    : { quantity: standing.quantity + 1, face: 1 };
+}
+
+/**
+ * Where the opening call starts. With 1s wild, any given face is expected on a
+ * third of the dice (its own sixth plus the 1s' sixth), so a table of four —
+ * twenty dice — expects about six. Starting there rather than at 1 means the
+ * first call is a real claim instead of a formality nobody can lose on.
+ */
+export function openingQuantity(totalDice: number): number {
+  return Math.max(1, Math.floor(totalDice / 3));
+}
+
+/** The face to open the composer on: whichever you actually hold most of, ties
+ *  to the lower. Read off your OWN hand, which you are already looking at, so it
+ *  suggests without telling you anything you didn't know. */
+export function favouriteFace(dice: Die[]): Die {
+  let best: Die = 4;
+  let bestCount = -1;
+  for (const face of [1, 2, 3, 4, 5, 6] as Die[]) {
+    const n = dice.filter(d => d === face).length;
+    if (n > bestCount) { best = face; bestCount = n; }
+  }
+  return best;
 }
 
 /**

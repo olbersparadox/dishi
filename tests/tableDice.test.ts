@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   viewForUser, canBid, canChallenge, turnAfter, standingBid,
+  minimumRaise, openingQuantity, favouriteFace,
   type DiceRound, type Rolls,
 } from '../src/lib/tableDice';
 import type { Die } from '../src/lib/liarsDice';
@@ -137,6 +138,28 @@ describe('canChallenge', () => {
 
   it('is closed to someone who is not at this table', () => {
     expect(canChallenge(live, 'u-stranger')).toBe(false);
+  });
+});
+
+describe('the composer’s opening defaults', () => {
+  it('opens on the count a face is actually expected to hit', () => {
+    // Four players, twenty dice, 1s wild: a third of the table, so 6 — which is
+    // the handoff's own opening call, 6個四.
+    expect(openingQuantity(20)).toBe(6);
+    expect(openingQuantity(10)).toBe(3);
+    expect(openingQuantity(5)).toBe(1);
+  });
+
+  it('opens on the face you hold most of', () => {
+    expect(favouriteFace([4, 4, 1, 6, 2] as Die[])).toBe(4);
+    expect(favouriteFace([3, 3, 3, 5, 5] as Die[])).toBe(3);
+    // A hand of five different faces has no favourite; ties go to the lower.
+    expect(favouriteFace([2, 3, 4, 5, 6] as Die[])).toBe(2);
+  });
+
+  it('raises by one face, then by one die once the face runs out', () => {
+    expect(minimumRaise({ quantity: 6, face: 4 })).toEqual({ quantity: 6, face: 5 });
+    expect(minimumRaise({ quantity: 6, face: 6 })).toEqual({ quantity: 7, face: 1 });
   });
 });
 

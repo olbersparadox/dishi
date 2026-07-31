@@ -32,7 +32,6 @@ export default function TableWaitLayer({ members, colorFor, onKeepPicking }: {
           {members.map(m => (
             <div key={m.user_id} className={`wait-chop ${m.ready_at ? 'is-ready' : ''}`}>
               <Chop name={m.display_name ?? m.handle} color={colorFor(m.user_id)} size={40} />
-              <span className="wait-chop-name">{m.display_name ?? m.handle}</span>
             </div>
           ))}
         </div>

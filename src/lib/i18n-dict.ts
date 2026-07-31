@@ -414,24 +414,62 @@ export const dict: Record<string, { zh: string; en: string }> = {
   // ---- settle: the bill and who carries it ----
   'table.settle.title': { zh: '埋單', en: 'The bill' },
   'table.settle.dishcount': { zh: '本檯共選 {n} 道菜', en: '{n} dishes for the table' },
-  'table.settle.total': { zh: '合計', en: 'Total' },
   // The "+" on a partial total is load-bearing everywhere else in this app; a
   // bill is the one place it MUST be spelled out, because a number people are
-  // about to hand money over on cannot quietly mean "at least".
+  // about to hand money over on cannot quietly mean "at least". The service
+  // charge is named for the same reason (design handoff, 2026-07-31): a HK bill
+  // adds 10% at the counter, and a total that ignored it would read as wrong.
   'table.settle.partial': {
-    zh: '有菜式沒有標價，合計只是下限。',
-    en: 'Some dishes had no printed price, so this total is a floor.',
+    zh: '有些沒有標價和未計加一，合計只是下限和大概。',
+    en: 'Some dishes had no printed price and service is not included, so this total is a floor.',
   },
-  'table.settle.how': { zh: '如何付款', en: 'How to pay' },
+  'table.settle.how': { zh: '邊個埋單', en: 'Who pays' },
   'table.settle.equal': { zh: '平均分攤', en: 'Equal split' },
   'table.settle.random': { zh: '隨機一人', en: 'Random' },
   'table.settle.game': { zh: '大話骰', en: 'Liar’s dice' },
-  'table.settle.gamesub': { zh: '輸的人付款', en: 'Loser pays' },
-  'table.settle.soon': { zh: '即將推出', en: 'Coming soon' },
   'table.settle.each': { zh: '每人 {amount}', en: '{amount} each' },
   'table.settle.payer': { zh: '{name} 付這一餐', en: '{name} pays' },
   'table.settle.payeryou': { zh: '你付這一餐', en: 'You pay' },
   'table.settle.torate': { zh: '去評分', en: 'Rate what you ate' },
+
+  // ---- 大話骰 ----
+  // Cantonese, deliberately (owner, 2026-07-31): this surface is a named
+  // exception to the 書面化 direction, because the game is spoken at the table
+  // and 書面語 would make it sound like a form. A later register pass must not
+  // flatten 邊個埋單 / 揀方向 / 就開咗盅.
+  'table.dice.pickdir': { zh: '你先叫 揀方向', en: 'You open — pick a direction' },
+  'table.dice.left': { zh: '向左', en: 'Left' },
+  'table.dice.right': { zh: '向右', en: 'Right' },
+  'table.dice.waitdir': { zh: '{name} 揀緊方向', en: '{name} is picking a direction' },
+  'table.dice.youfirst': { zh: '你先叫', en: 'You open' },
+  'table.dice.yourturn': { zh: '你叫', en: 'Your call' },
+  'table.dice.theirturn': { zh: '{name} 叫', en: '{name} calls' },
+  // A call is spoken as "six fours": the count in numerals, the face as a word.
+  'table.dice.call': { zh: '{n}個{face}', en: '{n} {face}s' },
+  'table.dice.say': { zh: '叫{n}個{face}', en: 'Call {n} {face}s' },
+  'table.dice.face.1': { zh: '一', en: 'one' },
+  'table.dice.face.2': { zh: '二', en: 'two' },
+  'table.dice.face.3': { zh: '三', en: 'three' },
+  'table.dice.face.4': { zh: '四', en: 'four' },
+  'table.dice.face.5': { zh: '五', en: 'five' },
+  'table.dice.face.6': { zh: '六', en: 'six' },
+  'table.dice.minus': { zh: '減一', en: 'One fewer' },
+  'table.dice.plus': { zh: '加一', en: 'One more' },
+  'table.dice.open': { zh: '開', en: 'Open the cups' },
+  'table.dice.result': { zh: '看結果', en: 'See the result' },
+  // Who called what, and who stopped it. The second line is used when 開 came
+  // from someone whose turn it was NOT — which is allowed, and is exactly the
+  // moment worth naming.
+  'table.dice.revealline': {
+    zh: '{bidder} 叫 {call} {challenger} 就開咗盅',
+    en: '{bidder} called {call}, {challenger} opened the cups',
+  },
+  'table.dice.revealcut': {
+    zh: '{bidder} 叫 {call} {waiting} 仲未叫完 {challenger} 就開咗盅',
+    en: '{bidder} called {call}, {waiting} hadn’t gone yet, {challenger} opened the cups anyway',
+  },
+  'table.dice.total': { zh: '全枱得 {n} 個{face}', en: '{n} {face}s on the table' },
+  'table.dice.pays': { zh: '埋單', en: 'Pays' },
 
   // ---- order (QR) ----
   'order.session': { zh: '場次', en: 'session' },
