@@ -4622,3 +4622,146 @@ which required splitting overlay-protection (every write, whole duration) from
 tap-blocking (only writes worth serialising); and a tap queued behind an in-flight
 write now flips the stamp AT TAP TIME, everywhere, with only the write waiting —
 queueing the visual along with the write was the residual "still a bit lag".
+
+# 大話骰 — the third way a table settles — SHIPPED `d40f454` + `ee1d16d` (2026-07-31)
+
+Rules logic had already shipped as `src/lib/liarsDice.ts` (23 tests, 2026-07-31).
+This is the rest: server-held dice, the turn engine, the screens, and the
+handoff's redesign of the existing bill. Backlog item 6 of the Table Mode
+continuation, moved here whole.
+
+## The item as it stood, verbatim
+
+- [ ] **[F] 6. 大話骰 — the third way to settle** — the done-picking
+  handshake and the bill SHIPPED 2026-07-30 (`TableSettle`,
+  `TableWaitLayer`); the 大話骰 pill is present and reads 即將推出. Rules
+  logic SHIPPED 2026-07-31 as `src/lib/liarsDice.ts` (23 tests). Design
+  handoff received from Claude Design: README + `demo.jsx` + per-screen
+  screenshots (sit-down, opening call, bidding ×2, waiting, reveal).
+
+  **Owner decisions taken 2026-07-31, binding on the build:**
+  1. Scope is the game PLUS the handoff's redesign of the existing bill:
+     合計 label hidden (number alone, sans, right-aligned), floor-footnote
+     reparented to top-align with it, chop NAMES hidden everywhere
+     (including `TableWaitLayer`), the three pay options restyled from
+     ghost pills to 60px ink circles with glyph + caption, heading
+     如何付款 → 邊個埋單.
+  2. The wild-1 pip is vermillion. Shipping WITHOUT a CLAUDE.md change,
+     by owner call — so this knowingly widens the documented-vs-actual
+     `--seal` gap that `.design-sync/NOTES.md` already records at 13
+     consumers. Do not "fix" it back.
+  3. Cantonese register for this surface is DELIBERATE (邊個埋單, 揀方向,
+     就開咗盅), a named exception to the 書面化 direction. A later
+     register pass must not flatten it.
+  4. The reveal marks counting dice by DIMMING the rest. No arithmetic
+     line, no per-die equation.
+
+  **What remains, in dependency order:**
+  - Server-held dice. Same contract shape as the sealed bet: a player's
+    roll is returned to that player alone, and the whole table's rolls
+    are assembled only at 開. Table for round/bid/challenge state, all
+    writes on `supabaseAdmin()` (the existing table_* RLS locks these
+    against their own owner, see `table_ready_and_settle.sql`).
+  - Turn engine over the existing 5s poll + realtime channel, the way
+    readiness rides it today. `nextPlayer()` already handles direction
+    and wrap.
+  - Screens, reusing `.settle*` classes. Handoff's own instruction:
+    do NOT port its `innerHTML`/DOM-surgery prototype mechanism; either
+    extend `TableSettle` with a `gameState` prop or compose a sibling.
+    `turnUserIdFor()`'s name-string matching must become a real
+    `currentTurnUserId`.
+
+  **Open, flagged by the handoff itself — resolve before shipping:**
+  - Screens 1k/1l are labelled 二人局 but render 4 chops (they were
+    converted to a shared 4-chop mount late). A real 2-player table needs
+    its own variant, not this mount.
+  - `.dc.html` + `demo.jsx` + screenshots are in the owner's Downloads
+    zip (`大話骰 Game Design.zip`), not committed. Re-request if lost.
+
+## What shipped
+
+**The dice, server-side.** Two tables, applied live
+(`supabase/applied/table_dice_rounds.sql`), with opposite visibility rules on
+purpose: `table_dice_rounds` is the public half (direction, seating order, whose
+turn, every call — all of it spoken aloud at a real table anyway) and
+`table_dice_rolls` the hidden one. RLS on both with NO policies at all, locked
+against their own owner exactly like `sealed_predictions`; every access is an
+API route on `supabaseAdmin()` after checking membership.
+
+`viewForUser()` in `src/lib/tableDice.ts` is the single gate. It takes the round
+and EVERY cup and returns what ONE player may know, which before 開 is their own
+five dice and nothing else. Deliberately not a fetch-only-mine query: the reveal
+needs them all, and two code paths would eventually disagree about which one is
+the safe one. A test serialises a mid-round view and asserts no other player's
+hand appears anywhere in it at any depth.
+
+**The turn engine** rides the existing 5s poll — `GET /api/table/[code]` carries
+the game view, loaded only when a table has actually started one — and each move
+broadcasts the same nudge readiness already uses. Moves are NOT optimistic: a
+pick is a tap on a dish and has to feel like one, but a call is a claim with $216
+riding on it, and showing it as made before the server accepted it is how a table
+ends up arguing about a bid that was never legal.
+
+**開 is open to anyone at the table, in turn or not**, except whoever made the
+standing bid. This was read off the design's own screens rather than decided
+here: 1j (JC's own 6個四 standing) has no 開 button, 1k and 1l (陳大文's 7個四
+standing) both do — including 1l, where it is Wing's turn and JC is waiting. The
+reveal copy says the same thing out loud: Priya opened while Wing hadn't gone.
+First 開 wins (`is('revealed_at', null)`), and the loser is written to
+`pay_payer_id` the same way a random draw is, so the game, the bill and the
+verdict line all name one person.
+
+**The screens** mount INSIDE `TableSettle` (a `game` prop plus four callbacks),
+not beside it. Every state of 大話骰 is still the settle screen: same total, same
+chops, same place on the page. Waiting is a quiet in-page state of the bidding
+screen with your own controls hidden IN PLACE (visibility, not display), never
+`TableWaitLayer` — which is right for "everyone finishes independently" and wrong
+for a sequential public auction where the waiting player still needs the live
+call, the history, and their own dice.
+
+**The bill redesign** shipped with it, per decision 1, plus two riders visible in
+the handoff's approved reference screenshot and flagged to the owner: bill dish
+names take the display serif they get everywhere else through `.card-title`, and
+the floor note now names the service charge (有些沒有標價和未計加一) rather than
+only the missing prices. Deliberately NOT ported: the prototype's per-chop
+per-person amount replacing the `settle-verdict` line — that changes what the
+screen SAYS, and decision 1's enumeration didn't include it.
+
+## The two open questions, closed
+
+1. **The 2-player variant is not needed.** 1k/1l rendered four chops because the
+   prototype was a fixed 4-chop mount; the real screens are member-driven, so a
+   two-person table renders two chops, two seats and an alternating turn with no
+   variant at all. Verified on a real 2-member render.
+2. **The reveal arithmetic** is decision 4's dimming: every die that counts toward
+   the challenged face stays ink, the rest fade to 0.22, and the total is printed
+   once (全枱得 5 個四). The mask comes from `countingMask()` server-side, so the
+   dimming and the verdict cannot disagree.
+
+## Two prototype mechanisms deliberately not ported
+
+- The `useEffect` + `innerHTML` DOM surgery. This is real composition.
+- The call-history strip's per-screen `translateX(-65px)` / `(-128px)` offsets.
+  The strip now right-packs with a collapsing flex spacer instead of
+  `justify-content: flex-end` — which is the one way to right-pack a scroller
+  that still scrolls, since flex-end overflows to the LEFT and that overflow is
+  unreachable (`scrollWidth` never grows). With flex-end, a long round's earliest
+  calls would have been clipped forever. The strip also absorbs its own extra
+  height (`margin-block: -17px`), because it swaps in and out as the turn moves
+  and the confirm button underneath must not jump 34px every time somebody calls.
+
+## Composer defaults, and why they reproduce the design's own numbers
+
+The opening call seeds at `openingQuantity(totalDice)` = ⌊dice ÷ 3⌋ (with 1s
+wild, any face is expected on a third of the table) and `favouriteFace(yourDice)`
+— which for a four-person table and the handoff's own hand lands on exactly
+6個四, the call in screen 1i. Both are read off information the player already
+has; nothing private moves anywhere. A raise seeds at the smallest legal one, so
+the confirm button is never sitting under a call that would be rejected.
+
+## Still open
+
+A real multi-account field test at a table. Every screen here was verified
+against a rendered 4-player and 2-player session, but the poll/broadcast turn
+handoff between two live devices has not been exercised the way the 2026-07-30
+two-account test exercised picking.

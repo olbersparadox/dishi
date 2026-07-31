@@ -163,51 +163,11 @@ question. Full entry, kept for the WHY, in DECISIONS.md.)
 - [ ] **[F] 5. 檯友回音 (Table Echo)** — item 4 (companion edges) SHIPPED
   2026-07-22 (see DECISIONS.md), so this is now unblocked. Spec below.
 
-- [ ] **[F] 6. 大話骰 — the third way to settle** — the done-picking
-  handshake and the bill SHIPPED 2026-07-30 (`TableSettle`,
-  `TableWaitLayer`); the 大話骰 pill is present and reads 即將推出. Rules
-  logic SHIPPED 2026-07-31 as `src/lib/liarsDice.ts` (23 tests). Design
-  handoff received from Claude Design: README + `demo.jsx` + per-screen
-  screenshots (sit-down, opening call, bidding ×2, waiting, reveal).
-
-  **Owner decisions taken 2026-07-31, binding on the build:**
-  1. Scope is the game PLUS the handoff's redesign of the existing bill:
-     合計 label hidden (number alone, sans, right-aligned), floor-footnote
-     reparented to top-align with it, chop NAMES hidden everywhere
-     (including `TableWaitLayer`), the three pay options restyled from
-     ghost pills to 60px ink circles with glyph + caption, heading
-     如何付款 → 邊個埋單.
-  2. The wild-1 pip is vermillion. Shipping WITHOUT a CLAUDE.md change,
-     by owner call — so this knowingly widens the documented-vs-actual
-     `--seal` gap that `.design-sync/NOTES.md` already records at 13
-     consumers. Do not "fix" it back.
-  3. Cantonese register for this surface is DELIBERATE (邊個埋單, 揀方向,
-     就開咗盅), a named exception to the 書面化 direction. A later
-     register pass must not flatten it.
-  4. The reveal marks counting dice by DIMMING the rest. No arithmetic
-     line, no per-die equation.
-
-  **What remains, in dependency order:**
-  - Server-held dice. Same contract shape as the sealed bet: a player's
-    roll is returned to that player alone, and the whole table's rolls
-    are assembled only at 開. Table for round/bid/challenge state, all
-    writes on `supabaseAdmin()` (the existing table_* RLS locks these
-    against their own owner, see `table_ready_and_settle.sql`).
-  - Turn engine over the existing 5s poll + realtime channel, the way
-    readiness rides it today. `nextPlayer()` already handles direction
-    and wrap.
-  - Screens, reusing `.settle*` classes. Handoff's own instruction:
-    do NOT port its `innerHTML`/DOM-surgery prototype mechanism; either
-    extend `TableSettle` with a `gameState` prop or compose a sibling.
-    `turnUserIdFor()`'s name-string matching must become a real
-    `currentTurnUserId`.
-
-  **Open, flagged by the handoff itself — resolve before shipping:**
-  - Screens 1k/1l are labelled 二人局 but render 4 chops (they were
-    converted to a shared 4-chop mount late). A real 2-player table needs
-    its own variant, not this mount.
-  - `.dc.html` + `demo.jsx` + screenshots are in the owner's Downloads
-    zip (`大話骰 Game Design.zip`), not committed. Re-request if lost.
+(6. 大話骰 — the third way to settle: SHIPPED `d40f454` + `ee1d16d`, 2026-07-31.
+Server-held dice behind one viewForUser gate, the turn engine on the existing
+poll, the screens inside TableSettle's own chassis, and the handoff's redesign
+of the bill. Both of the handoff's open questions closed. Full entry, with the
+four binding owner decisions, in DECISIONS.md.)
 
 ## Later / standing
 
