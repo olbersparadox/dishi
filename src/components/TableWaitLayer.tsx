@@ -12,6 +12,7 @@
 // that turns "why is this stuck" into "Wing hasn't tapped yet", which someone
 // can act on by looking up from their phone.
 import Chop from '@/components/Chop';
+import { ArrowLeftIcon, UtensilsIcon } from '@/components/icons';
 import { useLang } from '@/lib/i18n';
 import type { Member } from '@/lib/useTableSession';
 
@@ -35,8 +36,15 @@ export default function TableWaitLayer({ members, colorFor, onKeepPicking }: {
             </div>
           ))}
         </div>
+        {/* Back-arrow + utensils rather than the words 繼續選: this button sits on a
+            scrim under a title and a count, and a third line of text competed with
+            both. The pair reads as "back to the menu", and the label survives as the
+            accessible name rather than being dropped. */}
         <div className="ok-circle-wrap">
-          <button className="btn ghost small" onClick={onKeepPicking}>{t('table.ready.undo')}</button>
+          <button className="btn ghost small icons" onClick={onKeepPicking} aria-label={t('table.ready.undo')}>
+            <ArrowLeftIcon size={18} />
+            <UtensilsIcon size={18} />
+          </button>
         </div>
       </div>
     </>

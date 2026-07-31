@@ -182,6 +182,10 @@ button { font: inherit; cursor: pointer; }
 .btn.primary.dirty { background: var(--seal); border-color: var(--seal); color: var(--seal-ink); }
 .btn.ghost { border-color: var(--line); color: var(--ink-soft); }
 .btn.small { padding: 9px 18px; font-size: var(--fs-caption); }
+/* A .btn whose content is glyphs instead of words. Only the layout changes — the
+   pill, border and padding are the button's own, so an icon button is visibly the
+   same object as its lettered siblings rather than a second kind of control. */
+.btn.icons { display: inline-flex; align-items: center; gap: 8px; }
 .btn.large { padding: 14px 18px; font-size: var(--fs-body); flex: 1; }
 /* A continue/advance button dims until its step's requirement is met. The
  * disabled attribute is already set correctly across every rating flow (log

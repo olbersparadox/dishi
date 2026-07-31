@@ -421,7 +421,11 @@ export const dict: Record<string, { zh: string; en: string }> = {
   // everyone else. The waiting layer then says what is being waited for, because
   // "please wait" with no count is indistinguishable from a hung screen.
   'table.ready.done': { zh: '我選好了', en: 'I’m done' },
-  'table.ready.waiting': { zh: '等其他人選完', en: 'Waiting for the others' },
+  // 等埋其他人, not 等其他人選完: the progress line directly underneath already
+  // says 「1 / 2 位已選好」, so spelling out 選完 in the title only repeats it.
+  // Knowingly Cantonese against the 書面化 register shift — the owner tuned this
+  // line in the design pass and it stays an exception (see DECISIONS.md).
+  'table.ready.waiting': { zh: '等埋其他人', en: 'Waiting for the others' },
   'table.ready.progress': { zh: '{n} / {total} 位已選好', en: '{n} of {total} ready' },
   'table.ready.undo': { zh: '繼續選', en: 'Keep picking' },
 
