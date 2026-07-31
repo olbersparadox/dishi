@@ -62,7 +62,7 @@ export default function TableBar({ code, memberCount, pickCount, onInvite, resta
         <Toast message={toast.message} onDone={toast.onDone} anchor="left" />
       </span>
       <button className="table-invite-btn" onClick={onInvite} aria-label={t('table.invite')} title={t('table.invite')}>
-        <InviteIcon size={20} />
+        <InviteIcon size={23} />
       </button>
       {restaurantLine}
     </div>

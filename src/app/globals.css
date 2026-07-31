@@ -1640,14 +1640,20 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
    centered against the first line's height, sitting above true-center once the
    restaurant line wraps below it. */
 /* Outline invite icon button — a hollow circle with the person+plus stroke
-   inside, matching the minimal-icon language elsewhere in the app. */
+   inside, matching the minimal-icon language elsewhere in the app.
+   --ink-soft, not --ink: this was the only outlined circle in the app drawn at full
+   ink strength, which made the quietest action on the bar the heaviest mark on it.
+   The app's other outlined circle (.info-inline-badge) is already soft, and a
+   hairline --line border would have all but vanished against the bar's own
+   --paper-inset. Hover fills in the same soft ink rather than jumping to full
+   strength, so the control stays in one register. */
 .table-invite-btn {
   position: absolute; top: 50%; right: 16px; transform: translateY(-50%);
   display: grid; place-items: center; width: 40px; height: 40px;
-  border-radius: 50%; background: transparent; color: var(--ink);
-  border: 1px solid var(--ink); cursor: pointer; transition: background 150ms, color 150ms;
+  border-radius: 50%; background: transparent; color: var(--ink-soft);
+  border: 1px solid var(--ink-soft); cursor: pointer; transition: background 150ms, color 150ms;
 }
-.table-invite-btn:hover { background: var(--ink); color: var(--glaze); }
+.table-invite-btn:hover { background: var(--ink-soft); color: var(--glaze); }
 /* Reserves the button's own width + gap so the code/count text never runs
    underneath it now that the button is positioned, not a flex sibling. */
 .table-bar-left { display: flex; align-items: baseline; gap: 10px; min-width: 0; padding-right: 52px; position: relative; top: 3px; }
