@@ -90,6 +90,11 @@ export default function RatingStack({ photos, picks, userId, onExit }: {
   const [idx, setIdx] = useState(0);
   const [dishes, setDishes] = useState<GrowDish[]>([]); // one per RATED card (skips omitted)
   const [phase, setPhase] = useState<Phase>('flick');
+  // A queued pick's photo, added mid-flick (owner call, 2026-07-30: upload it right
+  // on the placeholder rather than rating blind). Keyed by card index since `picks`
+  // is an immutable prop — an override here, not a mutation of pk[idx] itself.
+  const [pickPhoto, setPickPhoto] = useState<Record<number, string>>({});
+  const [pickPhotoUploading, setPickPhotoUploading] = useState(false);
   // EVERY seal this session broke, lifted off the /api/ratings responses (see
   // `rate` below) and shown on the growth screen — the session's own end-state,
   // which is where the person actually is when they land. It deliberately does
@@ -624,7 +629,9 @@ export default function RatingStack({ photos, picks, userId, onExit }: {
     const i = countRef.current++;
     if (picksMode) {
       const pick = pk[idx];
-      setDishes(prev => [...prev, freshDish(pick.photoUrl, score)]);
+      // pick.photoUrl is the prop's original (immutable) value — a photo added
+      // mid-flick lives in pickPhoto[idx] instead, so the growth card shows it too.
+      setDishes(prev => [...prev, freshDish(pickPhoto[idx] ?? pick.photoUrl, score)]);
       runPickPipeline(pick, score, i);
     } else {
       ratedSrc.current[i] = pv[idx]; // keep the source so a failed upload can retry in place
@@ -649,18 +656,37 @@ export default function RatingStack({ photos, picks, userId, onExit }: {
     runPipeline(src.file, gd.score, i, src.meta);
   };
   const onSkip = () => gotoNextOrGrow(countRef.current > 0);
+  // Upload a photo for the CURRENT queued pick, before it's rated. Persists via the
+  // same endpoint the journal/pick-card add-photo affordances use; the pipeline
+  // itself (runPickPipeline) never touches photoUrl, so this is the only write.
+  const addPickPhoto = async (file: File) => {
+    const dishId = pk[idx]?.dishId;
+    if (!dishId) return;
+    setPickPhotoUploading(true);
+    try {
+      const form = new FormData();
+      form.append('dish_id', dishId);
+      form.append('photo', await normalizePhoto(file, 1024));
+      const res = await fetch('/api/dishes/photo', { method: 'POST', body: form });
+      const json = await res.json();
+      if (res.ok) setPickPhoto(prev => ({ ...prev, [idx]: json.dish.photo_url }));
+    } catch { /* leave the placeholder — user can try again */ }
+    finally { setPickPhotoUploading(false); }
+  };
 
   if (phase === 'flick') {
     const card = picksMode ? pk[idx] : null;
     return (
       <SnapRating
         key={idx}
-        photoUrl={picksMode ? card!.photoUrl : pv[idx].url}
+        photoUrl={picksMode ? (pickPhoto[idx] ?? card!.photoUrl) : pv[idx].url}
         // A queued pick has no photo, so the card leads with its NAME instead —
         // otherwise there'd be nothing to rate against.
         dishName={card?.name}
         dishNameZh={card?.name_zh ?? undefined}
         showHint={idx === 0}
+        onAddPhoto={picksMode ? addPickPhoto : undefined}
+        photoUploading={pickPhotoUploading}
         onClose={cancelSession}
         onRate={onRate}
         onSkip={onSkip}

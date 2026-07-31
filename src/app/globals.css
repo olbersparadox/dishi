@@ -1289,11 +1289,21 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
        path, not a fallback) — the dish's NAME is what you flick, so it's the
        title of the thing being rated and reads at title size. --- */
 .flick-nophoto {
+  position: relative;
   display: flex; align-items: center; justify-content: center;
   background: linear-gradient(160deg, var(--glaze), var(--porcelain));
   font-family: var(--font-display), system-ui; font-weight: 800; font-size: var(--fs-title-b);
   line-height: 1.25; color: var(--ink); text-align: center; padding: 28px;
 }
+/* A queued pick can reach the flick card with no photo yet — this lets it be
+   added right here, before rating, instead of rating blind against just the
+   name (owner call, 2026-07-30). */
+.snap-photo-upload {
+  position: absolute; top: 10px; right: 10px; z-index: 2; cursor: pointer;
+  display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%;
+  background: var(--ink); color: var(--glaze); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+.snap-photo-upload:hover { background: #423d37; }
 
 /* --- log page: dishes-to-rate placeholders --- */
 .pick-card {
@@ -1315,14 +1325,15 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
    rate/delete actions). */
 .pick-card-thumb { position: relative; flex-shrink: 0; width: 52px; height: 52px; }
 .pick-card-thumb-img { width: 52px; height: 52px; object-fit: cover; border-radius: 12px; display: block; }
-.pick-card-thumb-empty { width: 52px; height: 52px; border-radius: 12px; background: var(--paper-inset); }
-.pick-card-cam {
-  position: absolute; right: -4px; bottom: -4px; cursor: pointer;
-  display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%;
-  background: var(--ink); color: var(--glaze); border: 2px solid var(--glaze);
-  font-size: var(--fs-micro); line-height: 1;
+/* Whole-tile add tap target, matching the journal's own empty-photo treatment
+   (.journal-photo-add) at this row's 52px size instead of the journal's 64px. */
+.pick-card-thumb-add {
+  width: 52px; height: 52px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  background: var(--paper-inset); border: 1px dashed var(--line);
+  color: var(--ink-faint); font-size: var(--fs-title-a); font-weight: 300; line-height: 1;
 }
-.pick-card-cam:hover { background: #423d37; }
+.pick-card-thumb-add:hover { color: var(--ink-soft); }
 .pick-card-name {
   font-family: var(--font-display); font-size: var(--fs-subtitle-a); font-weight: 700;
   display: flex; align-items: center; gap: 7px;

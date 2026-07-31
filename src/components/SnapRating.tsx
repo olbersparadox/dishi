@@ -23,7 +23,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLang } from '@/lib/i18n';
 import { dict } from '@/lib/i18n-dict';
-import { CloseIcon } from '@/components/icons';
+import { CameraIcon, CloseIcon } from '@/components/icons';
 
 // Slots stack top(most positive) → bottom. `drag` = the vertical offset (px, up
 // positive) the card centres on. Rest (0) sits between the two middle slots so a
@@ -64,7 +64,7 @@ function filterFor(slot: number | null): string {
 }
 
 export default function SnapRating({
-  photoUrl, dishName, dishNameZh, onRate, onSkip, onClose, showHint,
+  photoUrl, dishName, dishNameZh, onRate, onSkip, onClose, showHint, onAddPhoto, photoUploading,
 }: {
   photoUrl: string | null;
   dishName?: string;
@@ -73,6 +73,11 @@ export default function SnapRating({
   onSkip?: () => void;             // release past SKIP_ARM = dismissed; parent advances, no rating
   onClose?: () => void;
   showHint?: boolean;              // first card only — show the drag-to-rate gesture hint
+  /** A queued pick (picksMode) can have no photo yet — fires with the picked
+   * file so the parent can upload it before the dish is rated. Only rendered
+   * while photoUrl is null; once it lands the card just shows the photo. */
+  onAddPhoto?: (file: File) => void;
+  photoUploading?: boolean;
 }) {
   const { t, lang } = useLang();
   const [render, setRender] = useState({ x: 0, y: 0 });
@@ -239,7 +244,19 @@ export default function SnapRating({
             style={{ filter: filterFor(locked) }} onError={() => setImgOk(false)} />
         ) : (
           // no photo, or one the browser couldn't decode — still fully ratable/skippable
-          <div className="snap-photo flick-nophoto"><span>{displayName ?? '🍽️'}</span></div>
+          <div className="snap-photo flick-nophoto">
+            <span>{displayName ?? '🍽️'}</span>
+            {onAddPhoto && (
+              // stopPropagation: same reason as .snap-close above — a tap here must not
+              // also arm the drag-to-rate gesture the overlay captures on pointerdown.
+              <label className="snap-photo-upload" onPointerDown={e => e.stopPropagation()}
+                title={t('home.addphoto')} aria-label={t('home.addphoto')}>
+                <input type="file" accept="image/*" hidden disabled={photoUploading}
+                  onChange={e => { const f = e.target.files?.[0]; if (f) onAddPhoto(f); }} />
+                {photoUploading ? <span aria-hidden>…</span> : <CameraIcon size={18} strokeWidth={1.8} />}
+              </label>
+            )}
+          </div>
         )}
       </div>
 
