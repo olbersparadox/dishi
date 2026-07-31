@@ -1543,6 +1543,7 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
    Handoff Screen 4: a quiet #eee9dd inset strip — serif code, small meta,
    outline "+ 邀請" pill. No border, no big stats. */
 .table-bar {
+  position: relative;
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   margin: 4px 0 22px; background: var(--paper-inset); border: none;
   border-radius: var(--r-session); padding: 12px 16px;
@@ -1578,15 +1579,19 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
    no affordance styling — it's a fact, not a tap target. */
 .table-restaurant-static { display: inline-flex; align-items: center; gap: 5px; }
 /* Was a "+ 邀請" text pill; a black circle icon button reads lighter next to the
-   code/count text without losing the action. Sits on the bar's first flex line
-   (align-items: center on .table-bar), so it centers against that row's own
-   height rather than the bar's full height once the restaurant line wraps below. */
+   code/count text without losing the action. Pulled OUT of the wrap flow and
+   centered against the bar's own full height (top: 50%) — in-flow it only ever
+   centered against the first line's height, sitting above true-center once the
+   restaurant line wraps below it. */
 .table-invite-btn {
-  flex-shrink: 0; display: grid; place-items: center; width: 40px; height: 40px;
+  position: absolute; top: 50%; right: 16px; transform: translateY(-50%);
+  display: grid; place-items: center; width: 40px; height: 40px;
   border-radius: 50%; background: var(--ink); color: var(--glaze); border: none; cursor: pointer;
 }
 .table-invite-btn:hover { background: #423d37; }
-.table-bar-left { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+/* Reserves the button's own width + gap so the code/count text never runs
+   underneath it now that the button is positioned, not a flex sibling. */
+.table-bar-left { display: flex; align-items: baseline; gap: 10px; min-width: 0; padding-right: 52px; }
 .table-bar-codewrap { display: inline-flex; align-items: baseline; gap: 4px; min-width: 0; }
 .table-bar-label { font-size: var(--fs-caption); color: var(--ink); }
 .table-bar-code {
