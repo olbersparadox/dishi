@@ -1747,7 +1747,12 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
   font-family: var(--font-body); font-size: var(--fs-title-a); font-weight: 700;
   color: var(--ink); font-variant-numeric: tabular-nums;
 }
-.settle-note { margin-top: 0; max-width: 230px; text-align: left; }
+/* Hard left, so the caveat starts on the same edge as every dish name above it
+   rather than floating in the middle of the row (owner, 2026-07-31). margin-right
+   auto rather than space-between on the parent: the note is conditional, and
+   space-between would send the TOTAL to the left on a fully-priced bill, which is
+   the one thing on this card that must stay pinned right. */
+.settle-note { margin-top: 0; margin-right: auto; max-width: 230px; text-align: left; }
 /* The chops are the table, so they sit centred. No name under them: the colour
    and glyph ARE the identity, and the label repeated the roster the bill above
    already listed. */
