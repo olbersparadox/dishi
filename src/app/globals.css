@@ -1556,7 +1556,7 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
    context for the picks, not the headline, and it's resolved automatically in the
    common case (see tableRestaurant.ts) — this line only has to be reachable, not
    loud. */
-.table-restaurant-line { flex-basis: 100%; min-width: 0; position: relative; top: -5px; }
+.table-restaurant-line { flex-basis: 100%; min-width: 0; position: relative; top: -8px; }
 /* Tappable but not a button-looking thing: same .card-meta voice as the bar's own
    status text, with a dotted underline as the only affordance — the house
    treatment for "this text does something" without adding a second pill next to
