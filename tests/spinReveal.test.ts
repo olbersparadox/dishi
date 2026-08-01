@@ -284,7 +284,10 @@ describe('wiring', () => {
     // Full width or the measurement is meaningless: a shrink-to-fit box reports its
     // own text as the space available and nothing is ever found too wide.
     expect(body).toMatch(/align-self: stretch/);
-    expect(body).toMatch(/calc\(var\(--fs-title-a\) \* var\(--fit, 1\)\)/);
+    // A step off the shared scale, never a tuned px value — one down from the game's
+    // own verdict line (owner, 2026-08-01), with --fit only trimming from there.
+    expect(body).toMatch(/calc\(var\(--fs-subtitle-b\) \* var\(--fit, 1\)\)/);
+    expect(body).not.toMatch(/font-size:\s*\d+px/);
     // One line means one line's reserve; two would push 邊個埋單 down for nothing.
     expect(CSS).toMatch(/min-height: 48px/);
   });

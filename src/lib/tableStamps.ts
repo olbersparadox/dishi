@@ -21,9 +21,13 @@
 
 export type Stamp = { user_id: string; name: string };
 
+import { memberName } from '@/lib/memberName';
+
 type TablePickLike = {
   user_id: string; name: string; name_zh: string | null;
   display_name: string | null; handle: string;
+  /** As-typed casing of the claimed username. See memberName(). */
+  username_display?: string | null;
   identity_name?: string | null; identity_name_zh?: string | null;
   // Which ranked candidate this pick came from (item.key at pick time) — see
   // dishes.table_item_key's migration comment. Null for picks made before this
@@ -71,7 +75,7 @@ export function stampsFromPicks(
   for (const p of tablePicks) {
     if (pickMatchesItem(p, item) && !seen.has(p.user_id)) {
       seen.add(p.user_id);
-      out.push({ user_id: p.user_id, name: p.display_name ?? p.handle });
+      out.push({ user_id: p.user_id, name: memberName(p) });
     }
   }
   return out;

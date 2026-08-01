@@ -15,6 +15,7 @@ import Chop from '@/components/Chop';
 import { ArrowLeftIcon, UtensilsIcon } from '@/components/icons';
 import { useLang } from '@/lib/i18n';
 import type { Member } from '@/lib/useTableSession';
+import { memberName } from '@/lib/memberName';
 
 export default function TableWaitLayer({ members, colorFor, onKeepPicking }: {
   members: Member[];
@@ -32,7 +33,7 @@ export default function TableWaitLayer({ members, colorFor, onKeepPicking }: {
         <div className="wait-chops">
           {members.map(m => (
             <div key={m.user_id} className={`wait-chop ${m.ready_at ? 'is-ready' : ''}`}>
-              <Chop name={m.display_name ?? m.handle} color={colorFor(m.user_id)} size={40} />
+              <Chop name={memberName(m)} color={colorFor(m.user_id)} size={40} />
             </div>
           ))}
         </div>

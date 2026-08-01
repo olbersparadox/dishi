@@ -446,13 +446,16 @@ export const dict: Record<string, { zh: string; en: string }> = {
   // bill is an ESTIMATE: the printed prices are all there, but the 10% and whatever
   // else the shop adds are not, so it is close rather than short. Every total carries
   // one of them, since a bare figure on a bill nobody has seen yet reads as exact.
+  // Two lines each, broken on the newline rather than run together with ，and 。
+  // (owner, 2026-08-01): the caveat sits beside the total, not in body copy, and at
+  // that width the punctuation was doing the work a line break does better.
   'table.settle.partial': {
-    zh: '有些沒有標價和未計加一，合計只是下限和大概。',
-    en: 'Some dishes had no printed price and service is not included, so this total is a floor.',
+    zh: '有些沒有標價和未計加一\n合計只是下限和大概',
+    en: 'Some dishes had no printed price and service is not included\nso this total is a floor',
   },
   'table.settle.estimate': {
-    zh: '未計加一和其他費用，合計只是大概。',
-    en: 'Service and other fees are not included, so this total is an estimate.',
+    zh: '未計加一和其他費用\n合計只是大概',
+    en: 'Service and other fees are not included\nso this total is an estimate',
   },
   // An equal split's answer, in the same slot the draw's reveal uses (owner,
   // 2026-08-01). 加一未計 matches how table.settle.partial already says it — the

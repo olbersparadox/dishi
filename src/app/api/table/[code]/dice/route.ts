@@ -99,12 +99,27 @@ export async function POST(req: NextRequest, { params }: { params: { code: strin
         })),
         { onConflict: 'round_id,user_id', ignoreDuplicates: true },
       );
-      // The bill's method follows the game, so every member's settle screen
-      // switches over on the same poll that brings them the round.
-      await admin.from('table_sessions')
-        .update({ pay_method: 'game', pay_decided_at: new Date().toISOString() })
-        .eq('id', session.id);
     }
+    // The bill's method follows the game, so every member's settle screen switches
+    // over on the same poll that brings them the round.
+    //
+    // OUTSIDE the creation branch (owner, 2026-08-01). Nested inside it, this only
+    // ran for the FIRST tap: a table that already had a round — one that had since
+    // gone to 隨機一人 and come back — kept pay_method 'random' in the database while
+    // every client optimistically showed the game. Two symptoms, one cause. The
+    // draw's leftover pay_payer_id got rendered as the game's verdict, and ~15s
+    // later, once the write guard expired, the poll read 'random' back and pulled
+    // the whole table out of the game it was sitting in.
+    await admin.from('table_sessions')
+      .update({
+        pay_method: 'game',
+        pay_decided_at: new Date().toISOString(),
+        // A round in progress has named nobody, and whatever the draw left behind is
+        // not its answer. Only 開 writes a payer for this method (see below). A round
+        // already revealed keeps the loser it named.
+        ...(round?.revealed_at ? {} : { pay_payer_id: null }),
+      })
+      .eq('id', session.id);
   } else if (!round) {
     return NextResponse.json({ error: 'Nobody has shaken the dice yet.' }, { status: 409 });
   } else if (action === 'direction') {

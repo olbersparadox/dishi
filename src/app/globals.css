@@ -1752,7 +1752,13 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
    auto rather than space-between on the parent: the note is conditional, and
    space-between would send the TOTAL to the left on a fully-priced bill, which is
    the one thing on this card that must stay pinned right. */
-.settle-note { margin-top: 0; margin-right: auto; max-width: 230px; text-align: left; }
+/* pre-line so the caveat breaks where the copy says (owner, 2026-08-01) — the two
+   clauses are separate statements, not a sentence to be re-flowed. It still wraps
+   inside a clause if the width demands it. */
+.settle-note {
+  margin-top: 0; margin-right: auto; max-width: 230px; text-align: left;
+  white-space: pre-line;
+}
 /* The chops are the table, so they sit centred. No name under them: the colour
    and glyph ARE the identity, and the label repeated the roster the bill above
    already listed. */
@@ -1846,9 +1852,17 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
    text is centred: a shrink-to-fit box would report its own text as the available
    width, and the line could never be found too wide for anything. */
 .settle-reveal-name {
-  font-size: calc(var(--fs-title-a) * var(--fit, 1));
+  /* One step DOWN the shared scale from the game's own 全枱得 … 埋單 (owner,
+     2026-08-01): --fs-subtitle-b, a real step rather than a tuned px value, so this
+     line stays on the 7-step scale. --fit only comes off 1 for a name long enough to
+     need it, which at this size is rare. */
+  font-size: calc(var(--fs-subtitle-b) * var(--fit, 1));
   white-space: nowrap; align-self: stretch;
   line-height: 1.2; margin: 0;
+  /* Dropped clear of the chops rather than sitting tight under them. relative/top,
+     not a margin: the slot centres its content, so a margin would be split between
+     both sides and move the line by half of what it says. */
+  position: relative; top: 10px;
   text-align: center; font-variant-numeric: tabular-nums;
 }
 

@@ -30,6 +30,7 @@ import { ArrowRightIcon, DieIcon } from '@/components/icons';
 import type { Die, Direction } from '@/lib/liarsDice';
 import type { DiceGameView } from '@/lib/tableDice';
 import type { Member } from '@/lib/useTableSession';
+import { memberName } from '@/lib/memberName';
 
 /** Only what a bill line needs. Structural on purpose: /scan and /table both
  *  feed this from the SESSION's item list (never a screen's own local one), so
@@ -143,7 +144,7 @@ export default function TableSettle({
             <div key={m.user_id} className="settle-chop">
               <span className={ringed ? 'is-ringed' : undefined}
                 style={ringed ? { '--chop-ring': colorFor(m.user_id) } as React.CSSProperties : undefined}>
-                <Chop name={m.display_name ?? m.handle} color={colorFor(m.user_id)} size={36} />
+                <Chop name={memberName(m)} color={colorFor(m.user_id)} size={36} />
               </span>
             </div>
           );
@@ -167,7 +168,7 @@ export default function TableSettle({
         <div className="settle-reveal">
           {payMethod === 'random' && payer && !spinUserId && (
             <FitLine>
-              {t(revealLineKey(payDrawCount), { name: payer.display_name ?? payer.handle })}
+              {t(revealLineKey(payDrawCount), { name: memberName(payer) })}
             </FitLine>
           )}
           {/* 大話骰's answer, in the same slot as the other two (owner, 2026-08-01).
@@ -176,11 +177,11 @@ export default function TableSettle({
               screen that had moved on, because that is what it was. The game names
               its loser inside 開盅; this is the line that outlives the reveal, so the
               table can still see who is carrying it after the cups are cleared. */}
-          {payMethod === 'game' && payer && (
+          {payMethod === 'game' && payer && payer.user_id === game?.reveal?.loserId && (
             <FitLine>
               {payer.user_id === you
                 ? t('table.settle.payeryou')
-                : t('table.settle.payer', { name: payer.display_name ?? payer.handle })}
+                : t('table.settle.payer', { name: memberName(payer) })}
             </FitLine>
           )}
           {/* An equal split's answer belongs in the SAME slot, not under each chop
@@ -349,10 +350,10 @@ function useSpinReveal(
   return spinUserId;
 }
 
-/** How far the answer may shrink: --fs-body over --fs-title-a. Past that the type is
- *  smaller than the caption above it, and a wrap would have cost less than the type
- *  going quiet does. */
-const MIN_FIT = 15 / 23;
+/** How far the answer may shrink: --fs-body over the line's own --fs-subtitle-b. Past
+ *  that the type is smaller than the caption above it, and a wrap would have cost less
+ *  than the type going quiet does. */
+const MIN_FIT = 15 / 20;
 
 /**
  * The bill's answer, held to ONE line (owner, 2026-08-01).

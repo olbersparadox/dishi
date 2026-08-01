@@ -26,9 +26,12 @@ import {
 import { readyCount as countReady, drawPayer } from '@/lib/tableSettle';
 import type { DiceGameView } from '@/lib/tableDice';
 import type { Die, Direction } from '@/lib/liarsDice';
+import { memberName } from '@/lib/memberName';
 
 export type Member = {
   user_id: string; handle: string; display_name: string | null;
+  /** As-typed casing of the claimed username. See memberName(). */
+  username_display?: string | null;
   username_claimed: boolean; has_profile: boolean; rating_count: number;
   /** When this member tapped "done picking". Null until they do. */
   ready_at: string | null;
@@ -302,7 +305,7 @@ export function useTableSession(code: string | null) {
    * everywhere else (display_name, then the auto-handle). */
   const myName = (s: SessionState) => {
     const me = s.members.find(m => m.user_id === s.you);
-    return me?.display_name ?? me?.handle ?? 'someone';
+    return memberName(me);
   };
 
   /**

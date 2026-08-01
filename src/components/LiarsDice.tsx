@@ -22,6 +22,7 @@ import {
   standingBidOf, minimumRaise, openingQuantity, favouriteFace, type DiceGameView,
 } from '@/lib/tableDice';
 import type { Member } from '@/lib/useTableSession';
+import { memberName } from '@/lib/memberName';
 
 const FACES: Die[] = [1, 2, 3, 4, 5, 6];
 
@@ -39,7 +40,7 @@ export default function LiarsDice({ game, you, members, colorFor, onPickDirectio
   const { t } = useLang();
   const nameOf = (userId: string) => {
     const m = members.find(x => x.user_id === userId);
-    return m?.display_name ?? m?.handle ?? '…';
+    return memberName(m, '…');
   };
   const faceWord = (face: Die) => t(`table.dice.face.${face}`);
   const callText = (quantity: number, face: Die) =>
