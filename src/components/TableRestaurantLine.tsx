@@ -34,14 +34,29 @@ export default function TableRestaurantLine({ restaurant, onChange, editable = t
     ? (lang === 'zh' ? (restaurant.name_zh ?? restaurant.name) : restaurant.name)
     : null;
 
+  // A bare null is NOT an answer. The picker sends one whenever nothing is selected
+  // any more, and opening "+ 加間舖" is one of those moments — acting on it meant the
+  // tap that opens the typed-name form also unmounted the card the form renders in,
+  // so the button looked dead. Real answers arrive as a choice, or as onNone.
   async function choose(choice: RestaurantChoice) {
-    // A null is NOT an answer here. The picker sends one whenever nothing is
-    // selected any more, and opening "+ 加間舖" is one of those moments — closing on
-    // it meant the tap that opens the typed-name form also unmounted the card the
-    // form renders in, so the button looked dead. The deliberate "leave it as it is"
-    // arrives as onDismiss instead. 住家菜 still clears the restaurant, and says so
-    // by being its own answer.
     if (choice === null) return;
+    await commit(choice);
+  }
+  // 略過 = "none of the suggested places, and I'm not typing one either" (owner,
+  // 2026-08-01). That is an answer about the table, so it CLEARS whatever restaurant
+  // was on it — including a wrong auto-guess, which is the case that needs it. The
+  // server treats null as the clear and re-attributes the picks already made, so the
+  // dishes don't keep pointing at a shop the table just said it isn't at.
+  //
+  // It replaces 住家菜 as this sheet's clear: a scanned MENU belongs to a business by
+  // definition, so home cooking was never a coherent answer to "which restaurant is
+  // this table at" — it was only there because something had to do the clearing.
+  //
+  // Backing out without changing anything is still available, and is now the ONLY
+  // non-destructive exit: tap the 餐廳未定 line again to collapse the sheet.
+  async function none() { await commit(null); }
+
+  async function commit(choice: RestaurantChoice) {
     setSaving(true);
     try {
       await onChange(choice);
@@ -78,7 +93,7 @@ export default function TableRestaurantLine({ restaurant, onChange, editable = t
             {/* The SAME picker every other restaurant-input path mounts (食記 edit,
                 打字 quick-add) — GPS chips first, typing as the fallback. Not a
                 table-specific reimplementation of a chip row. */}
-            <RestaurantPicker onChange={choose} onDismiss={() => setOpen(false)} />
+            <RestaurantPicker onChange={choose} onNone={none} homeOption={false} />
             {saving && <p className="card-meta" style={{ marginTop: 8 }}>{t('log.saving')}</p>}
           </div>
         </div>

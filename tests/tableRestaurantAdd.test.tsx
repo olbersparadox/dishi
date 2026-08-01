@@ -21,9 +21,12 @@ afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
 // jsdom has no geolocation, so the picker lands in 'denied' — the add form does not
 // need coords to OPEN (only to submit), which keeps this about the open/close bug.
-const mount = (onChange = vi.fn(async () => {})) => render(
+const mount = (
+  onChange = vi.fn(async () => {}),
+  restaurant: { id: string; name: string; name_zh: string | null } | null = null,
+) => render(
   <LanguageProvider>
-    <TableRestaurantLine restaurant={null} onChange={onChange} />
+    <TableRestaurantLine restaurant={restaurant} onChange={onChange} />
   </LanguageProvider>,
 );
 
@@ -43,16 +46,40 @@ describe('the table restaurant sheet', () => {
     expect(view.container.querySelector('input.field'), 'no name field — the add form never survived the tap').toBeTruthy();
   });
 
-  it('still closes on an explicit 略過, which means leave it as it is', async () => {
+  // 略過 is "none of these, and I'm not typing one" (owner, 2026-08-01) — an answer
+  // about the table, so it clears whatever restaurant was on it. The server reads null
+  // as the clear and re-attributes the picks that were pointing at the old shop.
+  it('clears the restaurant on 略過, and closes', async () => {
     const onChange = vi.fn(async () => {});
-    const view = mount(onChange);
-    fireEvent.click(byText(view.container, '餐廳未定')!);
+    const view = mount(onChange, { id: 'r1', name: 'Tsui Wah', name_zh: '翠華' });
+    fireEvent.click(byText(view.container, '翠華')!);
     await waitFor(() => expect(byText(view.container, '略過')).toBeTruthy());
 
     fireEvent.click(byText(view.container, '略過')!);
 
-    expect(byText(view.container, '略過'), 'a 略過 tap should dismiss the sheet').toBeFalsy();
-    // Dismissing a correction is never destructive: nothing is saved.
+    await waitFor(() => expect(onChange).toHaveBeenCalledWith(null));
+    await waitFor(() => expect(byText(view.container, '略過')).toBeFalsy());
+  });
+
+  // A menu belongs to a business by definition, so "home cooking" was never a coherent
+  // answer to which restaurant this table is at. It only existed here because it was
+  // the sheet's clear; 略過 does that now.
+  it('offers no 住家菜 — incoherent for a scanned menu', async () => {
+    const view = mount();
+    fireEvent.click(byText(view.container, '餐廳未定')!);
+    await waitFor(() => expect(byText(view.container, '略過')).toBeTruthy());
+    expect(byText(view.container, '住家菜')).toBeFalsy();
+  });
+
+  // Backing out without changing anything is now the line itself, and it must stay
+  // non-destructive — otherwise merely looking at the sheet costs you the restaurant.
+  it('collapses with no write when the line is tapped again', async () => {
+    const onChange = vi.fn(async () => {});
+    const view = mount(onChange);
+    fireEvent.click(byText(view.container, '餐廳未定')!);
+    await waitFor(() => expect(byText(view.container, '略過')).toBeTruthy());
+    fireEvent.click(byText(view.container, '餐廳未定')!);
+    expect(byText(view.container, '略過')).toBeFalsy();
     expect(onChange).not.toHaveBeenCalled();
   });
 });

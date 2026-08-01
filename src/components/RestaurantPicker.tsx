@@ -39,18 +39,23 @@ export type RestaurantChoice =
  * whenever Google or a prior Dishi record actually has both languages — never a
  * fabricated second line.
  */
-export default function RestaurantPicker({ onChange, skipFirst = false, seedCoords = null, photoOnly = false, onCoords, onDismiss }: {
+export default function RestaurantPicker({ onChange, skipFirst = false, seedCoords = null, photoOnly = false, onCoords, onNone, homeOption = true }: {
   /** Reports THE CURRENT PENDING CHOICE, which includes going back to nothing —
    * opening the add form clears a picked chip and fires null. It is not a stream of
    * user ANSWERS, so a caller that commits on every call will also commit that
-   * bookkeeping null; see `onDismiss`. */
+   * bookkeeping null; see `onNone`. */
   onChange: (c: RestaurantChoice) => void;
   /** Fired ONLY by an explicit 略過 tap, alongside the onChange(null) it also sends.
-   * Callers that treat this picker as a sheet (TableRestaurantLine) need to tell that
-   * deliberate "leave it as it is" apart from the identical-looking null that merely
-   * means "no chip is selected right now" — reading the latter as an answer closed the
-   * sheet on the very tap that opens the add form. */
-  onDismiss?: () => void;
+   * 略過 is a real ANSWER — "none of these, and I'm not typing one either" — and a
+   * caller may act on it. It has to be separable from the identical-looking null that
+   * merely means "no chip is selected right now": reading the latter as an answer
+   * closed the table sheet on the very tap that opens the add form. Never fired by the
+   * add-form clear, and never by un-picking. */
+  onNone?: () => void;
+  /** 住家菜 is a real answer when you're logging a dish (食記 edit), and an incoherent
+   * one when the question is which restaurant a scanned MENU belongs to — a menu is a
+   * business by definition. Callers in a restaurant context turn it off. */
+  homeOption?: boolean;
   /** Reports the coords the picker resolved to (photo seed or live GPS), so the log
    * page can reverse-geocode a district when the user skips (no restaurant chosen).
    * Only the coords — the reverse-geocode itself is done at submit, and only for a
@@ -229,7 +234,7 @@ export default function RestaurantPicker({ onChange, skipFirst = false, seedCoor
     setSelectedKey(key);
     setAdding(false);
     onChange(key === 'home' ? { kind: 'home' } : null);
-    if (key === 'skip') onDismiss?.();
+    if (key === 'skip') onNone?.();
   }
   // Single-select: opening "+ 加間舖" clears any picked chip (skip / a nearby
   // place) and its pending choice — you can't have two picked at once. Tapping it
@@ -301,7 +306,7 @@ export default function RestaurantPicker({ onChange, skipFirst = false, seedCoor
       <div className="chips picker-chips" style={{ marginTop: 8 }}>
         {skipFirst && (<>
           <button className={`chip chip-util ${selectedKey === 'skip' ? 'on' : ''}`} onClick={() => noRestaurant('skip')}>{t('grow.skip')}</button>
-          <button className={`chip chip-util ${selectedKey === 'home' ? 'on' : ''}`} onClick={() => noRestaurant('home')}>{t('place.home')}</button>
+          {homeOption && <button className={`chip chip-util ${selectedKey === 'home' ? 'on' : ''}`} onClick={() => noRestaurant('home')}>{t('place.home')}</button>}
         </>)}
         {nearby.map(r => {
           const key = r.source === 'dishi' ? r.id! : r.place_id!;
@@ -328,7 +333,7 @@ export default function RestaurantPicker({ onChange, skipFirst = false, seedCoor
         </button>
         {!skipFirst && (<>
           <button className={`chip chip-util ${selectedKey === 'skip' ? 'on' : ''}`} onClick={() => noRestaurant('skip')}>{t('grow.skip')}</button>
-          <button className={`chip chip-util ${selectedKey === 'home' ? 'on' : ''}`} onClick={() => noRestaurant('home')}>{t('place.home')}</button>
+          {homeOption && <button className={`chip chip-util ${selectedKey === 'home' ? 'on' : ''}`} onClick={() => noRestaurant('home')}>{t('place.home')}</button>}
         </>)}
       </div>
 
