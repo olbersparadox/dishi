@@ -17,7 +17,7 @@ import RestaurantPicker, { type RestaurantChoice } from '@/components/Restaurant
 import { LocationIcon } from '@/components/icons';
 import { useLang } from '@/lib/i18n';
 
-export default function TableRestaurantLine({ restaurant, onChange, editable = true }: {
+export default function TableRestaurantLine({ restaurant, onChange, editable = true, suggestion = null }: {
   restaurant: { id: string; name: string; name_zh: string | null } | null;
   /** Awaited, so the line can show its saving state and close only once the
    * session actually carries the new value. */
@@ -25,6 +25,11 @@ export default function TableRestaurantLine({ restaurant, onChange, editable = t
   /** False for a QR/registered table: its restaurant belongs to the restaurant
    * itself and isn't a diner's to reassign (the API refuses it too). */
   editable?: boolean;
+  /** The scanned menu's printed name, resolved to a real place the gate
+   * couldn't auto-adopt (scan page's search-on-guess). Rendered as ONE confirm
+   * chip beside the 餐廳未定 line — confirming is a tap, typing never required.
+   * Only ever shown while the restaurant is unset; ignoring it costs nothing. */
+  suggestion?: { name: string; choice: RestaurantChoice } | null;
 }) {
   const { t, lang } = useLang();
   const [open, setOpen] = useState(false);
@@ -83,6 +88,16 @@ export default function TableRestaurantLine({ restaurant, onChange, editable = t
         >
           <LocationIcon size={14} />
           {label ?? t('table.restaurant.unset')}
+        </button>
+      )}
+
+      {!restaurant && editable && !open && suggestion && (
+        <button
+          className="chip table-restaurant-suggest"
+          disabled={saving}
+          onClick={() => commit(suggestion.choice)}
+        >
+          {t('table.restaurant.confirm', { name: suggestion.name })}
         </button>
       )}
 

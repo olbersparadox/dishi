@@ -27,6 +27,7 @@ import TableSettle from '@/components/TableSettle';
 import { sumPrices } from '@/lib/price';
 import { CameraIcon, MenuBookIcon, ArrowRightIcon, CloseIcon, LeaveIcon } from '@/components/icons';
 import { sameDishInSession, restaurantKeptNote } from '@/lib/menuMerge';
+import { namesMatch, namesContainmentRelated } from '@/lib/restaurant';
 import { getScanSession, setScanSession, clearScanSession } from '@/lib/scanSession';
 import { useLang, menuLanguageToCode, languageLabel, hasNonChineseScript, foreignMenuSecondary, scanPresetPair } from '@/lib/i18n';
 import { useScanPreset } from '@/lib/scanPreset';
@@ -185,12 +186,17 @@ function Scanner() {
     );
   }
 
-  async function createTableSession(items: ScannedItem[]): Promise<{ code: string; session_id: string } | null> {
+  async function createTableSession(
+    items: ScannedItem[],
+    restaurantGuess: string | null = null,
+  ): Promise<{ code: string; session_id: string } | null> {
     try {
       const res = await fetch('/api/table', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items, ...(coordsRef.current ?? {}), lang }),
+        // restaurant_guess: the menu's own printed name, so the server-side gate
+        // can resolve the same-building ambiguity GPS can't (tableRestaurant.ts).
+        body: JSON.stringify({ items, ...(coordsRef.current ?? {}), lang, restaurant_guess: restaurantGuess }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Could not create a table code.');
@@ -225,6 +231,50 @@ function Scanner() {
   // poll-only copy with no realtime at all, which is why the scanner received
   // everything up to 5s late while joiners saw each other instantly.
   const table = useTableSession(tableSession?.code ?? null);
+
+  // The beyond-the-gate half of printed-name attribution: the server auto-sets
+  // only when the scanned name matches a candidate within the gate's tight
+  // radius (tableRestaurant.ts). When the table still has no restaurant but the
+  // menu DID name one, look it up once by name (the existing search-on-add
+  // route) and offer the hit as a single confirm chip on the restaurant line —
+  // a human decides, nobody types. Fail-closed on every edge: no session state
+  // yet (the server's own auto-set may still be in flight), no coords, a mock
+  // scan, a search miss, or a hit that doesn't actually bear the scanned name
+  // all mean no chip and exactly today's screen.
+  const [guessOffer, setGuessOffer] = useState<{
+    name: string;
+    // Structurally the picker choice type's 'new' arm. The named import is avoided
+    // on purpose: tableChassis.test.tsx pins that this file never references the
+    // picker component (the dead batching confirm sheet), and even a type-only
+    // import would blunt that pin.
+    choice: { kind: 'new'; name: string; lat: number; lng: number; place_id?: string; address?: string };
+  } | null>(null);
+  const searchedGuessRef = useRef<string | null>(null);
+  const guess = result?.restaurant_guess ?? null;
+  const restaurantSettled = !!table.restaurant;
+  useEffect(() => {
+    if (restaurantSettled) { setGuessOffer(null); return; }
+    if (!tableSession || !table.state || !guess || result?.mock) return;
+    const c = coordsRef.current;
+    if (!c) return;
+    if (searchedGuessRef.current === guess) return;
+    searchedGuessRef.current = guess; // one billed lookup per scanned name, ever
+    (async () => {
+      try {
+        const res = await fetch(`/api/restaurants/search?q=${encodeURIComponent(guess)}&lat=${c.lat}&lng=${c.lng}&lang=${lang}`);
+        const json = await res.json();
+        const top = (json.restaurants ?? [])[0];
+        // Only offer a place that actually bears the scanned name — a loose text
+        // hit is a guess about a guess, and this chip must never be one.
+        if (top && (namesMatch(guess, top) || namesContainmentRelated(guess, top))) {
+          setGuessOffer({
+            name: lang === 'zh' ? (top.name_zh ?? top.name) : top.name,
+            choice: { kind: 'new', name: top.name, lat: top.lat, lng: top.lng, place_id: top.place_id, address: top.address ?? undefined },
+          });
+        }
+      } catch { /* no chip is today's behaviour, not an error state */ }
+    })();
+  }, [tableSession, table.state, restaurantSettled, guess, result?.mock, lang]);
 
   // Joining a table from here reuses the exact same endpoint/session model the
   // standalone /table page already uses — this is purely a second entry point
@@ -580,7 +630,9 @@ function Scanner() {
       } else {
         // Fire-and-forget: the table code appears when it appears, and never
         // blocks scoring or the dishes already on screen.
-        sessionPromise = createTableSession(items);
+        // The mock guess ('Demo Kitchen…') is a demo string, not testimony — never
+        // let it near the attribution gate.
+        sessionPromise = createTableSession(items, meta.mock ? null : done?.restaurant_guess ?? null);
         // Metadata ONLY. `items` is deliberately absent: the dishes are already
         // in state from the stream, and writing the local transcript here was
         // the single worst instance of the clobber above — it fired once, right
@@ -981,7 +1033,7 @@ function Scanner() {
           pickCount={countStampedDishes(displayItems.map(stampable), table.stampsFor)}
           onInvite={copyTableLink}
           restaurantLine={
-            <TableRestaurantLine restaurant={table.restaurant} onChange={table.setRestaurant} />
+            <TableRestaurantLine restaurant={table.restaurant} onChange={table.setRestaurant} suggestion={guessOffer} />
           }
         />
       )}

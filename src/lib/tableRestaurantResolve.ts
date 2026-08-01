@@ -2,9 +2,10 @@
 // candidates, run them past the pure confidence gate in tableRestaurant.ts, and
 // adopt the winner as a real restaurant row.
 //
-// Kept OUT of tableRestaurant.ts on purpose — that file is pure and has no
-// imports, so its unit test needs no Supabase client, no Places key, and no env
-// at all. Everything that needs the network lives here.
+// Kept OUT of tableRestaurant.ts on purpose — that file is pure (its only
+// imports are the pure name matchers), so its unit test needs no Supabase
+// client, no Places key, and no env at all. Everything that needs the network
+// lives here.
 import { cachedNearbyPlaces } from './placesCache';
 import { haversineMeters } from './places';
 import { resolveOrCreateRestaurant } from './restaurant';
@@ -90,9 +91,12 @@ export async function resolveSessionRestaurant(
   lat: number,
   lng: number,
   googleLang = 'zh-HK',
+  /** The menu's own printed name (the scan's restaurant_guess) — refines an
+   * ambiguous verdict inside the gate; see decideSessionRestaurant. */
+  printedName: string | null = null,
 ): Promise<{ restaurantId: string | null; verdict: RestaurantVerdict }> {
   const candidates = await gatherNearbyCandidates(supabase, lat, lng, googleLang);
-  const verdict = decideSessionRestaurant(candidates);
+  const verdict = decideSessionRestaurant(candidates, printedName);
   if (verdict.kind !== 'confident') return { restaurantId: null, verdict };
   return { restaurantId: await adoptCandidate(supabase, userId, verdict.candidate), verdict };
 }

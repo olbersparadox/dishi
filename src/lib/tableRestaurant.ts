@@ -23,6 +23,17 @@
 // different floors, well inside GPS's own ~10-30m wobble, so distance ALONE
 // cannot separate them. Nearest-wins would be confidently wrong exactly where
 // this app is used most.
+//
+// The one signal that CAN separate them is the menu itself: most menus print the
+// restaurant's name, the scan already extracts it (restaurant_guess), and the
+// person is holding that menu at the table they're sitting at. So a printed name
+// that matches exactly one in-range candidate resolves what distance can't —
+// including overriding distance order, since a 20m gap in urban HK is wobble but
+// a menu in hand is testimony. The refinement is strictly positive: no match, or
+// two same-name branches in range, and the verdict is exactly what it was
+// without the name. It never extends the radius — a name match outside
+// AUTO_RADIUS_M is the client confirm chip's job, where a human decides.
+import { namesMatch, namesContainmentRelated } from './restaurant';
 
 /** A nearby candidate, from either source the picker already merges (see
  * /api/restaurants/nearby): Dishi's own restaurants, which may already carry
@@ -64,7 +75,9 @@ export type RestaurantVerdict =
  * Decide whether a table session can silently adopt a restaurant.
  *
  * Confident only when, inside AUTO_RADIUS_M, either there is exactly one
- * candidate, or the nearest beats the runner-up by more than AUTO_MARGIN_M.
+ * candidate, or the nearest beats the runner-up by more than AUTO_MARGIN_M —
+ * or the menu's own printed name (`printedName`, the scan's restaurant_guess)
+ * matches exactly one in-range candidate, which trumps distance order.
  * A Dishi-sourced candidate does NOT get preference here: preferring it would
  * mean the answer changes depending on whether Dishi happens to already know
  * one of two adjacent shops, which is an artefact of Dishi's own coverage
@@ -72,16 +85,39 @@ export type RestaurantVerdict =
  * source only matters at adoption time (a Dishi row is reused, a Google one is
  * created via the normal place_id path).
  *
+ * The printed-name refinement is deliberately NOT a veto: a lone in-range
+ * candidate that fails to match the guess still wins by the old rule, because
+ * namesMatch is exact-after-normalization and a model-extracted guess can
+ * legitimately render 翠華餐廳 where the row says 翠華 — vetoing on that would
+ * regress the common case to protect against a rarer one. Containment
+ * (namesContainmentRelated) bridges the branch-suffix shape under its own
+ * guards, which this call site satisfies: tight radius, and adoption only on
+ * exactly one combined match.
+ *
  * Candidates with no distance are dropped rather than assumed near — the caller
  * is responsible for computing distance, and a missing one is a bug upstream,
  * not a licence to guess.
  */
-export function decideSessionRestaurant(candidates: NearbyCandidate[]): RestaurantVerdict {
+export function decideSessionRestaurant(
+  candidates: NearbyCandidate[],
+  printedName: string | null = null,
+): RestaurantVerdict {
   const inRange = candidates
     .filter(c => c.distance_m !== null && Number.isFinite(c.distance_m) && c.distance_m <= AUTO_RADIUS_M)
     .sort((a, b) => (a.distance_m as number) - (b.distance_m as number));
 
   if (inRange.length === 0) return { kind: 'none' };
+
+  // Menu-in-hand refinement, BEFORE the distance rules so testimony beats
+  // wobble. Zero matches or 2+ (same-name branches sharing a block) fall
+  // through to exactly the distance verdict this function returned before the
+  // parameter existed.
+  if (printedName) {
+    const named = inRange.filter(c =>
+      namesMatch(printedName, c) || namesContainmentRelated(printedName, c));
+    if (named.length === 1) return { kind: 'confident', candidate: named[0] };
+  }
+
   if (inRange.length === 1) return { kind: 'confident', candidate: inRange[0] };
 
   const gap = (inRange[1].distance_m as number) - (inRange[0].distance_m as number);

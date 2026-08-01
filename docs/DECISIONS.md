@@ -4765,3 +4765,48 @@ A real multi-account field test at a table. Every screen here was verified
 against a rendered 4-player and 2-player session, but the poll/broadcast turn
 handoff between two live devices has not been exercised the way the 2026-07-30
 two-account test exercised picking.
+
+
+# Batch: attribution & naming accuracy — the EXIF-first UX (owner design session, 2026-08-01)
+
+(Items 2-5 still open — see BACKLOG.md, same heading, including the batch-wide
+do-not-destabilize constraint that binds them.)
+
+## 1. `restaurant_guess` × nearby cross-reference — the menu names its own restaurant *(Fable first pass; ~80% confidence)*
+
+The scan already extracts the restaurant's printed name (`restaurant_guess`) and
+throws it away as display text. Cross-reference it against the nearby list with
+`namesMatch()` (exists, src/lib/restaurant.ts):
+
+- Printed name + GPS agree → auto-set the table session's restaurant. This
+  honestly passes tableRestaurant.ts's refuse-to-guess bar: a printed name
+  matching a place within tens of metres IS unambiguous, unlike GPS alone in a
+  vertical mall.
+- Printed name found, absent from nearby → existing Places text search with the
+  guess → ONE confirm chip (係咪喺{name}？). Confirming is a tap; typing never
+  required.
+- No printed name found → exactly today's behaviour (餐廳未定 line).
+
+Guards: auto-set only fills a BLANK restaurant — never overwrites one already
+set (by a member, or by tableRestaurant.ts). The 餐廳未定 line stays the
+correction path. Kill criterion: any field session where the auto-set picks the
+WRONG shop → demote auto-set to the confirm chip until the matcher is fixed.
+
+### Shipped 2026-08-01 (verbatim outcome, recorded at ship time)
+
+Both halves landed. Server: `decideSessionRestaurant` takes the printed name and
+runs it BEFORE the distance rules — testimony beats wobble — adopting only on
+exactly one match (namesMatch, plus namesContainmentRelated under its guards);
+POST /api/table passes the scan's restaurant_guess through, mock scans pass
+null. Client: when the gate didn't adopt and the table has no restaurant, the
+scan page looks the guess up once via /api/restaurants/search and the
+restaurant line offers one chip — 在{name}嗎？ — that commits through the same
+onChange as every other answer. Deliberately NOT a veto: a lone in-range
+candidate that fails the match still wins by the old rule, because namesMatch
+is exact-after-normalization and a guess rendering 翠華餐廳 against a row saying
+翠華 must not regress the common case. Quiescence pinned mechanically (a
+candidate-shape sweep asserting deep-equal verdicts with null/unmatched names;
+a DOM-identity test on the line without a suggestion). Mutation-tested:
+reordering refinement after distance fails 1 test; dropping the exactly-one
+guard fails 1. Owner field pass pending — the batch constraint gates item 3
+(next code item) on it.

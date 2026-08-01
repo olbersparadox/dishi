@@ -1682,6 +1682,11 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
   text-underline-offset: 3px; text-decoration-color: var(--ink-faint);
 }
 .table-restaurant-btn:hover { text-decoration-color: var(--ink-soft); }
+/* The printed-name confirm chip: the standard .chip shape (never a lookalike),
+   riding the same line as 餐廳未定 — the bar's vertical space is precious, and
+   the question reads as an aside to that text. The margin is the gap the chip's
+   own box doesn't provide; wraps under on narrow screens by normal inline flow. */
+.table-restaurant-suggest { display: inline-flex; margin-left: 9px; vertical-align: middle; margin-top: 2px; margin-bottom: 2px; }
 /* Non-editable (QR/registered table) mirrors the button's icon+text layout with
    no affordance styling — it's a fact, not a tap target. */
 .table-restaurant-static { display: inline-flex; align-items: center; gap: 5px; }

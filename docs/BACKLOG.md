@@ -1000,25 +1000,7 @@ Every item in this batch is therefore bound by:
   below. If it fires, the item reverts to backlog rather than being patched
   forward in place.
 
-## 1. `restaurant_guess` × nearby cross-reference — the menu names its own restaurant *(Fable first pass; ~80% confidence)*
-
-The scan already extracts the restaurant's printed name (`restaurant_guess`) and
-throws it away as display text. Cross-reference it against the nearby list with
-`namesMatch()` (exists, src/lib/restaurant.ts):
-
-- Printed name + GPS agree → auto-set the table session's restaurant. This
-  honestly passes tableRestaurant.ts's refuse-to-guess bar: a printed name
-  matching a place within tens of metres IS unambiguous, unlike GPS alone in a
-  vertical mall.
-- Printed name found, absent from nearby → existing Places text search with the
-  guess → ONE confirm chip (係咪喺{name}？). Confirming is a tap; typing never
-  required.
-- No printed name found → exactly today's behaviour (餐廳未定 line).
-
-Guards: auto-set only fills a BLANK restaurant — never overwrites one already
-set (by a member, or by tableRestaurant.ts). The 餐廳未定 line stays the
-correction path. Kill criterion: any field session where the auto-set picks the
-WRONG shop → demote auto-set to the confirm chip until the matcher is fixed.
+## (item 1 shipped 2026-08-01 — full entry moved to DECISIONS.md, same batch heading)
 
 ## 2. iOS EXIF device test — 10 minutes, no code, gates item 4's design *(owner, manual)*
 

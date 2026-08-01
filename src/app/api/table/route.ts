@@ -49,11 +49,17 @@ export async function POST(req: NextRequest) {
   // resolve with one tap. Never fails the session — a table with no restaurant
   // yet is fully usable, and a wrong guess would be worse than a blank.
   const lat = Number(body?.lat), lng = Number(body?.lng);
+  // The menu's printed name, read by the scan (restaurant_guess). Length-capped
+  // because it goes into name comparisons, not because anything downstream
+  // stores it — it is used for this one decision and dropped.
+  const printedName = typeof body?.restaurant_guess === 'string'
+    ? body.restaurant_guess.trim().slice(0, 120) || null
+    : null;
   let restaurantId: string | null = null;
   if (Number.isFinite(lat) && Number.isFinite(lng)) {
     try {
       const resolved = await resolveSessionRestaurant(
-        supabase, user.id, lat, lng, body?.lang === 'en' ? 'en' : 'zh-HK',
+        supabase, user.id, lat, lng, body?.lang === 'en' ? 'en' : 'zh-HK', printedName,
       );
       restaurantId = resolved.restaurantId;
     } catch (e) {

@@ -407,6 +407,10 @@ export const dict: Record<string, { zh: string; en: string }> = {
   // yet", not a task anyone has been handed.
   'table.restaurant.unset': { zh: '餐廳未定', en: 'Restaurant not set' },
   'table.restaurant.which': { zh: '這一檯在哪間餐廳？', en: 'Which restaurant is this table at?' },
+  // The one-tap confirm for the menu's own printed name (batch "attribution &
+  // naming accuracy" item 1) — a question, because the scan's read is testimony
+  // to verify, not a fact to assert.
+  'table.restaurant.confirm': { zh: '在{name}嗎？', en: 'At {name}?' },
   'table.noprofile': { zh: '未有檔案', en: 'no profile yet' },
   'table.unanimous': { zh: '全檯啱', en: 'whole table' },
   'table.fairness': { zh: '公平之選', en: 'fairness call' },

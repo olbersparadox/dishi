@@ -77,3 +77,71 @@ describe('decideSessionRestaurant — the silent-attribution confidence gate', (
     expect(decideSessionRestaurant([]).kind).toBe('none');
   });
 });
+
+// The menu-in-hand refinement (batch "attribution & naming accuracy" item 1):
+// the scan's restaurant_guess enters the gate as testimony. Strictly positive —
+// every non-matching shape must produce the byte-identical verdict the gate gave
+// before the parameter existed, which the quiescence sweep at the bottom enforces
+// mechanically rather than case by case.
+describe('decideSessionRestaurant — printed-name refinement', () => {
+  it('resolves the same-building ambiguity the gate refuses on distance alone', () => {
+    const v = decideSessionRestaurant([dishi('美心', 18), google('翠華餐廳', 22)], '翠華');
+    expect(v.kind).toBe('confident');
+    expect(v.kind === 'confident' && v.candidate.name).toBe('翠華餐廳');
+  });
+
+  it('lets the menu override distance order — wobble is not testimony', () => {
+    // Nearest by GPS is the neighbour; the menu in hand says otherwise.
+    const v = decideSessionRestaurant([google('麥當勞', 8), dishi('翠華', 50)], '翠華');
+    expect(v.kind).toBe('confident');
+    expect(v.kind === 'confident' && v.candidate.name).toBe('翠華');
+  });
+
+  it('matches in either language, through normalization', () => {
+    const zhRow: NearbyCandidate = { ...dishi('Tsui Wah', 20), name_zh: '翠華餐廳' };
+    const v = decideSessionRestaurant([zhRow, google('other', 25)], '翠華餐廳');
+    expect(v.kind === 'confident' && v.candidate.name).toBe('Tsui Wah');
+  });
+
+  it('bridges the branch-suffix shape via guarded containment', () => {
+    const v = decideSessionRestaurant([google('元氣壽司 (銅鑼灣)', 30), dishi('隔離舖', 12)], '元氣壽司');
+    expect(v.kind).toBe('confident');
+    expect(v.kind === 'confident' && v.candidate.name).toBe('元氣壽司 (銅鑼灣)');
+  });
+
+  it('two same-name branches in range stay ambiguous — the name proves nothing between them', () => {
+    const v = decideSessionRestaurant([dishi('翠華餐廳', 15), google('翠華餐廳', 40)], '翠華');
+    expect(v.kind).toBe('ambiguous');
+  });
+
+  it('never extends the radius: a name match outside 60m is the chip path, not auto', () => {
+    const v = decideSessionRestaurant([google('翠華餐廳', AUTO_RADIUS_M + 5)], '翠華');
+    expect(v.kind).toBe('none');
+  });
+
+  it('is not a veto: a lone candidate that fails the match still wins by the old rule', () => {
+    const v = decideSessionRestaurant([dishi('麥當勞', 12)], '翠華');
+    expect(v.kind).toBe('confident');
+    expect(v.kind === 'confident' && v.candidate.name).toBe('麥當勞');
+  });
+
+  // The batch-wide do-not-destabilize constraint, made mechanical: across every
+  // shape the original suite exercises, absent or useless printedName must yield
+  // deep-equal verdicts to the no-argument call.
+  it('quiescence: null or unmatched names change nothing, on every candidate shape', () => {
+    const shapes: NearbyCandidate[][] = [
+      [],
+      [dishi('a', 12)],
+      [dishi('a', 18), google('b', 22)],
+      [dishi('a', 5), dishi('b', 5 + AUTO_MARGIN_M)],
+      [dishi('a', 55), google('b', 8)],
+      [google('a', AUTO_RADIUS_M + 1)],
+      [dishi('a', 10), google('b', 20), dishi('c', 30), google('d', 40), dishi('e', 50), google('f', 55)],
+      [dishi('a', null)],
+    ];
+    for (const shape of shapes) {
+      expect(decideSessionRestaurant(shape, null)).toEqual(decideSessionRestaurant(shape));
+      expect(decideSessionRestaurant(shape, '完全無關的名')).toEqual(decideSessionRestaurant(shape));
+    }
+  });
+});
