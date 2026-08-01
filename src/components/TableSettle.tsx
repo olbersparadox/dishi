@@ -169,25 +169,18 @@ export default function TableSettle({
               partial bill would be the one number here someone actually pays on. */}
           {payMethod === 'equal' && hasTotal && (
             <p className="settle-verdict settle-reveal-name">
-              {/* The figure wears the MENU's price face (owner, 2026-08-01), so it is
-                  .dish-price itself rather than a copy of its font stack — the same
-                  light sans and tabular figures a price has everywhere else.
+              {/* One face for the whole line (owner, 2026-08-01). The figure briefly
+                  wore the menu's lighter price face, which was solving a problem this
+                  rule dissolves: it read wrong because the line was SERIF, and the line
+                  is not serif any more. With no span to wrap there is no sentinel split
+                  either — the dict places the figure, the sentence is interpolated.
 
-                  Split on a sentinel instead of assembling the sentence here, because
-                  the dict decides where the figure sits and the two languages disagree:
-                  zh puts it mid-sentence (位位 X 加一未計), en puts it first (X each).
-
-                  The "+" is the one the total above carries, for the same reason: a
-                  bill with unpriced dishes divides into a per-head FLOOR, and this is
-                  the figure people actually hand money over on. */}
-              {(() => {
-                const amount = `${money(split.each)}${price.complete ? '' : '+'}`;
-                // A sentinel, not a space: the zh line has spaces of its own around the
-                // placeholder, so splitting on those would drop 加一未計 off the end.
-                const SLOT = '\u0000';
-                const [before, after] = t('table.settle.eachhead', { amount: SLOT }).split(SLOT);
-                return <>{before}<span className="dish-price">{amount}</span>{after}</>;
-              })()}
+                  The "+" is the one the total above carries: a bill with unpriced
+                  dishes divides into a per-head FLOOR, and this is the figure people
+                  actually hand money over on. */}
+              {t('table.settle.eachhead', {
+                amount: `${money(split.each)}${price.complete ? '' : '+'}`,
+              })}
             </p>
           )}
         </div>

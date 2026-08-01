@@ -177,6 +177,7 @@ describe('the re-roll, and the remarks that ride on it', () => {
 
 describe('wiring', () => {
   const SETTLE = read('../src/components/TableSettle.tsx');
+  const CSS = read('../src/app/globals.css');
   const ENGINE = read('../src/lib/useTableSession.ts');
   const SCAN = read('../src/app/scan/page.tsx');
   const TABLE = read('../src/app/table/page.tsx');
@@ -226,26 +227,34 @@ describe('wiring', () => {
     expect(ENGINE).toMatch(/Date\.now\(\) - since < WRITE_GUARD_MS/);
   });
 
-  it('the per-head figure can be styled without losing the rest of the sentence', () => {
-    // The equal-split line prints its amount in the MENU's price face, which means
-    // splitting the translated sentence around the placeholder. Two ways that goes
-    // wrong silently, both pinned here:
+  it('the per-head figure keeps its placeholder in BOTH languages', () => {
+    // The two disagree on where it sits — zh mid-sentence (位位 X 加一未計), en first
+    // (X each) — so the dict places it and the component only interpolates. A
+    // language that loses {amount} silently drops the figure in that language alone.
     const dict = read('../src/lib/i18n-dict.ts');
     const entry = dict.slice(dict.indexOf("'table.settle.eachhead':")).split('\n')[0];
-    //   1. a language whose copy drops {amount} splits into one piece, and the
-    //      figure disappears from that language only.
     expect((entry.match(/\{amount\}/g) ?? []).length, entry).toBe(2); // zh + en
-    //   2. splitting on a space would truncate the zh line, which has spaces of its
-    //      own around the placeholder (位位 {amount} 加一未計).
-    expect(SETTLE).toMatch(/const SLOT = '\\u0000'/);
-    expect(SETTLE).not.toMatch(/eachhead', \{ amount: ' ' \}/);
   });
 
-  it('the figure reuses the menu price face rather than restating its font', () => {
-    expect(SETTLE).toMatch(/<span className="dish-price">\{amount\}<\/span>/);
-    // A second copy of the font stack here is the drift CLAUDE.md's reuse rule exists
-    // to stop — .dish-price owns what a price looks like.
-    expect(SETTLE).not.toMatch(/system-ui/);
+  it('all three ways the bill lands read in ONE type — the game\'s own verdict line', () => {
+    // Owner, 2026-08-01. An equal split's figure, 隨機一人's line and 大話骰's loser
+    // answer the same question, and three faces made them look like three features.
+    // The figure briefly wore .dish-price (20px/200) to escape a serif line; that is
+    // now a direct contradiction of the shared rule, so it must not come back.
+    expect(SETTLE).not.toMatch(/dish-price/);
+    // No sentinel machinery left either — nothing to wrap means nothing to split.
+    expect(SETTLE).not.toMatch(/SLOT/);
+    const verdict = CSS.slice(CSS.indexOf('.settle-verdict {'));
+    const body = verdict.slice(0, verdict.indexOf('}'));
+    const target = CSS.slice(CSS.indexOf('.reveal-count-num, .reveal-count-chop-label {'));
+    const targetBody = target.slice(0, target.indexOf('}'));
+    for (const decl of ['var(--font-body), system-ui, sans-serif', '--fs-title-a', '700']) {
+      expect(body, decl).toContain(decl);
+      expect(targetBody, decl).toContain(decl); // the line it is matching
+    }
+    // And the reveal slot must reserve two lines of THAT size, or a wrapping rung
+    // pushes 邊個埋單 down — the one thing the slot exists to prevent.
+    expect(CSS).toMatch(/min-height: 56px/);
   });
 
   it('neither settle write awaits a refresh — that was the ~2s of dead air', () => {
