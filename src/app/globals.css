@@ -1764,7 +1764,10 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
    alone, in sans — and the floor note becomes its left-hand flex sibling,
    top-aligned with it, rather than trailing underneath in block flow. */
 .settle-total {
-  display: flex; align-items: flex-start; justify-content: flex-end; gap: 14px;
+  /* Centred against the figure, not top-aligned (owner, 2026-08-01). The caveat grew
+     to two lines, and hanging both off the number's cap-height left it reading as a
+     block that started at the total and drifted down past it. */
+  display: flex; align-items: center; justify-content: flex-end; gap: 14px;
   padding-top: 15px;
 }
 .settle-total-num {
@@ -1780,7 +1783,11 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
    clauses are separate statements, not a sentence to be re-flowed. It still wraps
    inside a clause if the width demands it. */
 .settle-note {
-  margin-top: 0; margin-right: auto; max-width: 230px; text-align: left;
+  /* -2px top and bottom (owner, 2026-08-01). The caveat is the TALLEST thing in this
+     row, so its box is what sets the row's height — trimming its own margins is what
+     takes the air out above and below it, and the row loses 4px with it. */
+  margin-top: -2px; margin-bottom: -2px;
+  margin-right: auto; max-width: 230px; text-align: left;
   white-space: pre-line;
 }
 /* The chops are the table, so they sit centred. No name under them: the colour

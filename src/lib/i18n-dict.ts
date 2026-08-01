@@ -466,8 +466,11 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'table.settle.equal': { zh: '平均分攤', en: 'Equal split' },
   'table.settle.random': { zh: '隨機一人', en: 'Random' },
   'table.settle.game': { zh: '大話骰', en: 'Liar’s dice' },
-  'table.settle.payer': { zh: '{name} 付這一餐', en: '{name} pays' },
-  'table.settle.payeryou': { zh: '你付這一餐', en: 'You pay' },
+  // 大話骰's verdict names the LOSING, not just the payer (owner, 2026-08-01).
+  // "付這一餐" was the neutral line from before the game existed and read like an
+  // assignment; the bill here is a forfeit, and the copy should say so.
+  'table.settle.payer': { zh: '{name} 輸咗請食飯', en: '{name} lost, dinner is on them' },
+  'table.settle.payeryou': { zh: '你輸咗請食飯', en: 'You lost, dinner is on you' },
   // 隨機一人's reveal, one line per draw, written by the owner 2026-08-01. The draw
   // is re-rollable, so the ladder is the screen's patience running out: it thanks
   // the payer, announces them, then starts needling, then offers to pay itself, and
