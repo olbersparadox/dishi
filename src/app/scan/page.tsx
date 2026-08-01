@@ -25,7 +25,7 @@ import PickedCartBar from '@/components/PickedCartBar';
 import TableWaitLayer from '@/components/TableWaitLayer';
 import TableSettle from '@/components/TableSettle';
 import { sumPrices } from '@/lib/price';
-import { CameraIcon, MenuBookIcon, ArrowRightIcon, CloseIcon } from '@/components/icons';
+import { CameraIcon, MenuBookIcon, ArrowRightIcon, CloseIcon, LeaveIcon } from '@/components/icons';
 import { sameDishInSession, restaurantKeptNote } from '@/lib/menuMerge';
 import { getScanSession, setScanSession, clearScanSession } from '@/lib/scanSession';
 import { useLang, menuLanguageToCode, languageLabel, hasNonChineseScript, foreignMenuSecondary, scanPresetPair } from '@/lib/i18n';
@@ -921,11 +921,17 @@ function Scanner() {
               onClose={() => setCloseAsk(false)}
               footer={
                 <div className="scan-close-actions">
-                  <button className="btn ghost" onClick={() => setCloseAsk(false)}>
-                    {t('scan.close.cancel')}
+                  {/* Icons, not words — X cancels, the door leaves. The labels live
+                      on aria-label/title so the meaning is still there for a screen
+                      reader and on hover. The destructive one is told apart by
+                      WEIGHT (filled vs ghost), never by adding text back. */}
+                  <button className="ok-circle is-ghost" onClick={() => setCloseAsk(false)}
+                    aria-label={t('scan.close.cancel')} title={t('scan.close.cancel')}>
+                    <CloseIcon size={24} />
                   </button>
-                  <button className="btn primary" onClick={() => { setCloseAsk(false); reset(); }}>
-                    {t('scan.close.go')}
+                  <button className="ok-circle" onClick={() => { setCloseAsk(false); reset(); }}
+                    aria-label={t('scan.close.go')} title={t('scan.close.go')}>
+                    <LeaveIcon size={24} />
                   </button>
                 </div>
               }

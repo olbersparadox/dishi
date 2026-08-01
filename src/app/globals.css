@@ -228,8 +228,14 @@ button { font: inherit; cursor: pointer; }
 .scan-close-btn:active { background: var(--paper-inset); }
 /* Cancel and confirm side by side, replacing the explainer's single dismiss circle.
    Equal width so neither is the accidental target. */
-.scan-close-actions { display: flex; gap: 10px; margin-top: 18px; }
-.scan-close-actions .btn { flex: 1; justify-content: center; }
+/* Two circles, the app's own two-action shape (same as the raise-or-開 row). Weight
+   is what separates them: the ghost one backs out, the filled one is the act. */
+.scan-close-actions { display: flex; gap: 18px; justify-content: center; margin-top: 22px; }
+.ok-circle.is-ghost {
+  background: transparent; color: var(--ink);
+  border: 1px solid var(--line); box-shadow: none;
+}
+.ok-circle.is-ghost:active { background: var(--paper-inset); }
 
 .icon-btn {
   display: inline-flex; align-items: center; justify-content: center;
