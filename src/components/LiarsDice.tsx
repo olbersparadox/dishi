@@ -13,7 +13,7 @@
 // It holds no dice of its own. Everything here comes from the server's
 // viewForUser (see tableDice.ts), which before 開 gives this player their own
 // hand and nobody else's.
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Chop from '@/components/Chop';
 import { CheckIcon, DieFaceIcon, ArrowLeftIcon, ArrowRightIcon } from '@/components/icons';
 import { useLang } from '@/lib/i18n';
@@ -26,7 +26,7 @@ import { memberName } from '@/lib/memberName';
 
 const FACES: Die[] = [1, 2, 3, 4, 5, 6];
 
-export default function LiarsDice({ game, you, members, colorFor, onPickDirection, onCallBid, onOpenCups, onDone }: {
+export default function LiarsDice({ game, you, members, colorFor, onPickDirection, onCallBid, onOpenCups, onDone, dicePending = false }: {
   game: DiceGameView;
   you: string | null;
   members: Member[];
@@ -34,10 +34,31 @@ export default function LiarsDice({ game, you, members, colorFor, onPickDirectio
   onPickDirection: (direction: Direction) => void;
   onCallBid: (quantity: number, face: Die) => void;
   onOpenCups: () => void;
+  /** A move is in flight. Every action here is a server round trip that is
+   *  deliberately not optimistic, so the button that started it has to say so. */
+  dicePending?: boolean;
   /** The reveal's continue — back to the bill, now with a name on it. */
   onDone: () => void;
 }) {
   const { t } = useLang();
+  // WHICH button is waiting, not just that something is. dicePending is one flag for
+  // the whole screen, and spinning every circle at once would say the table is busy
+  // rather than "your tap landed" — on 1l2 two of them are on screen together.
+  const [tapped, setTapped] = useState<null | Direction | 'bid' | 'open'>(null);
+  // Cleared only after an in-flight period actually ENDS. Clearing whenever the flag
+  // reads false would wipe it in the gap between the tap and the request going out.
+  const sawPending = useRef(false);
+  useEffect(() => {
+    if (dicePending) { sawPending.current = true; return; }
+    if (sawPending.current) { sawPending.current = false; setTapped(null); }
+  }, [dicePending]);
+  /** A tap is only spinning while its own request is genuinely open. */
+  const spinning = (k: Direction | 'bid' | 'open') => tapped === k && dicePending;
+  const act = (k: Direction | 'bid' | 'open', run: () => void) => () => {
+    if (dicePending) return; // a second tap would be a second move
+    setTapped(k); run();
+  };
+
   const nameOf = (userId: string) => {
     const m = members.find(x => x.user_id === userId);
     return memberName(m, '…');
@@ -164,9 +185,12 @@ export default function LiarsDice({ game, you, members, colorFor, onPickDirectio
           {opener ? (
             <div className="turn-dir-row">
               {(['left', 'right'] as Direction[]).map(dir => (
-                <button key={dir} className="turn-dir-btn" onClick={() => onPickDirection(dir)}
+                <button key={dir} className="turn-dir-btn" disabled={dicePending}
+                  onClick={act(dir, () => onPickDirection(dir))}
                   aria-label={t(`table.dice.${dir}`)} title={t(`table.dice.${dir}`)}>
-                  {dir === 'left' ? <ArrowLeftIcon size={40} /> : <ArrowRightIcon size={40} />}
+                  {spinning(dir)
+                    ? <span className="icon-btn-spinner dice-btn-spinner" aria-hidden />
+                    : dir === 'left' ? <ArrowLeftIcon size={40} /> : <ArrowRightIcon size={40} />}
                 </button>
               ))}
             </div>
@@ -237,21 +261,27 @@ export default function LiarsDice({ game, you, members, colorFor, onPickDirectio
 
         <div className="ok-circle-wrap dice-actions" style={{ marginTop: -1, marginBottom: 0 }}>
           {myTurn && (
-            <button className="ok-circle" disabled={!legal} onClick={() => onCallBid(quantity, face)}
+            <button className="ok-circle" disabled={!legal || dicePending}
+              onClick={act('bid', () => onCallBid(quantity, face))}
               aria-label={t('table.dice.say', { n: quantity, face: faceWord(face) })}>
-              <CheckIcon size={26} />
+              {spinning('bid')
+                ? <span className="icon-btn-spinner ok-circle-spinner" aria-hidden />
+                : <CheckIcon size={26} />}
             </button>
           )}
           {/* Kept in the tree even when you may not challenge, so the row holds
               its height and the screen doesn't lift as the turn moves round. */}
           {!myTurn || twoActions ? (
             <button className={`ok-circle ${twoActions ? 'dice-open-aside' : ''}`}
-              onClick={onOpenCups} aria-label={t('table.dice.open')}
+              disabled={dicePending}
+              onClick={act('open', onOpenCups)} aria-label={t('table.dice.open')}
               style={{
                 ...(canOpen ? undefined : { visibility: 'hidden' as const }),
                 ...(twoActions ? { '--open-dx': `${openDx}px` } as React.CSSProperties : undefined),
               }}>
-              <span className="ok-circle-glyph">開</span>
+              {spinning('open')
+                ? <span className="icon-btn-spinner ok-circle-spinner" aria-hidden />
+                : <span className="ok-circle-glyph">開</span>}
             </button>
           ) : null}
         </div>

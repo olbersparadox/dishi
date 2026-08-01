@@ -648,5 +648,9 @@ export function useTableSession(code: string | null) {
     payDrawCount: state?.pay_draw_count ?? 0,
     game: state?.game ?? null,
     startDiceGame, pickDirection, callBid, openCups,
+    /** A dice move is in flight. Every 大話骰 action is a server round trip that is
+     *  deliberately NOT optimistic (see playDice), so without this the buttons look
+     *  inert for the whole trip and get tapped again. */
+    dicePending: busyKeys.has(DICE_KEY),
   };
 }

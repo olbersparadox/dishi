@@ -729,6 +729,11 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
    lost inside this 60px circle, which normally holds a 26px CheckIcon — scaled
    up to match (owner call, 2026-07-30: a submitting exec-slider OK button). */
 .ok-circle-spinner { width: 24px; height: 24px; border-width: 3px; }
+/* The game's own circles are bigger than an icon button (84px direction arrows,
+   60px method discs), so the shared spinner needs a size to match or it reads as
+   a speck rather than as the button working. */
+.dice-btn-spinner { width: 30px; height: 30px; border-width: 3px; }
+.settle-method .dice-btn-spinner { width: 22px; height: 22px; }
 .grow-okwrap { display: flex; justify-content: center; margin: 26px 0 4px; }
 @media (prefers-reduced-motion: reduce) {
   .learn-row, .learn-row.is-working .learn-thumb { animation: none; }

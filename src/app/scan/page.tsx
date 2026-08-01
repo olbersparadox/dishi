@@ -739,6 +739,7 @@ function Scanner() {
         onPickDirection={table.pickDirection}
         onCallBid={table.callBid}
         onOpenCups={table.openCups}
+        dicePending={table.dicePending}
       />
     );
   }

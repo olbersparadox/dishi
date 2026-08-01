@@ -43,6 +43,7 @@ export type SettleDish = {
 export default function TableSettle({
   dishes, members, you, colorFor, payMethod, payerId, onChoose, sessionId = null,
   payDrawCount = 0, game = null, onStartGame, onPickDirection, onCallBid, onOpenCups,
+  dicePending = false,
 }: {
   /** The dishes with at least one stamp — the same live-merged list the cart bar
    *  counted, so the bill can never disagree with the bar that led to it. */
@@ -66,6 +67,8 @@ export default function TableSettle({
   onPickDirection?: (direction: Direction) => void;
   onCallBid?: (quantity: number, face: Die) => void;
   onOpenCups?: () => void;
+  /** A 大話骰 move is in flight — the circle that started it says so. */
+  dicePending?: boolean;
 }) {
   const { t } = useLang();
   // The reveal is dismissed per player, not per table: everyone lifts their cups
@@ -218,6 +221,7 @@ export default function TableSettle({
           onCallBid={(q, f) => onCallBid?.(q, f)}
           onOpenCups={() => onOpenCups?.()}
           onDone={() => setRevealRead(true)}
+          dicePending={dicePending}
         />
       )}
 
@@ -241,6 +245,9 @@ export default function TableSettle({
                 which is a state of the table rather than of any one player. */}
             <MethodCircle
               label={t('table.settle.game')} chosen={payMethod === 'game'} live={playing}
+              // Only until the game appears: once LiarsDice is mounted its own
+              // buttons carry the waiting, and this circle is just the indicator.
+              busy={dicePending && !playing}
               onClick={() => onStartGame?.()}
             >
               <DieIcon size={26} />
@@ -397,16 +404,19 @@ function FitLine({ children }: { children: React.ReactNode }) {
 /** One of the three ways to carry the bill: a 60px ink disc with a glyph, the
  *  word underneath. All three stay ink — the chosen one gains a paper ring
  *  rather than a colour, since colour here belongs to people. */
-function MethodCircle({ label, chosen, live, onClick, children }: {
-  label: string; chosen: boolean; live?: boolean; onClick: () => void; children: React.ReactNode;
+function MethodCircle({ label, chosen, live, busy, onClick, children }: {
+  label: string; chosen: boolean; live?: boolean; busy?: boolean;
+  onClick: () => void; children: React.ReactNode;
 }) {
   return (
     <div className="settle-method-wrap">
       <button
         className={`settle-method ${chosen ? 'is-chosen' : ''} ${live ? 'is-live' : ''}`}
-        onClick={onClick} aria-label={label} title={label}
+        onClick={onClick} aria-label={label} title={label} disabled={busy}
       >
-        <span className="settle-method-glyph">{children}</span>
+        <span className="settle-method-glyph">
+          {busy ? <span className="icon-btn-spinner dice-btn-spinner" aria-hidden /> : children}
+        </span>
       </button>
       <span className="settle-method-cap">{label}</span>
     </div>

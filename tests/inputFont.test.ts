@@ -24,7 +24,9 @@ const CSS = readFileSync(path.resolve(__dirname, '../src/app/globals.css'), 'utf
 function rules(css: string): Array<{ selector: string; body: string }> {
   const bare = css.replace(/\/\*[\s\S]*?\*\//g, '');
   const out: Array<{ selector: string; body: string }> = [];
-  for (const m of bare.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+  // Array.from, not for-of: bare tsc has no downlevelIteration and would flag the
+  // iterator (the same complaint it already makes about tests/i18n.test.ts).
+  for (const m of Array.from(bare.matchAll(/([^{}]+)\{([^{}]*)\}/g))) {
     out.push({ selector: m[1].trim().replace(/\s+/g, ' '), body: m[2] });
   }
   return out;
