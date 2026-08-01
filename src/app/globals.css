@@ -327,7 +327,29 @@ button { font: inherit; cursor: pointer; }
   display: inline-flex; align-items: center;
 }
 
-.field { width: 100%; border: 1px solid var(--line); border-radius: 10px; padding: 11px 12px; font: inherit; background: var(--paper-raised); }
+/* Every fill-in box in the app is SANS, hint text and typed text alike (owner,
+   2026-08-01). Two separate holes led to serif fields, which is why this is a rule
+   about form controls rather than a fix to one input:
+     1. form controls do not inherit font-family from the page at all, so anything
+        without an explicit family fell to the UA's own font;
+     2. where the app DID hand them the page's font (.field's `font: inherit`), they
+        picked up whatever they were nested in — a field inside a serif-headed card
+        came out serif, and the same component read differently in two places.
+   Pinning the family here answers it once, in the place that cannot be nested wrong.
+   Placeholders inherit from their control, so ::placeholder is named only because
+   iOS Safari resets it. Anything that wants a DIFFERENT face still opts in by class
+   and wins on specificity — see .code-input's monospace. */
+input, textarea, select, ::placeholder {
+  font-family: var(--font-body), system-ui, sans-serif;
+}
+/* `font: inherit` for the metrics (a field matches the text around it), then the
+   family pinned back over it — the shorthand would otherwise reset family too, and
+   it is declared after for exactly that reason. */
+.field {
+  width: 100%; border: 1px solid var(--line); border-radius: 10px; padding: 11px 12px;
+  font: inherit; font-family: var(--font-body), system-ui, sans-serif;
+  background: var(--paper-raised);
+}
 .label { display: block; font-size: var(--fs-caption); font-weight: 400; color: var(--ink-soft); margin: 18px 0 8px; }
 
 .tabbar {
@@ -1579,7 +1601,9 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 .join-row { display: flex; align-items: center; gap: 12px; }
 .join-code-input {
   flex-shrink: 0; width: 208px; text-transform: uppercase; letter-spacing: 0.3em; font-weight: 700;
-  font-family: var(--font-display); font-size: var(--fs-subtitle-b); text-align: center;
+  /* Sans, like every other fill-in box — this was the one that made the ABCDE hint
+     read as a heading rather than something to type into. */
+  font-size: var(--fs-subtitle-b); text-align: center;
   padding: 14px 16px; border-radius: 14px;
 }
 .join-code-input::placeholder { color: var(--ink-faint); letter-spacing: 0.3em; }
