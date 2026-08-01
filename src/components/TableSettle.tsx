@@ -107,10 +107,18 @@ export default function TableSettle({
         ))}
         {hasTotal && (
           <div className="settle-total" style={playing ? { paddingTop: 0 } : undefined}>
-            {/* The floor note is a flex sibling of the number, not a paragraph
-                trailing under it, so the caveat top-aligns with the figure it
-                qualifies instead of reading as a footnote to the whole card. */}
-            {!price.complete && <p className="card-meta settle-note">{t('table.settle.partial')}</p>}
+            {/* The caveat is a flex sibling of the number, not a paragraph trailing
+                under it, so it top-aligns with the figure it qualifies instead of
+                reading as a footnote to the whole card.
+
+                EVERY total carries one (owner, 2026-08-01), not just the ones missing
+                a price. A fully-priced bill is still short the 10% and whatever else
+                the shop adds, and a bare figure on a bill nobody has seen yet reads as
+                exact. Which caveat depends on what is actually wrong with it: missing
+                prices make the total a FLOOR, complete ones make it an ESTIMATE. */}
+            <p className="card-meta settle-note">
+              {t(price.complete ? 'table.settle.estimate' : 'table.settle.partial')}
+            </p>
             <span className="settle-total-num">
               {price.currency}{price.total}{price.complete ? '' : '+'}
             </span>
@@ -158,9 +166,22 @@ export default function TableSettle({
       {!playing && (
         <div className="settle-reveal">
           {payMethod === 'random' && payer && !spinUserId && (
-            <p className="settle-verdict settle-reveal-name">
+            <FitLine>
               {t(revealLineKey(payDrawCount), { name: payer.display_name ?? payer.handle })}
-            </p>
+            </FitLine>
+          )}
+          {/* 大話骰's answer, in the same slot as the other two (owner, 2026-08-01).
+              It used to sit BELOW the three circles, which left a hole in this slot
+              and an orphan sentence under the buttons — it read as residue from a
+              screen that had moved on, because that is what it was. The game names
+              its loser inside 開盅; this is the line that outlives the reveal, so the
+              table can still see who is carrying it after the cups are cleared. */}
+          {payMethod === 'game' && payer && (
+            <FitLine>
+              {payer.user_id === you
+                ? t('table.settle.payeryou')
+                : t('table.settle.payer', { name: payer.display_name ?? payer.handle })}
+            </FitLine>
           )}
           {/* An equal split's answer belongs in the SAME slot, not under each chop
               where it used to sit (owner, 2026-08-01) — so the two methods answer in
@@ -168,7 +189,7 @@ export default function TableSettle({
               total: there is no per-head figure to state, and inventing one from a
               partial bill would be the one number here someone actually pays on. */}
           {payMethod === 'equal' && hasTotal && (
-            <p className="settle-verdict settle-reveal-name">
+            <FitLine>
               {/* One face for the whole line (owner, 2026-08-01). The figure briefly
                   wore the menu's lighter price face, which was solving a problem this
                   rule dissolves: it read wrong because the line was SERIF, and the line
@@ -181,7 +202,7 @@ export default function TableSettle({
               {t('table.settle.eachhead', {
                 amount: `${money(split.each)}${price.complete ? '' : '+'}`,
               })}
-            </p>
+            </FitLine>
           )}
         </div>
       )}
@@ -225,21 +246,6 @@ export default function TableSettle({
             </MethodCircle>
           </div>
         </>
-      )}
-
-      {/* Design handoff, 2026-07-31: an equal split's answer now lives under each
-          chop (above), not here — this centred line stays only for the one
-          case that still needs a sentence: the game's reveal names a LOSER,
-          which a ring alone doesn't explain. A random draw dropped its own
-          centred line here; the owner is deciding separately whether that
-          needs a word restored somewhere, so don't reintroduce it without
-          checking table.settle.payer's callers first. */}
-      {!playing && payMethod === 'game' && payer && (
-        <p className="settle-verdict">
-          {payer.user_id === you
-            ? t('table.settle.payeryou')
-            : t('table.settle.payer', { name: payer.display_name ?? payer.handle })}
-        </p>
       )}
 
       {/* The way onward is still the rating queue: the bill is the end of the
@@ -341,6 +347,50 @@ function useSpinReveal(
   }, [payMethod, payerId, drawCount]);
 
   return spinUserId;
+}
+
+/** How far the answer may shrink: --fs-body over --fs-title-a. Past that the type is
+ *  smaller than the caption above it, and a wrap would have cost less than the type
+ *  going quiet does. */
+const MIN_FIT = 15 / 23;
+
+/**
+ * The bill's answer, held to ONE line (owner, 2026-08-01).
+ *
+ * The long rungs wrap at 23px once a real name is in them (不如算吧啦 Priya Raman
+ * 請唔請呀 went to two), and a wrapped answer reads as a paragraph where every other
+ * way of landing the bill reads as a statement. So the TYPE gives way rather than the
+ * line breaking: it is scaled down only as far as it has to go, and never up past 1.
+ *
+ * Measured off the rendered box instead of a hidden clone, which means reading a width
+ * that already has the previous scale baked in — hence dividing it back out. That also
+ * makes it self-correcting: a shorter name next round measures narrower, and the line
+ * grows back to full size on its own.
+ */
+function FitLine({ children }: { children: React.ReactNode }) {
+  const [el, setEl] = useState<HTMLParagraphElement | null>(null);
+  const [fit, setFit] = useState(1);
+  useEffect(() => {
+    if (!el) return;
+    const measure = () => setFit(prev => {
+      const avail = el.clientWidth;
+      if (!avail) return prev;
+      // scrollWidth is the text at `prev`; font-size scales it linearly.
+      const atFull = el.scrollWidth / prev;
+      const next = Math.round(Math.min(1, Math.max(MIN_FIT, avail / atFull)) * 1000) / 1000;
+      // Settling exactly is what stops this from oscillating render to render.
+      return next === prev ? prev : next;
+    });
+    measure();
+    // Rotation and the keyboard change the card's width under a line already fitted.
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [el, children]);
+  return (
+    <p ref={setEl} className="settle-verdict settle-reveal-name"
+      style={{ '--fit': fit } as React.CSSProperties}>{children}</p>
+  );
 }
 
 /** One of the three ways to carry the bill: a 60px ink disc with a glyph, the

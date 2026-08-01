@@ -1833,21 +1833,23 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
    left the answer, its remark and the question stacked with no air between them,
    reading as one block. Line heights are pinned so the reserved height is a fact
    rather than a guess about the font. */
-/* 56px is two lines of the verdict size (23px x 1.2), so it has to move with it —
-   it was 48px when the line stepped down to 20px. Reserve less and a rung that wraps
-   shoves 邊個埋單 down, which is the one thing this slot exists to prevent. */
+/* Back to 48px now the answer is guaranteed to be ONE line: it briefly went to 56 to
+   reserve two, and a second line is no longer reachable. The height is the gap that
+   was here before the slot existed, so 邊個埋單 sits where it always did. */
 .settle-reveal {
-  margin-top: -13px; min-height: 56px; display: flex; flex-direction: column;
+  margin-top: -13px; min-height: 48px; display: flex; flex-direction: column;
   align-items: center; justify-content: center;
 }
-/* Size and weight come from .settle-verdict now, unchanged — this only adds what a
-   line that may WRAP needs (the slot above reserves two lines of it) and the tabular
-   figures a per-head amount wants. It used to step down to 20px on the reasoning that
-   it answers a question still on screen below; the owner's call is that all three
-   answers read alike, and matching beats the step-down. */
+/* Face and weight come from .settle-verdict; only the SIZE is taken back, because
+   this line never wraps (owner, 2026-08-01) and instead shrinks to fit — --fit is
+   measured per line in FitLine. Stretched to the slot's full width even though the
+   text is centred: a shrink-to-fit box would report its own text as the available
+   width, and the line could never be found too wide for anything. */
 .settle-reveal-name {
+  font-size: calc(var(--fs-title-a) * var(--fit, 1));
+  white-space: nowrap; align-self: stretch;
   line-height: 1.2; margin: 0;
-  text-align: center; text-wrap: balance; font-variant-numeric: tabular-nums;
+  text-align: center; font-variant-numeric: tabular-nums;
 }
 
 /* --- 大話骰: the game, inside the bill's own chassis --- */

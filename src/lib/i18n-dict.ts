@@ -441,9 +441,18 @@ export const dict: Record<string, { zh: string; en: string }> = {
   // about to hand money over on cannot quietly mean "at least". The service
   // charge is named for the same reason (design handoff, 2026-07-31): a HK bill
   // adds 10% at the counter, and a total that ignored it would read as wrong.
+  // Two separate caveats, because they are two different claims (owner, 2026-08-01).
+  // A bill missing prices is a FLOOR: the real number is above it. A fully-priced
+  // bill is an ESTIMATE: the printed prices are all there, but the 10% and whatever
+  // else the shop adds are not, so it is close rather than short. Every total carries
+  // one of them, since a bare figure on a bill nobody has seen yet reads as exact.
   'table.settle.partial': {
     zh: '有些沒有標價和未計加一，合計只是下限和大概。',
     en: 'Some dishes had no printed price and service is not included, so this total is a floor.',
+  },
+  'table.settle.estimate': {
+    zh: '未計加一和其他費用，合計只是大概。',
+    en: 'Service and other fees are not included, so this total is an estimate.',
   },
   // An equal split's answer, in the same slot the draw's reveal uses (owner,
   // 2026-08-01). 加一未計 matches how table.settle.partial already says it — the

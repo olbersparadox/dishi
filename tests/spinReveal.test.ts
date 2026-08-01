@@ -167,11 +167,17 @@ describe('the re-roll, and the remarks that ride on it', () => {
     expect(read('../src/app/globals.css')).not.toMatch(/\.settle-remark/);
   });
 
-  it('the reveal never uses a you-form — one key serves whoever is looking', () => {
+  it('the DRAW never uses a you-form — one rung serves whoever is looking', () => {
+    // Scoped to the random block, not the whole slot: 大話骰's verdict shares that
+    // slot now and legitimately says 你付這一餐, which is its own older decision.
+    // Widening this back to the slot would fail on that line and invite "fixing"
+    // the wrong one.
     const settle = read('../src/components/TableSettle.tsx');
-    const reveal = settle.slice(settle.indexOf('className="settle-reveal"'));
-    const upToMethods = reveal.slice(0, reveal.indexOf('settle-how'));
-    expect(upToMethods).not.toMatch(/payeryou/);
+    const start = settle.indexOf("payMethod === 'random' && payer");
+    const draw = settle.slice(start, settle.indexOf('</FitLine>', start));
+    expect(start, 'random block not found').toBeGreaterThan(-1);
+    expect(draw).toMatch(/revealLineKey\(payDrawCount\)/);
+    expect(draw).not.toMatch(/payeryou/);
   });
 });
 
@@ -252,9 +258,50 @@ describe('wiring', () => {
       expect(body, decl).toContain(decl);
       expect(targetBody, decl).toContain(decl); // the line it is matching
     }
-    // And the reveal slot must reserve two lines of THAT size, or a wrapping rung
-    // pushes 邊個埋單 down — the one thing the slot exists to prevent.
-    expect(CSS).toMatch(/min-height: 56px/);
+  });
+
+  it('all three answers land in the SAME slot — none of them below the buttons', () => {
+    // 大話骰's verdict used to sit after the three circles, which left this slot empty
+    // and an orphan sentence under the buttons. It read as residue from a screen that
+    // had moved on, because that is exactly what it was.
+    const slot = SETTLE.slice(SETTLE.indexOf('className="settle-reveal"'));
+    const inSlot = slot.slice(0, slot.indexOf('settle-how'));
+    for (const m of ["payMethod === 'random'", "payMethod === 'game'", "payMethod === 'equal'"]) {
+      expect(inSlot, m).toContain(m);
+    }
+    // Nothing renders a verdict after the methods any more. Stop at FitLine's own
+    // definition, which is further down the file and legitimately names the class.
+    const afterMethods = slot.slice(slot.indexOf('settle-how'), slot.indexOf('function FitLine'));
+    expect(afterMethods).not.toMatch(/settle-verdict/);
+  });
+
+  it('the answer is one line always — it shrinks rather than wrapping', () => {
+    // Owner, 2026-08-01. Every answer goes through FitLine; a raw <p> would wrap again.
+    expect(SETTLE).not.toMatch(/<p className="settle-verdict settle-reveal-name"/);
+    const rule = CSS.slice(CSS.indexOf('.settle-reveal-name {'));
+    const body = rule.slice(0, rule.indexOf('}'));
+    expect(body).toMatch(/white-space: nowrap/);
+    // Full width or the measurement is meaningless: a shrink-to-fit box reports its
+    // own text as the space available and nothing is ever found too wide.
+    expect(body).toMatch(/align-self: stretch/);
+    expect(body).toMatch(/calc\(var\(--fs-title-a\) \* var\(--fit, 1\)\)/);
+    // One line means one line's reserve; two would push 邊個埋單 down for nothing.
+    expect(CSS).toMatch(/min-height: 48px/);
+  });
+
+  it('every total is caveated, not only the ones missing a price', () => {
+    // A fully-priced bill is still short the 10%, and a bare figure reads as exact.
+    expect(SETTLE).toMatch(/t\(price\.complete \? 'table\.settle\.estimate' : 'table\.settle\.partial'\)/);
+    // Two DIFFERENT claims, so they must not collapse into one string: missing prices
+    // make the total a floor, complete ones make it an estimate.
+    const dict = read('../src/lib/i18n-dict.ts');
+    for (const k of ['table.settle.partial', 'table.settle.estimate']) {
+      expect(dict, k).toContain(`'${k}':`);
+    }
+    const floor = dict.slice(dict.indexOf("'table.settle.partial':"), dict.indexOf("'table.settle.estimate':"));
+    expect(floor).toMatch(/下限/);            // floor
+    const est = dict.slice(dict.indexOf("'table.settle.estimate':"));
+    expect(est.slice(0, est.indexOf('},'))).not.toMatch(/下限/);
   });
 
   it('neither settle write awaits a refresh — that was the ~2s of dead air', () => {
