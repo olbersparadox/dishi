@@ -8,6 +8,16 @@ import path from 'node:path';
 // resolve on its own. Environment stays 'node' by default; that one test
 // file opts into jsdom itself via a `// @vitest-environment jsdom` pragma.
 export default defineConfig({
+  test: {
+    // Claude Code's worktrees are full checkouts of this repo living INSIDE it,
+    // so vitest collects their tests/ too and runs the suite two or three times
+    // over — once per stale worktree, at whatever commit it was abandoned on.
+    // Measured 2026-08-01: `npm test` reported 87 failures, every one of them
+    // from a worktree and none from the working tree. That is worse than noise;
+    // it makes the "all tests must pass" gate unreadable and would bury a real
+    // regression in phantom red.
+    exclude: ['**/node_modules/**', '**/dist/**', '**/.claude/worktrees/**'],
+  },
   resolve: {
     alias: { '@': path.resolve(__dirname, './src') },
   },
