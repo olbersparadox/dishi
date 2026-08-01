@@ -270,6 +270,43 @@ exhausted for this work independently of the 403. A direct provider key is now
 the cheaper path as well as the only unblocked one — and it is the closer
 analogue of the install anyway (the user's own account with that provider).
 
+**Re-tested after a credit top-up (2026-08-01, same day).** The owner added
+funds on a US card, on the theory that the original card's restricted region
+caused the refusal. The balance moved and **the 403 did not**: all three
+providers returned the identical error minutes later, with Grok answering on the
+same key seconds after. Three things this pinned down, none of which a payment
+can change:
+
+- **The "$0.88" is a PER-KEY spend cap, not the balance** — and the two are
+  independent. The account now holds $10 with $4.12 used ($5.88 free); this key
+  declares `limit: 5` with `limit_remaining: 0.88` (= 5 − 4.12). Topping up
+  credits does not raise a key's cap, so the harness still hard-stops after
+  ~$0.88 more spend — as a 402 on *every* model, Grok included. Raising or
+  removing the cap is a dashboard edit on the key itself (or a fresh key with no
+  limit). Worth stating because the two numbers look like the same number and
+  the wrong one is the reassuring one.
+- **The block is provider-wide, not a tier or allowlist thing.**
+  `claude-haiku-4.5` and `gpt-4o-mini` — the cheapest models those providers
+  sell — 403 exactly like their frontier siblings, while DeepSeek answers
+  normally. So it is not about model cost, recency, or capability.
+- **It is applied around dispatch, keyed on the account — not four upstreams
+  independently refusing.** The endpoints listing for `anthropic/claude-sonnet-5`
+  shows seven healthy routes on this key (Anthropic, Amazon Bedrock ×3, Google
+  ×2, Azure — all `status 0`), and the 403 carries four `previous_errors`.
+  Bedrock, Vertex and Azure are three different companies' infrastructure with
+  three different enforcement paths; they do not all flag one account in the same
+  instant with byte-identical wording. Something in front of them is refusing on
+  the account's behalf.
+
+What that leaves as the likely cause is **jurisdiction on the account** rather
+than the card: the block lands on exactly the three vendors with the strictest
+territorial reseller terms and on nothing else, and Dishi is a Hong Kong
+project. A US card only helps if the gate reads billing address; if it reads
+account region or IP, it never will. This is not established — OpenRouter's rule
+is not visible from outside — but it is the reading the evidence fits, and it
+predicts that a *direct* Anthropic/OpenAI key may hit the same territorial wall,
+which is worth knowing before treating first-party keys as a certain fix.
+
 ### Instrument note: a too-small ping is not an unreachable host
 
 Kimi K3 and GLM 5.2 first reported `blocked` — "HTTP 200 with empty content" —
