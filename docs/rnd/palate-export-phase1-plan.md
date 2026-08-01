@@ -121,8 +121,78 @@ before the next lever moves.
 - **R4 (if H2 says teach it):** the call-out habit enters install-step copy
   ("talk to it by saying dishi") — copy change only, no doc change.
 
-## Results log (append per run; empty until the owner runs Phase 1)
+## The probe harness (added 2026-08-01) — what it measures, and what it can't
+
+`scripts/probe-export.ts` runs P1–P5 automatically against each host's model
+with the REAL export doc (built from the owner's live profile by
+`extractTasteSections` + `buildTastePrompt`) as the system prompt, and scores
+ADOPT / GROUND / LOOP / QUIET with a judge that must quote its evidence.
+
+```
+set -a; source .env.local; set +a
+npx tsx scripts/probe-export.ts --tag=R2 --judge=<reachable model>
+```
+
+It exists because the protocol above is owner-manual, which is why the table
+below stayed empty: every revision cost an evening before it could be judged.
+The harness makes the four DOC-level axes cheap enough to A/B a lever in
+minutes. It does not replace the manual cells:
+
+- A Project's "instructions" field ≈ a system prompt, which is what the harness
+  sends. It is NOT the product — no host system prompt, no attachment/injection
+  screening. A pass means the DOC works on a raw model.
+- **H1b (memory), H1c (custom-instructions slot) and H4 (persistence) cannot be
+  measured here at all** — they are about host plumbing. P6 stays owner-manual.
+- Transcripts land in `docs/rnd/probe-runs/`. Read the cells; every verdict
+  carries the quote it rests on.
+
+Two things the first run taught about the instrument itself, both worth keeping:
+
+1. **A blocked host must never be scored.** The OpenRouter key is 403'd by
+   Anthropic, Google AND OpenAI (account-level — a bare "say OK" fails the
+   same way), so three of the four install hosts are unreachable. Without the
+   preflight they returned empty answers and scored 0/4: a transport failure
+   dressed as a finding about the document. Blocked hosts now report `blocked`.
+2. **An over-strict criterion is worse than no criterion.** P5's first wording
+   demanded that any named venue appear in the document — a bar VENUE_GROUNDING
+   never sets (it forbids INVENTING venues; naming real ones is the wanted
+   behaviour). It failed a near-perfect answer and would have sent R2 chasing a
+   problem that did not exist. The judge no longer rules on whether a restaurant
+   exists — it can't — it rules on invented specifics and overclaimed capability,
+   and lists every venue named for the owner to check by eye.
+
+## Results log (append per run)
 
 | date | host | placement | doc version | score | notes |
 |------|------|-----------|-------------|-------|-------|
+| 2026-08-01 | Grok (grok-4.5) | harness (system prompt ≈ Project instructions) | v-current (R1) | **4/5 EN, 3/5 zh** (PERSIST not measured) | EN clean sweep. zh missed GROUND. H2: call-out neither lifts nor hurts — P1 and P2 both adopt, so ambient adoption is already working on this host. |
+| 2026-08-01 | Claude / Gemini / ChatGPT | — | — | **blocked** | OpenRouter key 403 "provider Terms of Service" on all three, account-level. Says nothing about these hosts. |
+
+### R1 finding: VENUE_GROUNDING holds in English and leaks in 廣東話
+
+Same doc, same model, same probe, one run apart — the EN answer named 裕記
+(Yue Kee) and 陳記 correctly, said plainly it could not book, and quoted no
+specifics. The 廣東話 answer, asked the identical question, produced:
+
+- **`位置：深井村路 9 號`** — a street address stated as fact. This is the
+  Phase 0.5 failure mode exactly (invented venues carried convincing specifics).
+- **`悅記燒鵝餐廳（Yue Kee Roast Goose）`** — the real shop is **裕記**. It kept
+  the correct romanisation and corrupted the Chinese characters, which is a more
+  dangerous fabrication than an obviously invented name: it looks like a typo
+  and reads as authoritative.
+- **`深井一帶海鮮酒家（例如海傍老字號海鮮舖）`** — a placeholder standing in for
+  a venue, presented in a ranked table beside two real ones.
+
+Why it matters beyond one cell: VENUE_GROUNDING is written in English, in a
+doc that is English-only by design, and the trust it buys does not survive the
+switch into the language the user actually types. Dishi is Chinese-first, so
+the leaking half is the half that ships. An EN-only manual test would have
+scored this 5/5 and moved on.
+
+**Not yet established** (do not over-read a single cell): one host, one run, no
+repeats, and the three hosts that matter most are unmeasured. Before treating
+this as an R2 trigger, re-run `--probes=P5 --langs=zh` several times to see
+whether it reproduces, and get the key unblocked so Claude and Gemini can be
+compared — a leak on one model is a model fact; a leak on three is a doc fact,
+and only the second justifies moving a lever.
 

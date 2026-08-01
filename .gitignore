@@ -30,6 +30,12 @@ scripts/seal-rows.json
 # R&D menu corpus: local menu photos + their cached scans (see scripts/menu-corpus/README.md)
 scripts/menu-corpus/*
 !scripts/menu-corpus/README.md
+
+# Palate-export probe transcripts (scripts/probe-export.ts). Each one embeds a
+# REAL export doc — rated dish history, the restaurants they were eaten at, and
+# 同檯 companion display names — plus the hosts' replies quoting all of it. This
+# repo is public; the runs stay local. Findings belong in the plan doc, in prose.
+docs/rnd/probe-runs/
 .ds-sync/
 ds-bundle/
 .design-sync/.cache/
