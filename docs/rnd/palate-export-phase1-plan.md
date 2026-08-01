@@ -302,10 +302,55 @@ What that leaves as the likely cause is **jurisdiction on the account** rather
 than the card: the block lands on exactly the three vendors with the strictest
 territorial reseller terms and on nothing else, and Dishi is a Hong Kong
 project. A US card only helps if the gate reads billing address; if it reads
-account region or IP, it never will. This is not established — OpenRouter's rule
-is not visible from outside — but it is the reading the evidence fits, and it
-predicts that a *direct* Anthropic/OpenAI key may hit the same territorial wall,
-which is worth knowing before treating first-party keys as a certain fix.
+account region or IP, it never will.
+
+### CONFIRMED: it is a regional block, and it is structural
+
+Corroborated the same day from outside reports, which turns the inference above
+into the working explanation and settles the forward path:
+
+- OpenRouter enforces **account-level regional restrictions for exactly the
+  providers that demand it — OpenAI, Anthropic, Google** — and for no others.
+  That is the observed pattern here, vendor for vendor.
+- **Hong Kong is an unsupported territory for all three.** OpenAI names Hong
+  Kong alongside mainland China in its unsupported list; Anthropic and Google
+  restrict on the same axis. xAI and the Chinese labs (DeepSeek, Moonshot, Z.ai)
+  do not — which is why Grok and the stand-ins answer on the identical key.
+- Users report the same wall from Hong Kong specifically, including for models
+  the account can see in the catalog. Catalog visibility never implied
+  entitlement.
+- The gate was historically Cloudflare edge-IP geolocation; it now also reads
+  **billing address among other unstated signals**. So the owner's US-card
+  theory was aimed at a real signal — it is simply not the only one, and the
+  measured result is that changing it alone did not flip the gate.
+
+**Three consequences, and the third is the one that matters.**
+
+1. The appeal channel exists (OpenRouter's own wording offers to correct
+   *mistaken* restrictions) but a correct regional block is not a mistake, so an
+   appeal is a low-probability fix rather than a waiting game with a known
+   timeline. There is no public evidence of regional blocks being lifted on
+   appeal; the reports that exist are of them holding.
+2. **A direct Anthropic / OpenAI / Google key does NOT route around this.** The
+   restriction originates upstream — OpenRouter is enforcing the providers'
+   terms, not adding its own. This retracts the "get a first-party key" plan
+   from the section above for those three hosts: it was the right move when the
+   block looked account-specific, and it is the wrong move against a territorial
+   one. `XAI_API_KEY` is still worth setting (xAI does not restrict here) and
+   would take Grok off the near-exhausted OpenRouter key.
+3. So **the API path to Claude, Gemini and ChatGPT is closed for this project,
+   not merely blocked today.** That is not the setback it looks like, because
+   the plan never claimed the harness could measure the install: H1a needs the
+   owner's manual container cells, and H1b/H1c/H4 were always owner-manual.
+   What is lost is only the cheap cross-model GROUND check on those three. The
+   honest measure of the shipped install path — a real Claude Project, the real
+   host system prompt, the real screening — was always the manual protocol, and
+   the owner has working consumer access to all three hosts. **The manual cells
+   are now the critical path, and R2 unholds on one of them, not on a key.**
+
+Support channels, recorded so they are not re-hunted: `support@openrouter.ai`
+for account/billing, the `#help` forum on their Discord, and the 403 appeal form
+linked from their Discord announcement (`forms.gle/yc2vyJiALz8Uhbmh7`).
 
 ### Instrument note: a too-small ping is not an unreachable host
 
