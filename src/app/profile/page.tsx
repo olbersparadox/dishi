@@ -14,6 +14,8 @@ import { RateIcon, TrashIcon, UtensilsIcon, HomeIcon, PhotoIcon } from '@/compon
 import PickCardThumb from '@/components/PickCardThumb';
 import { normalizePhoto } from '@/lib/image';
 import RatingStack, { type ExistingPick } from '@/components/RatingStack';
+import Onboarding from '@/components/Onboarding';
+import { onboardSeenKey, shouldShowOnboarding } from '@/lib/onboarding';
 import { clearJournalCache } from '@/lib/journalCache';
 import { wordKeyFor } from '@/lib/flickWords';
 import { useLang } from '@/lib/i18n';
@@ -122,6 +124,12 @@ function TasteProfile() {
   // everything at once.
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  // 迎新 walkthrough gating: `ratedLoaded` flips only when the rated fetch
+  // genuinely resolved (a failed fetch keeps the walkthrough away — absent
+  // signal ⇒ today's behaviour), and `onboardSeen` defaults suppressed until
+  // the per-user flag has actually been read, so nothing can flash.
+  const [ratedLoaded, setRatedLoaded] = useState(false);
+  const [onboardSeen, setOnboardSeen] = useState(true);
   const ratedSentinelRef = useRef<HTMLDivElement | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [sealedIds, setSealedIds] = useState<Set<string>>(new Set());
@@ -185,9 +193,26 @@ function TasteProfile() {
       .then(j => {
         setRatedRows((j.dishes ?? []).filter((d: any) => d.my_score !== null).map(toRatedRow));
         setHasMore(!!j.has_more);
+        setRatedLoaded(true);
       })
       .catch(() => setRatedRows([]));
   }, [refreshKey]);
+
+  // The walkthrough's per-user seen flag, read once the session is known.
+  useEffect(() => {
+    if (!userId) return;
+    try { setOnboardSeen(!!localStorage.getItem(onboardSeenKey(userId))); }
+    catch { /* storage unavailable → stay suppressed */ }
+  }, [userId]);
+  const dismissOnboard = useCallback(() => {
+    setOnboardSeen(true);
+    if (userId) { try { localStorage.setItem(onboardSeenKey(userId), '1'); } catch { /* fine */ } }
+  }, [userId]);
+  // Picking photos from the walkthrough IS engaging with it — once the rating
+  // overlay opens over it, it never needs to show again.
+  useEffect(() => {
+    if (ratePhotos && !onboardSeen) dismissOnboard();
+  }, [ratePhotos, onboardSeen, dismissOnboard]);
 
   const loadMoreRated = useCallback(async () => {
     if (loadingMore || !hasMore || ratedRows.length === 0) return;
@@ -326,6 +351,16 @@ function TasteProfile() {
           mounted behind, so the drag-and-rate glass blurs the live section). */}
       {ratePhotos && userId && <RatingStack photos={ratePhotos} userId={userId} onExit={closeRating} />}
       {ratePick && userId && <RatingStack picks={[ratePick]} userId={userId} onExit={closeRating} />}
+
+      {/* 迎新 — first sign-in only (an account with nothing yet), a guided path
+          into the SAME album picker above. Skipping or engaging both retire it. */}
+      {!ratePhotos && !ratePick && shouldShowOnboarding({
+        seen: onboardSeen,
+        toRateCount: toRate === null ? null : toRate.length,
+        ratedLoaded, ratedCount: ratedRows.length, ratingCount: count,
+      }) && (
+        <Onboarding onPick={() => albumInputRef.current?.click()} onSkip={dismissOnboard} />
+      )}
 
       {/* Dishes waiting to be rated — picked off a menu scan or during a shared
           table, not yet rated. Living here (not buried on /log) is deliberate:

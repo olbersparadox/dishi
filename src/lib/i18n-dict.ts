@@ -595,6 +595,29 @@ export const dict: Record<string, { zh: string; en: string }> = {
     zh: '可以逐張評分，也可以一次揀一疊相片批量評。你的食物相裡，藏著許多關於你口味的理解，好好利用它們，訓練專屬於你的 AI 口味引擎：評得越多、越多元，dishi 就越懂你，推薦越貼近你的口味。',
     en: 'Rate one at a time, or pick a whole stack of photos and rate in a batch. Hidden inside your food shots is a wealth of understanding about your taste, so put them to good use and train an AI taste engine that belongs to you: the more you rate, and the more varied, the better dishi knows you.',
   },
+  // 迎新 walkthrough — the album-first cold start. TWO cards then the ask; there
+  // is deliberately no card 3 (the third beat is doing it). Card lines are the
+  // owner's own words, verbatim — this sheet keeps their Cantonese voice, like
+  // the flick verdicts, rather than the 書面 register.
+  'onboard.card1': {
+    zh: 'dishi 記住你食過乜，學你鍾意乜。影相、屋企飯、舊相，一樣計。',
+    en: 'dishi remembers what you eat and learns what you love. Restaurant plates, home cooking, old photos: they all count the same.',
+  },
+  'onboard.card2': {
+    zh: '評得多，你嘅味 AI 就愈似你。仲可以帶去你自己嘅 AI 度用。',
+    en: 'The more you rate, the more your taste AI tastes like you. And you can take it to your own AI.',
+  },
+  // The one scan clause (owner call, 2026-08-01): plant the seed, one quiet line.
+  'onboard.card2.scan': {
+    zh: '出街食嗰陣，影埋張菜牌，dishi 幫你揀。',
+    en: 'Eating out? Snap the menu and dishi helps you pick.',
+  },
+  'onboard.ask': { zh: '揀幾張你影過嘅食物相', en: 'Pick a few food photos you’ve already taken' },
+  // 5+ framing (owner call, 2026-08-01): a floor, not a range and not a quota.
+  'onboard.ask.hint': { zh: '至少 5 張，多多益善。', en: 'At least 5. The more, the better.' },
+  'onboard.pick': { zh: '揀相', en: 'Choose photos' },
+  'onboard.next': { zh: '下一步', en: 'Next' },
+  'onboard.step': { zh: '第 {n} 步', en: 'Step {n}' },
   // dishi.username — claimed at the v1 unlock, then ONE change ever. The warning
   // is load-bearing copy, not decoration: it is the entire reason the scarcity is
   // fair, so it appears BEFORE the field, not as fine print under it.
