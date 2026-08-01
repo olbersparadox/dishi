@@ -178,8 +178,113 @@ Two things the first run taught about the instrument itself, both worth keeping:
 | 2026-08-01 | Grok (grok-4.5) | harness (system prompt ≈ Project instructions) | v-current (R1) | **4/5 EN, 3/5 zh** (PERSIST not measured) | Single run. The EN/zh GROUND gap here did NOT survive repetition — see below. H2: call-out neither lifts nor hurts — P1 and P2 both adopt, so ambient adoption is already working on this host. |
 | 2026-08-01 | Grok (grok-4.5) | harness | v-current (R1) | **GROUND 3/4 EN, 3/4 zh** (P5 only, 4 repeats) | The repro sweep. Same failure rate both languages; supersedes the single-cell reading above. |
 | 2026-08-01 | Claude / Gemini / ChatGPT | — | — | **blocked** | OpenRouter key 403 "provider Terms of Service" on all three, account-level. Says nothing about these hosts. |
+| 2026-08-01 | DeepSeek v4-pro *(stand-in)* | harness | v-current (R1) | **2/4 EN, 2/4 zh** | Missed GROUND + QUIET both languages. Invented street addresses AND phone numbers as fact. |
+| 2026-08-01 | Mistral Large 2512 *(stand-in)* | harness | v-current (R1) | **3/4 EN, 2/4 zh** | Missed GROUND both languages, QUIET in zh. Invented addresses and prices; venue list included Pizza Hut and Café de Coral as taste-matched picks. |
+| 2026-08-01 | Kimi K3 *(stand-in)* | harness | v-current (R1) | **3/4 EN, 3/4 zh** | Missed GROUND (EN), ADOPT (zh). First observed **call-out LIFT**: P1 zh failed ADOPT, P2 zh passed it. |
+| 2026-08-01 | GLM 5.2 *(stand-in)* | harness | v-current (R1) | **3/4 EN, 3/4 zh** | Missed GROUND both languages, via condition (c) only — picks offered with no hedge at all, no invented specifics. |
+
+### R1 finding, PARTIAL: GROUND fails on 4 of 5 models — but not on the one install host
+
+*(Latest finding — supersedes "R1 finding, CORRECTED" further down, which closed
+by naming the bar: a leak on one model is a model fact; a leak on three is a doc
+fact.)* Four more models, same doc, same probes, same judge, clears that bar on
+its face. GROUND by model × language:
+
+| model | EN | 廣東話 |
+|---|---|---|
+| Grok 4.5 | pass | pass |
+| DeepSeek v4-pro | **fail** | **fail** |
+| Mistral Large 2512 | **fail** | **fail** |
+| Kimi K3 | **fail** | pass |
+| GLM 5.2 | **fail** | **fail** |
+
+**7 of 10 cells fail. Four of five models fail at least one language. Grok is the
+only clean model** — and Grok is the model every earlier reading rested on. The
+R1 story was never "the doc grounds well, with a ~1-in-4 wobble"; it was "the one
+host we could reach happens to be the doc's best case."
+
+The other three axes hold up across the same five models, which is what makes the
+GROUND result specific rather than a general "the doc is weak" verdict:
+**LOOP 10/10, ADOPT 9/10, QUIET 7/10.**
+
+**Two distinct GROUND failure modes**, and the split matters because only one was
+anticipated:
+
+1. **Invented checkable specifics** — addresses, phone numbers, prices stated as
+   fact (DeepSeek, Mistral). This is the Phase 0.5 failure mode, already named,
+   already the thing VENUE_GROUNDING forbids in so many words.
+2. **No hedge at all** — GLM failed both languages, and Kimi EN, purely on
+   condition (c): real venues, no invented specifics, and *zero* acknowledgement
+   of thin local knowledge or of being unable to book. Nothing in the doc was
+   violated, because **the doc never asks for this.** VENUE_GROUNDING requests
+   honesty only in the conditional "when you don't have solid knowledge of the
+   area" — a model that believes it knows 深井 skips the hedge and is compliant
+   while doing it. Booking ability is not mentioned at all.
+
+Mode 2 is a genuine **gap in the document**, not a compliance failure, and that is
+the R2 lever: make the hedge unconditional and name the booking limit, rather than
+strengthening the existing prohibition (which mode-2 models never broke).
+
+**The confound, and why R2 does NOT move yet** (owner, 2026-08-01). The one
+install host in this table is also the only model that passed. Two readings fit
+the same ten cells:
+
+- **A.** The doc fails to carry grounding; Grok is unusually good at it.
+- **B.** The frontier install hosts ground well natively — Anthropic, Google and
+  OpenAI train specifically against inventing specifics and for hedging knowledge
+  limits — and the stand-ins are weaker at it. The doc is adequate for the
+  audience that actually installs it.
+
+Grok passing is weak evidence for B, and nothing here separates them. So the "doc
+fact" bar is met in letter and not in spirit: it was written to stop a one-model
+result driving a revision, and a four-model result drawn entirely from NON-target
+models has the same defect wearing a bigger number. **R2 is held until at least
+one more install host is measured.** Tuning the export for models nobody installs
+into would cost a user-visible version bump to discover.
+
+What survives the confound: the stand-ins are current-generation, not weak legacy
+models, so it IS established that the document does not carry grounding on its own
+across models. Whether the targets need carrying is the open question. Mode 2 is
+also arguably model-independent — an instruction the doc never gives cannot be
+followed by anyone — which makes it the first thing to test if a key appears.
+
+**What this still does not establish.** These four are stand-ins — nobody installs
+a palate into DeepSeek or Mistral. They are evidence about the DOCUMENT on a raw
+model, and no evidence at all about whether the install holds on Claude, Gemini or
+ChatGPT. Those three remain 403'd and unmeasured; H1b, H1c and H4 remain
+owner-manual regardless.
+
+### The OpenRouter 403 is account-level and cannot be coded around
+
+Verified 2026-08-01, so nobody re-derives it: `anthropic/claude-sonnet-5`,
+`anthropic/claude-opus-5`, `google/gemini-3.1-pro-preview` and `openai/gpt-5.5`
+are all **listed in the catalog** on this key — OpenRouter does serve them. The
+call returns 403 "violation of provider Terms Of Service" with `provider_name:
+null` and four identical `previous_errors`: four upstream routes tried, all
+refused, none named. That is the gateway refusing on behalf of the ACCOUNT, which
+is why it lands on exactly the three providers with the strictest reseller terms
+and on nothing else. Only OpenRouter support can lift it.
+
+The key also has **$0.88 of a $5 limit remaining**, so OpenRouter is close to
+exhausted for this work independently of the 403. A direct provider key is now
+the cheaper path as well as the only unblocked one — and it is the closer
+analogue of the install anyway (the user's own account with that provider).
+
+### Instrument note: a too-small ping is not an unreachable host
+
+Kimi K3 and GLM 5.2 first reported `blocked` — "HTTP 200 with empty content" —
+and were nearly written up as unreachable. They are reasoning models: the
+16-token preflight ping was spent on reasoning before any content was emitted.
+The budget was the bug, not the host. `PING_BUDGET` is now 512, and both models
+answer normally. Same class of error as failure #1 above (a transport artifact
+read as a fact about a host), one layer down — worth stating because the harness
+had already been hardened against it once and it recurred in a new disguise.
 
 ### R1 finding, CORRECTED: GROUND leaks ~1 in 4, in BOTH languages
+
+> **Superseded** by the four-model result above — kept because the reasoning is
+> the record of how the language story was withdrawn. Its closing bar is what the
+> cross-model run was built to answer.
 
 The first run read as a clean language asymmetry — EN perfect, 廣東話 leaking a
 street address (`位置：深井村路 9 號`) and corrupting 裕記 into 悅記 while keeping

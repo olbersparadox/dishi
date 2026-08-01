@@ -199,13 +199,22 @@ async function chat(route: Route, system: string, user: string, maxTokens = 4000
  * unscored; the per-route errors are printed so it is obvious WHICH key needs
  * fixing rather than just that something is broken.
  */
+/**
+ * Ping budget. NOT 16: a reasoning model spends its budget on reasoning before
+ * emitting any content, so a tiny ping returns HTTP 200 with an empty body and
+ * the host gets filed as unreachable. Measured 2026-08-01 — kimi-k3 and glm-5.2
+ * both "failed" a 16-token ping and answer normally at this size. The ping is a
+ * ceiling, not a target; non-reasoning models still return one word.
+ */
+const PING_BUDGET = 512;
+
 type Live = { host: Host; route: Route };
 async function preflight(hosts: Host[]): Promise<{ live: Live[]; blocked: { host: Host; error: string }[] }> {
   const results = await pool(hosts, 4, async (host): Promise<Live | { host: Host; error: string }> => {
     const errors: string[] = [];
     for (const route of host.routes) {
       try {
-        const r = await callOnce(route, 'Reply with the single word OK.', 'ping', 16);
+        const r = await callOnce(route, 'Reply with the single word OK.', 'ping', PING_BUDGET);
         if (r.ok) return { host, route };
         errors.push(`${route.label}: ${r.error}`);
       } catch (e) {
@@ -224,7 +233,13 @@ async function preflight(hosts: Host[]): Promise<{ live: Live[]; blocked: { host
 // (tasteExport.ts) — same row order, so a per-host result reads straight across
 // to the install copy. Each lists its first-party route first and OpenRouter as
 // the fallback; set the matching env var in .env.local to light one up.
-type Host = { id: string; label: string; routes: Route[] };
+type Host = {
+  id: string; label: string; routes: Route[];
+  /** True for a model passed on the command line rather than an install host.
+   *  Carried into the table and the transcript so a stand-in row can never be
+   *  read as evidence about a host the export card actually ships. */
+  standIn?: true;
+};
 const HOSTS: Host[] = [
   {
     id: 'claude', label: 'Claude',
@@ -263,6 +278,37 @@ const HOSTS: Host[] = [
     ],
   },
 ];
+
+/**
+ * `--hosts=` accepts install-host ids AND bare OpenRouter model ids
+ * (`deepseek/deepseek-v4-pro`), the latter run as STAND-INS.
+ *
+ * Why allow models that nobody installs into: the plan's own bar for moving a
+ * revision lever is "a leak on one model is a model fact; a leak on three is a
+ * doc fact". With Anthropic, Google and OpenAI all 403'd on the OpenRouter key,
+ * Grok is the only install host reachable — one model, so by that bar NO lever
+ * can move, however many times it is re-run. Other providers on the same key
+ * are reachable, and they answer the cross-model question directly and today.
+ *
+ * What they cannot answer is whether the INSTALL works: a stand-in has no
+ * Project/Gem/GPT container, and its result says nothing about Claude, Gemini
+ * or ChatGPT. Hence `standIn`, which keeps that distinction visible in every
+ * place a number is shown rather than resting on the reader's memory.
+ */
+function resolveHosts(ids: string[]): Host[] {
+  return ids.map(id => {
+    const known = HOSTS.find(h => h.id === id);
+    if (known) return known;
+    // A bare word is a typo'd host id, not a model. Guessing "model" would file
+    // it as a blocked row and quietly shrink the run instead of failing loudly.
+    if (!id.includes('/')) {
+      console.error(`unknown host "${id}" — expected one of ${HOSTS.map(h => h.id).join(', ')}, ` +
+        `or a bare OpenRouter model id like deepseek/deepseek-v4-pro`);
+      process.exit(1);
+    }
+    return { id, label: `${id} (stand-in)`, routes: [or(id)], standIn: true as const };
+  });
+}
 
 /**
  * `--judge=` accepts a host id (reuse that host's route ladder — the usual
@@ -516,7 +562,7 @@ async function buildDoc(): Promise<{ doc: string; ratingCount: number; username:
   const langs = (arg('langs')?.split(',') ?? ['en', 'zh']) as ('en' | 'zh')[];
   const hostIds = arg('hosts')?.split(',');
   const probeIds = arg('probes')?.split(',');
-  const hosts = hostIds ? HOSTS.filter(h => hostIds.includes(h.id)) : HOSTS;
+  const hosts = hostIds ? resolveHosts(hostIds) : HOSTS;
   const probes = probeIds ? PROBES.filter(p => probeIds.includes(p.id)) : PROBES;
   if (!hosts.length || !probes.length) { console.error('no hosts/probes selected'); process.exit(1); }
 
@@ -536,7 +582,7 @@ async function buildDoc(): Promise<{ doc: string; ratingCount: number; username:
   let judgeRoute: Route | null = null;
   const judgeErrors: string[] = [];
   for (const route of judgeRoutes(judgeSpec)) {
-    const r = await callOnce(route, 'Reply with the single word OK.', 'ping', 16)
+    const r = await callOnce(route, 'Reply with the single word OK.', 'ping', PING_BUDGET)
       .catch(e => ({ ok: false as const, error: (e as Error).message }));
     if (r.ok) { judgeRoute = route; break; }
     judgeErrors.push(`${route.label}: ${r.error}`);
@@ -604,6 +650,14 @@ async function buildDoc(): Promise<{ doc: string; ratingCount: number; username:
     console.log(`COVERAGE GAP: ${blocked.length} of ${hosts.length} host(s) had no working route — ` +
       `${blocked.map(b => b.host.label).join(', ')}. This run says NOTHING about them. ` +
       `Set that provider's key in .env.local (ANTHROPIC_API_KEY / GEMINI_API_KEY / OPENAI_API_KEY / XAI_API_KEY) to light one up.`);
+  }
+  // Stand-ins are re-stated AFTER the table, because the table is what gets
+  // pasted into the plan doc and a "(stand-in)" suffix in a cell is easy to
+  // skim past when the number beside it is a clean 4/4.
+  const standIns = live.filter(l => l.host.standIn);
+  if (standIns.length) {
+    console.log(`STAND-INS (${standIns.map(l => l.host.id).join(', ')}): cross-model evidence about the DOCUMENT only. ` +
+      `Nobody installs a palate into these, so they say nothing about whether the install holds on Claude, Gemini or ChatGPT.`);
   }
   // The one check the harness deliberately leaves to a human: whether the
   // venues a host named are real. GROUND can pass on the text and still be a
