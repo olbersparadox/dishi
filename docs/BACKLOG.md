@@ -954,3 +954,144 @@ Fable, unambiguously (new first-run surface, and the first thing every new
 user ever sees). Verify with a REAL fresh account and a real camera roll —
 fixture photos hide exactly the density/quality problems onboarding exists
 to survive. Screenshot every step including both skip paths.
+
+---
+
+# Batch: attribution & naming accuracy — the EXIF-first UX (owner design session, 2026-08-01)
+
+**The thesis (owner):** the most user-friendly rating path is EXIF-from-photos,
+because it rides on existing behaviour — shoot the dish, forget it, rate later
+from the couch. The one flaw is dish-name accuracy. Menu-scanning at the
+restaurant is the OPPOSITE: it breaks normal behaviour, so it must pay for
+itself in utility (translation, ingredients, table order, bill games), and its
+restaurant attribution must cost the user nothing, because nobody but the
+founder will ever type a restaurant name.
+
+**The flywheel these four items form:** menu scans build per-restaurant dish
+vocabularies (`dish_identities`, per-restaurant, authority-laddered) → those
+vocabularies make EXIF album naming accurate → accurate naming makes
+dishes-first / attribute-later viable → micro-confirmations clean residual
+errors, and every new scan retro-cleans its restaurant's history. The flywheel
+only spins with scan density — one more reason for the one-dense-neighborhood
+strategy.
+
+## ⚠️ Batch-wide constraint: DO NOT DESTABILIZE THE BASE (owner, 2026-08-01, binding)
+
+The owner's exact worry, recorded as a rule: "I keep finding bugs to fix and I
+really don't want to screw things up by building more. This UX is crucial — it
+just needs NOT to ruin the good stuff we spent so much time on."
+
+Every item in this batch is therefore bound by:
+
+- **Additive-only.** New signals may FILL blanks and OFFER confirmations; no
+  item may change what an existing working path does when the new signal is
+  absent, low-confidence, or errors out. Absent signal ⇒ byte-identical
+  behaviour to today, enforced by a test per item.
+- **Fail closed, silently.** A cross-reference miss, a vision-match miss, or a
+  Places hiccup produces today's behaviour, never an error state the user sees.
+- **One item per session, shipped and field-verified before the next starts.**
+  No batch-implementing. Each lands with its own tests + screenshots + a real
+  field pass by the owner before the next item is touched.
+- **The authority ladder is load-bearing.** Items 3 and 4 write names; every
+  write goes through `nameAuthority()` upgrade-only semantics. A constrained
+  vision match adopts an identity (VISION-tier dish adopting a MENU-tier name),
+  never edits one; nothing here may ever touch `name_edited_at`.
+- **Kill criteria are pre-agreed.** Each item names its rollback condition
+  below. If it fires, the item reverts to backlog rather than being patched
+  forward in place.
+
+## 1. `restaurant_guess` × nearby cross-reference — the menu names its own restaurant *(Fable first pass; ~80% confidence)*
+
+The scan already extracts the restaurant's printed name (`restaurant_guess`) and
+throws it away as display text. Cross-reference it against the nearby list with
+`namesMatch()` (exists, src/lib/restaurant.ts):
+
+- Printed name + GPS agree → auto-set the table session's restaurant. This
+  honestly passes tableRestaurant.ts's refuse-to-guess bar: a printed name
+  matching a place within tens of metres IS unambiguous, unlike GPS alone in a
+  vertical mall.
+- Printed name found, absent from nearby → existing Places text search with the
+  guess → ONE confirm chip (係咪喺{name}？). Confirming is a tap; typing never
+  required.
+- No printed name found → exactly today's behaviour (餐廳未定 line).
+
+Guards: auto-set only fills a BLANK restaurant — never overwrites one already
+set (by a member, or by tableRestaurant.ts). The 餐廳未定 line stays the
+correction path. Kill criterion: any field session where the auto-set picks the
+WRONG shop → demote auto-set to the confirm chip until the matcher is fixed.
+
+## 2. iOS EXIF device test — 10 minutes, no code, gates item 4's design *(owner, manual)*
+
+Verify on the owner's phone which photo paths preserve GPS EXIF by the time the
+server sees the file: (a) picked from camera roll, (b) captured live through the
+in-app file input. Belief to check: roll picks keep location (with permission),
+live captures on iOS Safari get GPS stripped. Record the result HERE. If live
+captures carry no GPS, at-table photo slots cannot self-attribute and item 4's
+cluster backfill (one member's fix covers the session) becomes the design, not
+an optimization.
+
+## 3. Identity-constrained vision naming — match before guessing *(Fable; R&D, above the ~50% bar only where a menu exists)*
+
+`inferDish` (src/lib/vision.ts) is context-blind today: photo bytes only. When
+EXIF/GPS yields restaurant candidates, fetch their `dish_identities` and give
+vision the shortlist: match against the known menu FIRST, open-guess only on
+no-match. A match adopts the identity and its menu-authority name (the menu's
+own words, not a paraphrase). Two independent layers:
+
+- **3a (cheap, do first):** pass locale context ("taken in Kwai Fong, Hong
+  Kong") even with no menu — activates regional dish vocabulary. Measure on the
+  owner's own album backlog before judging.
+- **3b (the real one):** the constrained match. Success probability high
+  (~75%+) where the restaurant has identities, unchanged accuracy where it
+  doesn't — the ceiling grows with scan density by design. Never blocks: the
+  identity fetch rides the existing enrich round-trip, and a fetch failure
+  degrades to today's context-free call.
+
+Kill criterion: if the match layer ever adopts a WRONG identity in field use
+(worse than a wrong free-text guess, because it looks authoritative), gate
+adoption behind the item-5 two-name pick instead of auto-adopting.
+
+## 4. Dishes-first, attribution backfilled *(Fable; design depends on item 2's result)*
+
+The owner's delay-the-restaurant-ID instinct, made concrete. Machinery that
+already exists and gets reused, not rebuilt: `dishes` coords columns,
+photo-attach-after (/api/dishes/photo), scoped re-attribution (table PATCH).
+Additions:
+
+- EXIF-carrying photo lands on a restaurant-less dish → run item 1's confirm
+  retroactively at RATING time (engagement peak), one chip, never a form.
+- **Cluster backfill:** a table session is a location cluster — one member's
+  single EXIF photo or GPS fix attributes every dish in the session, via the
+  existing scoped re-attribution (fills blanks / matches previous value only,
+  never stomps a hand-edit).
+- Photo slots on to-rate cards stay the capture mechanism; this item is why
+  they're enough: slot alone just accumulates unattributed photos.
+
+## 5. Micro-refinement channels — the comparison family does data QA *(collect evidence first; build after 1/3/4)*
+
+Ranked; each respects the elicitation principle (ask only where evidence
+conflicts) and one-question-max-per-rating-moment:
+
+- **Name confirm on the growth screen:** vision's name is already on screen at
+  the engagement peak — make it tappable; confirm/fix upgrades VISION→HUMAN.
+  Cheapest signal per interaction in the whole list.
+- **Two-name pick when vision is torn** between candidates (common once 3b
+  supplies a menu): 係邊碟？ Two chips. This IS the comparison family applied
+  to identity.
+- **Menu-scan retroactive reconcile:** new scan at a restaurant reconciles its
+  PAST vision-named dishes against the fresh menu — ownerMenuReconcile is the
+  template (exact free, LLM fuzzy capped, fails closed). Users are asked
+  nothing; history cleans itself.
+- **Location duel** (呢碟喺邊間？) only when GPS genuinely can't separate two
+  neighbours.
+- **Photo-to-pick matching** at a table: "which pick is this photo of?" links a
+  photo to a menu-named item.
+- The execution slider (already backlogged) quietly doubles as identity
+  confirmation across venues.
+
+## Sequencing (settled with the analysis, 2026-08-01)
+
+1 (highest certainty, kills the typing problem) → 2 (de-risks everything
+downstream, no code) → 3a → 3b → 4 → 5 items individually as evidence arrives.
+Each step field-verified by the owner before the next begins, per the batch-wide
+constraint above.
