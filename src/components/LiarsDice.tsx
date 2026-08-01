@@ -15,7 +15,6 @@
 // hand and nobody else's.
 import { useEffect, useState } from 'react';
 import Chop from '@/components/Chop';
-import SansNum from '@/components/SansNum';
 import { CheckIcon, DieFaceIcon, ArrowLeftIcon, ArrowRightIcon } from '@/components/icons';
 import { useLang } from '@/lib/i18n';
 import { DICE_PER_PLAYER, type Die, type Direction } from '@/lib/liarsDice';
@@ -55,6 +54,11 @@ export default function LiarsDice({ game, you, members, colorFor, onPickDirectio
   // actually hold most of — your own dice, so nothing private moves anywhere).
   const [quantity, setQuantity] = useState(1);
   const [face, setFace] = useState<Die>(4);
+  // How far left of centre 開 sits, so it lands under the standing bid's own box
+  // on the strip. Measured (box widths follow their numerals), but seeded at a
+  // typical two-box offset so the first paint is already close and the
+  // correction is a nudge rather than a jump.
+  const [openDx, setOpenDx] = useState(-133);
   const standingKey = standing ? `${standing.quantity}-${standing.face}` : '';
   useEffect(() => {
     if (standing) {
@@ -152,16 +156,17 @@ export default function LiarsDice({ game, you, members, colorFor, onPickDirectio
           <span className="dice-turn-label">
             {opener ? t('table.dice.pickdir') : t('table.dice.waitdir', { name: nameOf(game.firstPlayerId) })}
           </span>
+          {/* Icon only, and big (design handoff): an arrow already points, so
+              向左/向右 underneath was a label naming the picture above it. The
+              direction is also the one choice on this screen, which is why the
+              circles are the largest tap targets in the game. */}
           {opener ? (
             <div className="turn-dir-row">
               {(['left', 'right'] as Direction[]).map(dir => (
-                <div key={dir} className="turn-dir-opt">
-                  <button className="turn-dir-btn" onClick={() => onPickDirection(dir)}
-                    aria-label={t(`table.dice.${dir}`)}>
-                    {dir === 'left' ? <ArrowLeftIcon size={24} /> : <ArrowRightIcon size={24} />}
-                  </button>
-                  <span className="turn-dir-cap">{t(`table.dice.${dir}`)}</span>
-                </div>
+                <button key={dir} className="turn-dir-btn" onClick={() => onPickDirection(dir)}
+                  aria-label={t(`table.dice.${dir}`)} title={t(`table.dice.${dir}`)}>
+                  {dir === 'left' ? <ArrowLeftIcon size={40} /> : <ArrowRightIcon size={40} />}
+                </button>
               ))}
             </div>
           ) : (
@@ -175,12 +180,24 @@ export default function LiarsDice({ game, you, members, colorFor, onPickDirectio
   }
 
   // ---- 叫骰: the round proper ----
-  // Past calls, then the live one. On your own turn the composer takes this
-  // slot instead — the history is what the strip is FOR when you are waiting.
+  // Every call so far, then the live one — and on YOUR turn the live one is your
+  // own call as you build it, in your own colour, rather than the strip being
+  // replaced by the composer (design handoff). That is the whole point: you
+  // cannot judge a raise without the bid you are raising over on the same
+  // screen, and before this the strip vanished at exactly the moment it was
+  // needed most.
   const history = [
     ...game.bids.map(b => ({ userId: b.user_id, text: callText(b.quantity, b.face) })),
-    ...(game.currentTurnUserId ? [{ userId: game.currentTurnUserId, text: null }] : []),
+    ...(myTurn && you
+      ? [{ userId: you, text: callText(quantity, face) }]
+      : game.currentTurnUserId ? [{ userId: game.currentTurnUserId, text: null }] : []),
   ];
+
+  // Both actions are on offer at once when it is your turn and someone else's
+  // call stands: raise it, or open it. 開 then points at the box it would open
+  // (see the strip's own geometry note) instead of sitting anonymously beside
+  // the confirm.
+  const twoActions = myTurn && canOpen;
 
   return (
     <>
@@ -192,17 +209,19 @@ export default function LiarsDice({ game, you, members, colorFor, onPickDirectio
             : t('table.dice.theirturn', { name: nameOf(game.currentTurnUserId ?? '') })}
         </span>
 
-        {myTurn ? (
+        <CallHistory items={history} colorFor={colorFor} onStandingDx={setOpenDx} />
+
+        {/* Only on your turn: the strip above already took this slot's place in
+            the layout, so the chips are removed rather than hidden in place. */}
+        {myTurn && (
           <div className="first-call-chips">
             {FACES.map(f => (
               <button key={f} className={`first-call-chip ${f === face ? 'is-chosen' : ''}`}
                 onClick={() => setFace(f)} aria-label={faceWord(f)}>
-                <DieFaceIcon value={f} size={28} />
+                <DieFaceIcon value={f} size={34} />
               </button>
             ))}
           </div>
-        ) : (
-          <CallHistory items={history} colorFor={colorFor} />
         )}
 
         {/* Hidden, not removed, when it isn't your turn: the row keeps its space
@@ -214,22 +233,26 @@ export default function LiarsDice({ game, you, members, colorFor, onPickDirectio
           <button className="icon-btn first-call-step-btn" aria-label={t('table.dice.plus')}
             onClick={() => setQuantity(q => Math.min(totalDice, q + 1))}>+</button>
         </div>
-        <p className="first-call-say" style={myTurn ? undefined : { visibility: 'hidden' }}>
-          {t('table.dice.say', { n: quantity, face: faceWord(face) })}
-        </p>
 
-        <div className="ok-circle-wrap" style={{ marginTop: -1, marginBottom: 0 }}>
-          {myTurn ? (
+        <div className="ok-circle-wrap dice-actions" style={{ marginTop: -1, marginBottom: 0 }}>
+          {myTurn && (
             <button className="ok-circle" disabled={!legal} onClick={() => onCallBid(quantity, face)}
               aria-label={t('table.dice.say', { n: quantity, face: faceWord(face) })}>
               <CheckIcon size={26} />
             </button>
-          ) : (
-            <button className="ok-circle" onClick={onOpenCups} aria-label={t('table.dice.open')}
-              style={canOpen ? undefined : { visibility: 'hidden' }}>
+          )}
+          {/* Kept in the tree even when you may not challenge, so the row holds
+              its height and the screen doesn't lift as the turn moves round. */}
+          {!myTurn || twoActions ? (
+            <button className={`ok-circle ${twoActions ? 'dice-open-aside' : ''}`}
+              onClick={onOpenCups} aria-label={t('table.dice.open')}
+              style={{
+                ...(canOpen ? undefined : { visibility: 'hidden' as const }),
+                ...(twoActions ? { '--open-dx': `${openDx}px` } as React.CSSProperties : undefined),
+              }}>
               <span className="ok-circle-glyph">開</span>
             </button>
-          )}
+          ) : null}
         </div>
       </div>
     </>
@@ -245,17 +268,41 @@ function ThinkingDots({ color }: { color: string }) {
   );
 }
 
+/** The strip's own flex gap, in px — needed in JS to place 開 under the standing
+ *  bid, and the one number that has to agree with the stylesheet. */
+const STRIP_GAP = 10;
+
 /**
- * The trail of calls that led here, each box in its caller's own colour, packed
- * to the right so the live one sits directly under the turn label. Scrolled to
- * its end on every change for the same reason.
+ * The trail of calls that led here, each box in its caller's own colour, with the
+ * LIVE one (someone thinking, or your own pending call) parked dead-centre.
+ * Earlier calls push left off the card's edge and stay reachable by scroll.
+ *
+ * Centring is measured rather than guessed: the tail padding has to be half the
+ * last box, and that box is as wide as its numeral (12個四 is wider than 9個四),
+ * so a constant parks a two-digit call visibly off-centre. The same pass reports
+ * where the box BEFORE it sits, which is where 開 goes — from the two widths and
+ * the gap, no rects and no scroll maths.
  */
-function CallHistory({ items, colorFor }: {
+function CallHistory({ items, colorFor, onStandingDx }: {
   items: { userId: string; text: string | null }[];
   colorFor: (userId: string) => string;
+  /** Offset from the strip's centre to the standing bid's box centre (negative:
+   *  it is to the left). Null when there is no box before the live one. */
+  onStandingDx?: (dx: number) => void;
 }) {
   const [strip, setStrip] = useState<HTMLDivElement | null>(null);
-  useEffect(() => { if (strip) strip.scrollLeft = strip.scrollWidth; }, [strip, items.length]);
+  // Keyed on the rendered call text, not just the count: retyping a raise from
+  // 9個四 to 12個四 changes the width without changing how many boxes there are.
+  const shape = items.map(i => i.text ?? '…').join('|');
+  useEffect(() => {
+    if (!strip) return;
+    const boxes = Array.from(strip.querySelectorAll<HTMLElement>('.call-history-item'));
+    const last = boxes[boxes.length - 1];
+    const prev = boxes[boxes.length - 2];
+    if (last) strip.style.setProperty('--strip-tail', `${last.offsetWidth / 2}px`);
+    strip.scrollLeft = strip.scrollWidth;
+    if (last && prev) onStandingDx?.(-(last.offsetWidth / 2 + STRIP_GAP + prev.offsetWidth / 2));
+  }, [strip, shape, onStandingDx]);
   return (
     <div className="call-history-strip" ref={setStrip}>
       <span className="call-history-pad" aria-hidden />
@@ -264,15 +311,9 @@ function CallHistory({ items, colorFor }: {
           style={{ borderColor: colorFor(item.userId) }}>
           {item.text === null
             ? <ThinkingDots color={colorFor(item.userId)} />
-            : <CallText text={item.text} />}
+            : <span className="other-call-text">{item.text}</span>}
         </div>
       ))}
     </div>
   );
-}
-
-/** A made call, as it is said out loud. The count's sans-inside-serif correction
- *  is SansNum's — extracted from here when the cart bar needed the same thing. */
-function CallText({ text }: { text: string }) {
-  return <span className="other-call-text"><SansNum>{text}</SansNum></span>;
 }

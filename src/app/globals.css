@@ -1864,16 +1864,12 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 /* Packed right and then pushed back by half the card, which parks the LIVE call
    under the centred turn label and leaves it there: every new call pushes the
    HISTORY left rather than moving the live box, so the thing you are waiting on
-   never wanders. Older calls spill off the left edge and stay reachable. */
+   never wanders. Older calls spill off the left edge and stay reachable.
+   The tail is half the live box's own width, measured in CallHistory — a
+   constant parks a wide call (12個四) visibly off-centre from a narrow one. */
 .call-history-strip {
   display: flex; gap: 10px; overflow-x: auto; align-self: stretch;
-  padding: 4px calc(50% - 60px) 4px 0; scroll-snap-type: x proximity;
-  /* The call boxes stand ~34px taller than the six face chips they replace.
-     Absorbed here rather than left to push everything down, because this row
-     swaps in and out as the turn moves: without it the confirm button would sit
-     in one place on your turn and 34px lower while you waited, and jump between
-     the two every time somebody called. */
-  margin-block: -17px;
+  padding: 4px calc(50% - var(--strip-tail, 60px)) 4px 0; scroll-snap-type: x proximity;
 }
 .call-history-item { flex: none; min-width: 92px; margin: 0; scroll-snap-align: start; }
 /* A growing spacer rather than justify-content: flex-end, which is the one way
@@ -1897,9 +1893,14 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
   40% { opacity: 1; transform: scale(1); }
 }
 @media (prefers-reduced-motion: reduce) { .other-turn-dots span { animation: none; opacity: 0.7; } }
+/* Sans all through, Han included (design handoff): an earlier version set only
+   the numeral in sans inside serif Han, and the two sat on different baselines
+   at this size. The full stack, not bare --font-body — that is a Latin-only
+   face, so CJK would drop to the browser's default serif and undo the fix. */
 .other-call-text {
-  font-family: var(--font-display); font-size: var(--fs-title-b); font-weight: 700;
-  color: var(--ink); line-height: 1;
+  font-family: var(--font-body), system-ui, sans-serif;
+  font-size: var(--fs-title-b); font-weight: 700;
+  color: var(--ink); line-height: 1; font-variant-numeric: tabular-nums;
 }
 /* The leading count is sans while the CJK is serif: a sans numeral reads
    visually smaller than serif Han at the same px, so it is nudged up to match
@@ -1915,24 +1916,23 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
   font-variant-numeric: tabular-nums;
 }
 
-/* The opener's one extra decision: which way the bidding travels. */
+/* The opener's one extra decision: which way the bidding travels. Two outline
+   circles at 84px — the largest targets in the game, because on this screen they
+   are the only thing to press. No captions under them: the arrow is the word. */
 .turn-dir { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-top: 26px; }
 .dice-turn-label { font-size: var(--fs-caption); color: var(--ink-soft); }
-.turn-dir-row { display: flex; gap: 28px; }
-.turn-dir-opt { display: flex; flex-direction: column; align-items: center; gap: 7px; }
+.turn-dir-row { display: flex; gap: 40px; margin-top: 10px; }
 .turn-dir-btn {
-  display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%;
+  display: grid; place-items: center; width: 84px; height: 84px; border-radius: 50%;
   border: 1px solid var(--line); background: transparent; color: var(--ink); cursor: pointer;
 }
 .turn-dir-btn.is-chosen { background: var(--ink); border-color: var(--ink); color: var(--glaze); }
-.turn-dir-cap { font-size: var(--fs-micro); color: var(--ink-soft); }
-.turn-dir-btn.is-chosen + .turn-dir-cap { color: var(--ink); }
 
 /* The call composer: a face to claim, and how many of it. */
 .first-call { display: flex; flex-direction: column; align-items: center; gap: 12px; margin-top: 26px; }
-.first-call-chips { display: flex; gap: 8px; }
+.first-call-chips { display: flex; gap: 6px; }
 .first-call-chip {
-  display: grid; place-items: center; width: 46px; height: 46px; border-radius: 50%;
+  display: grid; place-items: center; width: 54px; height: 54px; border-radius: 50%;
   border: 1px solid var(--line); background: var(--glaze); color: var(--ink); cursor: pointer;
 }
 .first-call-chip.is-chosen { background: var(--ink); border-color: var(--ink); color: var(--glaze); }
@@ -1947,9 +1947,20 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
   font-family: var(--font-body); font-size: var(--fs-title-b); font-weight: 700;
   font-variant-numeric: tabular-nums; min-width: 2ch; text-align: center;
 }
-.first-call-say { font-size: var(--fs-body); color: var(--ink-soft); margin: 0; }
-/* 開 is a word, not a check, so it sets in sans inside the same 60px ink disc. */
-.ok-circle-glyph { font-family: var(--font-body); font-size: 22px; font-weight: 700; }
+/* 開 is a word, not a check, so it sets in sans inside the same 60px ink disc.
+   The full stack, not bare --font-body: that face carries no Han, so 開 alone
+   would fall to the browser's default serif inside an otherwise sans UI. */
+.ok-circle-glyph {
+  font-family: var(--font-body), system-ui, sans-serif; font-size: 22px; font-weight: 700;
+}
+/* Raise or open, both live: the confirm keeps the centre it has on every other
+   screen and 開 is taken out of the flow to sit under the call it would open —
+   the offset is the standing bid's own box centre, measured in CallHistory. */
+.dice-actions { position: relative; }
+.dice-actions .dice-open-aside {
+  position: absolute; top: 0; left: 50%;
+  transform: translateX(calc(-50% + var(--open-dx, -133px)));
+}
 
 /* 開盅 — every cup lifts, one box per player, stacked so the whole table reads
    top to bottom. The dice that COUNT stay ink and the rest fade back (owner,
@@ -1961,12 +1972,15 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 }
 .reveal-count-line { font-size: var(--fs-caption); color: var(--ink-soft); margin: 0; }
 .reveal-count-num-row { display: flex; align-items: center; gap: 12px; }
-.reveal-count-num {
-  font-family: var(--font-display); font-size: var(--fs-title-a); font-weight: 700;
-  color: var(--ink); margin: 0;
+/* The count and 埋單 are one statement read straight across, so they share a
+   size and a face (design handoff) rather than the verdict being a serif
+   headline with a smaller sans label trailing after it. */
+.reveal-count-num, .reveal-count-chop-label {
+  font-family: var(--font-body), system-ui, sans-serif;
+  font-size: var(--fs-title-a); font-weight: 700; color: var(--ink); margin: 0;
 }
+.reveal-count-num { font-variant-numeric: tabular-nums; }
 .reveal-count-chop { display: flex; align-items: center; gap: 8px; }
-.reveal-count-chop-label { font-size: var(--fs-body); font-weight: 650; color: var(--ink); }
 
 /* --- AI-palate install flow (owner spec 2026-07-23, title/body reuse 2026-07-24) --- */
 /* Title row: "dishi.Spoon → [host logo]" — the persona name in the shared

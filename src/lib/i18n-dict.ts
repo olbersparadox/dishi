@@ -488,7 +488,10 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'table.dice.right': { zh: '向右', en: 'Right' },
   'table.dice.waitdir': { zh: '{name} 揀緊方向', en: '{name} is picking a direction' },
   'table.dice.youfirst': { zh: '你先叫', en: 'You open' },
-  'table.dice.yourturn': { zh: '你叫', en: 'Your call' },
+  // 到你, not 你叫: the strip below now shows your pending call in your own
+  // colour, so the label's job is to say the turn has come round, not to
+  // restate the thing sitting under it.
+  'table.dice.yourturn': { zh: '到你', en: 'Your turn' },
   'table.dice.theirturn': { zh: '{name} 叫', en: '{name} calls' },
   // A call is spoken as "six fours": the count in numerals, the face as a word.
   'table.dice.call': { zh: '{n}個{face}', en: '{n} {face}s' },
