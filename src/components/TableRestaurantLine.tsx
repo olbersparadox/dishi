@@ -35,10 +35,13 @@ export default function TableRestaurantLine({ restaurant, onChange, editable = t
     : null;
 
   async function choose(choice: RestaurantChoice) {
-    // 略過 (null) inside this sheet means "leave it as it is", not "clear it" —
-    // dismissing a correction must never be a destructive act. 住家菜 does clear
-    // it, and says so by being its own answer.
-    if (choice === null) { setOpen(false); return; }
+    // A null is NOT an answer here. The picker sends one whenever nothing is
+    // selected any more, and opening "+ 加間舖" is one of those moments — closing on
+    // it meant the tap that opens the typed-name form also unmounted the card the
+    // form renders in, so the button looked dead. The deliberate "leave it as it is"
+    // arrives as onDismiss instead. 住家菜 still clears the restaurant, and says so
+    // by being its own answer.
+    if (choice === null) return;
     setSaving(true);
     try {
       await onChange(choice);
@@ -75,7 +78,7 @@ export default function TableRestaurantLine({ restaurant, onChange, editable = t
             {/* The SAME picker every other restaurant-input path mounts (食記 edit,
                 打字 quick-add) — GPS chips first, typing as the fallback. Not a
                 table-specific reimplementation of a chip row. */}
-            <RestaurantPicker onChange={choose} />
+            <RestaurantPicker onChange={choose} onDismiss={() => setOpen(false)} />
             {saving && <p className="card-meta" style={{ marginTop: 8 }}>{t('log.saving')}</p>}
           </div>
         </div>

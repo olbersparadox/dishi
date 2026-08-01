@@ -39,8 +39,18 @@ export type RestaurantChoice =
  * whenever Google or a prior Dishi record actually has both languages — never a
  * fabricated second line.
  */
-export default function RestaurantPicker({ onChange, skipFirst = false, seedCoords = null, photoOnly = false, onCoords }: {
+export default function RestaurantPicker({ onChange, skipFirst = false, seedCoords = null, photoOnly = false, onCoords, onDismiss }: {
+  /** Reports THE CURRENT PENDING CHOICE, which includes going back to nothing —
+   * opening the add form clears a picked chip and fires null. It is not a stream of
+   * user ANSWERS, so a caller that commits on every call will also commit that
+   * bookkeeping null; see `onDismiss`. */
   onChange: (c: RestaurantChoice) => void;
+  /** Fired ONLY by an explicit 略過 tap, alongside the onChange(null) it also sends.
+   * Callers that treat this picker as a sheet (TableRestaurantLine) need to tell that
+   * deliberate "leave it as it is" apart from the identical-looking null that merely
+   * means "no chip is selected right now" — reading the latter as an answer closed the
+   * sheet on the very tap that opens the add form. */
+  onDismiss?: () => void;
   /** Reports the coords the picker resolved to (photo seed or live GPS), so the log
    * page can reverse-geocode a district when the user skips (no restaurant chosen).
    * Only the coords — the reverse-geocode itself is done at submit, and only for a
@@ -214,10 +224,12 @@ export default function RestaurantPicker({ onChange, skipFirst = false, seedCoor
   // for `.kind === 'existing' | 'new'` see no behavioural change. Toggle: tapping
   // the picked one un-picks it.
   function noRestaurant(key: 'home' | 'skip') {
+    // Un-picking is not an answer either — same reason toggleAdd's clear isn't.
     if (selectedKey === key) { setSelectedKey(null); onChange(null); return; }
     setSelectedKey(key);
     setAdding(false);
     onChange(key === 'home' ? { kind: 'home' } : null);
+    if (key === 'skip') onDismiss?.();
   }
   // Single-select: opening "+ 加間舖" clears any picked chip (skip / a nearby
   // place) and its pending choice — you can't have two picked at once. Tapping it
