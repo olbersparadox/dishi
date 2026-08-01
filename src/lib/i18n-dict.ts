@@ -353,6 +353,21 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'scan.addpage': { zh: '加掃一版', en: 'Add a page' },
   'scan.addingpage': { zh: '加緊呢一版…', en: 'Adding this page…' },
   'scan.close': { zh: '關閉', en: 'Close' },
+  // The X asks first (owner, 2026-08-01). Now that a scan survives a reload, closing
+  // is the ONLY way to lose one — so it is the only place that has to be deliberate,
+  // and it says what goes with it. The table wording is a separate line because
+  // leaving a shared table is a bigger thing than closing your own menu.
+  'scan.close.title': { zh: '關閉這張餐牌？', en: 'Close this menu?' },
+  'scan.close.body': {
+    zh: '掃到的菜會全部清走，要重新掃過。',
+    en: 'The scanned dishes go with it, and the menu has to be scanned again.',
+  },
+  'scan.close.bodytable': {
+    zh: '掃到的菜會全部清走，你也會離開 {code} 這枱。',
+    en: 'The scanned dishes go with it, and you leave table {code}.',
+  },
+  'scan.close.cancel': { zh: '取消', en: 'Cancel' },
+  'scan.close.go': { zh: '關閉', en: 'Close' },
   'scan.kept': { zh: '這一頁似乎是不同餐廳 — 已保留「{name}」', en: 'That page looks like a different place — kept “{name}”' },
   'scan.new': { zh: '新', en: 'New' },
   'scan.read': { zh: '讀到 {n} 道菜', en: '{n} dishes read' },

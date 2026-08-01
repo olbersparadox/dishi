@@ -215,6 +215,22 @@ button { font: inherit; cursor: pointer; }
 /* Small icon-only actions (edit/delete on a rated dish) — a quiet round tap
    target rather than a bordered .btn, since a row of these next to a dish's
    metadata is scanned visually, not read as buttons with labels. */
+/* The X on a scanned menu. Bigger than .icon-btn and outlined rather than washed
+   into the paper: it sits beside 加掃一版, and at icon-button size the one control
+   that discards the menu read as the quieter of the two. It asks before it acts, so
+   being findable costs nothing. */
+.scan-close-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 40px; height: 40px; border-radius: 50%;
+  border: 1px solid var(--line); background: var(--paper-raised); color: var(--ink);
+  cursor: pointer; flex-shrink: 0;
+}
+.scan-close-btn:active { background: var(--paper-inset); }
+/* Cancel and confirm side by side, replacing the explainer's single dismiss circle.
+   Equal width so neither is the accidental target. */
+.scan-close-actions { display: flex; gap: 10px; margin-top: 18px; }
+.scan-close-actions .btn { flex: 1; justify-content: center; }
+
 .icon-btn {
   display: inline-flex; align-items: center; justify-content: center;
   width: 30px; height: 30px; border-radius: 50%; border: none;

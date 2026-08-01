@@ -119,6 +119,9 @@ function Scanner() {
   const [scanning, setScanning] = useState(false);
   const [scanHelp, setScanHelp] = useState(false); // tap the ⓘ on the banner → what a scan returns
   const [tableHelp, setTableHelp] = useState(false); // tap the ⓘ by 同朋友一齊點 → what table ordering is
+  // The X asks before it throws the menu away. It is the only way to lose a scan
+  // now that one survives a reload, so it is the one place worth a confirm.
+  const [closeAsk, setCloseAsk] = useState(false);
   // Appending a second page ("加掃一版"): the existing results stay on screen with a
   // small inline indicator, rather than the full capture screen taking over.
   const [appending, setAppending] = useState(false);
@@ -898,11 +901,36 @@ function Scanner() {
               onChange={e => { const f = e.target.files?.[0] ?? null; e.target.value = ''; onPick(f, { append: true }); }} />
             {appending ? t('scan.addingpage') : t('scan.addpage')}
           </label>
-          {/* X: close the results and return to the fresh Scan landing. Not a lock
-              — the menu simply stays put until the user closes it or leaves. */}
-          <button className="icon-btn" onClick={reset} aria-label={t('scan.close')} title={t('scan.close')}>
+          {/* X: the one way to lose a scan, now that a scan survives a reload — so
+              it asks first, and it is sized to be found rather than tucked in beside
+              加掃一版 at icon-button size. */}
+          <button className="scan-close-btn" onClick={() => setCloseAsk(true)}
+            aria-label={t('scan.close')} title={t('scan.close')}>
             <CloseIcon />
           </button>
+          {/* The shared explainer shell, with its dismiss circle replaced by the two
+              real answers — never a second modal that merely looks like the others.
+              A table gets its own line: leaving a shared枱 is a bigger thing than
+              closing your own menu, and the code names what you are leaving. */}
+          {closeAsk && (
+            <ExplainModal
+              title={t('scan.close.title')}
+              body={tableSession
+                ? t('scan.close.bodytable', { code: tableSession.code })
+                : t('scan.close.body')}
+              onClose={() => setCloseAsk(false)}
+              footer={
+                <div className="scan-close-actions">
+                  <button className="btn ghost" onClick={() => setCloseAsk(false)}>
+                    {t('scan.close.cancel')}
+                  </button>
+                  <button className="btn primary" onClick={() => { setCloseAsk(false); reset(); }}>
+                    {t('scan.close.go')}
+                  </button>
+                </div>
+              }
+            />
+          )}
         </div>
       </div>
       <p className="card-meta" style={{ marginBottom: keptNote ? 6 : 18 }}>

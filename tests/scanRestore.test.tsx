@@ -1,16 +1,16 @@
 // @vitest-environment jsdom
 //
-// A scanned menu must survive leaving the Scan tab and coming back.
+// A scanned menu must survive leaving the Scan tab and coming back — AND a reload.
 //
-// The bottom nav is client-side <Link> navigation, so the JS heap lives on and
-// lib/scanSession.ts's module-level snapshot is the restore path (deliberately not
-// Web Storage — the requirement is "keep it until the user taps X or REFRESHES",
-// and Web Storage would survive the refresh too). Nothing pinned that until now,
-// which is how it could quietly stop working: React unmounts the page on a tab
-// switch, and every piece of the menu lives in that component's useState.
+// Two layers, two failure modes, so both are pinned separately:
+//   the module singleton covers a tab switch (client-side <Link>, heap intact) —
+//     exercised against the REAL scan page, streamed through the real endpoint,
+//     unmounted exactly the way a tab switch does, remounted;
+//   sessionStorage covers a page RELOAD, which on a phone is not a deliberate act:
+//     iOS discards backgrounded tabs, pull-to-refresh misfires, and the group flow
+//     requires leaving the app to send a join code.
 //
-// This mounts the REAL scan page, runs a real scan through the streaming endpoint,
-// unmounts it exactly the way a tab switch does, and remounts.
+// Nothing pinned any of it until now, which is how it could quietly stop working.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 import { LanguageProvider } from '../src/lib/i18n';
@@ -46,7 +46,10 @@ window.matchMedia = ((query: string) => ({
 })) as any;
 
 import ScanPage from '../src/app/scan/page';
-import { clearScanSession } from '../src/lib/scanSession';
+import {
+  clearScanSession, getScanSession, setScanSession,
+  flushScanSession, __resetScanSessionModuleForTest,
+} from '../src/lib/scanSession';
 
 const encoder = new TextEncoder();
 const scanItem = (n: number) => ({
@@ -121,5 +124,38 @@ describe('a scanned menu survives a tab switch', () => {
     });
     expect(second.container.textContent, 'the scanned menu was lost on the way back')
       .toContain('菜式1');
+  });
+
+  it('survives a full PAGE RELOAD, which is what a phone actually does', async () => {
+    // The case the module layer alone could never cover, and the one that costs real
+    // sessions: iOS discarding a backgrounded tab, an accidental pull-to-refresh, or
+    // coming back from the messenger app after sending a join code. The tab is the
+    // same tab, so sessionStorage comes back with it.
+    setScanSession({
+      result: { items: [{ name: 'Dish 1', name_zh: '菜式1' }], profile_ready: true } as any,
+      settled: false, keptNote: null, tableSession: { code: 'ABCDE', session_id: 's1' },
+    });
+    flushScanSession();
+
+    // A reload keeps sessionStorage and destroys the JS heap. __resetForTest is the
+    // heap going away; nothing else is touched.
+    __resetScanSessionModuleForTest();
+    expect(getScanSession<any>(), 'nothing came back from storage').toBeTruthy();
+    const back = getScanSession<any>()!;
+    expect(back.result.items[0].name_zh).toBe('菜式1');
+    // The group re-hydrates silently off this: the code is all the poll needs to
+    // bring back picks, members and the bill.
+    expect(back.tableSession?.code).toBe('ABCDE');
+  });
+
+  it('the X clears BOTH layers, so a dismissal is not resurrected by a reload', () => {
+    setScanSession({
+      result: { items: [{ name_zh: '菜式1' }] } as any,
+      settled: false, keptNote: null, tableSession: null,
+    });
+    flushScanSession();
+    clearScanSession();
+    __resetScanSessionModuleForTest();
+    expect(getScanSession()).toBeNull();
   });
 });
