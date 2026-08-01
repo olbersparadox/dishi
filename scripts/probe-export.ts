@@ -50,14 +50,8 @@
  *   npx tsx scripts/probe-export.ts --tag=R2 --hosts=claude,gemini --langs=en
  *   npx tsx scripts/probe-export.ts --tag=R2 --probes=P3 --judge=grok
  */
-import { createClient } from '@supabase/supabase-js';
 import { writeFileSync, mkdirSync } from 'node:fs';
-import {
-  extractTasteSections, buildTastePrompt,
-  type ExportDish, type ExportCompanions,
-} from '../src/lib/tasteExport';
-import { companionStats, type CompanionEdgeView } from '../src/lib/companions';
-import { dict, cuisineLabel } from '../src/lib/i18n-dict';
+import { buildExportDoc } from './exportDoc';
 
 const OWNER = '4d1c3ae0-47d9-4cba-b35e-179c134271bf';
 
@@ -476,85 +470,6 @@ async function pool<T, R>(items: T[], width: number, fn: (item: T) => Promise<R>
   return out;
 }
 
-/** The owner's REAL export doc, assembled exactly as TasteFormCard assembles it. */
-async function buildDoc(): Promise<{ doc: string; ratingCount: number; username: string | null }> {
-  const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
-
-  const [pRes, rRes, uRes, eRes] = await Promise.all([
-    db.from('taste_profiles').select('vector, cuisine_affinity, rating_count, profile_version').eq('user_id', OWNER).maybeSingle(),
-    db.from('ratings').select('score, dishes(id, name, name_zh, cuisine, source, eaten_at, restaurants(name))').eq('user_id', OWNER),
-    // The canonical username is `handle`; `username_set_at` is what CLAIMED
-    // means (every legacy row already has an auto-derived handle, so a
-    // non-empty name proves nothing — /api/buddy gates on the same column).
-    // Getting this wrong silently produces an anonymous doc, which is a
-    // different document under test.
-    db.from('profiles').select('handle, username_set_at').eq('id', OWNER).maybeSingle(),
-    db.from('companion_edges').select('user_a, user_b, dish_id, table_session_id, picked_at').or(`user_a.eq.${OWNER},user_b.eq.${OWNER}`),
-  ]);
-  // Every query is checked, including the ones whose absence would degrade
-  // quietly rather than crash: a failed profiles lookup would just anonymise
-  // the doc, and a failed edges lookup would just drop the companions section.
-  // Both change what is under test, so neither may pass silently.
-  const failed = [pRes.error, rRes.error, uRes.error, eRes.error].find(Boolean);
-  if (failed) throw new Error(failed.message);
-  if (!pRes.data) throw new Error('owner has no taste profile');
-
-  const edges = (eRes.data ?? []) as any[];
-  const sharedDishIds = new Set(edges.map(e => e.dish_id));
-
-  const dishes: ExportDish[] = (rRes.data ?? []).flatMap((r: any) => {
-    const d = r.dishes;
-    if (!d) return [];
-    return [{
-      name: d.name, name_zh: d.name_zh, score: r.score,
-      restaurant: d.restaurants?.name ?? null,
-      eaten_at: d.eaten_at ?? null, source: d.source ?? null,
-      shared: sharedDishIds.has(d.id),
-    }];
-  });
-
-  // Companions layer, same derivation and same hard privacy line as the export
-  // route: display names only, everyone else counted anonymously.
-  let companions: ExportCompanions = { named: [], unnamedCount: 0 };
-  if (edges.length) {
-    const cuisineById = new Map((rRes.data ?? []).flatMap((r: any) => r.dishes ? [[r.dishes.id, r.dishes.cuisine ?? null] as const] : []));
-    const views: CompanionEdgeView[] = edges.map(e => ({
-      other: e.user_a === OWNER ? e.user_b : e.user_a,
-      dish_id: e.dish_id, table_session_id: e.table_session_id, picked_at: e.picked_at,
-      cuisine: cuisineById.get(e.dish_id) ?? null,
-    }));
-    const stats = companionStats(views);
-    const { data: profs } = await db.from('profiles').select('id, display_name').in('id', stats.map(s => s.userId));
-    const nameById = new Map((profs ?? []).map(p => [p.id, (p.display_name as string | null)?.trim() || null]));
-    const named = stats.filter(s => nameById.get(s.userId)).map(s => ({
-      name: nameById.get(s.userId)!, mealCount: s.mealCount, dishCount: s.dishCount, cuisines: s.cuisines,
-    }));
-    companions = { named, unnamedCount: stats.length - named.length };
-  }
-
-  const profile = pRes.data;
-  const sections = extractTasteSections(
-    {
-      vector: (profile.vector ?? {}) as Record<string, number>,
-      affinity: (profile.cuisine_affinity ?? {}) as Record<string, number>,
-      ratingCount: profile.rating_count ?? 0,
-      dishes,
-    },
-    // The doc is English-only by design (tasteExport.ts header), so the labels
-    // are read straight off the shipped dictionary's en side — the same strings
-    // t() would return, without pulling a React-side helper into a script.
-    dim => dict[`dim.${dim}`]?.en ?? dim,
-    c => cuisineLabel(c, 'en'),
-  );
-
-  const username = uRes.data?.username_set_at ? (uRes.data.handle as string) : null;
-  return {
-    doc: buildTastePrompt(sections, { version: profile.profile_version ?? undefined, name: username, companions }),
-    ratingCount: profile.rating_count ?? 0,
-    username,
-  };
-}
-
 (async () => {
   const arg = (k: string) => process.argv.find(a => a.startsWith(`--${k}=`))?.split('=')[1];
   const tag = arg('tag') ?? 'untagged';
@@ -566,7 +481,7 @@ async function buildDoc(): Promise<{ doc: string; ratingCount: number; username:
   const probes = probeIds ? PROBES.filter(p => probeIds.includes(p.id)) : PROBES;
   if (!hosts.length || !probes.length) { console.error('no hosts/probes selected'); process.exit(1); }
 
-  const { doc, ratingCount, username } = await buildDoc();
+  const { doc, ratingCount, username } = await buildExportDoc(OWNER);
   console.log(`doc: ${doc.length} chars, ${ratingCount} rated dishes, container ${username ? `dishi.${username}` : 'dishi (unclaimed)'}`);
   console.log(`run: tag=${tag} hosts=${hosts.map(h => h.id).join(',')} probes=${probes.map(p => p.id).join(',')} langs=${langs.join(',')} judge=${judgeSpec}`);
 
