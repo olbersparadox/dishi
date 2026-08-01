@@ -4810,3 +4810,100 @@ a DOM-identity test on the line without a suggestion). Mutation-tested:
 reordering refinement after distance fails 1 test; dropping the exactly-one
 guard fails 1. Owner field pass pending — the batch constraint gates item 3
 (next code item) on it.
+
+---
+
+# Batch: onboarding — the album-first cold start (owner design session, 2026-07-29) — SHIPPED `c359ddc`, 2026-08-01
+
+(Full backlog entry, verbatim, plus the owner's decision-close and the shipped
+shape. One remainder stays OPEN in BACKLOG: where the walkthrough is re-viewable
+from.)
+
+**The owner's ask:** a new joiner should get up to speed by rating food
+photos drawn from their own camera roll, after the simplest possible
+walkthrough of what dishi is.
+
+**The insight to build around:** every new user already owns years of taste
+evidence — their camera roll IS their food diary, they just never rated it.
+The album source, the merged pill picker, RatingStack, and TasteGrowth all
+exist; onboarding is a thin GUIDED PATH over shipped machinery, not a new
+flow. (Reuse, don't imitate: the onboarding rating experience IS
+RatingStack — if onboarding ever needs its own rating card, the design has
+gone wrong.)
+
+## The flow (first sign-in, skippable at every step)
+
+1. **Walkthrough, TWO cards, not a marketing carousel** (ink-on-paper,
+   Chinese-first, one line each + small art):
+   - Card 1 — dishi 記住你食過乜，學你鍾意乜。影相、屋企飯、舊相，一樣計。
+     (dishes not restaurants; equal-weight logging stated up front)
+   - Card 2 — 評得多，你嘅味 AI 就愈似你。仲可以帶去你自己嘅 AI 度用。
+     (the blob + the export, one breath — the destination, not the mechanics)
+   No card 3. The third beat of every onboarding is churn; ours is DOING it.
+2. **The ask:** 揀幾張你影過嘅食物相（5–10 張，多多益善）— straight into
+   the SAME photo picker the merged pill opens, album mode. Camera-roll
+   permission is requested here, in context, not at app open.
+3. **Rate them:** RatingStack flick, exactly as shipped. TasteGrowth plays
+   after — the new user watches their profile take first shape from photos
+   they already had. That moment is the product pitch; no copy needed.
+4. **Landing:** profile page with the buddy bar's onboarding endowment
+   acknowledging the head start (endowment already exists in buddy.ts —
+   wire, don't invent; it must never masquerade as trained signal, its
+   standing rule).
+
+## Design decisions needing the owner (before build)
+
+- Photo count ask: 5–10 framed as 多多益善, or a harder "pick 8"? (Fuzzy
+  asks convert worse; hard asks feel like homework.)
+- Scan introduction: deliberately ABSENT above — first restaurant visit is
+  the natural scan moment. Agree, or should card 2 mention it?
+- Replay: walkthrough re-viewable from somewhere (設定?), or once-only?
+- The 食記-journal eaten-date question (open thread) becomes USER-VISIBLE the
+  moment album logging is the front door — old photos with EXIF dates will
+  populate the journal's past. Decide ordering there first, or accept
+  when-logged order for launch?
+
+## Tier + verification
+
+Fable, unambiguously (new first-run surface, and the first thing every new
+user ever sees). Verify with a REAL fresh account and a real camera roll —
+fixture photos hide exactly the density/quality problems onboarding exists
+to survive. Screenshot every step including both skip paths.
+
+## Decisions closed by the owner (2026-08-01, at build kickoff)
+
+- **Photo ask: 5+**, framed as a floor (至少 5 張，多多益善), not a range or a
+  quota. The owner's fuller answer binds the whole flow: "either by batch or
+  one by one, the ratings should help the user visualise they are FORMING the
+  dishi AI (ink blob), that each rating is making it bigger" — which is exactly
+  TasteGrowth's job (the header blob is the real profile, regrowing as each
+  rating commits), so the build's obligation was to route into it, not to add
+  a new visual.
+- **Scan mention: one clause on card 2** (出街食嗰陣，影埋張菜牌，dishi 幫你揀
+  — a quieter second line under the owner's verbatim card-2 line).
+- **Replay: deferred.** "We will find a place to show it again; decide later."
+  No 設定 entry built. OPEN remainder in BACKLOG.
+- **食記 ordering: when-logged for launch.** The fuzzy eaten-date design stays
+  an open thread; onboarding does not wait on it.
+
+### Shipped 2026-08-01 (`c359ddc`) — the shipped shape
+
+A fresh account's first visit to the Taste tab opens a three-step sheet on the
+rate-sheet glass: card 1 (the merged pill's own three segment icons + the
+owner's line), card 2 (TasteFormLive with fixed demo inputs + the export line +
+the scan clause), then the ask, whose CTA clicks the merged pill's OWN album
+input — one entry point, so everything after is RatingStack → TasteGrowth
+byte-for-byte. Skippable at every step via the corner ✕; tappable step dots.
+
+The gate (`shouldShowOnboarding`, src/lib/onboarding.ts) fails closed: it
+requires zero ratings AND zero rated rows AND zero queued picks AND both
+fetches genuinely resolved AND no per-user seen flag — any other state renders
+exactly the pre-batch page (pinned by tests/onboarding.test.tsx). Seen flag is
+per-user localStorage (freshness itself is server-derived, so another device
+costs at most one extra skippable sheet); both skipping and engaging (the
+rating overlay opening) retire it. Step 4 needed no code: the endowment
+(onboardingCredit → engineConfidence) already reaches the 強度 stat.
+
+No new CSS — the design-review rule holds; chassis is .rate-sheet, .card,
+.ok-circle, .persona-dots as they exist. Owner field pass (real fresh account,
+real camera roll) pending per the stability rule.

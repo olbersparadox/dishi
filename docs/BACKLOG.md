@@ -904,56 +904,14 @@ build; item 1 needs no decision.
 
 # Batch: onboarding — the album-first cold start (owner design session, 2026-07-29)
 
-**The owner's ask:** a new joiner should get up to speed by rating food
-photos drawn from their own camera roll, after the simplest possible
-walkthrough of what dishi is.
+(SHIPPED `c359ddc` 2026-08-01 — full entry, the owner's four decision-closes,
+and the shipped shape moved to DECISIONS.md under this heading. Owner field
+pass with a real fresh account still pending. ONE remainder open:)
 
-**The insight to build around:** every new user already owns years of taste
-evidence — their camera roll IS their food diary, they just never rated it.
-The album source, the merged pill picker, RatingStack, and TasteGrowth all
-exist; onboarding is a thin GUIDED PATH over shipped machinery, not a new
-flow. (Reuse, don't imitate: the onboarding rating experience IS
-RatingStack — if onboarding ever needs its own rating card, the design has
-gone wrong.)
-
-## The flow (first sign-in, skippable at every step)
-
-1. **Walkthrough, TWO cards, not a marketing carousel** (ink-on-paper,
-   Chinese-first, one line each + small art):
-   - Card 1 — dishi 記住你食過乜，學你鍾意乜。影相、屋企飯、舊相，一樣計。
-     (dishes not restaurants; equal-weight logging stated up front)
-   - Card 2 — 評得多，你嘅味 AI 就愈似你。仲可以帶去你自己嘅 AI 度用。
-     (the blob + the export, one breath — the destination, not the mechanics)
-   No card 3. The third beat of every onboarding is churn; ours is DOING it.
-2. **The ask:** 揀幾張你影過嘅食物相（5–10 張，多多益善）— straight into
-   the SAME photo picker the merged pill opens, album mode. Camera-roll
-   permission is requested here, in context, not at app open.
-3. **Rate them:** RatingStack flick, exactly as shipped. TasteGrowth plays
-   after — the new user watches their profile take first shape from photos
-   they already had. That moment is the product pitch; no copy needed.
-4. **Landing:** profile page with the buddy bar's onboarding endowment
-   acknowledging the head start (endowment already exists in buddy.ts —
-   wire, don't invent; it must never masquerade as trained signal, its
-   standing rule).
-
-## Design decisions needing the owner (before build)
-
-- Photo count ask: 5–10 framed as 多多益善, or a harder "pick 8"? (Fuzzy
-  asks convert worse; hard asks feel like homework.)
-- Scan introduction: deliberately ABSENT above — first restaurant visit is
-  the natural scan moment. Agree, or should card 2 mention it?
-- Replay: walkthrough re-viewable from somewhere (設定?), or once-only?
-- The 食記-journal eaten-date question (open thread) becomes USER-VISIBLE the
-  moment album logging is the front door — old photos with EXIF dates will
-  populate the journal's past. Decide ordering there first, or accept
-  when-logged order for launch?
-
-## Tier + verification
-
-Fable, unambiguously (new first-run surface, and the first thing every new
-user ever sees). Verify with a REAL fresh account and a real camera roll —
-fixture photos hide exactly the density/quality problems onboarding exists
-to survive. Screenshot every step including both skip paths.
+- [ ] **[F] Walkthrough replay entry point.** Owner call at build kickoff:
+  "we will find a place to show it again; decide later." The sheet is
+  currently once-per-user (per-device seen flag); no 設定 entry exists. Decide
+  where re-viewing lives when it matters.
 
 ---
 
