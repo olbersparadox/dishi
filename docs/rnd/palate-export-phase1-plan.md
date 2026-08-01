@@ -243,6 +243,55 @@ models nobody installs into remains the thing the hold existed to prevent.
 adoption already works. R4 (teach the call-out in install copy) is heading for
 CLOSED; one more host seals it.
 
+### Owner ground truth (2026-08-01, from the Claude cell): the dislike claims
+### overstate, and the subject of the palate says so
+
+After reading the cell's replies, the owner disputed the rendered aversions:
+"Do I hate sweet and sour? Maybe not my favourite, but I honestly don't hate
+sweet. To me seafood is 'freshness kind of sweet'. Nor do I hate 荔枝 — I'd
+pick it as a drink." This is evidence no judge can produce — the person the
+palate describes, disagreeing with the description — and it decomposes into
+three stacked failures at different layers:
+
+1. **Engine conflation.** The `sweet` dimension lumps sugar-led sauces, natural
+   seafood 鮮甜 and fruit into one number; two sauce misses (酸甜醬烤魚, lobster
+   roll) dragged the lump negative while the LOVED list is full of naturally
+   sweet seafood (特大赤蝦, 龍蝦刺身, 海鮮丼). The contradiction was in the data
+   the whole time. Feeds the decomposition R&D thread (sauce-sweet vs 鮮甜),
+   not this phase.
+2. **Doc flattening.** The vector's point estimate renders as a bare verdict
+   ("Generally prefer less: sweet, sour") with no per-dimension evidence count
+   and no scope. Two data points and twenty are indistinguishable to the host.
+3. **Host amplification.** "Generally prefer less" retold as 雷區 / 明擺住唔受 /
+   category vetoes of never-rated dishes (咕嚕肉、京都骨) and whole 味型
+   (荔枝味 — culinarily correct, no lychee in it, yet collides with the owner's
+   actual love of lychee: a hardened trait line producing technically-defensible,
+   experientially-wrong advice). Over-filtering is the invisible failure mode:
+   a wrongly vetoed dish is never discovered.
+
+**The structural fact:** negative evidence is permanently scarce (the
+negative-rating ceiling — nobody orders what they expect to dislike), so
+dislike claims can never honestly reach love-claim confidence at ANY data
+volume. The fix is asymmetric confidence — bold about loves, curious about
+dislikes — not uniform hedging. The run itself proves the mechanism: P3, which
+received dish-level EVIDENCE, produced perfect epistemics ("new information,
+not confirmation"); P1, which received the flattened VERDICT, produced walls.
+The doc controls which one the host gets.
+
+**R5 (PROPOSED — not moved; owner decides, and only after P6 closes the
+current cell):** (a) avoid-lines carry evidence count and scope ("sugar-led
+sauces, 2 dishes: …; loved list contains naturally sweet seafood — the signal
+is sauce profiles, not sweetness"); (b) calibration instruction: never state a
+dislike more strongly than the doc does, recommend-against only by citing the
+missed dish, never veto an unrated category; (c) contradiction feeds the loop:
+if the user reports enjoying something against a lean, believe the report and
+suggest rating it. (c) turns the owner's exact complaint into the rate
+reminder firing at its most useful moment.
+
+Protocol note: the Claude cell's scores stand — ADOPT measures faithful
+transmission of the MEASURED palate, and transmission was faithful. This
+finding is about calibration of the measurement, one layer up.
+
 ## Results log (append per run)
 
 | date | host | placement | doc version | score | notes |
