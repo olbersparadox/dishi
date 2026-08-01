@@ -143,6 +143,32 @@ DECISIONS.md.)
   people don't order what they avoid). Must be designed to not feel like a
   survey; below the bar until that design exists.
 
+  **Amendment (owner, 2026-08-01, from the first Claude install cell):** both
+  items above gain a selection principle and live evidence. The owner, reading
+  the install-cell replies, disputed the rendered dislikes ("I honestly don't
+  hate sweet — seafood is freshness kind of sweet") and supplied the case that
+  proves the mechanism: the lobster roll miss was EXECUTION, not preference —
+  ordered out of longing for the best-rated-worthy one he had in Japan, sunk by
+  a sour-dressing/mayo rendition — and the export doc's flat miss-list then
+  caused the host to steer him AWAY from the register ("your lobster roll
+  rating suggests that register isn't where you get your money's worth", P5 EN,
+  plan doc). One misfiled rating produced confidently wrong advice inside the
+  flagship surface. Owner's directive: "if there's anything unsure or any
+  direct signal from user would help us understand more, we could post it out
+  as question. We don't always need to use their own ratings for the
+  interactions." Two consequences for these items: (1) selection should be
+  CONTRADICTION-DRIVEN, not just thinness-driven — the engine's most valuable
+  questions are where its evidence internally conflicts (loved list full of
+  鮮甜 seafood vs a sweet-aversion read; a missed dish from a loved family) —
+  a detected contradiction is a ready-made, non-survey-feeling question with
+  known payoff; (2) add an execution-disambiguation probe to the family: a
+  one-off miss on a dish the person sought out is ambiguous between "dish" and
+  "rendition", the shipped execution slider only resolves it after a SECOND
+  rating of the same dish elsewhere, and an elicited answer resolves it
+  immediately. (Note the superseded flick-level binary in DECISIONS.md before
+  designing this — it must not regress into that.) Raises the effective go
+  odds of both items; still needs the owner's explicit go before any code.
+
 (dishi.Persona — character persistence in foreign AIs: install flow SHIPPED
 `1f5198c` 2026-07-23, closing the item — full entry moved to DECISIONS.md.
 Only the owner's manual Phase 0.5 persistence re-test remains, outside code.)
