@@ -1870,7 +1870,12 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 .call-history-strip {
   display: flex; gap: 10px; overflow-x: auto; align-self: stretch;
   padding: 4px calc(50% - var(--strip-tail, 60px)) 4px 0; scroll-snap-type: x proximity;
+  /* Scrolls, but never shows a track: the mocks have a quiet row of boxes, and a
+     scrollbar ruled under it reads as a widget. Overlay-scrollbar platforms
+     (iOS) hid this; a desktop browser drew a grey bar across the card. */
+  scrollbar-width: none;
 }
+.call-history-strip::-webkit-scrollbar { display: none; }
 .call-history-item { flex: none; min-width: 92px; margin: 0; scroll-snap-align: start; }
 /* A growing spacer rather than justify-content: flex-end, which is the one way
    to right-pack a scroller that still scrolls: flex-end overflows to the LEFT
