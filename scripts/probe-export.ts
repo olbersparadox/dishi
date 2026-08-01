@@ -38,11 +38,17 @@
  * quote the thing it claims to have seen is a judge that hallucinated, and the
  * transcript is written out so any cell can be read by hand.
  *
+ * HOW A HOST IS REACHED: each host tries its first-party provider first and
+ * falls back to OpenRouter, so a run measures as much as the available keys
+ * allow. Set any of ANTHROPIC_API_KEY / GEMINI_API_KEY / OPENAI_API_KEY /
+ * XAI_API_KEY in .env.local to light up that host; hosts with no working route
+ * are reported `blocked` and left unscored rather than silently scored 0.
+ *
  * RUN:
  *   set -a; source .env.local; set +a
  *   npx tsx scripts/probe-export.ts --tag=R1
  *   npx tsx scripts/probe-export.ts --tag=R2 --hosts=claude,gemini --langs=en
- *   npx tsx scripts/probe-export.ts --tag=R2 --probes=P3 --judge=google/gemini-3.1-pro-preview
+ *   npx tsx scripts/probe-export.ts --tag=R2 --probes=P3 --judge=grok
  */
 import { createClient } from '@supabase/supabase-js';
 import { writeFileSync, mkdirSync } from 'node:fs';
@@ -54,50 +60,134 @@ import { companionStats, type CompanionEdgeView } from '../src/lib/companions';
 import { dict, cuisineLabel } from '../src/lib/i18n-dict';
 
 const OWNER = '4d1c3ae0-47d9-4cba-b35e-179c134271bf';
-const ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
 
-// Why not src/lib/openrouter.ts: that client is deliberately SINGLE-model (one
-// env-pinned model for the whole app). Cross-host comparison is this harness's
-// entire reason to exist, so it needs per-call model selection. Same endpoint,
-// same headers — only the model varies.
-async function callOnce(model: string, system: string, user: string, maxTokens: number) {
-  const res = await fetch(ENDPOINT, {
+/**
+ * A ROUTE is one way to reach one model. Each host declares its routes in
+ * preference order and the harness takes the first that answers a ping.
+ *
+ * Why routes exist at all: the OpenRouter key is 403'd at ACCOUNT level by
+ * Anthropic, Google AND OpenAI ("violation of provider Terms Of Service" — a
+ * bare "say OK" fails identically), which silently made three of the four
+ * install hosts unmeasurable. Reaching those providers first-party is the only
+ * way to measure them, and it is also the CLOSER analogue of the product: the
+ * install path is the user's own account with that provider, not a broker in
+ * between.
+ *
+ * Direct is preferred over OpenRouter even when both work, so a run's numbers
+ * are not silently a broker's transforms. Which route answered is recorded per
+ * cell — "Claude via api.anthropic.com" and "Claude via OpenRouter" are not the
+ * same measurement, and a transcript that hides the difference invites reading
+ * one as the other.
+ */
+type Route =
+  /** OpenAI-shaped `/chat/completions`. Covers OpenRouter, xAI, OpenAI, and
+   *  Google (which serves an OpenAI-compatible endpoint alongside its native
+   *  one — same body, so no third adapter is needed for it). */
+  | { kind: 'openai'; label: string; model: string; url: string; keyEnv: string;
+      /** GPT-5-class reasoning models reject `max_tokens` and want
+       *  `max_completion_tokens`; everything else wants the old name. */
+      budgetField?: 'max_tokens' | 'max_completion_tokens';
+      headers?: Record<string, string> }
+  /** Anthropic's Messages API: different path, different auth header, and
+   *  `system` is a TOP-LEVEL field rather than a message with role:system. */
+  | { kind: 'anthropic'; label: string; model: string; keyEnv: string };
+
+const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
+
+function or(model: string): Route {
+  return {
+    kind: 'openai', label: 'openrouter', model, url: OPENROUTER_URL,
+    keyEnv: 'OPENROUTER_API_KEY',
+    headers: { 'HTTP-Referer': 'https://dishi.app', 'X-Title': 'Dishi export probe' },
+  };
+}
+
+function routeKey(r: Route): string | undefined { return process.env[r.keyEnv]; }
+
+async function callOnce(route: Route, system: string, user: string, maxTokens: number) {
+  const key = routeKey(route);
+  if (!key) return { ok: false as const, error: `${route.keyEnv} not set` };
+
+  const req = route.kind === 'anthropic'
+    ? {
+        url: 'https://api.anthropic.com/v1/messages',
+        headers: {
+          'content-type': 'application/json',
+          'x-api-key': key,
+          'anthropic-version': '2023-06-01',
+        },
+        // No temperature/top_p/top_k: current Claude models REJECT them (400),
+        // and the harness never wanted them anyway — it measures the doc, not
+        // a sampling setting.
+        body: {
+          model: route.model, max_tokens: maxTokens, system,
+          messages: [{ role: 'user', content: user }],
+        } as Record<string, unknown>,
+      }
+    : {
+        url: route.url,
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${key}`,
+          ...(route.headers ?? {}),
+        },
+        body: {
+          model: route.model,
+          [route.budgetField ?? 'max_tokens']: maxTokens,
+          messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
+        } as Record<string, unknown>,
+      };
+
+  const res = await fetch(req.url, {
     signal: AbortSignal.timeout(180_000),
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
-      'HTTP-Referer': 'https://dishi.app',
-      'X-Title': 'Dishi export probe',
-    },
-    body: JSON.stringify({
-      model, max_tokens: maxTokens,
-      messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
-    }),
+    method: 'POST', headers: req.headers, body: JSON.stringify(req.body),
   });
   const json = await res.json().catch(() => null);
   if (!res.ok) return { ok: false as const, error: `HTTP ${res.status}: ${json?.error?.message ?? ''}`.trim() };
+
+  if (route.kind === 'anthropic') {
+    // A safety classifier can decline with HTTP 200 + stop_reason "refusal" and
+    // an empty or partial body. That is a fact about the REQUEST, not an answer
+    // to score — passing it through would post a 0 against the document for
+    // something the document did not do.
+    if (json?.stop_reason === 'refusal') {
+      return { ok: false as const, error: `refused (${json?.stop_details?.category ?? 'unspecified'})` };
+    }
+    // Thinking blocks share the response array; only text is the answer.
+    const text = (Array.isArray(json?.content) ? json.content : [])
+      .filter((b: any) => b?.type === 'text').map((b: any) => b.text).join('').trim();
+    return text ? { ok: true as const, content: text } : { ok: false as const, error: 'HTTP 200 with no text block' };
+  }
+
   const content = json?.choices?.[0]?.message?.content;
   if (typeof content === 'string' && content.trim()) return { ok: true as const, content };
   return { ok: false as const, error: 'HTTP 200 with empty content' };
 }
 
-async function chat(model: string, system: string, user: string, maxTokens = 1200): Promise<string> {
+/**
+ * Default budget is generous because on current Claude models THINKING IS ON BY
+ * DEFAULT and shares `max_tokens` with the visible answer. A budget sized for a
+ * non-thinking model truncates the answer mid-sentence, and a truncated answer
+ * scores as a document failure. It is a ceiling, not a target — models that
+ * don't think are unaffected.
+ */
+async function chat(route: Route, system: string, user: string, maxTokens = 4000): Promise<string> {
   for (let attempt = 0; attempt < 3; attempt++) {
     if (attempt > 0) await new Promise(r => setTimeout(r, 1500 * attempt));
     try {
-      const r = await callOnce(model, system, user, maxTokens);
+      const r = await callOnce(route, system, user, maxTokens);
       if (r.ok) return r.content;
-      console.error(`  ! ${model} ${r.error}`);
+      console.error(`  ! ${route.model} (${route.label}) ${r.error}`);
     } catch (e) {
-      console.error(`  ! ${model} ${(e as Error).message}`);
+      console.error(`  ! ${route.model} (${route.label}) ${(e as Error).message}`);
     }
   }
   return '';
 }
 
 /**
- * Reachability check before the run, one trivial call per model.
+ * Reachability check before the run: try each host's routes in order and keep
+ * the first that answers a trivial ping.
  *
  * This exists because of a live failure, not caution: the OpenRouter key
  * reaches Grok, Qwen and DeepSeek but is 403'd by Anthropic, Google AND OpenAI
@@ -105,35 +195,88 @@ async function chat(model: string, system: string, user: string, maxTokens = 120
  * fails identically, so it is not the export doc tripping a filter). Without a
  * preflight those three hosts produce empty answers, the judge fails them, and
  * the table reports 0/4 — a transport problem dressed up as a finding about the
- * document. A blocked host must be named as blocked and left unscored.
+ * document. A host with no working route must be named as blocked and left
+ * unscored; the per-route errors are printed so it is obvious WHICH key needs
+ * fixing rather than just that something is broken.
  */
-async function preflight(hosts: Host[]): Promise<{ reachable: Host[]; blocked: { host: Host; error: string }[] }> {
-  const reachable: Host[] = [];
-  const blocked: { host: Host; error: string }[] = [];
-  await pool(hosts, 4, async host => {
-    try {
-      const r = await callOnce(host.model, 'Reply with the single word OK.', 'ping', 16);
-      if (r.ok) reachable.push(host); else blocked.push({ host, error: r.error });
-    } catch (e) {
-      blocked.push({ host, error: (e as Error).message });
+type Live = { host: Host; route: Route };
+async function preflight(hosts: Host[]): Promise<{ live: Live[]; blocked: { host: Host; error: string }[] }> {
+  const results = await pool(hosts, 4, async (host): Promise<Live | { host: Host; error: string }> => {
+    const errors: string[] = [];
+    for (const route of host.routes) {
+      try {
+        const r = await callOnce(route, 'Reply with the single word OK.', 'ping', 16);
+        if (r.ok) return { host, route };
+        errors.push(`${route.label}: ${r.error}`);
+      } catch (e) {
+        errors.push(`${route.label}: ${(e as Error).message}`);
+      }
     }
+    return { host, error: errors.join(' | ') };
   });
   return {
-    reachable: hosts.filter(h => reachable.includes(h)),
-    blocked: hosts.flatMap(h => { const b = blocked.find(x => x.host === h); return b ? [b] : []; }),
+    live: results.filter((r): r is Live => 'route' in r),
+    blocked: results.filter((r): r is { host: Host; error: string } => 'error' in r),
   };
 }
 
-// ── Hosts. Model ids verified live against OpenRouter's catalog. These stand in
-// for the four INSTALL_HOSTS the export card ships (tasteExport.ts) — same row
-// order, so a per-host result reads straight across to the install copy.
-type Host = { id: string; label: string; model: string };
+// ── Hosts. These stand in for the four INSTALL_HOSTS the export card ships
+// (tasteExport.ts) — same row order, so a per-host result reads straight across
+// to the install copy. Each lists its first-party route first and OpenRouter as
+// the fallback; set the matching env var in .env.local to light one up.
+type Host = { id: string; label: string; routes: Route[] };
 const HOSTS: Host[] = [
-  { id: 'claude', label: 'Claude', model: 'anthropic/claude-sonnet-5' },
-  { id: 'gemini', label: 'Gemini', model: 'google/gemini-3.1-pro-preview' },
-  { id: 'grok', label: 'Grok', model: 'x-ai/grok-4.5' },
-  { id: 'chatgpt', label: 'ChatGPT', model: 'openai/gpt-5.5' },
+  {
+    id: 'claude', label: 'Claude',
+    routes: [
+      { kind: 'anthropic', label: 'anthropic', model: 'claude-sonnet-5', keyEnv: 'ANTHROPIC_API_KEY' },
+      or('anthropic/claude-sonnet-5'),
+    ],
+  },
+  {
+    id: 'gemini', label: 'Gemini',
+    routes: [
+      {
+        kind: 'openai', label: 'google', model: 'gemini-3.1-pro-preview',
+        url: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
+        keyEnv: 'GEMINI_API_KEY',
+      },
+      or('google/gemini-3.1-pro-preview'),
+    ],
+  },
+  {
+    id: 'grok', label: 'Grok',
+    routes: [
+      { kind: 'openai', label: 'xai', model: 'grok-4.5', url: 'https://api.x.ai/v1/chat/completions', keyEnv: 'XAI_API_KEY' },
+      or('x-ai/grok-4.5'),
+    ],
+  },
+  {
+    id: 'chatgpt', label: 'ChatGPT',
+    routes: [
+      {
+        kind: 'openai', label: 'openai', model: 'gpt-5.5',
+        url: 'https://api.openai.com/v1/chat/completions',
+        keyEnv: 'OPENAI_API_KEY', budgetField: 'max_completion_tokens',
+      },
+      or('openai/gpt-5.5'),
+    ],
+  },
 ];
+
+/**
+ * `--judge=` accepts a host id (reuse that host's route ladder — the usual
+ * case now that first-party keys exist), or a bare OpenRouter model id for
+ * anything not in the host table.
+ */
+function judgeRoutes(spec: string): Route[] {
+  const host = HOSTS.find(h => h.id === spec);
+  if (host) return host.routes;
+  const direct: Route[] = spec.startsWith('claude-')
+    ? [{ kind: 'anthropic', label: 'anthropic', model: spec, keyEnv: 'ANTHROPIC_API_KEY' }]
+    : [];
+  return [...direct, or(spec.includes('/') ? spec : `anthropic/${spec}`)];
+}
 
 // ── Probes. The plan's fixed script, verbatim in intent; the zh half is 廣東話
 // because that is what the owner actually types at a host.
@@ -218,7 +361,12 @@ const PROBES: Probe[] = [
 ];
 
 type Cell = {
-  host: string; hostModel: string; probe: string; axis: Axis | null; lang: 'en' | 'zh';
+  host: string; hostModel: string;
+  /** Which route answered ("anthropic", "openrouter", …). Recorded per cell
+   *  because a first-party answer and a brokered one are not interchangeable
+   *  evidence, and a transcript that omits it invites reading one as the other. */
+  via: string;
+  probe: string; axis: Axis | null; lang: 'en' | 'zh';
   prompt: string; answer: string;
   pass: boolean | null; evidence: string; note: string;
   /** P5 only: venues the reply named, for the owner to eyeball. A judge cannot
@@ -242,14 +390,17 @@ const JUDGE_SYSTEM =
   '{"pass": true|false, "evidence": "<=25 words quoted verbatim from the reply, or \'\' if none", ' +
   '"note": "one sentence on why", "venues": ["only if the criterion asks for it, else []"]}';
 
-async function judge(judgeModel: string, doc: string, cell: Cell, criterion: string) {
+async function judge(judgeRoute: Route, doc: string, cell: Cell, criterion: string) {
   const raw = await chat(
-    judgeModel, JUDGE_SYSTEM,
+    judgeRoute, JUDGE_SYSTEM,
     `### THE INSTALLED DOCUMENT\n${doc}\n\n` +
     `### THE USER'S MESSAGE\n${cell.prompt}\n\n` +
     `### THE ASSISTANT'S REPLY\n${cell.answer || '(empty — the host returned nothing)'}\n\n` +
     `### PASS CRITERION\n${criterion}`,
-    500,
+    // The verdict JSON is short, but on a thinking-by-default judge the budget
+    // is shared with reasoning — too small a cap truncates the JSON, which the
+    // parser below records as an unmeasured cell rather than a verdict.
+    2000,
   );
   try {
     const parsed = JSON.parse(raw.replace(/```json|```/g, '').trim());
@@ -361,7 +512,7 @@ async function buildDoc(): Promise<{ doc: string; ratingCount: number; username:
 (async () => {
   const arg = (k: string) => process.argv.find(a => a.startsWith(`--${k}=`))?.split('=')[1];
   const tag = arg('tag') ?? 'untagged';
-  const judgeModel = arg('judge') ?? 'anthropic/claude-opus-5';
+  const judgeSpec = arg('judge') ?? 'claude-opus-5';
   const langs = (arg('langs')?.split(',') ?? ['en', 'zh']) as ('en' | 'zh')[];
   const hostIds = arg('hosts')?.split(',');
   const probeIds = arg('probes')?.split(',');
@@ -371,33 +522,44 @@ async function buildDoc(): Promise<{ doc: string; ratingCount: number; username:
 
   const { doc, ratingCount, username } = await buildDoc();
   console.log(`doc: ${doc.length} chars, ${ratingCount} rated dishes, container ${username ? `dishi.${username}` : 'dishi (unclaimed)'}`);
-  console.log(`run: tag=${tag} hosts=${hosts.map(h => h.id).join(',')} probes=${probes.map(p => p.id).join(',')} langs=${langs.join(',')} judge=${judgeModel}`);
+  console.log(`run: tag=${tag} hosts=${hosts.map(h => h.id).join(',')} probes=${probes.map(p => p.id).join(',')} langs=${langs.join(',')} judge=${judgeSpec}`);
 
-  const { reachable, blocked } = await preflight(hosts);
-  for (const b of blocked) console.log(`BLOCKED ${b.host.label} (${b.host.model}) — ${b.error}`);
-  if (!reachable.length) {
+  const { live, blocked } = await preflight(hosts);
+  for (const b of blocked) console.log(`BLOCKED ${b.host.label} — ${b.error}`);
+  if (!live.length) {
     console.error('\nEvery host is unreachable — nothing to measure. Fix API access before reading anything into this.');
     process.exit(1);
   }
-  // The judge is on the same key: an unreachable judge means every verdict is
-  // null, which would read as a clean sweep of failures.
-  const judgeUp = await callOnce(judgeModel, 'Reply with the single word OK.', 'ping', 16).catch(() => ({ ok: false as const, error: 'threw' }));
-  if (!judgeUp.ok) {
-    console.error(`\nJudge ${judgeModel} is unreachable (${judgeUp.error}). Pass a reachable one with --judge=<model>.`);
+
+  // The judge needs its own reachable route: an unreachable judge means every
+  // verdict is null, which would read as a clean sweep of failures.
+  let judgeRoute: Route | null = null;
+  const judgeErrors: string[] = [];
+  for (const route of judgeRoutes(judgeSpec)) {
+    const r = await callOnce(route, 'Reply with the single word OK.', 'ping', 16)
+      .catch(e => ({ ok: false as const, error: (e as Error).message }));
+    if (r.ok) { judgeRoute = route; break; }
+    judgeErrors.push(`${route.label}: ${r.error}`);
+  }
+  if (!judgeRoute) {
+    console.error(`\nJudge ${judgeSpec} is unreachable (${judgeErrors.join(' | ')}). Pass a reachable one with --judge=<host id or model>.`);
     process.exit(1);
   }
-  console.log(`reachable: ${reachable.map(h => h.id).join(', ')}\n`);
 
-  const jobs = reachable.flatMap(h => probes.flatMap(p => langs.map(lang => ({ h, p, lang }))));
+  for (const l of live) console.log(`reachable: ${l.host.id} via ${l.route.label} (${l.route.model})`);
+  console.log(`judge: ${judgeRoute.model} via ${judgeRoute.label}\n`);
 
-  const cells = await pool(jobs, 5, async ({ h, p, lang }): Promise<Cell> => {
+  const jobs = live.flatMap(l => probes.flatMap(p => langs.map(lang => ({ l, p, lang }))));
+
+  const cells = await pool(jobs, 5, async ({ l, p, lang }): Promise<Cell> => {
+    const { host: h, route } = l;
     const prompt = lang === 'en' ? p.en : p.zh;
-    const answer = await chat(h.model, doc, prompt);
+    const answer = await chat(route, doc, prompt);
     const cell: Cell = {
-      host: h.id, hostModel: h.model, probe: p.id, axis: p.axis, lang,
+      host: h.id, hostModel: route.model, via: route.label, probe: p.id, axis: p.axis, lang,
       prompt, answer, pass: null, evidence: '', note: '', venues: [],
     };
-    const verdict = await judge(judgeModel, doc, cell, p.criterion);
+    const verdict = await judge(judgeRoute!, doc, cell, p.criterion);
     Object.assign(cell, verdict);
     const mark = cell.pass === null ? '?' : cell.pass ? '✓' : '✗';
     console.log(`${mark} ${h.id}/${p.id}/${lang}${p.axis ? ` [${p.axis}]` : ' [H2]'} — ${cell.note}`);
@@ -411,12 +573,15 @@ async function buildDoc(): Promise<{ doc: string; ratingCount: number; username:
   const scoredAxes = AXES.filter(a => probes.some(p => p.axis === a));
 
   const lines: string[] = [];
-  lines.push(`| host | lang | score | missed | H2 (P1→P2) |`);
-  lines.push(`|------|------|-------|--------|------------|`);
+  // `via` is a table column, not a footnote: a reader comparing two runs needs
+  // to see at a glance that one measured Claude first-party and the other
+  // through a broker.
+  lines.push(`| host | via | lang | score | missed | H2 (P1→P2) |`);
+  lines.push(`|------|-----|------|-------|--------|------------|`);
   for (const b of blocked) {
-    lines.push(`| ${b.host.label} | — | blocked | — | — |`);
+    lines.push(`| ${b.host.label} | — | — | blocked | — | — |`);
   }
-  for (const h of reachable) {
+  for (const { host: h, route } of live) {
     for (const lang of langs) {
       const mine = cells.filter(c => c.host === h.id && c.lang === lang);
       const got = scoredAxes.filter(a => mine.find(c => c.axis === a)?.pass === true);
@@ -426,7 +591,7 @@ async function buildDoc(): Promise<{ doc: string; ratingCount: number; username:
       const h2 = p1 === undefined || p2 === undefined ? 'n/a'
         : p1 === p2 ? (p1 ? 'both pass' : 'both fail')
         : p2 ? 'call-out LIFTS' : 'call-out HURTS';
-      lines.push(`| ${h.label} | ${lang} | ${got.length}/${scoredAxes.length} | ${missed.join(', ') || '—'} | ${h2} |`);
+      lines.push(`| ${h.label} | ${route.label} | ${lang} | ${got.length}/${scoredAxes.length} | ${missed.join(', ') || '—'} | ${h2} |`);
     }
   }
 
@@ -436,8 +601,9 @@ async function buildDoc(): Promise<{ doc: string; ratingCount: number; username:
   console.log(`\n${lines.join('\n')}`);
   console.log(`\nscored axes: ${scoredAxes.join(', ')}  ·  PERSIST (P6) is not measurable here — owner-manual only.`);
   if (blocked.length) {
-    console.log(`COVERAGE GAP: ${blocked.length} of ${hosts.length} host(s) unreachable on this key — ` +
-      `${blocked.map(b => b.host.label).join(', ')}. This run says NOTHING about them.`);
+    console.log(`COVERAGE GAP: ${blocked.length} of ${hosts.length} host(s) had no working route — ` +
+      `${blocked.map(b => b.host.label).join(', ')}. This run says NOTHING about them. ` +
+      `Set that provider's key in .env.local (ANTHROPIC_API_KEY / GEMINI_API_KEY / OPENAI_API_KEY / XAI_API_KEY) to light one up.`);
   }
   // The one check the harness deliberately leaves to a human: whether the
   // venues a host named are real. GROUND can pass on the text and still be a
@@ -455,7 +621,9 @@ async function buildDoc(): Promise<{ doc: string; ratingCount: number; username:
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
   const path = `docs/rnd/probe-runs/${tag}-${stamp}.json`;
   writeFileSync(path, JSON.stringify({
-    tag, ranAt: new Date().toISOString(), judgeModel, doc, ratingCount, username,
+    tag, ranAt: new Date().toISOString(),
+    judgeModel: judgeRoute.model, judgeVia: judgeRoute.label,
+    doc, ratingCount, username,
     scoredAxes, table: lines, cells,
   }, null, 2));
   console.log(`\ntranscript: ${path}`);

@@ -133,6 +133,16 @@ set -a; source .env.local; set +a
 npx tsx scripts/probe-export.ts --tag=R2 --judge=<reachable model>
 ```
 
+Each host tries its **first-party provider first** and falls back to OpenRouter,
+so the run measures as much as the available keys allow. Setting any of
+`ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `OPENAI_API_KEY`, `XAI_API_KEY` in
+`.env.local` lights up that host; a host with no working route is reported
+`blocked` (naming which key failed and why) and left unscored. Direct is
+preferred over the broker even when both work — it is the closer analogue of the
+install path, which runs on the user's own account with that provider — and the
+route that answered is recorded per cell, because a first-party answer and a
+brokered one are not interchangeable evidence.
+
 It exists because the protocol above is owner-manual, which is why the table
 below stayed empty: every revision cost an evening before it could be judged.
 The harness makes the four DOC-level axes cheap enough to A/B a lever in
@@ -165,34 +175,44 @@ Two things the first run taught about the instrument itself, both worth keeping:
 
 | date | host | placement | doc version | score | notes |
 |------|------|-----------|-------------|-------|-------|
-| 2026-08-01 | Grok (grok-4.5) | harness (system prompt ≈ Project instructions) | v-current (R1) | **4/5 EN, 3/5 zh** (PERSIST not measured) | EN clean sweep. zh missed GROUND. H2: call-out neither lifts nor hurts — P1 and P2 both adopt, so ambient adoption is already working on this host. |
+| 2026-08-01 | Grok (grok-4.5) | harness (system prompt ≈ Project instructions) | v-current (R1) | **4/5 EN, 3/5 zh** (PERSIST not measured) | Single run. The EN/zh GROUND gap here did NOT survive repetition — see below. H2: call-out neither lifts nor hurts — P1 and P2 both adopt, so ambient adoption is already working on this host. |
+| 2026-08-01 | Grok (grok-4.5) | harness | v-current (R1) | **GROUND 3/4 EN, 3/4 zh** (P5 only, 4 repeats) | The repro sweep. Same failure rate both languages; supersedes the single-cell reading above. |
 | 2026-08-01 | Claude / Gemini / ChatGPT | — | — | **blocked** | OpenRouter key 403 "provider Terms of Service" on all three, account-level. Says nothing about these hosts. |
 
-### R1 finding: VENUE_GROUNDING holds in English and leaks in 廣東話
+### R1 finding, CORRECTED: GROUND leaks ~1 in 4, in BOTH languages
 
-Same doc, same model, same probe, one run apart — the EN answer named 裕記
-(Yue Kee) and 陳記 correctly, said plainly it could not book, and quoted no
-specifics. The 廣東話 answer, asked the identical question, produced:
+The first run read as a clean language asymmetry — EN perfect, 廣東話 leaking a
+street address (`位置：深井村路 9 號`) and corrupting 裕記 into 悅記 while keeping
+the correct romanisation. That reading is **withdrawn**. Repeating P5 four times
+per language on the same doc and model gives:
 
-- **`位置：深井村路 9 號`** — a street address stated as fact. This is the
-  Phase 0.5 failure mode exactly (invented venues carried convincing specifics).
-- **`悅記燒鵝餐廳（Yue Kee Roast Goose）`** — the real shop is **裕記**. It kept
-  the correct romanisation and corrupted the Chinese characters, which is a more
-  dangerous fabrication than an obviously invented name: it looks like a typo
-  and reads as authoritative.
-- **`深井一帶海鮮酒家（例如海傍老字號海鮮舖）`** — a placeholder standing in for
-  a venue, presented in a ranked table beside two real ones.
+- **EN: 3 pass / 1 fail.** The failure invented a street address — the same
+  failure mode originally attributed to Chinese.
+- **廣東話: 3 pass / 1 fail.** One failure was the address case; the other
+  offered venue picks with no acknowledgement of limited local knowledge.
 
-Why it matters beyond one cell: VENUE_GROUNDING is written in English, in a
-doc that is English-only by design, and the trust it buys does not survive the
-switch into the language the user actually types. Dishi is Chinese-first, so
-the leaking half is the half that ships. An EN-only manual test would have
-scored this 5/5 and moved on.
+So the honest finding is worse and simpler than the language story: **VENUE_GROUNDING
+fails roughly a quarter of the time regardless of language.** The trust-critical
+axis is a coin-weighted-toward-passing, not a guarantee. Two things follow.
 
-**Not yet established** (do not over-read a single cell): one host, one run, no
-repeats, and the three hosts that matter most are unmeasured. Before treating
-this as an R2 trigger, re-run `--probes=P5 --langs=zh` several times to see
-whether it reproduces, and get the key unblocked so Claude and Gemini can be
-compared — a leak on one model is a model fact; a leak on three is a doc fact,
-and only the second justifies moving a lever.
+First, **the single-cell reading was an artifact of sampling**, and the plan's own
+"do not over-read a single cell" caution was correct — this is the case for it.
+Any future finding from one cell gets repeated before it moves a lever.
+
+Second, **the venue names are not coming from the document.** Grepping the export
+doc for 裕記 / Yue Kee / 深井 returns nothing: every venue in every answer is the
+model's own world knowledge. That splits the failure in two, and only one half is
+addressable by an R2 doc revision:
+
+- **Inventing checkable specifics** (an address stated as fact, a placeholder venue
+  in a ranked table) is a grounding-discipline failure the doc can plausibly push on.
+- **Corrupting a real name's characters while keeping its romanisation** (裕記→悅記)
+  is the model's Chinese recall being weaker than its English recall. No wording
+  fixes that; only honest hedging contains it.
+
+**Still not established:** one model, one doc version, and a single-vote judge that
+scored superficially similar answers differently at least once — some of the spread
+may be judge noise rather than host behaviour. The three hosts that matter most for
+the install remain unmeasured. A leak on one model is a model fact; a leak on three
+is a doc fact, and only the second justifies moving a lever.
 
