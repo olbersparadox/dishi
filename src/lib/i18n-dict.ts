@@ -298,7 +298,13 @@ export const dict: Record<string, { zh: string; en: string }> = {
   // ---- restaurant picker ----
   'picker.finding': { zh: '正在尋找你附近的餐廳…', en: 'Finding restaurants near you…' },
   'picker.fromphoto': { zh: '📍 這張相片拍攝地點附近', en: '📍 Around where this photo was taken' },
-  'picker.denied': { zh: '定位已關 — 可以自己輸入店名，或者跳過。', en: 'Location is off — add the place by name, or skip.' },
+  // No longer suggests 跳過 as the soft way out: on the table sheet 略過 now CLEARS
+  // the restaurant, so pointing a stuck user at it would be pointing them at a delete.
+  'picker.denied': { zh: '定位已關，可以開返定位，或者自己輸入店名。', en: 'Location is off. Turn it back on, or add the place by name.' },
+  // A timeout or a failed fix is NOT 定位已關 — saying so sends someone to hunt
+  // through Settings for a switch that was never off. Common on a HK street.
+  'picker.geoslow': { zh: '搵唔到你嘅位置。', en: "Couldn't find your location." },
+  'picker.retrygeo': { zh: '再試定位', en: 'Retry location' },
   'picker.add': { zh: '+ 加間舖', en: '+ Add a place' },
   'picker.addname': { zh: '餐廳名', en: 'Restaurant name' },
   'picker.name': { zh: '餐廳名', en: 'Restaurant name' },

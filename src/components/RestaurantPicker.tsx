@@ -87,6 +87,12 @@ export default function RestaurantPicker({ onChange, skipFirst = false, seedCoor
   // is no honest shortlist to offer. Distinct from 'denied' (location permission
   // off), which is about the device, not the photo.
   const [status, setStatus] = useState<'locating' | 'ready' | 'denied' | 'nogeo'>('locating');
+  // WHY it failed, which the copy and the retry both depend on. PERMISSION_DENIED (1)
+  // is the only code that means "location is off"; POSITION_UNAVAILABLE (2) and
+  // TIMEOUT (3) happen with location fully ON — common on a HK street at 8s with
+  // enableHighAccuracy — and telling that person 定位已關 sends them hunting through
+  // Settings for a switch that was never off.
+  const [geoFail, setGeoFail] = useState<'off' | 'unavailable' | null>(null);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [newName, setNewName] = useState('');
@@ -129,10 +135,10 @@ export default function RestaurantPicker({ onChange, skipFirst = false, seedCoor
     // from AND this isn't a retrospective edit (see `photoOnly`).
     if (seedCoords) { loadNearby(seedCoords.lat, seedCoords.lng); return; }
     if (photoOnly) { setStatus('nogeo'); return; }
-    if (!navigator.geolocation) { setStatus('denied'); return; }
+    if (!navigator.geolocation) { setGeoFail('off'); setStatus('denied'); return; }
     navigator.geolocation.getCurrentPosition(
       pos => loadNearby(pos.coords.latitude, pos.coords.longitude),
-      () => setStatus('denied'),
+      err => { setGeoFail(err.code === err.PERMISSION_DENIED ? 'off' : 'unavailable'); setStatus('denied'); },
       { enableHighAccuracy: true, timeout: 8000 },
     );
   }, [seedCoords, photoOnly, loadNearby]);
@@ -143,11 +149,19 @@ export default function RestaurantPicker({ onChange, skipFirst = false, seedCoor
   // pin a new place without ever having quietly shaped the suggestion list.
   const [useLiveGeo, setUseLiveGeo] = useState(false);
   function requestLiveGeo() {
-    if (!navigator.geolocation) { setStatus('denied'); return; }
+    if (!navigator.geolocation) { setGeoFail('off'); setStatus('denied'); return; }
     setUseLiveGeo(true);
+    // Back to 'locating' for the duration, so the caption says it is working and the
+    // chip disables — a retry that looks identical to the failure it replaced reads
+    // as a second dead button.
+    setStatus('locating');
     navigator.geolocation.getCurrentPosition(
       pos => loadNearby(pos.coords.latitude, pos.coords.longitude),
-      () => { setUseLiveGeo(false); setStatus('denied'); },
+      err => {
+        setUseLiveGeo(false);
+        setGeoFail(err.code === err.PERMISSION_DENIED ? 'off' : 'unavailable');
+        setStatus('denied');
+      },
       { enableHighAccuracy: true, timeout: 8000 },
     );
   }
@@ -294,7 +308,9 @@ export default function RestaurantPicker({ onChange, skipFirst = false, seedCoor
     // only version of "+8px" that's actually guaranteed to render.
     <div style={{ paddingTop: 8 }}>
       {status === 'locating' && <p className={captionCls}>{t('picker.finding')}</p>}
-      {status === 'denied' && <p className={captionCls}>{t('picker.denied')}</p>}
+      {status === 'denied' && (
+        <p className={captionCls}>{geoFail === 'off' ? t('picker.denied') : t('picker.geoslow')}</p>
+      )}
       {/* The photo has no location and we refuse to substitute the device's —
           say which it is, rather than showing a confidently wrong shortlist. */}
       {status === 'nogeo' && <p className={captionCls}>{t('picker.nophotoloc')}</p>}
@@ -304,6 +320,9 @@ export default function RestaurantPicker({ onChange, skipFirst = false, seedCoor
       {!seedCoords && useLiveGeo && status === 'ready' && <p className={captionCls}>{t('picker.fromhere')}</p>}
 
       <div className="chips picker-chips" style={{ marginTop: 8 }}>
+        {!photoOnly && status === 'denied' && (
+          <button className="chip chip-util" onClick={requestLiveGeo}>{t('picker.retrygeo')}</button>
+        )}
         {skipFirst && (<>
           <button className={`chip chip-util ${selectedKey === 'skip' ? 'on' : ''}`} onClick={() => noRestaurant('skip')}>{t('grow.skip')}</button>
           {homeOption && <button className={`chip chip-util ${selectedKey === 'home' ? 'on' : ''}`} onClick={() => noRestaurant('home')}>{t('place.home')}</button>}
