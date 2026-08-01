@@ -901,12 +901,14 @@ function Scanner() {
               onChange={e => { const f = e.target.files?.[0] ?? null; e.target.value = ''; onPick(f, { append: true }); }} />
             {appending ? t('scan.addingpage') : t('scan.addpage')}
           </label>
-          {/* X: the one way to lose a scan, now that a scan survives a reload — so
-              it asks first, and it is sized to be found rather than tucked in beside
-              加掃一版 at icon-button size. */}
+          {/* The one way to lose a scan, now that a scan survives a reload — so it
+              asks first, and it is sized to be found rather than tucked in beside
+              加掃一版 at icon-button size. The DOOR, not an X: this is the same act a
+              joiner performs from the table screen's leave button, and the two screens
+              should not name it with different glyphs. */}
           <button className="scan-close-btn" onClick={() => setCloseAsk(true)}
-            aria-label={t('scan.close')} title={t('scan.close')}>
-            <CloseIcon />
+            aria-label={t('table.leave')} title={t('table.leave')}>
+            <LeaveIcon size={20} />
           </button>
           {/* The shared explainer shell, with its dismiss circle replaced by the two
               real answers — never a second modal that merely looks like the others.

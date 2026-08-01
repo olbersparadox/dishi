@@ -352,7 +352,6 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'scan.results': { zh: '你的最佳選擇', en: 'Your best bets' },
   'scan.addpage': { zh: '加掃一版', en: 'Add a page' },
   'scan.addingpage': { zh: '加緊呢一版…', en: 'Adding this page…' },
-  'scan.close': { zh: '關閉', en: 'Close' },
   // The X asks first (owner, 2026-08-01). Now that a scan survives a reload, closing
   // is the ONLY way to lose one — so it is the only place that has to be deliberate,
   // and it says what goes with it. The table wording is a separate line because
