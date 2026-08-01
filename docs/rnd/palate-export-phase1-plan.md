@@ -171,6 +171,40 @@ Two things the first run taught about the instrument itself, both worth keeping:
    exists — it can't — it rules on invented specifics and overclaimed capability,
    and lists every venue named for the owner to check by eye.
 
+### Instrument finding (2026-08-01, first manual Claude cell): the fidelity gap
+### runs the OTHER way too — the install can have tools the harness cannot model
+
+The harness's stated limitation was that it is *weaker* than the product (no
+host system prompt, no screening). The first real Claude Project cell showed the
+install is also *stronger*: the Project ran with **web search on**, and its P2
+answer named three venues with street addresses, a price band and closing times
+— every one of which checked out as real (owner-verified, map cards attached).
+On the harness, that same behaviour — precise checkable specifics stated as
+fact — is the textbook mode-1 GROUND failure, because a raw model CANNOT know
+them. With search, it can, and the identical text is not a failure but the
+wanted behaviour at its ceiling: grounded, checkable, execution-level venue
+advice.
+
+Consequences, in order of weight:
+
+1. **Harness GROUND and install GROUND are different measurements**, in both
+   directions. The harness measures the DOC's ability to keep an untooled model
+   honest; the install measures the doc PLUS the host's retrieval. A harness
+   GROUND failure does not predict an install failure on a search-enabled host —
+   which further deflates the cross-model GROUND scare (already suspect for
+   being all stand-ins) as evidence about the shipped product.
+2. **P5's criterion needs a tool-aware reading in manual cells.** "States
+   specifics it cannot know" was written for a tool-less model. With search on,
+   stating retrieved specifics is fine and the bar moves to: are they REAL
+   (owner-checked), and does it still hedge what retrieval cannot establish
+   (fit, booking state)? Condition (b) — claiming to have BOOKED — remains a
+   fail regardless of tools.
+3. **Manual cells run with the host's DEFAULT settings, search included.** The
+   protocol measures the shipped install path, and the shipped path is whatever
+   a real user gets on install day. Turning search off to match the harness
+   would be measuring the instrument's limitation, not the product. Record the
+   toggle state per cell so no result is read against the wrong baseline.
+
 ## Results log (append per run)
 
 | date | host | placement | doc version | score | notes |
