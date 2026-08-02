@@ -99,6 +99,100 @@ Rules that make the tree honest and legible:
    detector misfires stays off — a wrong claw is worse than no claw
    (no rec is better than an irrelevant one, applied to anatomy).
 
+## The metabolism — nothing is set in stone (owner, 2026-08-02)
+
+The owner's call, answering this doc's original open question on
+reversibility: *"For 1 lobster rating it could be a little limp growing, more
+lobster or crab could eventually become a claw. No such ratings for long or a
+few negative ones would shrink the claw or having it fall off. A continuous,
+living entity of the user's taste journey. A user could start the experience
+as a sea being and a year later be an agile aggressive mammal — nothing is set
+to stone."*
+
+So the body is PRESENT TENSE. Every feature lives on **recency-weighted
+domain evidence** (an EMA over domain events, the same recency spirit as the
+taste engine itself; half-life measured in months, not days, so the being is
+stable day-to-day and transforms over seasons). The lifecycle of any feature:
+
+```
+萌 bud        first evidence: a limp nub (one lobster dish)
+成 formed     gate passed + evidence: a real claw
+精 articulated deep evidence: segmented, larger, its own idle gesture
+萎 atrophy    evidence decays or negatives accumulate: shrinks, pales
+蛻 shed       share falls below the release gate: it falls off
+```
+
+Three rules keep this honest and warm:
+
+- **Negatives carve, absence fades.** Disliking lobster actively shrinks the
+  claw (the palate spoke); simply not eating it lets the claw slowly pale and
+  atrophy (the palate moved on). Different curves — a dislike is evidence, a
+  gap is not punishment. This is the no-guilt principle applied to anatomy:
+  atrophy from absence must be slow, gentle, and never framed as neglect.
+- **A shed is a molt, not a death.** When a feature releases, it is archived
+  in the 圖鑑 with its dates (「2026春 · 蛻去左螯」). Crustaceans molt; the
+  being sheds forms as the palate changes. This resolves the apparent tension
+  with the research's irreversible-history mechanic: **the body is the present
+  diet; the 銘 and the molt archive are the permanent biography.** The user
+  who was a sea being and is now an agile mammal can flip back through every
+  form they have ever been — that archive, not the current body, is what no
+  new account can fake.
+- **Whole-plan transformation is just the limit case.** Enough sustained land
+  eating on a sea-born being ends in a land body — through the same per-feature
+  lifecycle (fins atrophy and shed as legs bud and articulate), never a
+  discontinuous reskin. The 化形 lab demo is the small version of this.
+
+## The variation vocabulary — spending every axis the data can honestly pay for
+
+The owner's brainstorm (2026-08-02), organized into registers with detectors.
+Rule of admission: a gesture ships only when paired with a reliable detector
+and a share-gate — everything else waits in the **gesture pool** below, so the
+vocabulary can grow without decoration creep.
+
+**骨 body-plan axes** (continuous, all bodies have them):
+
+| axis | detector | status |
+|---|---|---|
+| 脊/無脊 spine vs spineless | vertebrate share (beef/pork/chicken/duck/fish) vs invertebrate+plant (shellfish/tofu_veg) — a dorsal ink ridge appears with vertebrate weight | protein parse exists, needs persistence |
+| 大/小 size | rating count (saturating), as today | exists |
+| 輕/重 light vs heavy | `heaviness` column (stored!) + 濃/清 dims | stored + learned |
+| 長/高 elongation | domain mix (sea drifts long/horizontal, air stretches tall) | derivable |
+| 浮/爬/飛 float / crawl / flight | domain shares → locomotion grammar | phase 1 |
+
+**肢 appendage families** (each taxonomy node's gesture is a FAMILY of typed
+variants — the owner's "leg A, B, C, D, E"). Variant selection is always the
+sub-node mix, never random:
+
+| family | variants by sub-node | example |
+|---|---|---|
+| legs | 牛 thick pillar / 豬 round stub / 雞 thin spring | a beef-heavy land being stands differently from a pork-heavy one |
+| claws | 蝦 fine pincers / 蟹 wide flat / 龍蝦 one big asymmetric | crab-vs-lobster is visible, not just "crustacean" |
+| fins/tail | 魚 tail sweep / flat fin pairs | |
+| tendrils | 軟體 trailing strands | shipped in lab v3 |
+| wings | 雞 short flutter fans / 鴨鵝 long glide strokes | |
+| fronds | 田 leaf/stem gestures | |
+
+**性 temperament** (extends the 姿 motion register — the owner's
+calm-vs-aggressive axis). Temperament is a motion-parameter vector (energy,
+sharpness, weight) computed from ALREADY-LEARNED dims, so it costs nothing:
+
+| diet signature | temperament |
+|---|---|
+| 清淡 (清 high, 蒸/生 share) | calm: slow drift, long breath cycles |
+| 炸/烤 heavy + 辣 | aggressive: quick darts, sharp turns, high amplitude |
+| 燜 braised + 濃 | patient: weighty settling, deep slow gravity |
+| 甜/滑 | bouncy: round easings, soft rebounds |
+
+An "agile aggressive mammal" is exactly this: land body plan (骨) + fried/spicy
+temperament (性) — two independent registers composing, which is why the
+combination space stays huge.
+
+**Gesture pool** (waiting for an honest detector, not yet shippable): ears,
+horn (candidate: 牛 at extreme evidence, as an earned rare trait), hair/fuzz
+(candidate: 膚-register rendering of 脆 crispy rather than anatomy), antennae,
+shell plates as armor (甲殼 at depth). Nothing leaves the pool without a
+detector + gate + growth curve.
+
 ## Attachment loop (from the lifeform-psychology research, ranked)
 
 1. **Form = biography** — the registers above ARE this mechanic.
@@ -169,8 +263,10 @@ See BACKLOG "Data audit" item — the audit runs before any phase-1 code.
 ## Open questions for the owner
 
 - 田 field and 榖 base: separate domains, or does 榖 live in 膚 as texture?
-- How reversible is a body plan? (Proposal: grafts accumulate, the base plan
-  never flips — a sea-born being that turns carnivore becomes an amphibian,
-  not a retroactive mammal. Path is biography; biography does not rewrite.)
+- ~~How reversible is a body plan?~~ **ANSWERED (owner, 2026-08-02): fully
+  reversible over time — see "The metabolism". The body is present tense;
+  permanence lives in the 銘 and the molt archive.** The one parameter still
+  to tune: the evidence half-life (proposal: ~3-4 months, so a season of
+  changed eating visibly transforms, but one week of travel food does not).
 - Does the creature ever appear to OTHER users outside an explicit share
   (e.g. beside a 貼文)? Default no until decided.
