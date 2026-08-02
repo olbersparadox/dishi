@@ -1050,6 +1050,19 @@ conflicts) and one-question-max-per-rating-moment:
 - The execution slider (already backlogged) quietly doubles as identity
   confirmation across venues.
 
+## 7. Server-side scan restore — the durable fix for cross-context loss *(later; evidence from 2026-08-02)*
+
+The scan mirror moved sessionStorage → localStorage (24h freshness window) after
+iOS process death ate a real session within an hour of the owner's first field
+run. localStorage survives process death but NOT the iOS storage split: Safari
+and the home-screen app are separate worlds, so a menu scanned in one can never
+appear in the other, and a second device obviously gets nothing. The durable fix
+is server-side: every scan already creates a table session whose menu_items live
+in the DB, so "restore my active scan" is a query (sessions where I'm a member,
+created within N hours), not new storage. Would also make the scan tab and /table
+genuinely the same session view. Not urgent while solo; becomes urgent the first
+time a tester scans in Safari and opens the home-screen app.
+
 ## 6. Album auto-confirm persists the nearest shop with no confidence gate *(needs an owner decision — field evidence 2026-08-02)*
 
 Field-caught alongside item 2: the album rating flow auto-confirmed AND persisted

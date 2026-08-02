@@ -6,9 +6,12 @@
 //   the module singleton covers a tab switch (client-side <Link>, heap intact) —
 //     exercised against the REAL scan page, streamed through the real endpoint,
 //     unmounted exactly the way a tab switch does, remounted;
-//   sessionStorage covers a page RELOAD, which on a phone is not a deliberate act:
-//     iOS discards backgrounded tabs, pull-to-refresh misfires, and the group flow
-//     requires leaving the app to send a join code.
+//   localStorage covers a page RELOAD — and, since 2026-08-02, the browser PROCESS
+//     dying. It was sessionStorage for one day: the owner's first real restaurant
+//     session killed Safari under Camera-app memory pressure, iOS handed the
+//     restored tab fresh sessionStorage, and the menu "exited by itself" within the
+//     hour. Per-tab lifetime broke the only-the-X-exits contract; a freshness
+//     window (24h) now does the expiring instead.
 //
 // Nothing pinned any of it until now, which is how it could quietly stop working.
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -129,8 +132,7 @@ describe('a scanned menu survives a tab switch', () => {
   it('survives a full PAGE RELOAD, which is what a phone actually does', async () => {
     // The case the module layer alone could never cover, and the one that costs real
     // sessions: iOS discarding a backgrounded tab, an accidental pull-to-refresh, or
-    // coming back from the messenger app after sending a join code. The tab is the
-    // same tab, so sessionStorage comes back with it.
+    // coming back from the messenger app after sending a join code.
     setScanSession({
       result: { items: [{ name: 'Dish 1', name_zh: '菜式1' }], profile_ready: true } as any,
       settled: false, keptNote: null, tableSession: { code: 'ABCDE', session_id: 's1' },
@@ -146,6 +148,37 @@ describe('a scanned menu survives a tab switch', () => {
     // The group re-hydrates silently off this: the code is all the poll needs to
     // bring back picks, members and the bill.
     expect(back.tableSession?.code).toBe('ABCDE');
+  });
+
+  // The field failure of 2026-08-02, pinned: process death destroys the heap AND
+  // (on iOS) sessionStorage — only localStorage comes back. jsdom keeps
+  // localStorage across our simulated reload while __resetForTest drops the heap,
+  // which is exactly the surviving-store shape; asserting the mirror lands in
+  // localStorage (not sessionStorage) is what makes this a process-death test and
+  // not just a reload test.
+  it('the mirror lives in localStorage, the store that outlives Safari being killed', () => {
+    setScanSession({
+      result: { items: [{ name_zh: '菜式1' }] } as any,
+      settled: false, keptNote: null, tableSession: null,
+    });
+    flushScanSession();
+    expect(window.localStorage.getItem('dishi.scan'), 'mirror missing from localStorage').toBeTruthy();
+    expect(window.sessionStorage.getItem('dishi.scan'), 'sessionStorage is the store that dies with the process').toBeNull();
+  });
+
+  it('does not resurrect a menu older than the freshness window', () => {
+    setScanSession({
+      result: { items: [{ name_zh: '菜式1' }] } as any,
+      settled: false, keptNote: null, tableSession: null,
+    });
+    flushScanSession();
+    // Age the envelope past 24h — yesterday's outing, not today's lunch.
+    const env = JSON.parse(window.localStorage.getItem('dishi.scan')!);
+    env.savedAt = Date.now() - 25 * 60 * 60 * 1000;
+    window.localStorage.setItem('dishi.scan', JSON.stringify(env));
+    __resetScanSessionModuleForTest();
+    expect(getScanSession()).toBeNull();
+    expect(window.localStorage.getItem('dishi.scan'), 'a stale envelope should be dropped, not kept').toBeNull();
   });
 
   it('the X clears BOTH layers, so a dismissal is not resurrected by a reload', () => {
