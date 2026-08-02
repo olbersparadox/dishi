@@ -1021,6 +1021,19 @@ own words, not a paraphrase). Two independent layers:
   doesn't — the ceiling grows with scan density by design. Never blocks: the
   identity fetch rides the existing enrich round-trip, and a fetch failure
   degrades to today's context-free call.
+- **MEASURED 2026-08-02** (`scripts/eval-vision-naming.ts`, 54-case album
+  backlog, live model — full readout in `docs/rnd/vision-naming-context.md`):
+  **3a is closed** (paired +2/−0 of 26, both regressions were judge noise —
+  no standalone ship, fold the locale line into 3b's context for free) and
+  **3b is a GO** — 5/5 completed adoptions where the truth was on the
+  shortlist, including 和風牛肉烏龍麵 itself adopted EXACT past four
+  adversarial 烏龍麵 neighbours, and 8/10 correct refusals where it wasn't.
+  One genuine kill-class event in the eval (土魷蒸肉餅 adopted a neighbour
+  menu's 冬菇馬蹄蒸肉餅), so v1 keeps adoption on the existing edit
+  affordances and the kill criterion below stays armed. Wiring plan (next
+  session): scan coords onto `table_sessions`, shortlist fetch before
+  `inferDish` in `/api/dishes` (absent ⇒ byte-identical, test-enforced),
+  server-side verbatim-zh adoption taking both languages from the menu item.
 
 Kill criterion: if the match layer ever adopts a WRONG identity in field use
 (worse than a wrong free-text guess, because it looks authoritative), gate
