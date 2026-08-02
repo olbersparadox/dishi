@@ -1035,6 +1035,34 @@ own words, not a paraphrase). Two independent layers:
   `inferDish` in `/api/dishes` (absent ⇒ byte-identical, test-enforced),
   server-side verbatim-zh adoption taking both languages from the menu item.
 
+- **BUILT 2026-08-02, awaiting the owner's field pass** (the batch rule's last
+  gate — moves to DECISIONS.md once that passes). `nameShortlist.ts` (pure,
+  17 tests) + `nameShortlistFetch.ts` (time-boxed, fails closed) +
+  `visionUserText()` in vision.ts; `table_sessions` gained `scan_lat/lng` and
+  `dishes` gained `name_from_menu_at`
+  (`supabase/applied/table_sessions_scan_coords.sql`, applied live).
+  Verified end-to-end against the LIVE db and the REAL field photo: with the
+  scan located, the shortlist returns 30 items, and the same photo that reads
+  牛肉烏冬/豚骨拉麵 context-blind comes back 和風牛肉烏龍麵 and adopts it.
+  - **Two deviations from the plan above, both deliberate, both toward
+    caution.** (1) **No auto-linking of `dish_identity_id`** — dishIdentity.ts
+    is explicit that the human is the only merge author in the system (gate 3),
+    and a wrong merge permanently fuses two dishes' rating histories, whereas a
+    wrong NAME costs one tap. Adopting the name alone delivers everything the
+    field miss asked for. (2) **Only the zh is adopted**, not both languages:
+    the menu's stored English is itself scan-model-authored and was measurably
+    wrong on this very dish, while vision's English is a fresh rendering of the
+    now-correct dish — the same reasoning `canReauthorEnName()` already records.
+  - **Operationally inert until the next scan.** `scan_lat/lng` is new, so
+    every EXISTING session contributes nothing; the feature starts working from
+    the next menu scanned with location on. Backfilling KE7KK's coords from the
+    field record is a one-line owner call, not something taken unilaterally.
+  - **What the field pass has to answer:** scan a menu with location on, then
+    photograph one of its dishes through the log pill and rate it — does the
+    name arrive as the menu's words? And does anything get adopted WRONG (the
+    kill criterion; `name_from_menu_at` marks every adoption so this is
+    answerable after the fact, and each log prints one `naming-shortlist` line).
+
 Kill criterion: if the match layer ever adopts a WRONG identity in field use
 (worse than a wrong free-text guess, because it looks authoritative), gate
 adoption behind the item-5 two-name pick instead of auto-adopting.

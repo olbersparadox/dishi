@@ -59,13 +59,69 @@ fill name/cuisine/attributes with a best-effort placeholder — the caller decid
 whether to use them. If the photo is ambiguous but plausibly food, set is_dish true
 and give your best guess with lower confidence.`;
 
+/** What the photo's own EXIF knows about where it was taken, when anything is
+ * known at all. Both fields optional and independently absent-able: a photo can
+ * place itself in a district with no menu nearby, or sit beside a scanned menu
+ * in a district we never resolved. */
+export type VisionContext = {
+  /** Bilingual district for the locale hint, e.g. {zh:'中環', en:'Central'}. */
+  district?: { zh?: string | null; en?: string | null } | null;
+  /** Verbatim dish names off menus scanned nearby — see nameShortlist.ts. */
+  shortlist?: string[];
+};
+
+/**
+ * The user turn for a dish identification, with whatever context the photo
+ * earned. Pure and exported so a test can assert the ABSENT-CONTEXT case is
+ * byte-identical to the string this path sent before context existed — the
+ * additive-only guarantee this batch is bound by, made mechanical rather than
+ * promised.
+ *
+ * Context rides the USER turn and SYSTEM is never touched. That is not a
+ * stylistic choice: it is the arrangement that was measured
+ * (docs/rnd/vision-naming-context.md ran all three arms against the byte-
+ * identical shipped SYSTEM), and it is the only arrangement where "no context"
+ * provably reproduces today's call. It also keeps faith with the scan pipeline's
+ * hard-won rule against per-item conditional instructions in a shared system
+ * prompt (see SKELETON_SYSTEM's note in menuScan.ts).
+ */
+export function visionUserText(ctx?: VisionContext | null): string {
+  let text = 'Identify this dish.';
+  if (!ctx) return text;
+
+  // 3a, measured as a small real gain at zero cost (+2/-0 across 26 paired
+  // cases): naming the locale activates regional dish vocabulary. Shipped only
+  // as a rider on 3b, never as its own feature — on its own it did not earn a
+  // deploy.
+  const place = [ctx.district?.zh, ctx.district?.en].filter(Boolean).join(' / ');
+  if (place) text += ` Context: this photo was taken near ${place}, Hong Kong.`;
+
+  const list = ctx.shortlist ?? [];
+  if (list.length > 0) {
+    text += `\n\nContext: menus scanned near where this photo was taken include these items (verbatim):\n`
+      + list.map((s, i) => `${i + 1}. ${s}`).join('\n')
+      // The refusal clause is doing as much work as the invitation. Without it a
+      // model hands back the nearest-looking line rather than admitting the dish
+      // isn't on the list, and an adopted wrong name wears menu authority — the
+      // exact failure the item's kill criterion is written against. Measured: 8
+      // of 10 off-list cases correctly refused.
+      + `\nIf the photographed dish IS one of these menu items, return that item's name as name_zh EXACTLY as printed above. If none of them is this dish, ignore the list and identify freely — do not force a match.`;
+  }
+  return text;
+}
+
 /**
  * Identify a dish and its attribute vector from a base64 photo.
  * Falls back to a deterministic mock when no OpenRouter key is configured so the
  * whole loop remains demoable offline. See src/lib/openrouter.ts for why
  * anthropic/claude-sonnet-5 is the model used here.
+ *
+ * `ctx` is optional and additive: absent (or empty) it sends the exact request
+ * this function has always sent. Callers must treat a missing shortlist as
+ * normal, not as an error — see /api/dishes, where the fetch that builds it is
+ * time-boxed and fails closed.
  */
-export async function inferDish(base64: string, mediaType: string): Promise<VisionResult> {
+export async function inferDish(base64: string, mediaType: string, ctx?: VisionContext | null): Promise<VisionResult> {
   if (!process.env.OPENROUTER_API_KEY) return mockResult();
 
   // expectJson: a truncated/garbled body gets retried inside callClaude rather
@@ -74,7 +130,7 @@ export async function inferDish(base64: string, mediaType: string): Promise<Visi
   // not-a-dish confirmation the moment a flaky response slips past.
   const text = await callClaude(SYSTEM, [
     imagePart(base64, mediaType),
-    textPart('Identify this dish.'),
+    textPart(visionUserText(ctx)),
   ], { maxTokens: 500, expectJson: true });
 
   const parsed = parseJsonResponse(text);

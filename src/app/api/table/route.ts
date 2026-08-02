@@ -73,7 +73,15 @@ export async function POST(req: NextRequest) {
     const code = generateTableCode();
     const { data, error } = await supabase
       .from('table_sessions')
-      .insert({ code, host_id: user.id, menu_items: menuItems, restaurant_id: restaurantId })
+      // scan_lat/lng: the same fix, KEPT. It used to be spent on the restaurant
+      // decision above and dropped, which is why a photo taken beside a scanned
+      // menu could never find it (item 3b — see nameShortlist.ts). Null when
+      // there was no fix; nothing downstream requires it.
+      .insert({
+        code, host_id: user.id, menu_items: menuItems, restaurant_id: restaurantId,
+        scan_lat: Number.isFinite(lat) ? lat : null,
+        scan_lng: Number.isFinite(lng) ? lng : null,
+      })
       .select()
       .single();
     if (!error) session = data;

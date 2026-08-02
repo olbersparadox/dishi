@@ -3,6 +3,8 @@ import { supabaseServer } from '@/lib/supabase/server';
 import { inferDish } from '@/lib/vision';
 import { resolveOrCreateRestaurant } from '@/lib/restaurant';
 import { districtI18n } from '@/lib/geocode';
+import { fetchNameShortlist } from '@/lib/nameShortlistFetch';
+import { findAdoptedName } from '@/lib/nameShortlist';
 
 export const maxDuration = 60;
 
@@ -83,16 +85,48 @@ export async function POST(req: NextRequest) {
   const mediaType = safeMediaType(photo.type);
   const path = `${user.id}/${Date.now()}-${(photo.name || 'photo.jpg').replace(/[^\w.\-]/g, '_')}`;
 
+  // Item 3b: what do the menus scanned around here call their dishes? Vision is
+  // context-blind otherwise, which is how a photo taken beside a scanned menu got
+  // named 豚骨拉麵 while 和風牛肉烏龍麵 sat in the database 100m away
+  // (docs/rnd/vision-naming-context.md). This is the one lookup that cannot run
+  // in parallel with vision — vision has to be TOLD the shortlist — so it is
+  // time-boxed and fails to an empty result, which sends the exact request this
+  // route sent before context existed.
+  const ctx = await fetchNameShortlist(supabase, dLat, dLng, eatenAt ?? Date.now());
+
   // Storage upload and vision inference only need the bytes — run them in PARALLEL.
   // They were sequential before, which added the full storage round-trip to every
   // log's wait time for no reason.
   const [{ error: upErr }, vision, district] = await Promise.all([
     supabase.storage.from('dish-photos').upload(path, bytes, { contentType: mediaType }),
-    inferDish(bytes.toString('base64'), mediaType),
+    inferDish(bytes.toString('base64'), mediaType, ctx),
     wantDistrict ? districtI18n(dLat, dLng).catch(() => null) : Promise.resolve(null),
   ]);
   if (upErr) return NextResponse.json({ error: upErr.message }, { status: 500 });
   const { data: pub } = supabase.storage.from('dish-photos').getPublicUrl(path);
+
+  // Vision answered with one of those menu items: take the menu's spelling, not
+  // the model's echo of it. Only the CHINESE is adopted — it is the menu's
+  // verbatim truth, while a menu's stored English is itself scan-model-authored
+  // and was measurably wrong on this very dish (the same menu printed "Pork
+  // Belly Noodles" against 和風牛肉烏龍麵). Vision's English is a fresh
+  // rendering anchored on the now-correct dish, which is the better of the two —
+  // the same reasoning canReauthorEnName() records for scan rows.
+  //
+  // What this deliberately does NOT do:
+  //  - touch name_edited_at. That means a HUMAN typed the name (AUTHORITY_HUMAN).
+  //    A machine adopting printed words must never claim it.
+  //  - link dish_identity_id. Identity merges permanently fuse two dishes'
+  //    rating histories, and dishIdentity.ts is explicit that the human is the
+  //    only merge author in the system (gate 3). Adopting the NAME delivers what
+  //    the field miss asked for — nobody retypes anything — and leaves the merge
+  //    to the existing confirm flow. A wrong name costs one tap; a wrong merge
+  //    costs a dish's history.
+  const adopted = findAdoptedName(vision.name_zh, ctx.shortlist);
+  // One structured line per photo log, matching the scan-telemetry convention:
+  // the kill criterion for this feature can only be judged on field evidence of
+  // what got adopted and how often.
+  console.log(`naming-shortlist candidates=${ctx.shortlist.length} district=${ctx.district?.en ?? 'none'} adopted=${adopted ? JSON.stringify(adopted) : 'no'}`);
 
   const { data: dish, error: dishErr } = await supabase
     .from('dishes')
@@ -100,7 +134,11 @@ export async function POST(req: NextRequest) {
       user_id: user.id,
       restaurant_id: restaurantId,
       name: vision.name,
-      name_zh: vision.name_zh,
+      name_zh: adopted ?? vision.name_zh,
+      // Stamped only on adoption, read by no code today: it is what makes a
+      // wrong adoption findable in field use, which is what the item's
+      // pre-agreed kill criterion has to be judged on.
+      name_from_menu_at: adopted ? new Date().toISOString() : null,
       cuisine: vision.cuisine,
       photo_url: pub.publicUrl,
       attributes: vision.attributes,

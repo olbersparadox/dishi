@@ -57,10 +57,15 @@ export function normalizeDishName(raw: string): string {
     .trim();
 }
 
-/** Whitespace-insensitive form, for containment tests on Latin text. */
-function compact(raw: string): string {
+/** Whitespace-insensitive form, for containment tests on Latin text — and the
+ * comparison key for every EXACT dish-name match in the system (owner menu
+ * adoption below, and the menu shortlist in nameShortlist.ts). Exported so
+ * those callers share this definition of "cosmetically identical" rather than
+ * each growing their own slightly different one. */
+export function compactDishName(raw: string): string {
   return normalizeDishName(raw).replace(/\s+/g, '');
 }
+const compact = compactDishName;
 
 export type DishLike = {
   id: string;
