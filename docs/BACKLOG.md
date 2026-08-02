@@ -1035,3 +1035,42 @@ conflicts) and one-question-max-per-rating-moment:
 downstream, no code) → 3a → 3b → 4 → 5 items individually as evidence arrives.
 Each step field-verified by the owner before the next begins, per the batch-wide
 constraint above.
+
+# Batch: 墨靈 taste lifeform (owner R&D session, 2026-08-02)
+
+Direction settled in the R&D lab (docs/rnd/mokling-lab-v1.html + artifact
+"墨靈 · Taste-Form R&D Lab", versions first-lab / speciation-v2 / creature-v3):
+the taste form becomes a grown ink lifeform (creature = the living being,
+銘 logogram = its DNA). Design framework: docs/rnd/mokling-framework.md.
+
+## 1. Data audit: what vision extracts vs what the engine actually uses — *(Fable, no code until reviewed)*
+
+Owner (2026-08-02): "i'm surprised Vision has carried so little data over…
+all data is relevant for R&D really… especially for food. Please make a note
+to review how much data are we actually using, and what else we could be using."
+
+Initial inventory from this session (verify against live schema before acting):
+- **Extracted AND stored on dishes, but never aggregated per user / never
+  learned from:** `ingredients` (up to 4, vision.ts, stored column),
+  `cooking_method` (enum, photo path), `heaviness`, `diet`. Display/dedup only.
+- **Parsed but ephemeral:** dishStructure.ts protein/method/base enums
+  (beef/pork/chicken/duck_goose/fish/shellfish/egg/tofu_veg + bases) — used
+  ONLY as canonical-merge vetoes; never persisted per dish, never per user.
+- **Extracted and fully used:** 18-dim attributes, cuisine (affinity EMA).
+- **Never extracted:** portion/temperature/sauce family, ingredient beyond 4,
+  price-vs-satisfaction, repeat-order signal (derivable from ratings table).
+
+The audit deliverable: one table (signal → extracted? stored? aggregated?
+learned from? shown to user?) + a recommendation of which gaps feed (a) the
+creature's domain evidence, (b) recommendation quality, (c) the palate export.
+Note the creature's coarse domains (sea/land/air/field) are computable TODAY
+from stored `ingredients` + dishStructure protein parse over rating history —
+no new extraction needed for phase 1.
+
+## 2. 墨靈 phase 1 — domain evidence aggregate + creature skeleton — *(Fable, after item 1 review)*
+
+Per-user domain-evidence aggregate (sea/land/air/field shares from rated
+dishes' stored ingredients + protein parse), persisted like cuisine affinity;
+then the creature render behind the same FormInputs contract (see framework
+doc for registers, gates, and the two-renderer 生靈/銘 pair). Additive-only,
+fail closed to today's blob when domain evidence is empty.
