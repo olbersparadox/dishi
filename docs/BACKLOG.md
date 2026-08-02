@@ -960,7 +960,7 @@ Every item in this batch is therefore bound by:
 
 ## (item 1 shipped 2026-08-01 — full entry moved to DECISIONS.md, same batch heading)
 
-## 2. iOS EXIF device test — 10 minutes, no code, gates item 4's design *(owner, manual)*
+## 2. iOS EXIF device test — 10 minutes, no code, gates item 4's design *(owner, manual — PARTIAL RESULTS 2026-08-02)*
 
 Verify on the owner's phone which photo paths preserve GPS EXIF by the time the
 server sees the file: (a) picked from camera roll, (b) captured live through the
@@ -969,6 +969,27 @@ live captures on iOS Safari get GPS stripped. Record the result HERE. If live
 captures carry no GPS, at-table photo slots cannot self-attribute and item 4's
 cluster backfill (one member's fix covers the session) becomes the design, not
 an optimization.
+
+**Results (owner field run, 2026-08-02, Central Market):**
+- **B1 — library pick, Safari: GPS SURVIVES.** Rated 1h+ later at home; the
+  place row seeded from the restaurant's location, not the owner's.
+- **B3 — library pick, home-screen standalone: GPS SURVIVES** (same as B1).
+- **B2 — in-app live capture: INVALID AS RUN, and unanswerable on that path.**
+  The photo went into a to-rate PICK's photo slot, which (a) shows the session's
+  fixed restaurant and never runs the nearby guess (pickPlaceContext, by
+  design), and (b) never reads EXIF at all — addPickPhoto normalizes first
+  (canvas re-encode strips metadata) and /api/dishes/photo stores only the URL.
+  The at-table photo SLOT therefore cannot self-attribute REGARDLESS of what
+  iOS does — item 4's cluster backfill is the design for slot photos, settled.
+  What B2 still has to answer is the narrower question: does an in-app 拍照
+  capture through the LOG PILL (the album flow, where readPhotoMeta reads the
+  original file) carry GPS? **Retest:** log-pill 拍照 at any restaurant with
+  location on, rate immediately (fine — dishes.lat/lng is written from EXIF
+  only, never from the live-GPS fallback), then open that dish in 食記 →
+  轉餐廳: 「📍這張相片拍攝地點附近」= survived; 「這張相片沒有位置」= stripped.
+- Test A same session: gate correctly refused to auto-set (real place 一起食堂
+  is on neither Places nor Dishi); the confirm chip misfired on a distant
+  namesake → fixed same day, see item 1's amendment in DECISIONS.md.
 
 ## 3. Identity-constrained vision naming — match before guessing *(Fable; R&D, above the ~50% bar only where a menu exists)*
 
@@ -1028,6 +1049,20 @@ conflicts) and one-question-max-per-rating-moment:
   photo to a menu-named item.
 - The execution slider (already backlogged) quietly doubles as identity
   confirmation across venues.
+
+## 6. Album auto-confirm persists the nearest shop with no confidence gate *(needs an owner decision — field evidence 2026-08-02)*
+
+Field-caught alongside item 2: the album rating flow auto-confirmed AND persisted
+三多麵食 (98m away) for a dish eaten at 一起食堂, a place on no source. RatingStack's
+loadNearby takes the nearest row unconditionally ("auto-confirm + persist the
+nearest (correctable)") — the same nearest-wins rule the TABLE gate was explicitly
+built to reject, writing wrong attribution silently at any distance. The
+conservative philosophy (tableRestaurant.ts: wrong is worse than blank) hasn't
+been applied here. Decision needed: adopt the same AUTO_RADIUS_M/AUTO_MARGIN_M
+gate for album auto-confirm (leave the chips offered, just don't pre-pick), or a
+looser album-specific threshold, or keep nearest-wins because album correction
+friction is lower. Do-not-destabilize applies: whatever changes must leave the
+chips themselves untouched.
 
 ## Sequencing (settled with the analysis, 2026-08-01)
 

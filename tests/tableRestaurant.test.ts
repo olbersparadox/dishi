@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  decideSessionRestaurant, AUTO_RADIUS_M, AUTO_MARGIN_M, NearbyCandidate,
+  decideSessionRestaurant, offerableGuessHit, AUTO_RADIUS_M, AUTO_MARGIN_M, NearbyCandidate,
 } from '../src/lib/tableRestaurant';
 
 function dishi(name: string, distance_m: number | null): NearbyCandidate {
@@ -143,5 +143,40 @@ describe('decideSessionRestaurant — printed-name refinement', () => {
       expect(decideSessionRestaurant(shape, null)).toEqual(decideSessionRestaurant(shape));
       expect(decideSessionRestaurant(shape, '完全無關的名')).toEqual(decideSessionRestaurant(shape));
     }
+  });
+});
+
+// The confirm chip's own gate (offerableGuessHit), added after the first field pass
+// (owner, 2026-08-02, Central Market): the text search is biased to ~1km, and a
+// menu whose printed brand matched a DISTANT namesake produced a chip inviting
+// exactly the wrong attribution. Name is necessary but not sufficient; the hit must
+// also plausibly be the building you're sitting in.
+describe('offerableGuessHit — the confirm chip distance gate', () => {
+  const origin = { lat: 22.2819, lng: 114.1582 };
+  // ~0.00135 degrees latitude ≈ 150m; build hits by metres north of origin.
+  const at = (name: string, metersNorth: number, name_zh: string | null = null) =>
+    ({ name, name_zh, lat: origin.lat + metersNorth / 111_320, lng: origin.lng, place_id: `pl-${name}-${metersNorth}` });
+
+  it('refuses a matching namesake outside SUGGEST_RADIUS_M — the Central Market case', () => {
+    expect(offerableGuessHit([at('Kowloon Noodles', 800)], origin, 'Kowloon Noodles')).toBeNull();
+  });
+
+  it('offers a matching hit within range', () => {
+    const hit = at('Kowloon Noodles', 90);
+    expect(offerableGuessHit([hit], origin, 'Kowloon Noodles')).toBe(hit);
+  });
+
+  it('skips a nearer NON-matching hit to find the near match', () => {
+    const match = at('翠華餐廳', 60);
+    expect(offerableGuessHit([at('麥當勞', 20), match], origin, '翠華')).toBe(match);
+  });
+
+  it('a far match does not shadow a later near one', () => {
+    const near = at('翠華餐廳', 100);
+    expect(offerableGuessHit([at('翠華餐廳', 900), near], origin, '翠華')).toBe(near);
+  });
+
+  it('returns null when nothing both matches and is near', () => {
+    expect(offerableGuessHit([at('麥當勞', 30), at('翠華餐廳', 700)], origin, '翠華')).toBeNull();
   });
 });

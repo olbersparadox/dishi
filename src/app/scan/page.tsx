@@ -27,7 +27,7 @@ import TableSettle from '@/components/TableSettle';
 import { sumPrices } from '@/lib/price';
 import { CameraIcon, MenuBookIcon, ArrowRightIcon, CloseIcon, LeaveIcon } from '@/components/icons';
 import { sameDishInSession, restaurantKeptNote } from '@/lib/menuMerge';
-import { namesMatch, namesContainmentRelated } from '@/lib/restaurant';
+import { offerableGuessHit } from '@/lib/tableRestaurant';
 import { getScanSession, setScanSession, clearScanSession } from '@/lib/scanSession';
 import { useLang, menuLanguageToCode, languageLabel, hasNonChineseScript, foreignMenuSecondary, scanPresetPair } from '@/lib/i18n';
 import { useScanPreset } from '@/lib/scanPreset';
@@ -263,10 +263,13 @@ function Scanner() {
       try {
         const res = await fetch(`/api/restaurants/search?q=${encodeURIComponent(guess)}&lat=${c.lat}&lng=${c.lng}&lang=${lang}`);
         const json = await res.json();
-        const top = (json.restaurants ?? [])[0];
-        // Only offer a place that actually bears the scanned name — a loose text
-        // hit is a guess about a guess, and this chip must never be one.
-        if (top && (namesMatch(guess, top) || namesContainmentRelated(guess, top))) {
+        // Only offer a place that bears the scanned name AND sits within
+        // SUGGEST_RADIUS_M — the search is biased to ~1km, and on day one it
+        // returned a distant namesake for a food-hall menu (owner, 2026-08-02);
+        // name alone made the chip an invitation to the wrong tap.
+        const hits: { name: string; name_zh?: string | null; lat: number; lng: number; place_id?: string; address?: string | null }[] = json.restaurants ?? [];
+        const top = offerableGuessHit(hits, c, guess);
+        if (top) {
           setGuessOffer({
             name: lang === 'zh' ? (top.name_zh ?? top.name) : top.name,
             choice: { kind: 'new', name: top.name, lat: top.lat, lng: top.lng, place_id: top.place_id, address: top.address ?? undefined },

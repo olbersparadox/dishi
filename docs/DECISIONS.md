@@ -4907,3 +4907,22 @@ rating overlay opening) retire it. Step 4 needed no code: the endowment
 No new CSS — the design-review rule holds; chassis is .rate-sheet, .card,
 .ok-circle, .persona-dots as they exist. Owner field pass (real fresh account,
 real camera roll) pending per the stability rule.
+
+### Amendment — first field pass + the chip distance gate (2026-08-02)
+
+Owner field-ran item 1 at Central Market (一起食堂, a food hall on neither Places
+nor Dishi; menu's printed brand read as "Kowloon Noodles"). The auto-set gate held:
+nothing adopted, correctly — the kill criterion did not fire. But the confirm chip
+misfired: the text search (biased to ~1km) returned a DISTANT namesake, and the
+chip offered 在Kowloon noodles嗎？ for a place that wasn't the building the owner
+sat in. Name alone made the chip an invitation to the wrong tap — the failure just
+moved from silent auto-set to prompted human error.
+
+Fixed same day: offerableGuessHit (tableRestaurant.ts) now requires the hit to
+BEAR the scanned name AND sit within SUGGEST_RADIUS_M (150m) of the table — looser
+than AUTO_RADIUS_M because a human confirms, bounded because of exactly this case.
+150m tolerates the wobble observed in the same session (a fix 98m off inside one
+building) while refusing the cross-neighborhood namesake. Scans among the first
+five hits, not just the top one. Mutation-tested: removing the distance check
+fails 3 tests. The fixed chip behaviour awaits its own field confirmation before
+item 3 starts.

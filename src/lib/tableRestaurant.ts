@@ -34,6 +34,7 @@
 // without the name. It never extends the radius — a name match outside
 // AUTO_RADIUS_M is the client confirm chip's job, where a human decides.
 import { namesMatch, namesContainmentRelated } from './restaurant';
+import { haversineMeters } from './places';
 
 /** A nearby candidate, from either source the picker already merges (see
  * /api/restaurants/nearby): Dishi's own restaurants, which may already carry
@@ -62,6 +63,34 @@ export const AUTO_RADIUS_M = 60;
  * rather than as two guesses. Set above GPS's own wobble on purpose: below this
  * the ordering is noise, not signal. */
 export const AUTO_MARGIN_M = 35;
+
+/** How far a by-name text-search hit may sit from the table and still be offered
+ * as the confirm chip. Looser than AUTO_RADIUS_M because a human confirms it —
+ * but bounded, because the text search is biased to a ~1km radius and a NAMESAKE
+ * anywhere in that circle would otherwise be offered as "the place you're
+ * sitting". Field-caught on day one (owner, 2026-08-02, Central Market): the
+ * menu's printed brand matched a Places result that was not the food hall the
+ * owner was sitting in, and the chip invited exactly the wrong tap. 150m
+ * tolerates the wobble seen in that same session (a fix 98m off inside one
+ * building) while refusing the cross-neighborhood namesake. */
+export const SUGGEST_RADIUS_M = 150;
+
+/** Pick which text-search hit (if any) the scan page may offer as the printed-name
+ * confirm chip: the first that BEARS the scanned name and sits within
+ * SUGGEST_RADIUS_M of the table. Name alone is not enough — see SUGGEST_RADIUS_M —
+ * and distance alone is the nearby list's job, not this chip's. */
+export function offerableGuessHit<T extends { name: string; name_zh?: string | null; lat: number; lng: number }>(
+  hits: T[],
+  origin: { lat: number; lng: number },
+  printedName: string,
+): T | null {
+  for (const h of hits) {
+    if (!(namesMatch(printedName, h) || namesContainmentRelated(printedName, h))) continue;
+    if (haversineMeters(origin.lat, origin.lng, h.lat, h.lng) > SUGGEST_RADIUS_M) continue;
+    return h;
+  }
+  return null;
+}
 
 export type RestaurantVerdict =
   /** Confident enough to attach with no interaction at all. */
