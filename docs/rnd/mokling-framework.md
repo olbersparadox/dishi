@@ -185,12 +185,21 @@ sub-node mix, never random:
 
 | family | variants by sub-node | example |
 |---|---|---|
-| legs | 牛 thick pillar / 豬 round stub / 雞 thin spring | a beef-heavy land being stands differently from a pork-heavy one |
-| claws | 蝦 fine pincers / 蟹 wide flat / 龍蝦 one big asymmetric | crab-vs-lobster is visible, not just "crustacean" |
+| legs | 牛 thick pillar on a cleft hoof / 豬 shorter, softer, small trotter / 雞 thin backward knee, three splayed toes | a beef-heavy land being stands differently from a pork-heavy one — **built, lab v5** |
+| claws | 龍蝦 long arm, one oversized claw, narrow gape / 蟹 short arm, broad flat claw, wide gape / 蝦 fine thin pincers | crab-vs-lobster is visible, not just "crustacean" — **built, lab v5** |
 | fins/tail | 魚 tail sweep / flat fin pairs | |
-| tendrils | 軟體 trailing strands | shipped in lab v3 |
+| tendrils | 軟體 trailing strands | built, lab v3 |
 | wings | 雞 short flutter fans / 鴨鵝 long glide strokes | |
-| fronds | 田 leaf/stem gestures | |
+| fronds | 田 leaf/stem gestures | built, lab v4 |
+
+**The blend rule (lab v5, learned by building it):** limb GEOMETRY blends
+continuously with the sub-node mix, so a crab-and-lobster eater gets a true
+in-between arm; but the TERMINAL DETAIL — hoof cleft, trotter, toes, pincer
+shape — takes the dominant sub-node, because a blended foot at thumbnail size
+is mud, not nuance. Two other tuning facts worth keeping: limbs are part of
+the silhouette, so the body radius had to shrink (×1.12, not ×1.35) for the
+whole animal to sit in frame; and claws must attach LOW on the flank and angle
+forward-down, or they read as ears rather than arms.
 
 **性 temperament** (extends the 姿 motion register — the owner's
 calm-vs-aggressive axis). Temperament is a motion-parameter vector (energy,
