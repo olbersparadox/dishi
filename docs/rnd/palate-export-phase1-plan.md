@@ -303,6 +303,49 @@ Protocol note: the Claude cell's scores stand — ADOPT measures faithful
 transmission of the MEASURED palate, and transmission was faithful. This
 finding is about calibration of the measurement, one layer up.
 
+### Scope finding (owner question, 2026-08-02): the container holds USE well
+### and starves LOOP, because LOOP's best moment happens OUTSIDE the container
+
+Everything measured in the Claude cell happened inside the Project. A Project's
+instructions scope to that Project's conversations — outside it, the doc is not
+in context and the palate does not exist. That is not a bug and not fixable by
+wording: it is what a named container IS, and Phase 0 already struck the
+alternative (bare-name summon, §3 — saying "dishi" in a conversation without
+the doc, to resurrect it, died to name collision and memory compression).
+
+The two halves of the aim are affected very differently, and the asymmetry is
+the finding:
+
+- **USE survives scoping intact.** Wanting food advice is a deliberate act, so
+  the user goes to the container on purpose. The 5/5 cell is a fair measure of
+  USE as shipped.
+- **LOOP is measured where it matters least.** The rate-reminder's best moment
+  is a meal mentioned *in passing* — P3's "just had a great laksa at lunch" is
+  a remark someone drops into whatever conversation they are already in, not a
+  message they open a food Project to send. Inside the container, the reminder
+  reaches someone already thinking about Dishi; the person who needs prompting
+  is the one who never opened it. **LOOP scored 2/2 in the one place where
+  firing it is closest to redundant.**
+
+So the flywheel's growth half is structurally throttled by the placement that
+makes its quality half work. This does not retract the cell — LOOP passed on
+its own terms, and a reminder that fires correctly is still better than one
+that does not — but it re-prices the hypotheses:
+
+**H1c (custom-instructions / personalization slot) is promoted to the highest-
+value untested item in the phase.** It is the only measured-plausible placement
+with GLOBAL reach: a profile-preferences / custom-instructions / saved-info slot
+applies to every conversation, so a meal mentioned anywhere could fire the loop.
+H1b (memory) is not a substitute — Phase 0 measured facts retained and BEHAVIOUR
+dropped, and the loop is behaviour.
+
+The known blocker is size: the shipped doc is ~6k chars and personalization
+slots are short, so H1c almost certainly requires **R3 (condensed variant —
+headline identity, top anchors, epistemic line, loop rules, nothing else)**.
+That makes R3 no longer a speculative lever but the prerequisite for testing
+the phase's most valuable placement. Sequence: R5 (confirmed defect) → R3
+(condensed build) → H1c cell → then a second install host for H2/R4 closure.
+
 ## Results log (append per run)
 
 | date | host | placement | doc version | score | notes |
