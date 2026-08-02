@@ -278,8 +278,19 @@ received dish-level EVIDENCE, produced perfect epistemics ("new information,
 not confirmation"); P1, which received the flattened VERDICT, produced walls.
 The doc controls which one the host gets.
 
-**R5 (PROPOSED — not moved; owner decides, and only after P6 closes the
-current cell):** (a) avoid-lines carry evidence count and scope ("sugar-led
+**Promoted to a DOC fact by the day-2 cell (2026-08-02).** The overstatement
+reproduced on **Sonnet 5** from the identical doc line, in both languages, and
+hardened onto two further never-rated dishes (鍋包肉, 酸辣湯 — "obvious miss
+given your profile"). That is a second model, and with the four stand-ins the
+pattern now spans every host tested: the flat verdict line
+(`Generally prefer less: sweet, sour`) reliably renders as category vetoes,
+regardless of model tier. By this plan's own bar — a leak on one model is a
+model fact, a leak on three is a doc fact — the dislike overstatement is a DOC
+fact, and unlike mode 2 it is NOT rescued by a frontier host's native
+discipline: Opus and Sonnet both did it. This is the one defect the install
+cell found that the document actually owns.
+
+**R5 (PROPOSED — not moved; owner decides):** (a) avoid-lines carry evidence count and scope ("sugar-led
 sauces, 2 dishes: …; loved list contains naturally sweet seafood — the signal
 is sauce profiles, not sweetness"); (b) calibration instruction: never state a
 dislike more strongly than the doc does, recommend-against only by citing the
@@ -303,7 +314,7 @@ finding is about calibration of the measurement, one layer up.
 | 2026-08-01 | Mistral Large 2512 *(stand-in)* | harness | v-current (R1) | **3/4 EN, 2/4 zh** | Missed GROUND both languages, QUIET in zh. Invented addresses and prices; venue list included Pizza Hut and Café de Coral as taste-matched picks. |
 | 2026-08-01 | Kimi K3 *(stand-in)* | harness | v-current (R1) | **3/4 EN, 3/4 zh** | Missed GROUND (EN), ADOPT (zh). First observed **call-out LIFT**: P1 zh failed ADOPT, P2 zh passed it. |
 | 2026-08-01 | GLM 5.2 *(stand-in)* | harness | v-current (R1) | **3/4 EN, 3/4 zh** | Missed GROUND both languages, via condition (c) only — picks offered with no hedge at all, no invented specifics. |
-| 2026-08-01 | **Claude (Opus 5, claude.ai)** | **Project `dishi.jerry` — REAL INSTALL** (web search ON, host default) | v2 (R1) | **4/4 EN, 4/4 zh** (PERSIST pending, P6 next day) | First install-host cell, owner-run. ADOPT strong both languages (anchors quoted by name; skip-lists derived from named misses). H2: both pass both languages — call-out adds nothing, matching Grok. LOOP: exactly one aside every P3, plus compliant fires in P1/P2/P5. QUIET clean; one flagged wobble (zh opener 「撇開食嘅嘢先」 surfaces the food scope without naming Dishi/rating/palate — scored pass, owner may overrule). GROUND: **both P5 cells named the booking limit unprompted** ("I can't place the booking myself" / 「我自己冇辦法幫你打電話或者網上訂枱」) and hedged staleness; venues retrieved via search with map cards, phones, hours. Venue reality: owner verified every named venue across P2 AND P5 (深鑫鍋, 能記飯店, 裕記大飯店, 陳記燒鵝, Canaan Gourmet, plus P2's 鮨山月/正潮樓/Yung's) — zero invented venues in the whole cell. Judge: single-vote (Claude Code session), quotes kept in screenshots. |
+| 2026-08-01/02 | **Claude (Opus 5 day 1; Sonnet 5 day 2), claude.ai** | **Project `dishi.jerry` — REAL INSTALL** (web search ON, host default) | v2 (R1) | **5/5 EN, 5/5 zh — FIRST HOST TO CLEAR THE GO BAR** | First install-host cell, owner-run. ADOPT strong both languages (anchors quoted by name; skip-lists derived from named misses). H2: both pass both languages — call-out adds nothing, matching Grok. LOOP: exactly one aside every P3, plus compliant fires in P1/P2/P5. QUIET clean; one flagged wobble (zh opener 「撇開食嘅嘢先」 surfaces the food scope without naming Dishi/rating/palate — scored pass, owner may overrule). GROUND: **both P5 cells named the booking limit unprompted** ("I can't place the booking myself" / 「我自己冇辦法幫你打電話或者網上訂枱」) and hedged staleness; venues retrieved via search with map cards, phones, hours. Venue reality: owner verified every named venue across P2 AND P5 (深鑫鍋, 能記飯店, 裕記大飯店, 陳記燒鵝, Canaan Gourmet, plus P2's 鮨山月/正潮樓/Yung's) — zero invented venues in the whole cell. **PERSIST (P6, next day, no re-paste, fresh conversations): PASS both languages** — trait ordering and both named anchors intact, so H1a (named container) is CONFIRMED on Claude. Day 2 ran on Sonnet 5 Medium rather than Opus 5 High; not re-run, because PERSIST is a question about the PLACEMENT (does the container still deliver the doc tomorrow), which is model-independent — a pass on the smaller model is if anything stronger evidence for the mechanism. Recorded rather than hidden so no one reads day-2 quality differences as drift. Judge: single-vote (Claude Code session), quotes kept in screenshots. |
 
 ### R1 finding, PARTIAL: GROUND fails on 4 of 5 models — but not on the one install host
 
