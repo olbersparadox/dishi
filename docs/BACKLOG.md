@@ -1002,6 +1002,20 @@ own words, not a paraphrase). Two independent layers:
 - **3a (cheap, do first):** pass locale context ("taken in Kwai Fong, Hong
   Kong") even with no menu — activates regional dish vocabulary. Measure on the
   owner's own album backlog before judging.
+- **Field evidence (owner, 2026-08-02, first real session):** the exact miss
+  this item exists for, end to end. The owner scanned 一起食堂's menu (KE7KK,
+  和風牛肉烏龍麵 among the items), then photographed that very dish; the album
+  flow's vision guessed 豚骨拉麵/"pork ramen" from pixels alone, and the owner
+  had to type the correct name BY COPYING IT OFF THE MENU THEY HAD ALREADY
+  SCANNED an hour earlier. The right name sat in the DB; EXIF placed the photo
+  ~100m from the scan's coords within ~2h; nothing joined them. Two design
+  constraints this run adds: (1) the shortlist source can't be only the
+  restaurant's identities — the restaurant may not exist yet (一起食堂 didn't);
+  RECENT NEARBY SCAN SESSIONS (coords + recency window on table_sessions'
+  menu_items) must be a shortlist source too. (2) Match on the zh name — the
+  menu's verbatim truth — not the English: the same menu paired 和風牛肉烏龍麵
+  with "Pork Belly Noodles" (loose printed English or a scan mistranslation;
+  unverified which), so menu English is not reliable as a match key.
 - **3b (the real one):** the constrained match. Success probability high
   (~75%+) where the restaurant has identities, unchanged accuracy where it
   doesn't — the ceiling grows with scan density by design. Never blocks: the
