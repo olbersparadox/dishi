@@ -77,8 +77,28 @@ fish-vs-lobster live, and it activates node-by-node as data proves out):
   - 羊 lamb and others as evidence justifies
 - 羽 air (poultry, duck/goose) — slim body, lateral wing fans
 - 田 field (vegetable, tofu) — frond/stem gestures, upward growth
+  - 葉 leafy greens → rising frond curves, light sway
+  - 根 roots (potato, carrot, lotus) → stout grounded base, earthy weight
+  - 豆 tofu/legume → soft rounded masses, clean edges
+  - 花 herbs/aromatics at extreme evidence → small blossom flourish (earned
+    rare trait candidate)
+- 菌 fungus (mushroom — 冬菇/金菇/蠔菇 already in the ingredient glossary) —
+  cap-and-stem dome gestures, gill striations; a mushroom-heavy vegetarian
+  reads differently from a leafy one
+- 藻 sea-plants (seaweed, nori, kelp — detectable in ingredients) — ribbon
+  strands, the sea-field hybrid; a sushi-heavy palate earns these alongside 魚
 - 榖 base (rice/noodle/congee/bread) — probably 膚-register texture rather
   than anatomy; decide in phase 2
+- 蟲 insect — the node EXISTS in the tree (arthropod gestures: antennae,
+  segment plates, carapace sheen) but its detector has no HK data to run on
+  today; it activates the day insect dishes actually appear in someone's
+  ratings (fried crickets in Yunnan or Bangkok travel logs), and not before.
+  Nature is the reference library, food reality is the admission ticket.
+
+A vegetarian is not a missing case — a 田-born being with 葉/根/豆/菌 depth is
+one of the RICHEST body plans in the tree (fronds + stout base + soft masses +
+cap domes all composing), which matters: no diet may map to a visibly poorer
+creature.
 
 Rules that make the tree honest and legible:
 
