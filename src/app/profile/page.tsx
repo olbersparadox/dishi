@@ -4,14 +4,12 @@ import { useRouter } from 'next/navigation';
 import AuthGate from '@/components/AuthGate';
 import { supabaseBrowser } from '@/lib/supabase/client';
 import TasteFormCard, { TasteCardSkeleton } from '@/components/TasteFormCard';
-import DishName from '@/components/DishName';
-import SealStamp from '@/components/SealStamp';
 import { type SealResult } from '@/components/SealRevealBadge';
 import RatedDishRow from '@/components/RatedDishRow';
 import ExplainModal from '@/components/ExplainModal';
 import type { ExportDish } from '@/lib/tasteExport';
-import { RateIcon, TrashIcon, UtensilsIcon, HomeIcon, PhotoIcon } from '@/components/icons';
-import PickCardThumb from '@/components/PickCardThumb';
+import { UtensilsIcon, HomeIcon, PhotoIcon } from '@/components/icons';
+import PickCard from '@/components/PickCard';
 import { normalizePhoto } from '@/lib/image';
 import RatingStack, { type ExistingPick } from '@/components/RatingStack';
 import Onboarding from '@/components/Onboarding';
@@ -53,6 +51,12 @@ type ToRate = {
   // growth card as fixed display instead of being re-guessed (pickContext.ts).
   photo_url: string | null; lat: number | null; lng: number | null;
   restaurant_id: string | null; restaurant_name_zh: string | null;
+  /** False for a dish a TABLE-MATE picked and this person also ate. The row is
+   *  theirs; rating it is ours. Everything the database refuses a non-owner
+   *  (rename, delete, photo) is gated on this so nothing dead is offered. */
+  mine?: boolean;
+  /** Their name, when the row isn't ours. Null if they have no name yet. */
+  picked_by?: string | null;
 };
 
 /** Rated rows as the API returns them — kept whole (ids + identity links)
@@ -372,40 +376,20 @@ function TasteProfile() {
         <div id="to-rate" style={{ marginBottom: 16 }}>
           <h3 style={{ marginBottom: 2 }}>{t('log.toRate')}</h3>
           {toRate.map(p => (
-            <div key={p.id} className="pick-card">
-              <PickCardThumb photoUrl={p.photo_url} uploading={photoUploadingId === p.id}
-                onPick={file => addPickPhoto(p.id, file)} />
-              <div className="pick-card-info">
-                <div className="pick-card-name">
-                <DishName id={p.id} name={p.name} name_zh={p.name_zh}
-                  suffix={sealedIds.has(p.id) && <SealStamp />} />
-              </div>
-                <div className="pick-card-meta">{p.restaurant ?? t('home.homecooking')}</div>
-              </div>
-              {/* Rate AND delete. A pick you no longer want was previously stuck in
-                  this queue forever with no way out but rating it — which would have
-                  taught the engine from a dish you never actually ate. */}
-              <div className="pick-card-actions">
-                {/* Same flick → growth flow as an album batch (it used to bounce out to
-                    the old single-dish /log page). Nothing is created here, so the
-                    session can never delete this pick — see RatingStack.picksMode. */}
-                <button className="icon-btn lg rate" onClick={() => setRatePick({
-                  dishId: p.id, photoUrl: p.photo_url ?? null,
-                  name: p.name, name_zh: p.name_zh,
-                  coords: p.lat != null && p.lng != null ? { lat: p.lat, lng: p.lng } : null,
-                  restaurant: p.restaurant_id
-                    ? { id: p.restaurant_id, name: p.restaurant ?? '', name_zh: p.restaurant_name_zh }
-                    : null,
-                })}
-                  aria-label={t('log.rateNow')} title={t('log.rateNow')}>
-                  <RateIcon size={20} />
-                </button>
-                <button className="icon-btn lg delete" onClick={() => removePick(p.id)}
-                  aria-label={t('home.delete')} title={t('home.delete')}>
-                  <TrashIcon size={20} />
-                </button>
-              </div>
-            </div>
+            <PickCard key={p.id} dish={p}
+              sealed={sealedIds.has(p.id)}
+              uploading={photoUploadingId === p.id}
+              onAddPhoto={file => addPickPhoto(p.id, file)}
+              onDelete={() => removePick(p.id)}
+              onRate={() => setRatePick({
+                dishId: p.id, photoUrl: p.photo_url ?? null,
+                name: p.name, name_zh: p.name_zh,
+                coords: p.lat != null && p.lng != null ? { lat: p.lat, lng: p.lng } : null,
+                restaurant: p.restaurant_id
+                  ? { id: p.restaurant_id, name: p.restaurant ?? '', name_zh: p.restaurant_name_zh }
+                  : null,
+                mine: p.mine,
+              })} />
           ))}
         </div>
       )}

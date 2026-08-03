@@ -61,6 +61,11 @@ export type GrowDish = {
   /** A typed "+ 加間舖" couldn't be saved (no position available, or the write failed) —
    *  shown rather than silently dropping what the person typed. */
   placeError?: boolean;
+  /** The dish row belongs to a TABLE-MATE (their pick, food we shared). The name
+   *  reads as settled fact — no rename tile — exactly as placeFixed does for the
+   *  restaurant, and for the same reason: an affordance whose write the database
+   *  would refuse is worse than no affordance. Rating it is still ours. */
+  nameFixed?: boolean;
   // Bumped by RatingStack when a REAL post-rename re-derivation lands (or fails —
   // always bumped, so the re-analysing state can't stick). Drives the chip
   // out→in animation on DATA, replacing the old 720ms timer simulation.
@@ -473,9 +478,14 @@ export default function TasteGrowth({ live, engine, blobInputs, onExit, onCancel
                         </div>
                       // The name is a "refine" tile — a rounded rectangle (like the thumb),
                       // gently breathing so it reads as tap-to-change. One language is enough.
-                      : <button className="refine-pill refine-name" onClick={() => startEdit(i)} aria-label={t('grow.rename')}>
-                          <DishName name={p.en} name_zh={p.zh} size="md" />
-                        </button>}
+                      : it.nameFixed
+                        // Someone else's row — the same "settled fact" treatment
+                        // .learn-place gives a known restaurant, not a tile that
+                        // invites an edit the database refuses.
+                        ? <DishName name={p.en} name_zh={p.zh} size="md" />
+                        : <button className="refine-pill refine-name" onClick={() => startEdit(i)} aria-label={t('grow.rename')}>
+                            <DishName name={p.en} name_zh={p.zh} size="md" />
+                          </button>}
                   {/* The broken seal, stamped beside the name tile it belongs to.
                       Hidden while the name editor is open — the editor takes the
                       whole head, and a verdict floating next to two input fields

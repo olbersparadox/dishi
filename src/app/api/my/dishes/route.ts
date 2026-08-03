@@ -7,11 +7,27 @@ import { replayProfile } from '@/lib/replay';
 import { resolveOrCreateRestaurant } from '@/lib/restaurant';
 import { directionOf } from '@/lib/seal';
 import { resolveAndStoreCanonicalDish } from '@/lib/dishCanonical';
+import { memberName } from '@/lib/memberName';
 
 // The PATCH rename cascade runs reanalyzeAnchored (a vision call, ~15-20s) BEFORE it
 // writes the row, so the default ~10s window killed the function before the update
 // landed — the rename silently didn't persist. Match the other vision routes.
 export const maxDuration = 60;
+
+/** How long a table-mate's dish stays on offer in your rating queue.
+ *
+ * ONE DAY, and the tightness is deliberate. Your own picks are a debt you keep
+ * however long they sit; a table-mate's dish is an invitation about the meal you
+ * just ate, and an invitation that piles up is a chore list. Measured against
+ * live data while wiring this: a week-long window pulled in 44 dishes from ~20
+ * past sessions and buried the two-dish meal that prompted the whole fix. A day
+ * covers the real rating moment — the couch, that evening, which is the same
+ * EXIF-first thesis the album flow rests on — and nothing beyond it.
+ *
+ * The cost, stated because it is real: two shared meals more than a day apart
+ * means the earlier table's dishes are gone from the queue before you rate them.
+ * Widen this, or key it to the most recent session instead, if that bites. */
+const TABLEMATE_WINDOW_HOURS = 24;
 
 /**
  * The caller's own logged dishes, for the feed's "my dishes" section.
@@ -35,19 +51,58 @@ export async function GET(req: NextRequest) {
   // dish) the user hasn't rated yet. No hearts/lock computation needed here — an
   // unrated dish is never locked, and hearts on it aren't relevant to "rate this."
   if (req.nextUrl.searchParams.get('unrated') === '1') {
-    const { data: mine } = await supabase
-      .from('dishes')
-      // photo_url + coords: the queued pick is now rated through the SAME flick →
-      // growth flow as an album batch, so its card needs the photo (when it has one)
-      // and its coords need to seed the nearby-restaurant refine. restaurant_id +
-      // both restaurant names: a scan/table pick KNOWS its restaurant — the growth
-      // card renders it as fixed context instead of re-guessing (pickContext.ts).
-      .select('id, name, name_zh, cuisine, photo_url, lat, lng, source, created_at, restaurant_id, restaurants(name, name_zh)')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(30);
+    // photo_url + coords: the queued pick is now rated through the SAME flick →
+    // growth flow as an album batch, so its card needs the photo (when it has one)
+    // and its coords need to seed the nearby-restaurant refine. restaurant_id +
+    // both restaurant names: a scan/table pick KNOWS its restaurant — the growth
+    // card renders it as fixed context instead of re-guessing (pickContext.ts).
+    const COLS = 'id, user_id, name, name_zh, cuisine, photo_url, lat, lng, source, created_at, restaurant_id, restaurants(name, name_zh)';
 
-    const ids = (mine ?? []).map(d => d.id);
+    // A SHARED TABLE'S DISHES BELONG TO EVERYONE WHO ATE THEM (owner, field
+    // session 2026-08-03). A table of two picked two dishes and each phone
+    // showed one, because a pick creates a dish row owned by whoever tapped it.
+    // But a HK table shares its food — the bill this screen just split divided
+    // BOTH dishes evenly over BOTH people — so each member ate both, and
+    // 去評分 ("rate what you ate") has to mean the table's food, not your
+    // tapping history.
+    //
+    // The other members' dishes are surfaced as THE SAME ROWS, never copied
+    // per-member. ratings is unique(user_id, dish_id) precisely so several
+    // people can rate one dish, and is_dish_locked already reasons about
+    // "someone OTHER than the owner has rated this". Fanning out a row per
+    // member would instead fragment the dish-level demand data the whole
+    // identity ladder exists to unify — one 魚湯海斑米線 with two ratings is
+    // the asset; two near-identical rows with one each is the bug.
+    const { data: memberships } = await supabase
+      .from('table_members').select('session_id').eq('user_id', user.id);
+    const sessionIds = Array.from(new Set((memberships ?? []).map((m: any) => m.session_id))).filter(Boolean);
+
+    const [{ data: mine }, { data: tablemates }] = await Promise.all([
+      supabase.from('dishes').select(COLS)
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(30),
+      // profiles: whose pick it was, so the card can say so rather than
+      // presenting a stranger's dish as one you logged and forgot.
+      sessionIds.length
+        ? supabase.from('dishes').select(`${COLS}, profiles(display_name, username_display, handle)`)
+            .in('table_session_id', sessionIds)
+            .neq('user_id', user.id)
+            // Bounded, unlike your own picks — see TABLEMATE_WINDOW_HOURS for
+            // why the asymmetry is the point. Without it this change back-fills
+            // every table you have ever sat at.
+            .gte('created_at', new Date(Date.now() - TABLEMATE_WINDOW_HOURS * 3_600_000).toISOString())
+            .order('created_at', { ascending: false })
+            .limit(30)
+        : Promise.resolve({ data: [] as any[] }),
+    ]);
+
+    // Newest first across BOTH sources — a table-mate's pick from ten minutes
+    // ago belongs above your own from last week, not in a second section.
+    const all = [...(mine ?? []), ...(tablemates ?? [])]
+      .sort((a: any, b: any) => (a.created_at < b.created_at ? 1 : -1));
+
+    const ids = all.map((d: any) => d.id);
     let rated = new Set<string>();
     if (ids.length) {
       const { data: myRatings } = await supabase
@@ -56,14 +111,24 @@ export async function GET(req: NextRequest) {
     }
 
     return NextResponse.json({
-      dishes: (mine ?? [])
-        .filter(d => !rated.has(d.id))
+      dishes: all
+        .filter((d: any) => !rated.has(d.id))
         .map((d: any) => ({
           id: d.id, name: d.name, name_zh: d.name_zh, cuisine: d.cuisine,
           photo_url: d.photo_url ?? null, lat: d.lat ?? null, lng: d.lng ?? null,
           source: d.source, restaurant: d.restaurants?.name ?? null,
           restaurant_id: d.restaurant_id ?? null,
           restaurant_name_zh: d.restaurants?.name_zh ?? null,
+          // Everything the client must NOT offer on someone else's row hangs off
+          // this one flag. The database already refuses the writes (dishes'
+          // update/delete policies are auth.uid() = user_id); this exists so the
+          // UI never offers a control that would silently do nothing.
+          mine: d.user_id === user.id,
+          // memberName's own ladder (display_name > username_display > handle),
+          // not a second copy of it. Empty rather than its 'someone' fallback:
+          // this route has no language, and a nameless table-mate is better left
+          // unnamed than labelled in the wrong one.
+          picked_by: d.user_id === user.id ? null : (memberName(d.profiles, '') || null),
         })),
     });
   }

@@ -247,6 +247,9 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'daily.title': { zh: '今日互動', en: 'Today' },
   'log.toRate': { zh: '待評菜式', en: 'Dishes to rate' },
   'log.rateNow': { zh: '而家評', en: 'Rate now' },
+  // Credit on a table-mate's pick in 待評菜式. Whose TAP it was, not whose food:
+  // a shared table's dishes are everyone's to rate (see /api/my/dishes?unrated=1).
+  'log.pickedby': { zh: '{name} 揀', en: 'picked by {name}' },
   'scan.pickcount': { zh: '已選 {n} 道', en: '{n} dishes picked' },
   'table.pickedsofar': { zh: '剛剛選了', en: 'Picked so far' },
   'table.pickbtn': { zh: '揀呢個', en: 'Pick' },

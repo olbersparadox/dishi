@@ -46,6 +46,11 @@ export type ExistingPick = {
    *  with the dish: the growth card shows it fixed, and the nearby guess never runs
    *  (its optimistic persist could overwrite this) — see pickContext.ts. */
   restaurant: PickRestaurant | null;
+  /** False when a TABLE-MATE owns this dish row and we merely ate the food.
+   *  Rating is ours (ratings is unique per user+dish); the NAME is theirs, and
+   *  the dishes update policy is auth.uid() = user_id — so the growth card must
+   *  not offer a rename that the database would drop on the floor. */
+  mine?: boolean;
 };
 
 const freshDish = (url: string | null, score: number): GrowDish => ({
@@ -515,6 +520,8 @@ export default function RatingStack({ photos, picks, userId, onExit }: {
         status: 'ready', dishId: pick.dishId, isDish: true,
         name: pick.name, name_zh: pick.name_zh, coords: pick.coords,
         ...(place.fixed ? { choice: place.choice, placeFixed: true, hasLocation: true } : {}),
+        // A table-mate's row: their name to change, not ours (see ExistingPick).
+        ...(pick.mine === false ? { nameFixed: true } : {}),
       });
       await seal(pick.dishId);
       await rate(pick.dishId, score, { name: pick.name, name_zh: pick.name_zh });
