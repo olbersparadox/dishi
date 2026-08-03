@@ -798,6 +798,12 @@ function Scanner() {
         onCallBid={table.callBid}
         onOpenCups={table.openCups}
         dicePending={table.dicePending}
+        // reset(), not the 離開 confirm the menu screen uses: that sheet asks
+        // because a live scan is the one thing here that can be lost, and by
+        // settle it cannot be — the picks are already dishes in the rating
+        // queue and the session is still rejoinable by its code. Lands on the
+        // fresh scan screen, the same place /table's own leave goes.
+        onLeave={reset}
       />
     );
   }

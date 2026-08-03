@@ -26,7 +26,7 @@ import { useLang } from '@/lib/i18n';
 import { sumPrices } from '@/lib/price';
 import { equalSplit } from '@/lib/tableSettle';
 import { buildSpin, spinIndexAt, revealLineKey, SPIN_MS } from '@/lib/spinReveal';
-import { ArrowRightIcon, DieIcon } from '@/components/icons';
+import { ArrowRightIcon, DieIcon, LeaveIcon } from '@/components/icons';
 import type { Die, Direction } from '@/lib/liarsDice';
 import type { DiceGameView } from '@/lib/tableDice';
 import type { Member } from '@/lib/useTableSession';
@@ -43,7 +43,7 @@ export type SettleDish = {
 export default function TableSettle({
   dishes, members, you, colorFor, payMethod, payerId, onChoose, sessionId = null,
   payDrawCount = 0, game = null, onStartGame, onPickDirection, onCallBid, onOpenCups,
-  dicePending = false,
+  dicePending = false, onLeave,
 }: {
   /** The dishes with at least one stamp — the same live-merged list the cart bar
    *  counted, so the bill can never disagree with the bar that led to it. */
@@ -69,6 +69,14 @@ export default function TableSettle({
   onOpenCups?: () => void;
   /** A 大話骰 move is in flight — the circle that started it says so. */
   dicePending?: boolean;
+  /** The way OUT. This screen replaces the picking list entirely (see the header
+   *  note), so it inherited none of the header controls the menu screens carry —
+   *  which left a settled table with no exit at all except the browser's own back
+   *  button (owner, field session 2026-08-03). The door, not an X: it is the same
+   *  act the menu screens already name with LeaveIcon, and the two must not use
+   *  different glyphs for one thing. Optional so a screen with genuinely nowhere
+   *  to go simply renders no button rather than a dead one. */
+  onLeave?: () => void;
 }) {
   const { t } = useLang();
   // The reveal is dismissed per player, not per table: everyone lifts their cups
@@ -92,7 +100,19 @@ export default function TableSettle({
 
   return (
     <div className="settle">
-      <h1 style={{ margin: 0 }}>{t('table.settle.title')}</h1>
+      {/* Title row, mounting the SAME control the menu screens carry rather than a
+          settle-specific lookalike: identical flex row, identical .icon-btn, the
+          same LeaveIcon at the same 22px, the same t('table.leave') label. */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
+        <h1 style={{ margin: 0 }}>{t('table.settle.title')}</h1>
+        {onLeave && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+            <button className="icon-btn" aria-label={t('table.leave')} title={t('table.leave')} onClick={onLeave}>
+              <LeaveIcon size={22} />
+            </button>
+          </div>
+        )}
+      </div>
       <p className="card-meta" style={{ marginTop: 13, marginBottom: 14 }}>
         {t('table.settle.dishcount', { n: dishes.length })}
       </p>

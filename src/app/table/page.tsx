@@ -385,6 +385,7 @@ function Session({ code, onLeave }: { code: string; onLeave: () => void }) {
         onCallBid={callBid}
         onOpenCups={openCups}
         dicePending={dicePending}
+        onLeave={onLeave}
       />
     );
   }
