@@ -427,6 +427,7 @@ export async function PATCH(req: NextRequest) {
     let rederived: {
       attributes: Record<string, number>; cuisine: string;
       diet?: string[]; cooking_method?: string | null; heaviness?: string | null;
+      ingredients?: string[];
     } | null = null;
     if (current.photo_url) {
       try {
@@ -455,6 +456,13 @@ export async function PATCH(req: NextRequest) {
       if (rederived.cooking_method !== undefined) (patch as any).cooking_method = rederived.cooking_method;
       if (rederived.heaviness !== undefined) (patch as any).heaviness = rederived.heaviness;
       if (rederived.diet !== undefined) (patch as any).diet = rederived.diet;
+      // Photo-anchored path only (the text-only fallback below can't read
+      // ingredients off a name it never saw): a corrected name must not leave
+      // the WRONG dish's ingredient chips on the row. Guarded on non-empty —
+      // an empty list from a flaked call is a failed read, not a verdict, and
+      // writing it would erase real chips (the lesson from the 2026-07-23
+      // diet-flag wipe, see scripts/backfill-diet-flags.ts).
+      if (rederived.ingredients?.length) (patch as any).ingredients = rederived.ingredients;
     }
   }
 

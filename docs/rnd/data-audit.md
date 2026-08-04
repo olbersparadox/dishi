@@ -1,5 +1,12 @@
 # Data audit — what vision extracts vs what the engine actually uses
 
+> **STATUS: owner-signed-off 2026-08-04.** The ingredients backfill it
+> recommended was approved and run the same day (see "Backfill" at the end).
+>
+> ⚠️ **The backfill uncovered a LIVE PHOTO-VISION OUTAGE — see the section at
+> the end of this document. Photo dish logging is currently broken in
+> production.** It is unrelated to the audit's findings but was found by it.
+
 BACKLOG item 1 (owner, 2026-08-02: "i'm surprised Vision has carried so little
 data over… review how much data are we actually using, and what else we could
 be using"). Audited 2026-08-04 against the LIVE schema and the real pipeline
@@ -91,3 +98,95 @@ they are dish properties, not user constraints.
 - 藻/菌 full coverage without backfill: **~50%** — gated on ingredients, which
   historical photo rows lack; optional one-shot vision backfill of 47 rows
   would lift it, decision deferred to owner.
+
+---
+
+# ⚠️ LIVE OUTAGE: photo vision returns nothing (found 2026-08-04)
+
+Found while running the ingredients backfill. **Unrelated to the audit's
+findings — but it breaks the app's core logging flow, and it is live now.**
+
+## Symptom
+
+Every photo-vision call returns HTTP 200 with `content: null`. The model spends
+its entire completion budget on reasoning tokens and emits no answer:
+
+```
+finish_reason: "length"   completion_tokens: 401
+completion_tokens_details.reasoning_tokens: 400   content: null
+```
+
+`inferDish` treats a null as a failed call and returns the
+`{ name: 'Unknown dish', vision_failed: true }` placeholder (vision.ts:141).
+So **the next photo the owner logs will come back "Unknown dish"** with no
+cuisine, no attributes, no diet flags — and, because attributes are empty, it
+teaches the taste engine nothing.
+
+## What was ruled out
+
+| hypothesis | test | result |
+|---|---|---|
+| token budget too small | same call at 400 / 500 / 1500 / 3000 | reasoning consumed **the entire budget every time** (`reasoning_tokens == max_tokens`); never any content. Not a budget problem |
+| one bad image | 5 different dish photos, newest first | 5/5 identical failure |
+| one bad prompt | both `SYSTEM` (inferDish) and `ANCHORED_SYSTEM` | both fail identically |
+| provider-specific, route around it | `provider: { ignore: ['Alibaba'] }` | **HTTP 404 "All providers have been ignored"** — `/models/qwen%2Fqwen3.7-plus/endpoints` reports exactly **1 endpoint, Alibaba**. The documented ignore-list lever does not exist for this model |
+| our regression | `git log` on vision.ts / openrouter.ts | no relevant commit; last successful photo log was 2026-08-02 (3 rows, conf 0.95, ingredients present). Provider-side change, same shape as the degradation already documented in openrouter.ts |
+
+`reasoning: { enabled: false }` **restores correct answers immediately**
+(`finish: stop`, `reasoning_tokens: 0`, correct ingredients).
+
+## Why this is not simply fixed with reasoning-off
+
+The 2026-07-29 A/B recorded in `openrouter.ts` rejected reasoning-off for
+production: the **diet-flag derivation discipline collapses** without it
+(9/35 dishes broke the soy rule; カキフライ lost `shellfish` while its own
+ingredient list still said "oyster"). Allergen flags feed the tripwires, so
+that is a safety regression, not a style one.
+
+Note the asymmetry, which is what made the backfill safe: **ingredient
+extraction survived reasoning-off in that same A/B** — what broke was deriving
+flags FROM the ingredients. The backfill writes only `ingredients` and never
+reads or writes `diet`, so the one known casualty is out of its scope.
+
+## The decision (owner's — not taken unilaterally)
+
+`ignore: []` in openrouter.ts is a documented owner decision (2026-07-31) whose
+own bar for re-arming is *"a provider seen failing vision calls repeatedly
+across days… one bad answer is weather; the logs are climate."* This is one
+day, and in any case exclusion is impossible (single endpoint). Options:
+
+1. **`reasoning: 'off'` for the vision calls only**, and re-derive diet flags
+   from the returned ingredients via the existing text path (`enrichOneDish`,
+   which still works and keeps its reasoning). Restores photo logging; costs
+   one extra cheap text call per photo; keeps flag discipline where the A/B
+   says it matters. **Recommended.**
+2. **Change `OPENROUTER_MODEL`** to a vision model that terminates reasoning.
+   Cleanest if a good one exists, but re-opens the whole 2026-07-29 A/B
+   (prompt tuning, diet discipline, latency) — the model comment says as much.
+3. **Wait it out.** Precedent says provider degradation has been transient
+   before. Cheap, but photo logging stays broken meanwhile and fails silently.
+
+Ship path note: this does **not** block 墨靈 phase 2. Domain evidence is
+computed from ALREADY-STORED columns over rating history, so the aggregate can
+be built and backfilled while vision is degraded.
+
+---
+
+# Backfill — executed 2026-08-04
+
+`scripts/backfill-ingredients.ts` (dry-run by default, `--apply` to write,
+`--limit N` to bound a first pass). Owner-approved off this audit.
+
+- **Scope:** 49 rows — 47 album + 2 table — every row that lacked `ingredients`
+  AND had a photo. All 49 are rated, so all feed the aggregate. The other 8
+  ingredient-less rows are unrated table picks with no photo: unreadable by
+  vision and irrelevant to the aggregate, correctly skipped.
+- **Writes `ingredients` and nothing else.** Re-deriving `attributes` would
+  retroactively rewrite what the taste engine learned from these ratings (the
+  vector is replayed over stored attributes), i.e. silently rewrite the
+  person's palate. This script must never widen.
+- **Guards:** anchored on each dish's stored name (may be human-corrected —
+  HUMAN outranks VISION); an empty/failed read SKIPS rather than writes (the
+  2026-07-23 lesson that wiped real diet flags); the UPDATE re-checks emptiness
+  in its own predicate, so a re-run or a concurrent write can never overwrite
+  real ingredients.

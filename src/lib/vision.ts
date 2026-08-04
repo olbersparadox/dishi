@@ -24,9 +24,13 @@ export type VisionResult = {
   diet: DietFlag[];
   cooking_method: CookingMethod | null;
   heaviness: Heaviness | null;
-  // Key ingredients (up to 4) the model reads off the dish. NOT a stored column —
-  // passed through on the /api/dishes response so the rating/growth screen can show
-  // them as chips + stream them into the taste blob without a second enrich round-trip.
+  // Key ingredients (up to 4) the model reads off the dish. STORED on
+  // `dishes.ingredients` (written by /api/dishes) and ALSO passed through on the
+  // /api/dishes response, so the rating/growth screen can show them as chips +
+  // stream them into the taste blob without a second enrich round-trip.
+  // (This comment said "NOT a stored column" until 2026-08-04 — stale since the
+  // column landed; the data audit caught it. It is the only persisted signal
+  // that can separate 菌 fungus / 藻 algae and 龍蝦-vs-蟹 for the creature.)
   ingredients: string[];
   // True ONLY when the vision call genuinely failed (timeout / unparseable after
   // retries) and everything above is placeholder. is_dish stays true in that case
@@ -213,7 +217,7 @@ genuinely confident about; leave uncertain ones near 0.`;
  */
 export async function reanalyzeAnchored(
   name: string, base64: string, mediaType: string,
-): Promise<{ attributes: DishVector; cuisine: string; diet: DietFlag[]; cooking_method: CookingMethod | null; heaviness: Heaviness | null } | null> {
+): Promise<{ attributes: DishVector; cuisine: string; diet: DietFlag[]; cooking_method: CookingMethod | null; heaviness: Heaviness | null; ingredients: string[] } | null> {
   if (!process.env.OPENROUTER_API_KEY) return null;
   const text = await callClaude(ANCHORED_SYSTEM, [
     imagePart(base64, mediaType),
@@ -222,7 +226,14 @@ export async function reanalyzeAnchored(
   const parsed = parseJsonResponse<any>(text);
   if (!parsed) return null;
   const s = sanitize({ ...parsed, name });
-  return { attributes: s.attributes, cuisine: s.cuisine, diet: s.diet, cooking_method: s.cooking_method, heaviness: s.heaviness };
+  // ingredients were always ASKED for (ANCHORED_SYSTEM) and always parsed by
+  // sanitize() — they were just dropped here, so a renamed dish kept the wrong
+  // dish's ingredient chips forever (data audit 2026-08-04, finding 2). Same
+  // "computed then discarded" shape as the dishStructure protein parse.
+  return {
+    attributes: s.attributes, cuisine: s.cuisine, diet: s.diet,
+    cooking_method: s.cooking_method, heaviness: s.heaviness, ingredients: s.ingredients,
+  };
 }
 
 /** The two vision prompt sites (fresh identify + name-anchored re-analysis) — exported
