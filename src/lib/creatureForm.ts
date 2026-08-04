@@ -529,14 +529,31 @@ export function drawCreatureFrame(
     // the calibrated gesture holds its proportions against a body of half-width
     // 0.62·R_claw with the wrist at 0.48·R_claw from centre; here the wrist
     // rides the flank (deeper in), so the conversion pays for the extra burial.
-    // Divisor tuned down from 0.48 (owner, 2026-08-04: "try 35%" reach). Solved
-    // by measurement on the real 本尊 life, not by algebra on the ratio — the
-    // relationship isn't quite linear (wrist burial, flank offset): .345→37.2%,
-    // .365→34.0%, landing at .359→34.4%.
-    const Rclaw = (R * widen) / 0.359;
+    // REVERTED to 0.48 (owner, 2026-08-04): a prior round raised the divisor
+    // instead, which scales the WHOLE gesture (length, width, thickness) —
+    // "too big", not "sticking out more". Reach is the wrist's DISTANCE from
+    // the body, a position, not the gesture's own size; see WRIST_BURIAL below.
+    const Rclaw = (R * widen) / 0.48;
+    // How far OUT the wrist sits, as a fraction of the way from body centre to
+    // the flank point — the claw's own SIZE is untouched by this, only its base
+    // attachment moves. 蟹 stays at the original 0.82 (owner: "the crab claw is
+    // fine, just tune the lobster claw"). 龍蝦 raised toward reach, measured on
+    // 本尊 each step: .82→22.3%, .90→26.5%, .98→30.7%, 1.0→30.6% (the growth
+    // curve is genuinely linear in this range; 1.0 vs .98 barely differing is
+    // the ceiling showing itself, not noise). 1.0 is the wrist crossing the
+    // flank point exactly — the body silhouette edge along that ray — so
+    // anything higher guarantees no body pixels sit behind the wrist and the
+    // join floats loose (measured firsthand at 1.05, shared with 蟹 before this
+    // split: both claws visibly disconnected from the body). .96 keeps a real
+    // margin inside that boundary — verified attached on 龍蝦 too, the heaviest
+    // shell life the harness has — landing at 29.3% on the owner's own profile.
+    // A hard ceiling around ~30%, short of the requested 35%: getting the rest
+    // of the way needs a real size increase on top of this, which is the
+    // tradeoff the owner corrected this round for being un-asked-for.
+    const WRIST_BURIAL = species === 'lobster' ? 0.96 : 0.82;
     for (const side of [-1, 1] as const) {
       const p = flank(side, 1.95);
-      const bx = cx + (p.x - cx) * 0.82, by = cy + (p.y - cy) * 0.82;
+      const bx = cx + (p.x - cx) * WRIST_BURIAL, by = cy + (p.y - cy) * WRIST_BURIAL;
       const mo = clawMotion(t, side);
       const ang = side > 0 ? CLAW_AXIS + mo.sway : Math.PI - CLAW_AXIS + mo.sway;
       const drawFn = species === 'lobster' ? drawLobsterClaw : drawCrabClaw;
