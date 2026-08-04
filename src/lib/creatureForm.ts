@@ -31,6 +31,7 @@ import { DIMS } from './taste';
 import {
   drawLobsterClaw, drawCrabClaw, clawMotion, CLAW_AXIS, type ClawSpecies,
 } from './creatureGestures';
+import { svgContext } from './canvasToSvg';
 
 const TAU = Math.PI * 2;
 
@@ -764,3 +765,22 @@ export function drawCreatureFrame(
 /** Deterministic-still check hook for tests: a frame at t=0 must not depend on
     when it is drawn. (Motion is layered; identity is grown.) */
 export const CREATURE_STILL_T = 0;
+
+/**
+ * The creature as a static SVG — the snapshot half of the two-renderer
+ * contract, produced by REPLAYING drawCreatureFrame through the canvasToSvg
+ * recorder at t=0. Not a second drawing: the same strokes, recorded instead of
+ * rasterized, so the snapshot cannot disagree with the Taste tab about what a
+ * profile looks like. t=0 is the identity pose — motion (pinch, wind, breath)
+ * is layered on top of grown geometry and owns no part of who the being is.
+ *
+ * Returns INNER markup for a `<svg viewBox="0 0 size size">` the caller owns,
+ * mirroring how blobSnapshotPath returns a path for the caller's <svg>.
+ */
+export function creatureSnapshotSvg(
+  inputs: FormInputs, domains: DomainEvidence, size: number, glyph?: string,
+): string {
+  const { ctx, svg } = svgContext(size, size);
+  drawCreatureFrame(ctx, size, inputs, domains, CREATURE_STILL_T, glyph);
+  return svg();
+}

@@ -8,7 +8,7 @@
 // can never show a different being than the numbers say.
 import { useEffect, useRef, useState } from 'react';
 import { sampleForm, formToSvgPath, fogExtent, type FormInputs } from '@/lib/blobForm';
-import { drawCreatureFrame, hasAnatomy, type DomainEvidence } from '@/lib/creatureForm';
+import { drawCreatureFrame, hasAnatomy, creatureSnapshotSvg, type DomainEvidence } from '@/lib/creatureForm';
 import TasteRadar from './TasteRadar';
 
 const PAPER_INK = ['#3a3733', '#211d18', '#2e2a24'] as const;
@@ -16,8 +16,21 @@ const PAPER_WASH = '217,210,194';
 const PAPER_HIGHLIGHT = '250,247,241';
 
 export function TasteFormSnapshot({
-  inputs, size = 200, glyph,
-}: { inputs: FormInputs; size?: number; glyph?: string }) {
+  inputs, size = 200, glyph, domains,
+}: { inputs: FormInputs; size?: number; glyph?: string; domains?: DomainEvidence }) {
+  // The creature door, mirroring TasteFormLive's exactly: lived domain evidence
+  // renders the being; none renders the blob below, untouched. The markup is
+  // the canvasToSvg REPLAY of drawCreatureFrame — the same strokes the live
+  // canvas draws, recorded at t=0 — never a hand-drawn SVG twin, which is the
+  // lookalike the two-renderer contract exists to forbid. (Self-generated
+  // markup: every string in it comes from our own draw calls.)
+  if (hasAnatomy(domains)) {
+    return (
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} role="img"
+        aria-label="Taste form"
+        dangerouslySetInnerHTML={{ __html: creatureSnapshotSvg(inputs, domains, size, glyph) }} />
+    );
+  }
   const path = formToSvgPath(sampleForm(inputs, 96), size);
   const fog = fogExtent(inputs.evidence);
   return (
