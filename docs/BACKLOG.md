@@ -1067,6 +1067,100 @@ Kill criterion: if the match layer ever adopts a WRONG identity in field use
 (worse than a wrong free-text guess, because it looks authoritative), gate
 adoption behind the item-5 two-name pick instead of auto-adopting.
 
+- **FIELD PASS FAILED, GO WITHDRAWN, 2026-08-04/05** — the kill criterion above
+  fired on the first real dish. Full readout in
+  `docs/rnd/vision-naming-context.md`; replay harness
+  `scripts/diagnose-daaiye-miss.ts`, shortlist probe
+  `scripts/probe-picker-viability.ts`. Item stays OPEN and **parked at the
+  owner's instruction — no code changed, nothing reverted, nothing shipped.**
+  Four findings, in the order they landed:
+  1. **The 08-02 GO was measured on a model production has never run.** That
+     eval ran inside the 26-day local/prod `OPENROUTER_MODEL` divergence
+     (`9253b5a`): it scored `qwen3.7-plus` (thinking) while prod ships
+     `qwen3-vl-32b-instruct` (non-thinking). Re-run on the correct model
+     (`--edited-only`, n=20): **3/5 adoptions wrong**, vs 1/16 on the
+     08-02 numbers.
+  2. **Neither eval measured production's actual shortlist.** The harness
+     proxies session coords from the linked restaurant; production requires
+     real `scan_lat`, which only exists post-wiring. 4 of the 10 shortlisted
+     cases return an EMPTY list under the real rule, including BOTH correct
+     adoptions. The only clean production measurement is the 大爺燒鵝 field
+     replay: baseline 燒鴨叉燒飯 3/3 (matching what prod returned), with the
+     real 40-name shortlist **大爺燒鵝雙拼飯 3/3 — ADOPTED-WRONG,
+     deterministic.** Production's own lookup silently never fired (the 1.5s
+     budget failing closed is the leading suspect), which is the only reason
+     that wrong name isn't in the DB.
+  3. **GPS cannot separate HK restaurants, and no radius fixes it.** From one
+     dish photo: CCQHK 4m (Japanese), J4RKV 24m (rice-noodle), VYGX4 **102m —
+     the correct 大爺燒鵝 menu**. Three unrelated shops inside phone-GPS error,
+     so the 250m union mixes them (sashimi dishes handed a roast-goose menu)
+     and nearest-session scoping would be actively *worse*. `restaurant_id`
+     IS an exact join (dish and session both `126efbb2`) — but it resolves
+     client-side AFTER `inferDish`, so auto-adoption is structurally stuck
+     with the noisy signal while anything on the growth card gets the clean
+     one free.
+  4. **Two separable defects.** Contamination (wrong restaurant's menu) is
+     fixable by scoping; forced-matching when the dish is on no menu is not
+     fixable by prompt — the model cannot tell "don't recognise it, but it's
+     on the list" from "don't recognise it, and it isn't". The field dish was
+     a 自選雙拼飯 (build-your-own) which the menu names for no single dish, so
+     scoping would NOT have rescued it.
+
+  **Options when this is picked up again** (owner reviewed 2026-08-05, no
+  decision taken): (A) kill 3b; (B) ship auto-adopt as built — **ruled out**,
+  it's wrong 3/5 on the only honest measurement; (C) **menu picker on the
+  growth card** — the leading candidate, because it is the only design that
+  runs after `restaurant_id` is known and so gets the clean menu, it fails
+  safe (an ignored suggestion), it keeps the one-tap-beats-typing UX win, and
+  it dissolves the 1.5s-budget bug by loading after the card renders;
+  (D) item-5 two-name pick — inherits the GPS problem, since the candidate is
+  chosen pre-vision; (E) lean on the existing at-the-table pick flow, which is
+  already 100% accurate and needs no code.
+
+  **Open question before building any of them:** how often is the dish
+  actually ON the nearby menu? Owner's own logs are not a valid sample — he
+  orders delivery and works from home, where normal users eat out daily; the
+  1-in-9 menu-availability figure measured on his 57 photo dishes says
+  nothing about HK. Sequencing note: making a scanned menu a lasting property
+  of the RESTAURANT (rather than of an ephemeral `table_sessions` row) is the
+  prerequisite that would make a picker fire often enough to dogfood, and it
+  is the same thread as "consumer scan density: one dense neighbourhood
+  first". `dish_identities` + `ownerMenuReconcile` are already half of it.
+
+  **Also parked: seeding menus from the web** (owner idea, 2026-08-05). Would
+  fix DENSITY, not naming (a scraped menu still says 自選雙拼飯). Ranked by
+  data quality: delivery platforms (foodpanda/Deliveroo/KeeTa) give structured
+  dish names + prices with no OCR at all, but breach ToS, get blocked, and
+  carry the wrong menu subset for HK dine-in; Google Places is the licensed
+  path; restaurants' own sites support a defensible "claim your page to
+  correct it" posture; OpenRice/Maps user photos have the best coverage and
+  the weakest rights — and the existing house rule ("never scrape platform
+  photos", source ladder above) already speaks to that. Real cost is entity
+  resolution (binding a scraped menu to the right `place_id`), not OCR. Real
+  prize is the "claim your page" hook: an owner opening a page that already
+  has their menu, slightly wrong, is a far easier sell than a blank one.
+  Cheap next step if revisited: walk ~30 restaurants on one lunch strip and
+  measure how many have a findable menu online at all, whether it matches the
+  DINE-IN menu, and how many dishes are namable vs template items —
+  `scripts/menu-corpus/` + `eval-menu-corpus-coverage.ts` already score it.
+
+  **Also parked: switching the vision call to the Anthropic API** (owner
+  question, 2026-08-05). Splits by failure mode. Abstention (the forced-match
+  half) very likely improves — the owner's own eval already showed the
+  THINKING Qwen at 1/16 wrong adoptions vs 3/10 non-thinking on this exact
+  task, and Claude Opus 5 runs adaptive thinking by default. Raw 燒味
+  recognition (油雞 vs 燒鴨, 燒腩仔 vs 叉燒) is genuinely uncertain — Qwen is a
+  Chinese model on its home turf, and Claude is not automatically better at
+  Cantonese BBQ; the honest edge is high-res vision (2576px vs 1568px tier)
+  and the ability to give it crop/verify tools. Cost is smaller than it looks
+  because dish naming is ONE call per photo (~$0.012/photo on Sonnet 5,
+  ~$0.03 on Opus 5 vs ~$0.001 on Qwen) — the scan pipeline, which is the
+  latency-critical multi-item path, could stay on Qwen. Neither fixes finding
+  3 or 4. Decidable for ~$1–2: `eval-vision-naming.ts` already runs against
+  any model via `OPENROUTER_MODEL` and Anthropic models are on OpenRouter, so
+  it is an env-var change, not an integration — but the local key is $5-capped
+  with ~$0.24 left and 403s on Anthropic models, so it needs a top-up first.
+
 ## 4. Dishes-first, attribution backfilled *(Fable; design depends on item 2's result)*
 
 The owner's delay-the-restaurant-ID instinct, made concrete. Machinery that
