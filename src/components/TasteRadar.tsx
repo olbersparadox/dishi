@@ -57,21 +57,21 @@ export default function TasteRadar({ vector, evidence, seed, size = 280, labelFo
       .map(e => e.i),
   );
 
-  const baseFont = Math.max(11, size * 0.043);
-  const strongFont = size * 0.06;
+  // One size for all 18 labels (owner, 2026-08-05). The called-out top tastes
+  // are still marked, by WEIGHT and ink only — enlarging them as well made the
+  // ring of labels ragged, and the 銘's own strokes already say which seats are
+  // loud. Type size is not a third channel for the same fact.
+  const labelFont = Math.max(11, size * 0.043);
 
   // Labels ride outside the ink the profile actually wrote, so a loud palate
   // never collides with its own labels and a quiet one isn't ringed by dead
   // space. Capped so the longest label still can't leave the box.
   const labelR = Math.min(ming.extent + size * 0.05, size * 0.4);
-  // Where a spoke stops. Clearance scales with the LABEL'S OWN font size, not a
-  // flat number: a called-out seat is set larger and centre-anchored, so its box
-  // reaches further back down the spoke — a fixed gap struck 嫩 through the
-  // middle while every normal label cleared fine.
-  const spokeEnd = (i: number) => {
-    const strong = strongSet.has(i);
-    return labelR + (strong ? size * 0.008 : 0) - (strong ? strongFont : baseFont) * 0.75 - size * 0.01;
-  };
+  // Where a spoke stops. Clearance is derived from the label's font size rather
+  // than being a flat number — a centre-anchored label's box reaches back down
+  // its own spoke by half its height, and a fixed gap struck 嫩 through the
+  // middle back when the called-out labels were set larger.
+  const spokeR = labelR - labelFont * 0.75 - size * 0.01;
 
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} role="img"
@@ -102,7 +102,7 @@ export default function TasteRadar({ vector, evidence, seed, size = 280, labelFo
         // belongs to — instead of interior chart ruling that happens to align.
         // It matters most where there is no ink: a fog dim's spoke is the only
         // thing connecting its label to the figure.
-        const outer = spokeEnd(i);
+        const outer = spokeR;
         return (
           <line
             key={i}
@@ -150,8 +150,10 @@ export default function TasteRadar({ vector, evidence, seed, size = 280, labelFo
         const a = dimAngle(i);
         const strong = strongSet.has(i);
         const state = dimState(evidence[dim]);
-        const fontSize = strong ? strongFont : baseFont;
-        const r = labelR + (strong ? size * 0.008 : 0);
+        // Every label on one radius now that they share a size, so the ring of
+        // words is even — the old +0.008 nudge existed only to give the larger
+        // called-out labels room.
+        const r = labelR;
         const x = cx + Math.cos(a) * r;
         const y = cy + Math.sin(a) * r;
         const label = labelFor ? labelFor(dim) : dim;
@@ -167,7 +169,7 @@ export default function TasteRadar({ vector, evidence, seed, size = 280, labelFo
             x={x} y={y}
             textAnchor={anchor}
             dominantBaseline="middle"
-            fontSize={fontSize}
+            fontSize={labelFont}
             fontWeight={strong ? 700 : 400}
             fill={strong ? 'var(--ink)' : state === 'fog' ? 'var(--ink-faint)' : 'var(--ink-soft)'}
           >
