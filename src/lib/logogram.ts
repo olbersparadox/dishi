@@ -6,18 +6,16 @@
      stroke count    = evidence,
      silence         = fog.
 
-   It shares its compass with the radar and the creature — `dimAngle(i)`, one
-   helper, not a copy — which is the whole reason the two can be drawn as ONE
-   figure: the radar plots magnitude along each spoke, the 銘 writes evidence at
-   that spoke's rim, and a maximally-loved dim puts the radar's vertex exactly ON
-   the ring where its stroke begins. The two encodings meet by construction.
+   It shares its compass with the creature and the blob — `dimAngle(i)`, one
+   helper, not a copy — so a dim means one thing in every register of the being.
 
-   What the 銘 adds that the radar structurally cannot: FOG. A radar maps
-   -1..1 onto a radius, so "never tasted" and "genuinely neutral" both land on
-   the centre point and become indistinguishable. Evidence has no axis to live
-   on. Here it is the ink itself — an unlearned dim simply has nothing written
-   at its seat, which is the honesty contract the blob and the creature already
-   keep (only mouth-data draws; fog contributes nothing).
+   This REPLACED the radar polygon outright (owner, 2026-08-05) rather than
+   sitting behind it. What the polygon structurally could not say is FOG: a
+   radar maps -1..1 onto a radius, so an unrated dim plots at mid-radius,
+   indistinguishable from a measured neutral, and the chart asserts a reading
+   it never had. Here evidence IS the ink — an unlearned dim simply has nothing
+   written at its seat, which is the honesty contract the blob and the creature
+   already keep (only mouth-data draws; fog contributes nothing).
 
    Geometry only: no colour, no DOM. The caller supplies tokens and renders. */
 import { DIMS, type TasteVector, type EvidenceMap } from './taste';
@@ -25,13 +23,33 @@ import { dimAngle, seededRandom, KNOWS_AT } from './blobForm';
 
 const TAU = Math.PI * 2;
 
-export type MingStroke = { d: string; opacity: number; width: number };
+/** One pass of the ring's loaded brush. Carries no phase: the ring is the
+ *  body of the figure and breathes as a whole, not as a travelling wave. */
+export type MingRingPass = { d: string; opacity: number; width: number };
+
+export type MingStroke = MingRingPass & {
+  /** 0..1 position around the ring, starting at the top seat. Becomes an
+   *  animation delay, so the sway TRAVELS around the circle like wind crossing
+   *  a field rather than every strand swinging in unison. */
+  phase: number;
+  /** The strand's root on the ring. The renderer pivots the strand about this
+   *  point, so the tip sways and the root never moves — which is the whole
+   *  safety property: a strand stays at its compass seat, and a seat IS the
+   *  dim's identity. Rotating the FIGURE would be a lie (it would read as
+   *  someone else's palate); rotating a strand about its own root is hair. */
+  rootX: number;
+  rootY: number;
+  /** Sway amplitude in degrees, seeded per strand so a head of hair doesn't
+   *  move as one rigid sheet. Unsigned — every strand leans the same way at a
+   *  given phase, because wind is coherent; the travel comes from `phase`. */
+  sway: number;
+};
 export type MingDot = { cx: number; cy: number; r: number; opacity: number };
 export type MingBlotch = { cx: number; cy: number; rx: number; ry: number; rot: number };
 
 export type Ming = {
   /** Overlapping jittered passes that read as one loaded brush. */
-  ring: MingStroke[];
+  ring: MingRingPass[];
   strokes: MingStroke[];
   specks: MingDot[];
   blotches: MingBlotch[];
@@ -86,7 +104,7 @@ export function buildMing(
 ): Ming {
   const rnd = seededRandom('logo:' + seed);
   const c = size / 2;
-  const ring: MingStroke[] = [];
+  const ring: MingRingPass[] = [];
   const strokes: MingStroke[] = [];
   const specks: MingDot[] = [];
   const blotches: MingBlotch[] = [];
@@ -132,14 +150,34 @@ export function buildMing(
       const x0 = c + Math.cos(ja) * r0, y0 = c + Math.sin(ja) * r0;
       const rEnd = r0 + dir * L2;
       const x1 = c + Math.cos(ja) * rEnd, y1 = c + Math.sin(ja) * rEnd;
-      // A slight sideways bow off the radius: a brush pulled by a wrist, not a
-      // spoke struck from the centre.
-      const cx = c + Math.cos(ja + 0.06 * dir) * (r0 + dir * L2 * 0.55);
-      const cy = c + Math.sin(ja + 0.06 * dir) * (r0 + dir * L2 * 0.55);
+      // Sideways bow off the radius: a brush pulled by a wrist, not a spoke
+      // struck from the centre. SIGNED and seeded per strand, so strands curl
+      // both ways. The lab used a fixed `0.06 * dir`, which gave every strand
+      // in the figure the same handedness — read as a combed, machine-set
+      // fringe rather than a hand that moved differently each stroke.
+      const bow = (rnd() - 0.5) * 0.36;
+      const qx = c + Math.cos(ja + bow) * (r0 + dir * L2 * 0.55);
+      const qy = c + Math.sin(ja + bow) * (r0 + dir * L2 * 0.55);
       strokes.push({
-        d: `M${x0.toFixed(2)},${y0.toFixed(2)}Q${cx.toFixed(2)},${cy.toFixed(2)} ${x1.toFixed(2)},${y1.toFixed(2)}`,
+        d: `M${x0.toFixed(2)},${y0.toFixed(2)}Q${qx.toFixed(2)},${qy.toFixed(2)} ${x1.toFixed(2)},${y1.toFixed(2)}`,
         opacity: (0.3 + 0.5 * Math.abs(pref)) * voice,
         width: Math.max(1, size * 0.014 * (1 - 0.14 * k)),
+        // Measured from the strand's own angle, not its seat's, so strands
+        // within one seat move in sequence rather than as a block.
+        phase: (((ja + Math.PI / 2) % TAU) + TAU) % TAU / TAU,
+        rootX: x0,
+        rootY: y0,
+        // Longer strands sway further at the tip from the same rotation, so
+        // amplitude is trimmed as reach grows — otherwise a strongly-loved dim
+        // whips while a faint one barely stirs, and motion would end up
+        // encoding preference, which is the honesty line: motion carries NO
+        // data. It layers on top of the reading and never adds to it.
+        // Degrees, not pixels — and a strand is SHORT (10-30px at production
+        // size), so small angles buy almost no travel. Measured on the live
+        // figure: 2.5° moved a tip 0.8px and 5° moved it ~2px, both invisible.
+        // These land tip travel around 5-8px over a full cycle, which is what
+        // finally reads as a draught rather than as nothing happening.
+        sway: (9 + rnd() * 5) * (1 - 0.35 * (L2 / (ringR * (REACH_BASE + REACH_GAIN)))),
       });
       if (dir > 0) extent = Math.max(extent, rEnd);
     }

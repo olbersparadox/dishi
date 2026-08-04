@@ -518,32 +518,70 @@ See BACKLOG "Data audit" item — the audit runs before any phase-1 code.
    in tests/creatureForm.test.ts). Still owed before production: snapshot
    (SVG) parity — two renderers, one being — and the owner's pass on each
    skin/limb at real profiles.
-4. ~~銘 renderer~~ **SHIPPED 2026-08-05, and it landed somewhere the plan did
-   not expect: MERGED INTO THE RADAR rather than added as a separate card.**
-   The owner's ask was "replace the taste radar or merge with it somehow"; the
-   two turned out to already share a coordinate system — `dimAngle(i)` and the
-   radar's local `angleFor(i)` were the same expression over the same DIMS
-   order — so the 銘 ring and the radar polygon are now ONE figure on one
-   compass and one radius (`src/lib/logogram.ts` geometry,
-   `src/components/TasteRadar.tsx` render). A maximally-loved dim's polygon
-   vertex lands exactly on the ring where its stroke leaves. Reached by tapping
-   the creature/blob, same as the radar always was.
+4. ~~銘 renderer~~ **SHIPPED 2026-08-05. It did not become a new card — it took
+   the radar's place.** `src/lib/logogram.ts` (geometry, 12 unit tests) +
+   `src/components/TasteRadar.tsx` (render). Reached by tapping the
+   creature/blob, exactly where the radar always was.
 
-   The merge earns its keep on honesty, not decoration: **a radar has no axis
-   for evidence.** It maps -1..1 to a radius, so an unrated dim plots at
-   mid-radius, indistinguishable from a measured neutral — the chart asserted a
-   reading it did not have, for as long as it has existed. The 銘 carries
-   evidence in the ink, so fog is now visible: no stroke, no vertex dot, a
-   faint label, and it cannot be named a top taste (that callout is
-   evidence-gated now — a high number off one tasting is a guess).
+   The owner's ask was "replace the taste radar or merge with it somehow". It
+   went out as a merge — 銘 ring around the radar polygon, sharing one compass
+   and one radius, since `dimAngle(i)` and the radar's local `angleFor(i)` were
+   the same expression over the same DIMS order — and then the owner cut the
+   polygon and the vertex dots on sight. **That was the right call and the
+   merged version should not be restored.** With the 銘 present the polygon was
+   redundant (both encode magnitude per dim at a fixed seat) and it was the
+   dishonest half of the pair: mapping -1..1 to a radius plots an unrated dim
+   at mid-radius, indistinguishable from a measured neutral. A radar has no
+   axis for evidence. The 銘 carries evidence in the ink, so silence is
+   available as an answer.
 
-   Two calibration facts, both measured on the owner's live profile rather than
-   reasoned: (a) the lab's linear `round(e/2)` stroke count saturates almost
-   immediately on real data (14 of 18 dims are past 12 ratings), so every
-   mature seat drew the cap and the count said nothing — replaced with tiers
-   capped at 4; (b) the lab's long fine strokes read as FUR at production size,
-   colliding with the creature's own hair register — the 銘 needs short heavy
-   marks. Both only showed up on a real profile; the harness fixtures hid them.
+   What honesty looks like on the shipped figure: a fog dim has no stroke, a
+   faint label, and cannot be named a top taste (that callout is evidence-gated
+   now — a high number off one tasting is a guess).
+
+   Guide rings and spokes were removed with the polygon, then restored at half
+   weight (`--line` at 0.5 opacity, 0.75px) on the owner's call: with silence a
+   legitimate answer, a fog dim's spoke is the only thing tying its label to a
+   place on the figure. At full weight they read as scaffolding left by the
+   deleted chart; this faint they read as ruling under writing. Spokes then ran
+   all the way OUT to touch the labels (owner) rather than stopping at the ring,
+   which turns each one into a pointer naming its seat. Their stop distance
+   scales with each label's own font size — a flat gap struck the larger
+   called-out labels through the middle.
+
+   Three calibrations, all measured on the owner's live profile, none reasoned
+   — and all three invisible on harness fixtures:
+   - the lab's linear `round(e/2)` stroke count saturates immediately on real
+     data (14 of 18 dims past 12 ratings), so every mature seat drew the cap and
+     the count stopped saying anything. Tiers, capped at 4.
+   - the lab's long fine strokes read as FUR at production size, colliding with
+     the creature's own hair register. The 銘 wants short heavy marks.
+   - the lab bowed every strand by a fixed `0.06 * dir`, giving the whole figure
+     one handedness — a combed fringe. The bow is signed and seeded per strand
+     now, so strands curl both ways.
+
+   **Motion (owner, 2026-08-05): the strands SWAY, like hair in a draught.**
+   A first pass animated opacity and stroke-width — the owner's correction was
+   exact and worth keeping: a fade is legible as blinking, not as flowing. What
+   works is real movement. Each strand rotates about its OWN ROOT on the ring
+   (`.ming-strand` in globals.css, CSS only, reduced-motion guarded), with
+   animation-delay taken from its angle so the sway crosses the figure like
+   wind over a field rather than every strand swinging together. The ring
+   itself holds still — hair moves against a head that doesn't.
+
+   Two things that had to be measured rather than assumed: strands are only
+   10-30px long at production size, so small angles buy nothing (2.5° moved a
+   tip 0.8px, invisible; the shipped 9-14° gives ~4-7px of tip travel). And
+   amplitude is TRIMMED as reach grows, so long and short strands travel about
+   equally — otherwise a strongly-loved dim would whip while a faint one
+   stirred, and **motion would start encoding preference.** Motion carries no
+   data here; it layers on top of the reading and never adds to it.
+
+   **The rule that constrains all of it: nothing may move a strand off its
+   compass seat.** A dim's angle IS its identity, shared with the blob and the
+   creature. Rotating a strand about its own root is hair; rotating the FIGURE
+   would silently render someone else's palate. Pivot-at-root is unit-tested
+   (`rootX/rootY` must lie on the ring and match the path's own start point).
 
    Version cards / export header / share image still to follow — the renderer
    they need now exists.

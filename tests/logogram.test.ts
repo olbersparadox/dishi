@@ -114,10 +114,67 @@ describe('銘 logogram', () => {
     for (const d of DIMS) { p.vector[d] = 0.95; p.evidence[d] = 30; }
     const ming = buildMing(p.vector, p.evidence, 's', SIZE, RING);
     expect(ming.extent).toBeGreaterThan(RING);
-    for (const s of ming.strokes) expect(radii(s.d).end).toBeLessThanOrEqual(ming.extent + 1e-6);
+    // Tolerance is a hair over one path-coordinate quantum: `d` is emitted at
+    // 2dp while `extent` is computed exact, so a parsed radius can sit up to
+    // ~0.0071 (0.005·√2) beyond it. Anything larger is a real overflow.
+    const EPS = 0.01;
+    for (const s of ming.strokes) expect(radii(s.d).end).toBeLessThanOrEqual(ming.extent + EPS);
     for (const sp of ming.specks) {
-      expect(Math.hypot(sp.cx - C, sp.cy - C)).toBeLessThanOrEqual(ming.extent + 1e-6);
+      expect(Math.hypot(sp.cx - C, sp.cy - C)).toBeLessThanOrEqual(ming.extent + EPS);
     }
+  });
+
+  it('curls strands BOTH ways — not one machine-set handedness', () => {
+    const p = blank();
+    for (const d of DIMS) { p.vector[d] = 0.6; p.evidence[d] = 20; }
+    const strokes = buildMing(p.vector, p.evidence, 's', SIZE, RING).strokes;
+    // Which side of its own chord each strand's control point falls on.
+    const sides = strokes.map(s => {
+      const m = s.d.match(/^M([-\d.]+),([-\d.]+)Q([-\d.]+),([-\d.]+) ([-\d.]+),([-\d.]+)$/)!;
+      const [x0, y0, qx, qy, x1, y1] = m.slice(1).map(Number);
+      return Math.sign((x1 - x0) * (qy - y0) - (y1 - y0) * (qx - x0));
+    });
+    expect(sides.filter(s => s > 0).length).toBeGreaterThan(0);
+    expect(sides.filter(s => s < 0).length).toBeGreaterThan(0);
+  });
+
+  it('roots every strand ON the ring, so sway pivots without leaving the seat', () => {
+    const p = blank();
+    for (const d of DIMS) { p.vector[d] = 0.6; p.evidence[d] = 20; }
+    for (const s of buildMing(p.vector, p.evidence, 's', SIZE, RING).strokes) {
+      // The pivot the renderer rotates about must be the strand's own start,
+      // and it must sit on the ring — otherwise the tip's sway drags the root
+      // off its compass seat and the figure starts reading the wrong dim.
+      const start = s.d.match(/^M([-\d.]+),([-\d.]+)/)!.slice(1).map(Number);
+      expect(s.rootX).toBeCloseTo(start[0], 1);
+      expect(s.rootY).toBeCloseTo(start[1], 1);
+      // On the ring, within the ±1.5% radial jitter that keeps roots from
+      // landing on a machine-perfect circle.
+      expect(Math.hypot(s.rootX - C, s.rootY - C)).toBeGreaterThan(RING * 0.98);
+      expect(Math.hypot(s.rootX - C, s.rootY - C)).toBeLessThan(RING * 1.02);
+      expect(s.sway).toBeGreaterThan(0);
+      expect(s.sway).toBeLessThan(15);  // subtle: a draught, not a whip
+    }
+  });
+
+  it('phases the flow by angle around the ring, so the swell travels', () => {
+    const p = blank();
+    for (const d of DIMS) { p.vector[d] = 0.6; p.evidence[d] = 20; }
+    const strokes = buildMing(p.vector, p.evidence, 's', SIZE, RING).strokes;
+    for (const s of strokes) {
+      expect(s.phase).toBeGreaterThanOrEqual(0);
+      expect(s.phase).toBeLessThan(1);
+    }
+    // Distinct phases across the ring — if they collapsed to one value every
+    // strand would blink in unison, which is the effect this exists to avoid.
+    expect(new Set(strokes.map(s => s.phase.toFixed(3))).size).toBeGreaterThan(10);
+    // A strand at the top seat phases near 0; one a quarter-turn on, near 0.25.
+    const top = blank(); top.vector.sweet = 0.6; top.evidence.sweet = 20;
+    const quarter = blank(); quarter.vector.crispy = 0.6; quarter.evidence.crispy = 20;
+    const pTop = buildMing(top.vector, top.evidence, 's', SIZE, RING).strokes[0].phase;
+    const pQtr = buildMing(quarter.vector, quarter.evidence, 's', SIZE, RING).strokes[0].phase;
+    expect(Math.min(pTop, 1 - pTop)).toBeLessThan(0.05);
+    expect(Math.abs(pQtr - 6 / 18)).toBeLessThan(0.05);   // 'crispy' is seat 6 of 18
   });
 
   it('is deterministic in the seed, and a different seed writes a different hand', () => {

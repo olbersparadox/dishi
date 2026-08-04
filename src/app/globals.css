@@ -2636,3 +2636,33 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 /* Reveal STAYS on screen (no auto-close) so the result is readable; the ✓ closes. */
 .duel-reveal { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-top: 16px; text-align: center; }
 .duel-learned { font-size: var(--fs-body); line-height: 1.5; color: var(--ink); }
+
+/* 銘 · the logogram's flow (TasteRadar.tsx + lib/logogram.ts).
+   The strands MOVE — they sway like hair in a slow draught. Not a fade: an
+   earlier pass pulsed opacity and width, which is legible as blinking, not as
+   flowing (owner, 2026-08-05).
+
+   Each strand pivots about its OWN ROOT on the ring (--ming-ox/oy), so the tip
+   travels and the root stays put. That distinction is the safety property, not
+   a detail: a strand must never leave its compass seat, because the seat is
+   which taste dimension it speaks for. Rotating the whole FIGURE is forbidden
+   for the same reason — it would silently read as someone else's palate.
+   Rotating a strand about its root is hair.
+
+   animation-delay comes from the strand's angle around the ring, so the sway
+   crosses the figure like wind over a field instead of every strand swinging
+   together. Amplitude is seeded per strand and trimmed for long strands, so
+   motion carries NO data: it layers on top of the reading, never adds to it. */
+@keyframes mingSway {
+  0%, 100% { transform: rotate(calc(var(--ming-sway) * -1)); }
+  50%      { transform: rotate(var(--ming-sway)); }
+}
+.ming-strand {
+  transform-box: view-box;
+  transform-origin: var(--ming-ox) var(--ming-oy);
+  animation: mingSway 6s ease-in-out infinite;
+  will-change: transform;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ming-strand { animation: none; }
+}
