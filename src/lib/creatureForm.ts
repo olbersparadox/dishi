@@ -529,9 +529,11 @@ export function drawCreatureFrame(
     // the calibrated gesture holds its proportions against a body of half-width
     // 0.62·R_claw with the wrist at 0.48·R_claw from centre; here the wrist
     // rides the flank (deeper in), so the conversion pays for the extra burial.
-    // 0.48 measured on the rendered creature: /0.62 landed reach at 30%/16% of
-    // body width against the calibrated 40%/25 — same knob, re-measured.
-    const Rclaw = (R * widen) / 0.48;
+    // Divisor tuned down from 0.48 (owner, 2026-08-04: "try 35%" reach). Solved
+    // by measurement on the real 本尊 life, not by algebra on the ratio — the
+    // relationship isn't quite linear (wrist burial, flank offset): .345→37.2%,
+    // .365→34.0%, landing at .359→34.4%.
+    const Rclaw = (R * widen) / 0.359;
     for (const side of [-1, 1] as const) {
       const p = flank(side, 1.95);
       const bx = cx + (p.x - cx) * 0.82, by = cy + (p.y - cy) * 0.82;
