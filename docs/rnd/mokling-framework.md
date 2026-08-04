@@ -82,7 +82,8 @@ fish-vs-lobster live, and it activates node-by-node as data proves out):
 
 - 海 sea — bell body, water-bob motion
   - 魚 fish → fin/tail gestures
-  - 甲殼 crustacean (lobster, crab, prawn) → **claw gestures** (SHIPPED 2026-08-04)
+  - 甲殼 crustacean (lobster, crab, prawn) → claw gestures (**gesture built +
+    calibrated 2026-08-04, NOT shipped** — see "Claw implementation rules")
   - 軟體 mollusc/jelly → trailing tendrils
 - 陸 land — grounded squat mass, heavy breath
   - 牛 beef → bulk, slow mass
@@ -319,9 +320,32 @@ gesture, because they are what makes the set look like one species of drawing:
 11. **Wings take the arm station, or the ear station if claws already own the
     flank.** Two limbs must never contend for one attachment point.
 
-## Claw implementation rules (shipped 2026-08-04)
+## Claw implementation rules (gesture calibrated 2026-08-04 — NOT shipped)
 
-**龍蝦 & 蟹 gestures built, tested, and ported to live render.**
+**Status, stated exactly.** The 龍蝦 and 蟹 gestures are built, calibrated
+against the owner's reference and tracings, and verified in a standalone
+harness (`src/lib/creatureGestures.ts`, driven by the untracked
+`/dev-creature` page). They are **not** in any production render:
+`TasteFormLive` takes an optional `limbs` prop that nothing in the app passes,
+so today's blob is byte-for-byte today's blob.
+
+Two things block shipping, and neither is the gesture:
+
+1. **No data.** There is no domain evidence anywhere — `DIMS` is 18
+   flavor/texture/body/method dims and carries no ingredient domain at all.
+   The per-user domain-evidence aggregate is ship-path step 2 and does not
+   exist. A first port invented a `vector.sea_crustacean` field, which meant
+   the gate was permanently false and the claws never drew: **a feature keyed
+   to a field that does not exist is not a shipped feature, and "the code is
+   there" is not evidence — rendering it is.**
+2. **The blob is not a body for anatomy.** Hanging the gesture on the current
+   blob scrambles the gesture's own proportions — measured on the real form:
+   the blob's radius along the two claw axes differed by 33% (156px vs 117px),
+   so the small claw protruded FURTHER than the big one and the deliberate
+   1.22 : 0.82 龍蝦 asymmetry inverted. A calibrated limb assumes a body plan
+   designed to carry limbs. Limbs come with the creature renderer (step 3), as
+   one member of the whole vocabulary — body plan, skin, posture, appendage
+   set — never bolted onto the blob one at a time.
 
 Core insight, hard-learned across 7 failed rounds: **topology is not a parameter.**
 The claw must visibly PINCH, which means: (1) palm + fixed finger are ONE rigid
@@ -373,10 +397,11 @@ was wrong.
 - **Limb attachment:** claws attach 0.24R–0.48R from body centre, angled forward-down.
   They must hug the silhouette; anything sprawling reads as ears.
 
-**Crab vs lobster (phase 1):** both claws use the same gesture type code path;
-species choice is wired to the taxonomy node detector (crustacean sub-node
-dominance: 龍蝦 on high lobster share, 蟹 on high crab share). Mid-range gives
-an in-between arm per the blend rule.
+**Crab vs lobster:** both species share one code path and one motion clock;
+`drawClawPair` is the only entry point, because asymmetry, flank placement,
+mirroring and the clock are each a way to get the gesture wrong by hand (the
+first port passed the growth value as `scale` and got two equal claws). Species
+selection needs the 甲殼 sub-node detector, which waits on the same aggregate.
 
 **The bug that hid half the anatomy.** The body is built as
 `x=cx+sin(ph), y=cy−cos(ph)`, so "away from the creature" at angle ph is

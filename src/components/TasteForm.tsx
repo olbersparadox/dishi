@@ -8,7 +8,7 @@
 // can never show a different being than the numbers say.
 import { useEffect, useRef, useState } from 'react';
 import { sampleForm, formToSvgPath, fogExtent, type FormInputs } from '@/lib/blobForm';
-import { drawLobsterClaw, drawCrabClaw, clawMotion } from '@/lib/creatureGestures';
+import { drawClawPair, CLAW_AXIS, type ClawSpecies } from '@/lib/creatureGestures';
 import TasteRadar from './TasteRadar';
 
 const PAPER_INK = ['#3a3733', '#211d18', '#2e2a24'] as const;
@@ -45,15 +45,30 @@ export function TasteFormSnapshot({
   );
 }
 
+/** Grown anatomy layered onto the form (register 骨). Absent by default, and
+ *  absent is exactly today's blob — the creature renderer is additive and must
+ *  fail closed until a node's evidence actually exists. NOTHING in production
+ *  passes this yet: the 甲殼 gate needs the per-user domain-evidence aggregate
+ *  (ship path step 2 in docs/rnd/mokling-framework.md), and there is no domain
+ *  data in the 18-dim vector to fake it from. The dev harness at /dev-creature
+ *  drives it by hand so the gesture can be seen on the real body. */
+export type FormLimbs = {
+  /** 甲殼 crustacean: which sub-node reads, and 0..1 saturating evidence. */
+  claws?: { species: ClawSpecies; growth: number };
+};
+
 /**
  * Live breathing render. Draws the SAME deterministic base form as the
  * snapshot, with time-varying noise layered on top purely as motion — the
  * noise never touches the underlying sample, so pausing at any frame and
  * comparing to TasteFormSnapshot with identical inputs always matches.
+ * (Limbs are the one exception, and a deliberate one: they are grown anatomy,
+ * not motion. The snapshot renderer must learn the same gestures before any
+ * limb reaches production, or the two renderers would disagree.)
  */
 export function TasteFormLive({
-  inputs, size = 280, glyph,
-}: { inputs: FormInputs; size?: number; glyph?: string }) {
+  inputs, size = 280, glyph, limbs,
+}: { inputs: FormInputs; size?: number; glyph?: string; limbs?: FormLimbs }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef = useRef<number | null>(null);
   const visibleRef = useRef(true);
@@ -73,6 +88,23 @@ export function TasteFormLive({
     const c = size / 2;
     const scale = size * 0.36;
 
+    // Limb attachment, measured off the STATIC form (not the breathing outline,
+    // or every wrist would jitter with the breath). A limb needs the rim radius
+    // along ITS OWN direction — a global half-extent buries the wrist wherever
+    // the silhouette bulges. Sample i lies at screen angle angles[i] − π/2.
+    const rimAt = (theta: number) => {
+      let best = 0, bestD = Infinity;
+      for (let i = 0; i < angles.length; i++) {
+        const a = angles[i] - Math.PI / 2;
+        const d = Math.abs(Math.atan2(Math.sin(a - theta), Math.cos(a - theta)));
+        if (d < bestD) { bestD = d; best = radii[i]; }
+      }
+      return best * scale;
+    };
+    const bodyR = (radii.reduce((s, r) => s + r, 0) / radii.length) * scale;
+    const rimL = rimAt(Math.PI - CLAW_AXIS);
+    const rimR = rimAt(CLAW_AXIS);
+
     const io = new IntersectionObserver(([e]) => { visibleRef.current = e.isIntersecting; },
       { threshold: 0.05 });
     io.observe(canvas);
@@ -86,6 +118,16 @@ export function TasteFormLive({
       wash.addColorStop(1, `rgba(${PAPER_WASH},0)`);
       ctx!.fillStyle = wash;
       ctx!.beginPath(); ctx!.arc(c, c, size * 0.48, 0, Math.PI * 2); ctx!.fill();
+
+      // Limbs go on BEFORE the body, so the body fill covers each wrist join —
+      // the same z-order the gesture was calibrated in. Never alpha.
+      if (limbs?.claws) {
+        drawClawPair(ctx!, {
+          cx: c, cy: c, bodyR, rimL, rimR,
+          species: limbs.claws.species, growth: limbs.claws.growth,
+          t, ink: PAPER_INK[1],
+        });
+      }
 
       const px: number[] = [], py: number[] = [];
       for (let i = 0; i < angles.length; i++) {
@@ -114,23 +156,6 @@ export function TasteFormLive({
       ctx!.fillStyle = ink;
       ctx!.fill();
 
-      // Draw claws if the vector hints at crustacean (甲殼). The motion layers
-      // on top of static geometry; the creature's identity never changes.
-      const crustaceanShare = (inputs.vector.sea_crustacean || 0);
-      const hasClaws = crustaceanShare > 0.15;
-      if (hasClaws) {
-        ctx!.fillStyle = PAPER_INK[1];
-        const mL = clawMotion(t, -1);
-        const mR = clawMotion(t, 1);
-        // Position claws inside the body ellipse (body is .62R wide, .66R tall)
-        const fx = size * 0.24;
-        const fy = size * 0.19;
-        // Both claws from the same gesture fn; only species choice picks lobster vs crab.
-        // For now, use lobster (the smaller one emerges from a higher gate ~5 events).
-        drawLobsterClaw(ctx!, c - fx, c + fy, Math.PI - 0.72 + mL.sway, size * 0.5, 1, crustaceanShare, mL);
-        drawLobsterClaw(ctx!, c + fx, c + fy, 0.72 + mR.sway, size * 0.5, 1, crustaceanShare, mR);
-      }
-
       ctx!.fillStyle = `rgba(${PAPER_HIGHLIGHT},0.16)`;
       ctx!.beginPath();
       ctx!.ellipse(c - size * 0.16, c - size * 0.25, size * 0.19, size * 0.08, -0.35 + 0.05 * Math.sin(t * 0.0006), 0, Math.PI * 2);
@@ -151,7 +176,7 @@ export function TasteFormLive({
       io.disconnect();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [inputs.seed, size]);
+  }, [inputs.seed, size, limbs?.claws?.species, limbs?.claws?.growth]);
 
   return <canvas ref={canvasRef} style={{ width: size, height: size }} aria-label="Your taste form, live" role="img" />;
 }
