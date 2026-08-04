@@ -1148,6 +1148,11 @@ the taste form becomes a grown ink lifeform (creature = the living being,
 
 ## 1. Data audit: what vision extracts vs what the engine actually uses — *(Fable, no code until reviewed)*
 
+**Audit delivered 2026-08-04 → docs/rnd/data-audit.md — awaiting owner review.**
+Headline: `diet` flags are the sleeper (100% coverage incl. historical rows, and
+the 15-flag vocab is a protein/domain vocabulary); ingredients gap is historical
+photo rows only; domain evidence is computable today with no new extraction.
+
 Owner (2026-08-02): "i'm surprised Vision has carried so little data over…
 all data is relevant for R&D really… especially for food. Please make a note
 to review how much data are we actually using, and what else we could be using."
