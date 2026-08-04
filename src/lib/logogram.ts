@@ -63,6 +63,37 @@ export type Ming = {
  *  hedging, not an opinion, and the 銘 only writes opinions. */
 const SPEAKS_AT = 0.05;
 
+/** Above this a learned dim counts as a held opinion rather than a shrug.
+ *  Same 0.12 the called-out top tastes are filtered by, deliberately: one line
+ *  between "has a view" and "doesn't", used consistently. */
+const HOLDS_AT = 0.12;
+
+/**
+ * How loudly a dim's LABEL should be set. Four tiers, because three collapse:
+ * an evidence-only scheme (fog / learning / known) shows just two shades on a
+ * mature palate — the owner's own profile has learned all 18 dims, so nothing
+ * ever lands in the faint tier and the label ring goes flat and dark.
+ *
+ * Splitting the learned dims by whether there is actually an opinion there
+ * restores the third shade on any profile, and it is a real distinction rather
+ * than decoration: a dim tasted 49 times that you feel nothing about is a
+ * weaker statement than one you feel strongly about.
+ *
+ * The ordering that must never break: `quiet` is a LEARNED dim and `fog` is an
+ * unlearned one, so fog is always set lighter. Collapsing them would put back
+ * exactly the fabrication this whole figure exists to remove — "I have no
+ * opinion" rendered identically to "I have never tasted this".
+ */
+export type LabelTier = 'called' | 'held' | 'quiet' | 'fog';
+
+export function labelTier(
+  evidenceCount: number | undefined, value: number, isCalled: boolean,
+): LabelTier {
+  if (isCalled) return 'called';
+  if (!evidenceCount) return 'fog';
+  return Math.abs(value) > HOLDS_AT ? 'held' : 'quiet';
+}
+
 /* Reach is expressed as a fraction of the ring radius, so the figure scales as
  * one object. Much shorter than the lab's 0.5: the lab strip had no labels to
  * clear, and long thin strokes read as fur rather than as writing. Short and

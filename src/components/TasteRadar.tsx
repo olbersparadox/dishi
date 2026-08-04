@@ -2,7 +2,7 @@
 import { DIMS } from '@/lib/taste';
 import type { EvidenceMap } from '@/lib/taste';
 import { dimAngle, dimState } from '@/lib/blobForm';
-import { buildMing } from '@/lib/logogram';
+import { buildMing, labelTier } from '@/lib/logogram';
 
 /**
  * The 銘 · the full breakdown, written rather than plotted.
@@ -149,7 +149,6 @@ export default function TasteRadar({ vector, evidence, seed, size = 280, labelFo
       {DIMS.map((dim, i) => {
         const a = dimAngle(i);
         const strong = strongSet.has(i);
-        const state = dimState(evidence[dim]);
         // Every label on one radius now that they share a size, so the ring of
         // words is even — the old +0.008 nudge existed only to give the larger
         // called-out labels room.
@@ -159,10 +158,18 @@ export default function TasteRadar({ vector, evidence, seed, size = 280, labelFo
         const label = labelFor ? labelFor(dim) : dim;
         const anchor = Math.abs(Math.cos(a)) < 0.15 ? 'middle' : Math.cos(a) > 0 ? 'start' : 'end';
 
-        // Weight and ink carry the same three-tier reading as the ring itself:
-        // learned and loved is full ink and bold, learned is plain ink, and a
-        // dim still in fog is written faint — the label admits it is unknown
-        // rather than looking like a measured zero.
+        // Four tiers of ink (lib/logogram.ts labelTier). `quiet` — learned, but
+        // no real opinion — is drawn with --ink-soft held back, which is what
+        // keeps a mature palate from flattening into two shades: the owner's
+        // profile has learned all 18 dims, so without this tier nothing is ever
+        // set lighter than --ink-soft.
+        // fog stays the LIGHTEST and is a different token entirely. That gap is
+        // load-bearing, not styling: "no opinion" must never look like "never
+        // tasted". Concretely, --ink-soft at 0.55 over paper resolves to about
+        // #b4afa6, still darker than --ink-faint's #c9c2b2. Do not drop that
+        // 0.55 much below ~0.45 without rechecking: past there `quiet` becomes
+        // lighter than `fog` and the two tiers silently swap meaning.
+        const tier = labelTier(evidence[dim], vector[dim] ?? 0, strong);
         return (
           <text
             key={dim}
@@ -170,8 +177,10 @@ export default function TasteRadar({ vector, evidence, seed, size = 280, labelFo
             textAnchor={anchor}
             dominantBaseline="middle"
             fontSize={labelFont}
-            fontWeight={strong ? 700 : 400}
-            fill={strong ? 'var(--ink)' : state === 'fog' ? 'var(--ink-faint)' : 'var(--ink-soft)'}
+            fontWeight={tier === 'called' ? 700 : 400}
+            fill={tier === 'called' ? 'var(--ink)'
+              : tier === 'fog' ? 'var(--ink-faint)' : 'var(--ink-soft)'}
+            fillOpacity={tier === 'quiet' ? 0.55 : 1}
           >
             {label}
           </text>

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildMing } from '../src/lib/logogram';
+import { buildMing, labelTier } from '../src/lib/logogram';
 import { DIMS } from '../src/lib/taste';
 import { dimAngle, KNOWS_AT } from '../src/lib/blobForm';
 
@@ -193,5 +193,40 @@ describe('銘 logogram', () => {
     expect(ming.strokes).toHaveLength(0);
     expect(ming.specks).toHaveLength(0);
     expect(ming.extent).toBe(RING);
+  });
+});
+
+describe('銘 label tiers', () => {
+  it('never renders "no opinion" the same as "never tasted"', () => {
+    // The fabrication the whole figure exists to remove. A dim tasted 49 times
+    // that the palate shrugs at is a WEAKER statement than a held opinion, but
+    // it is still a statement — unlike a dim no meal ever taught.
+    expect(labelTier(49, 0.02, false)).toBe('quiet');
+    expect(labelTier(0, 0.02, false)).toBe('fog');
+    expect(labelTier(49, 0.02, false)).not.toBe(labelTier(0, 0.02, false));
+  });
+
+  it('gives a fully-learned palate three tiers, not two', () => {
+    // The owner's live profile: all 18 dims learned, so an evidence-only
+    // scheme collapses to a single shade plus the callouts. Five of its dims
+    // sit under the opinion line and must come out lighter.
+    const v: Record<string, number> = { raw: 0.702, tender: 0.627, umami: 0.626,
+      braised: 0.406, steamed: 0.377, sweet: -0.392, sour: -0.378, fresh: 0.274,
+      salty: 0.239, creamy: -0.224, baked: -0.224, rich: 0.199, grilled: -0.176,
+      spicy: -0.108, bitter: 0.081, chewy: 0.066, crispy: 0.027, fried: 0.012 };
+    const e: Record<string, number> = { raw: 13, tender: 60, umami: 61, braised: 16,
+      steamed: 18, sweet: 45, sour: 9, fresh: 68, salty: 54, creamy: 40, baked: 14,
+      rich: 71, grilled: 16, spicy: 6, bitter: 3, chewy: 49, crispy: 14, fried: 8 };
+    const called = new Set(['raw', 'tender', 'umami']);
+    const tiers = new Set(DIMS.map(d => labelTier(e[d], v[d], called.has(d))));
+    expect(tiers).toEqual(new Set(['called', 'held', 'quiet']));
+    expect(tiers.size).toBe(3);
+    expect(tiers.has('fog')).toBe(false);   // nothing unlearned to write faint
+  });
+
+  it('a sparse palate still reads fog, and being called out wins over evidence', () => {
+    expect(labelTier(0, 0.6, false)).toBe('fog');
+    expect(labelTier(4, 0.44, true)).toBe('called');
+    expect(labelTier(2, 0.3, false)).toBe('held');
   });
 });
