@@ -79,9 +79,40 @@ const smooth01 = (x: number) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
  * @param offsetX the hair's horizontal offset from body centre (the gust travels)
  */
 export function hairWindBend(nx: number, ny: number, offsetX: number, R: number, t: number): number {
-  const swell = 0.55 + 0.45 * Math.sin(t * 0.00029); // gusts, then lulls
+  // The lull floor is deliberately high: at 0.10 the coat sat near-motionless
+  // for seconds at a time, which reads as no animation at all if you happen to
+  // look then (owner, 2026-08-04: "don't see animation or too subtle").
+  const swell = 0.62 + 0.38 * Math.sin(t * 0.00029); // gusts, never fully still
   const g = swell * Math.sin(t * 0.0015 - (offsetX / (R * 2.2)) * 4.2);
-  return 0.38 * g * (0.3 * nx - ny); // cross(hair, wind), wind ≈ (g, .3g)
+  // Amplitude is what a hair can actually SHOW: a strand is only a few px long,
+  // so a 20° lean moves its tip by ~2px and vanishes. Real fur lays right over
+  // in a gust, so the peak lean is large — but only for hairs fully broadside,
+  // only at peak swell, and only where the travelling wave currently is.
+  return 0.8 * g * (0.3 * nx - ny); // cross(hair, wind), wind ≈ (g, .3g)
+}
+
+/**
+ * 毛 · stroke width, spacing and length for the coat at a given render size.
+ *
+ * Below ~170px the coat has to stop competing with the anatomy underneath it —
+ * at small sizes a 3px stroke with proportional length swallows the legs
+ * (owner, 2026-08-04). Thickness is the single lever: because the spacing and
+ * length floors are both expressed in stroke widths, thinning the stroke makes
+ * the coat DENSER and SHORTER at the same time, which is exactly the
+ * three-part correction asked for. Above 170px nothing changes, so the larger
+ * sizes already approved are untouched.
+ */
+export function hairMetrics(size: number, R: number): { w: number; gap: number; base: number } {
+  const small = smooth01((170 - size) / 70); // 0 at ≥170px, 1 at ≤100px
+  const w = 3 - 1.2 * small;
+  return {
+    w,
+    // spaced by arc length; the floor keeps neighbours from fusing into a rim
+    gap: Math.max(R * 0.088, w * 1.55),
+    // floored so a strand is never barely longer than it is wide, capped
+    // against R so a thumbnail grows a short coat rather than spikes
+    base: Math.min(Math.max(R * 0.11, w * 2.0), R * 0.32),
+  };
 }
 
 /* ── 姿/性 temperament — read from dims the engine ALREADY learns ───────────
@@ -617,11 +648,12 @@ export function drawCreatureFrame(
   if (isHairy) {
     ctx.save();
     ctx.lineCap = 'round';
-    // literal 3px, not a proportion (owner's spec): hair must read as hair at
-    // any size rather than thickening into spikes on a large render. Because it
-    // is fixed, it becomes the yardstick everything else below is measured in.
-    const HAIR_W = 3;
-    ctx.lineWidth = HAIR_W;
+    // 3px at full size (owner's spec: a literal width, not a proportion, so
+    // hair reads as hair rather than thickening into spikes on a large render),
+    // tapering below ~170px so the coat stops burying the legs. The width is
+    // the yardstick everything else is measured in — see hairMetrics.
+    const HM = hairMetrics(size, R);
+    ctx.lineWidth = HM.w;
     ctx.strokeStyle = inkFill(ctx, c0, size); // hair IS the body colour
     // ANCHORED TO THE STATIC SILHOUETTE. Deriving the count and the arc-length
     // positions from the LIVE outline makes both drift with the breath: `total`
@@ -639,20 +671,8 @@ export function drawCreatureFrame(
       seg.push(dl); total += dl; cum.push(total);
     }
     // spaced by ARC LENGTH, not by angle — even angular spacing thins the coat
-    // wherever the radius is largest, packing the sides and stripping top/bottom.
-    //
-    // The gap and the strand length both take a PIXEL floor, because what makes
-    // a coat legible is the strand's size against the fixed 3px stroke, not its
-    // size relative to the body. Scaled purely by R, both fall toward 3px as the
-    // creature shrinks: neighbours touch and the fur fuses into one solid dark
-    // rim, and each hair ends up barely longer than it is wide (owner,
-    // 2026-08-04: "184 or below, more like the solid dark rim"). With floors the
-    // coat gets COARSER as the being gets small — fewer, relatively longer
-    // strands, which is how distant fur actually reads — instead of finer and
-    // unresolvable. Above ~200px the proportional values still win, so the sizes
-    // the owner already approved are untouched.
-    const gap = Math.max(R * 0.088, HAIR_W * 1.55);
-    const N = Math.max(22, Math.round(total / gap));
+    // wherever the radius is largest, packing the sides and stripping top/bottom
+    const N = Math.max(22, Math.round(total / HM.gap));
     let k = 0;
     for (let i = 0; i < N; i++) {
       const target = (i / N) * total;
@@ -662,14 +682,10 @@ export function drawCreatureFrame(
       const px = p0.x + (p1.x - p0.x) * fr, py = p0.y + (p1.y - p0.y) * fr;
       let nx = px - cx, ny = py - cy;
       const d = Math.hypot(nx, ny) || 1; nx /= d; ny /= d;
-      // Floored against the stroke so a strand is never barely longer than it is
-      // wide, capped against R so a thumbnail grows a short coat rather than
-      // spikes — and the per-hair variation is applied AFTER the clamp, never
-      // inside it. Clamping the varied value collapses every hair to exactly the
-      // floor once the body is small, and a coat of identical strands reads as a
-      // comb, not as fur.
-      const hairBase = Math.min(Math.max(R * 0.11, HAIR_W * 2.0), R * 0.32);
-      const L = hairBase * (0.82 + rnd() * 0.36);
+      // variation applied AFTER the clamp, never inside it: clamping the varied
+      // value collapses every hair to exactly the floor once the body is small,
+      // and a coat of identical strands reads as a comb, not as fur
+      const L = HM.base * (0.82 + rnd() * 0.36);
       const side = px >= cx ? 1 : -1;
       const bend = hairWindBend(nx, ny, px - cx, R, t);
       // base lean stays MIRRORED about the vertical axis (owner's reference:

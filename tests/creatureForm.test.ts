@@ -3,7 +3,7 @@
 // itself is canvas-only and is verified visually on /dev-creature — but the
 // gates are where honesty lives, and honesty is testable.
 import { describe, it, expect } from 'vitest';
-import { hasAnatomy, temperOf, hairWindBend } from '../src/lib/creatureForm';
+import { hasAnatomy, temperOf, hairWindBend, hairMetrics } from '../src/lib/creatureForm';
 import type { FormInputs } from '../src/lib/blobForm';
 
 const inputs = (vector: Record<string, number>, evidence: Record<string, number>): FormInputs =>
@@ -117,11 +117,61 @@ describe('hairWindBend — wind moves each hair, not the whole creature', () => 
       .toBeGreaterThan(0.05);
   });
 
-  it('stays subtle — never swings a hair far enough to read as a limb', () => {
+  it('is never fully still — a lull that stops dead reads as no animation', () => {
+    // sample many instants; the coat's peak bend must stay meaningful throughout
+    let weakest = Infinity;
+    for (let t = 0; t < 40000; t += 250) {
+      const peak = Math.max(...HAIRS.map(h => Math.abs(hairWindBend(h.nx, h.ny, h.x, R, t))));
+      weakest = Math.min(weakest, peak);
+    }
+    expect(weakest).toBeGreaterThan(0.05);
+  });
+
+  it('bounded — a gust lays fur over, it does not spin it into a limb', () => {
     let worst = 0;
     for (let t = 0; t < 30000; t += 50) {
       for (const h of HAIRS) worst = Math.max(worst, Math.abs(hairWindBend(h.nx, h.ny, h.x, R, t)));
     }
-    expect(worst).toBeLessThan(0.42); // ≈24°, and only for hairs fully broadside
+    expect(worst).toBeLessThan(0.9); // ≈50°, and only fully broadside at peak gust
+  });
+});
+
+// The small-size correction: below ~170px the coat was burying the legs.
+describe('hairMetrics — the coat yields to the anatomy under it at small sizes', () => {
+  const R = (size: number) => size * 0.1951; // the creature's body radius at this size
+
+  it('leaves the approved large sizes exactly as they were', () => {
+    for (const size of [170, 184, 220, 280]) {
+      expect(hairMetrics(size, R(size)).w).toBe(3);
+    }
+  });
+
+  it('below 170px the stroke thins, monotonically', () => {
+    const widths = [170, 150, 130, 110, 96, 72].map(s => hairMetrics(s, R(s)).w);
+    for (let i = 1; i < widths.length; i++) expect(widths[i]).toBeLessThanOrEqual(widths[i - 1]);
+    expect(widths[widths.length - 1]).toBeLessThan(2);
+  });
+
+  it('thinner ⇒ DENSER and SHORTER together — the three-part ask, one lever', () => {
+    // measured against the stroke, since that is what legibility is relative to
+    const big = hairMetrics(184, R(184));
+    const small = hairMetrics(110, R(110));
+    expect(small.gap).toBeLessThan(big.gap);     // more hairs per unit rim
+    expect(small.base).toBeLessThan(big.base);   // shorter strands
+    expect(small.w).toBeLessThan(big.w);         // finer stroke
+  });
+
+  it('a strand never grows long enough to swamp the body it sits on', () => {
+    for (const size of [72, 96, 120, 150, 184, 280]) {
+      const r = R(size);
+      expect(hairMetrics(size, r).base).toBeLessThanOrEqual(r * 0.32 + 1e-9);
+    }
+  });
+
+  it('neighbours never fuse: the gap always clears the stroke width', () => {
+    for (const size of [72, 96, 120, 150, 184, 280]) {
+      const hm = hairMetrics(size, R(size));
+      expect(hm.gap).toBeGreaterThan(hm.w * 1.2);
+    }
   });
 });
