@@ -290,14 +290,28 @@ fact, and unlike mode 2 it is NOT rescued by a frontier host's native
 discipline: Opus and Sonnet both did it. This is the one defect the install
 cell found that the document actually owns.
 
-**R5 (PROPOSED — not moved; owner decides):** (a) avoid-lines carry evidence count and scope ("sugar-led
-sauces, 2 dishes: …; loved list contains naturally sweet seafood — the signal
-is sauce profiles, not sweetness"); (b) calibration instruction: never state a
-dislike more strongly than the doc does, recommend-against only by citing the
-missed dish, never veto an unrated category; (c) contradiction feeds the loop:
-if the user reports enjoying something against a lean, believe the report and
-suggest rating it. (c) turns the owner's exact complaint into the rate
-reminder firing at its most useful moment.
+**R5 (a) SHIPPED (2026-08-02, tasteExport.ts):** avoid-lines now carry a real
+per-dim evidence count (`TasteExportInput.evidence`, the same `EvidenceMap`
+that already drives 識睇/仲摸緊 on the blob — one honest counter, not a new one).
+Below `KNOWS_AT` (blobForm.ts, currently 3), a dislike renders with an explicit
+"early lean, not a settled dislike" qualifier instead of a bare trait word; at
+or above it, it states the dish count plainly ("bitter (6 dishes)"). Callers
+that don't pass `evidence` (or hand-built sections in tests) get the old bare
+label — additive, not a breaking change. This is the buildable half of what
+the finding above called "evidence count and scope": what it does NOT do is
+the sauce-vs-seafood attribution in the finding's own illustrative example
+("loved list contains naturally sweet seafood — the signal is sauce profiles,
+not sweetness") — that needs per-dish dimension attribution the engine doesn't
+currently expose to the export, and stays parked on the decomposition R&D
+thread (sauce-sweet vs 鮮甜), same scoping the finding itself gave it.
+
+(b) and (c) remain PROPOSED, not built — owner decides if/when: (b) calibration
+instruction: never state a dislike more strongly than the doc does,
+recommend-against only by citing the missed dish, never veto an unrated
+category; (c) contradiction feeds the loop: if the user reports enjoying
+something against a lean, believe the report and suggest rating it. (c) turns
+the owner's exact complaint into the rate reminder firing at its most useful
+moment.
 
 Protocol note: the Claude cell's scores stand — ADOPT measures faithful
 transmission of the MEASURED palate, and transmission was faithful. This
@@ -343,8 +357,9 @@ The known blocker is size: the shipped doc is ~6k chars and personalization
 slots are short, so H1c almost certainly requires **R3 (condensed variant —
 headline identity, top anchors, epistemic line, loop rules, nothing else)**.
 That makes R3 no longer a speculative lever but the prerequisite for testing
-the phase's most valuable placement. Sequence: R5 (confirmed defect) → R3
-(condensed build) → H1c cell → then a second install host for H2/R4 closure.
+the phase's most valuable placement. Sequence: R5 (confirmed defect — (a)
+shipped 2026-08-02, (b)/(c) still proposed) → R3 (condensed build) → H1c cell
+→ then a second install host for H2/R4 closure.
 
 ## Results log (append per run)
 

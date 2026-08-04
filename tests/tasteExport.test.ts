@@ -6,6 +6,7 @@ import {
   HARD_LIMITS, EPISTEMIC_LINE, INSTALL_HOSTS, PROVENANCE_PREAMBLE,
   MEMORY_LINE, VENUE_GROUNDING, exportContainerName,
 } from '../src/lib/tasteExport';
+import { KNOWS_AT } from '../src/lib/blobForm';
 
 const label = (d: string) => d.toUpperCase();
 const cuisine = (c: string) => c.toUpperCase();
@@ -58,6 +59,30 @@ describe('extractTasteSections', () => {
     expect(extractTasteSections({ vector: dims(9), affinity: cuis(5), ratingCount: 30 }, label, cuisine).confidence).toBe('solid');
     // volume WITHOUT coverage is NOT solid — the honest correction the rebase makes
     expect(extractTasteSections({ vector: dims(1), affinity: {}, ratingCount: 40 }, label, cuisine).confidence).not.toBe('solid');
+  });
+
+  it('R5a: attaches per-dim evidence counts to dislikes only when a map is supplied', () => {
+    const noEvidence = extractTasteSections(
+      { vector: { bitter: -0.8, sour: -0.3 }, affinity: {}, ratingCount: 10 }, label, cuisine,
+    );
+    expect(noEvidence.dislikeEvidence).toBeUndefined();
+    expect(noEvidence.strongDislikeEvidence).toBeUndefined();
+
+    const withEvidence = extractTasteSections(
+      { vector: { bitter: -0.8, sour: -0.3 }, affinity: {}, ratingCount: 10, evidence: { bitter: 6, sour: 1 } },
+      label, cuisine,
+    );
+    expect(withEvidence.dislikeEvidence).toEqual([
+      { label: 'BITTER', count: 6 }, { label: 'SOUR', count: 1 },
+    ]);
+    expect(withEvidence.strongDislikeEvidence).toEqual([{ label: 'BITTER', count: 6 }]);
+
+    // A dim the evidence map never taught is not zero-manufactured into a claim —
+    // it honestly reads 0, same as "no rating ever taught this" everywhere else.
+    const missingDim = extractTasteSections(
+      { vector: { sour: -0.3 }, affinity: {}, ratingCount: 10, evidence: { bitter: 6 } }, label, cuisine,
+    );
+    expect(missingDim.dislikeEvidence).toEqual([{ label: 'SOUR', count: 0 }]);
   });
 });
 
@@ -154,6 +179,32 @@ describe('buildTastePrompt', () => {
     const p = buildTastePrompt(empty);
     expect(p).toMatch(/No clear positive signal yet/i);
     expect(p).toMatch(/No clear negative signal yet/i);
+  });
+
+  it('R5a: with no evidence map, avoid-lines render as bare labels (unchanged)', () => {
+    const p = buildTastePrompt(full);
+    expect(p).toContain('Strongly avoid: bitter');
+    expect(p).not.toMatch(/bitter \(/);
+  });
+
+  it('R5a: a well-evidenced dislike states its dish count plainly', () => {
+    const p = buildTastePrompt({ ...full, strongDislikeEvidence: [{ label: 'bitter', count: KNOWS_AT }] });
+    expect(p).toContain(`Strongly avoid: bitter (${KNOWS_AT} dishes)`);
+    expect(p).not.toMatch(/early lean/);
+  });
+
+  it('R5a: a below-threshold dislike is flagged as an early lean, not a settled dislike', () => {
+    const p = buildTastePrompt({ ...full, strongDislikeEvidence: [{ label: 'bitter', count: 1 }] });
+    expect(p).toContain('Strongly avoid: bitter (1 dish so far — early lean, not a settled dislike)');
+  });
+
+  it('R5a: the "Generally prefer less" line scopes independently of "Strongly avoid"', () => {
+    const p = buildTastePrompt({
+      ...full,
+      dislikes: ['bitter', 'sour'],
+      dislikeEvidence: [{ label: 'bitter', count: 8 }, { label: 'sour', count: 1 }],
+    });
+    expect(p).toContain('Generally prefer less: bitter (8 dishes), sour (1 dish so far — early lean, not a settled dislike)');
   });
 });
 

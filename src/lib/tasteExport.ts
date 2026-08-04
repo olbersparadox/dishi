@@ -14,6 +14,11 @@
 // most reliably in English. Dish and restaurant names inside it stay in whatever
 // language they really are.
 
+// KNOWS_AT: reused, not redefined — the same evidence-count line that already
+// decides 識睇 vs 仲摸緊 on the blob (blobForm.ts). An avoid-line below that line
+// is exactly as "still learning" as the dim would be anywhere else in the app.
+import { KNOWS_AT } from './blobForm';
+
 /** Only dims with a real, legible signal are worth putting in someone's mouth as
  * "I love X" — near-zero values are noise, not a preference, and listing them
  * would manufacture confidence the engine doesn't actually have. */
@@ -128,7 +133,21 @@ export type TasteExportInput = {
    * "umami: 0.7", and real dishes survive contact with a real menu in a way an
    * abstract trait doesn't. */
   dishes?: ExportDish[];
+  /** How many ratings actually TAUGHT each dimension (taste.ts EvidenceMap — the
+   * same counter that drives 識睇/仲摸緊 on the blob and the menu-scoring citation
+   * gate). Optional: when absent, avoid-lines render as bare labels, same as
+   * before R5. When present, they carry an evidence count per dislike — see the
+   * "Doc flattening" finding in docs/rnd/palate-export-phase1-plan.md (R5): a
+   * bare "Generally prefer less: sweet, sour" verdict made two data points and
+   * twenty indistinguishable to the host, which is what turned a sauce miss
+   * into a category veto downstream. */
+  evidence?: Record<string, number>;
 };
+
+/** A dislike label paired with how many ratings actually taught that dimension —
+ * the raw material for scoping an avoid-line instead of stating it as a flat
+ * verdict (R5a). */
+export type DislikeEvidence = { label: string; count: number };
 
 export type TasteExportSections = {
   loves: string[];
@@ -149,6 +168,11 @@ export type TasteExportSections = {
   lovedSharedCount: number;
   /** Dishi's own honest read of how much it actually knows yet. */
   confidence: 'thin' | 'emerging' | 'solid';
+  /** Evidence counts for `dislikes`/`strongDislikes`, same order, index-aligned by
+   * label. Present only when the caller supplied `input.evidence` — optional so
+   * every hand-built TasteExportSections in tests keeps working unchanged. */
+  dislikeEvidence?: DislikeEvidence[];
+  strongDislikeEvidence?: DislikeEvidence[];
 };
 
 /** Pure data extraction — separated from prompt WORDING so the wording can change
@@ -176,11 +200,23 @@ export function extractTasteSections(
     evidenceConfidence(confidenceInputsFrom(input.vector, input.affinity, input.ratingCount)),
   );
 
+  // R5a: evidence-scoped avoid lines. Only built when the caller supplied a real
+  // evidence map — an absent map must render as it always did (bare labels), not
+  // as manufactured zero-counts that would understate real signal.
+  const dislikeEvidence = input.evidence
+    ? neg.map(([d]) => ({ label: dimLabel(d), count: input.evidence![d] ?? 0 }))
+    : undefined;
+  const strongDislikeEvidence = input.evidence
+    ? neg.filter(([, v]) => v <= -STRONG_THRESHOLD).map(([d]) => ({ label: dimLabel(d), count: input.evidence![d] ?? 0 }))
+    : undefined;
+
   return {
     loves: pos.map(([d]) => dimLabel(d)),
     strongLoves: pos.filter(([, v]) => v >= STRONG_THRESHOLD).map(([d]) => dimLabel(d)),
     dislikes: neg.map(([d]) => dimLabel(d)),
     strongDislikes: neg.filter(([, v]) => v <= -STRONG_THRESHOLD).map(([d]) => dimLabel(d)),
+    dislikeEvidence,
+    strongDislikeEvidence,
     cuisines: Object.entries(input.affinity)
       .filter(([, v]) => v > 0)
       .sort((a, b) => b[1] - a[1])
@@ -299,6 +335,31 @@ const CONFIDENCE_WORDING: Record<'thin' | 'emerging' | 'solid', (n: number) => s
   solid: n => `This read is solid (${n} dishes). You can trust it for real guidance — and where it is silent, that silence is a genuine unknown, not indifference.`,
 };
 
+/** R5a: renders an avoid-line group with per-dim evidence scope, when evidence
+ * is available. Falls back to bare labels (today's behaviour) when it isn't —
+ * either because the caller didn't supply an evidence map, or a hand-built
+ * TasteExportSections (tests, older callers) never carried one.
+ *
+ * The fix targets the "Doc flattening" finding directly: a bare "Generally
+ * prefer less: sweet, sour" made two data points and twenty indistinguishable
+ * to the host, and the host resolved that ambiguity by hardening a thin lean
+ * into a category veto. Citing the count lets the host make that call itself —
+ * below KNOWS_AT (the same "still learning" line the blob already uses), a
+ * label is flagged as an early lean rather than a settled dislike. */
+function formatAvoidGroup(labels: string[], evidence?: DislikeEvidence[]): string {
+  if (!evidence) return labels.join(', ');
+  return labels
+    .map(label => {
+      const found = evidence.find(e => e.label === label);
+      if (!found) return label;
+      const dishWord = found.count === 1 ? 'dish' : 'dishes';
+      return found.count >= KNOWS_AT
+        ? `${label} (${found.count} ${dishWord})`
+        : `${label} (${found.count} ${dishWord} so far — early lean, not a settled dislike)`;
+    })
+    .join(', ');
+}
+
 /**
  * Builds the paste-ready export — the person's palate, in their own voice,
  * taste learning only (owner decision 5: no character, no chime, no house-rule
@@ -365,8 +426,8 @@ export function buildTastePrompt(
   out.push('');
 
   out.push('## What I avoid');
-  if (strongDislikes.length) out.push(`Strongly avoid: ${strongDislikes.join(', ')}`);
-  if (dislikes.length) out.push(`Generally prefer less: ${dislikes.join(', ')}`);
+  if (strongDislikes.length) out.push(`Strongly avoid: ${formatAvoidGroup(strongDislikes, s.strongDislikeEvidence)}`);
+  if (dislikes.length) out.push(`Generally prefer less: ${formatAvoidGroup(dislikes, s.dislikeEvidence)}`);
   if (!dislikes.length) out.push('(No clear negative signal yet.)');
   out.push('');
 

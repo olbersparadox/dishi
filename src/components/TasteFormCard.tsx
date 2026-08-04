@@ -229,7 +229,7 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
         if (res.ok) { version = json.profile_version ?? undefined; companions = json.companions ?? undefined; }
       } catch { /* version/companions are a bonus on top of the doc, not required for it */ }
       const sections = extractTasteSections(
-        { vector, affinity, ratingCount: count, dishes },
+        { vector, affinity, ratingCount: count, dishes, evidence: state?.evidence },
         dim => t(`dim.${dim}`),
         c => cuisineLabel(c, lang),
       );

@@ -38,10 +38,23 @@ Registers are independent — that is what makes the output space multiply
 
 | register | fed by | tempo | expresses as |
 |---|---|---|---|
-| 骨 body plan | ingredient DOMAIN shares (sea / land / air / field) | slow, near-irreversible | silhouette family + appendage grammar: tendrils, leg-nubs, wing fans, fronds |
-| 膚 skin & edge | method dims (already learned: 炸烤燜蒸生焗) | medium | edge/surface treatment: 炸 crusted granular rim, 蒸 wet sheen, 烤 char striations, 燜 heavy sag, 生 translucent wash, 焗 risen dome |
-| 姿 motion | flavor + body dims (辣甜酸苦鮮鹹 / 濃清) | medium | motion signature: 辣 quick flicks, 甜 round bounce, 酸 tight curls, 鮮 deep slow gravity, 濃 viscous, 清 light drift. Motion is identity (Universal Everything), but it never changes the base form |
-| 銘 DNA | the full 18-dim vector + evidence + domain record | exact, always current | the written logogram: outward strokes = love, inward = dislike, stroke count = evidence, silence = fog |
+| 骨 body plan | ingredient DOMAIN shares (sea / land / air / field / 菌 / 藻) | slow, reversible over seasons | silhouette family + appendage grammar: tendrils, leg-nubs, wing fans, fronds, caps, ribbons — **built, lab v3–v6** |
+| 膚 skin & edge | method dims (already learned: 炸烤燜蒸生焗) | medium | edge/surface treatment: 炸 crusted granular rim, 蒸 wet sheen, 烤 sear marks, 燜 heavy sag, 生 translucent wash, 焗 risen dome — **built, lab v6** |
+| 姿 motion & temperament | flavor + method dims (辣甜酸苦鮮鹹 / 濃清) | medium | motion signature AND static posture: 辣+炸烤 → jagged edge, forward lean, quick darts; 蒸生+清 → smoothed contour, upright, slow drift; 燜+濃 → low centre of mass, heavy settle; 甜 → round springy profile — **built, lab v6** |
+| 脊 spine | vertebrate share of the diet | slow | a dorsal ridge (lit crest + shadow) on vertebrate-fed bodies; crab and mushroom eaters have none — **built, lab v6** |
+| 銘 DNA | the full 18-dim vector + evidence + domain record | exact, always current | the written logogram: outward strokes = love, inward = dislike, stroke count = evidence, silence = fog — **built, lab v3** |
+
+**Registers must be genuinely independent** (the v6 range test proves it): a
+dessert life is near-silent in 骨 — 榖 (flour, sugar, dairy) is SKIN in this
+framework, not anatomy — and loud in 膚 and 姿, producing a smooth risen dome
+with almost no appendages. One being can max one register and zero another;
+that orthogonality is what multiplies the output space.
+
+**Temperament must survive a screenshot.** It was specified as motion, but a
+being is seen still far more often than animated (version cards, exports,
+share images, a scrolling feed). So temperament also sets static posture:
+edge sharpness, forward lean, and centre of mass. Motion layers on top and
+still never changes identity.
 
 Rating count and evidence breadth remain the global growth/stage axis
 (Fibonacci gates 3 · 8 · 21 · 55; stages 墨點 → 初形 → 成形 → 深養), and fog
@@ -102,11 +115,17 @@ creature.
 
 Rules that make the tree honest and legible:
 
-1. **Gate on SHARE, scale on EVIDENCE.** A feature exists only when its node
-   holds a real share of the recent diet (prototype: >0.22 at depth 1; deeper
-   nodes need a share of their parent). It then grows with absolute evidence.
-   Lab-proven failure otherwise: gating on raw counts sprouted every feature
-   on everyone — one stray prawn dish must not give a carnivore fins.
+1. **Gate on SHARE **and** an absolute evidence FLOOR; scale on evidence.**
+   A feature exists only when its node holds a real share of the recent diet
+   (prototype: >0.22 at depth 1; deeper nodes need a share of their parent)
+   **and** that node has been genuinely lived (prototype floor: ~5 events,
+   ~3 for claws). It then grows with absolute evidence.
+   Two lab-proven failures, one on each side of this rule: gating on raw
+   counts alone sprouted every feature on everyone (one stray prawn dish gave
+   a carnivore fins); gating on share alone gave a dessert eater with two
+   vegetable dishes out of five domain events a full set of fronds, because
+   two-of-five is 40%. **A large slice of almost nothing is not evidence.**
+   Both gates, always.
 2. **Grafting is the point, not an exception.** Any node's gesture can bud on
    any body once its gate passes (the 化形 demo: sea being buds legs after a
    meat turn). Species are open paths, not boxes — this is what makes the
@@ -216,11 +235,104 @@ An "agile aggressive mammal" is exactly this: land body plan (骨) + fried/spicy
 temperament (性) — two independent registers composing, which is why the
 combination space stays huge.
 
-**Gesture pool** (waiting for an honest detector, not yet shippable): ears,
-horn (candidate: 牛 at extreme evidence, as an earned rare trait), hair/fuzz
-(candidate: 膚-register rendering of 脆 crispy rather than anatomy), antennae,
-shell plates as armor (甲殼 at depth). Nothing leaves the pool without a
-detector + gate + growth curve.
+## The full stroke vocabulary (built, lab v7)
+
+Owner's expansion, 2026-08-02: "many different tails… fins… wings, chicken,
+duck, goose… horn, beside from cow, could be heaviness, fat, evil food… ears…
+leg/feet, duck… skin, hairy, hairless, soft, hard, shell, smooth, rough…
+different kind of leafs… octopus tentacles." Each gesture below ships only
+with the detector beside it. **No detector, no feature.**
+
+| family | variants | earned by |
+|---|---|---|
+| 尾 tails | 魚 forked · 甲殼 segmented fan · 牛 tufted whip · 豬 curl · 禽 fan | dominant sub-node of the largest animal domain |
+| 鰭 fins | 尖 swift pointed · 圓 whole-steamed round · 帶 eel ribbon | fish sub-node × method (生 raw / 蒸 / 烤) |
+| 翼 wings | 雞 short round · 鴨 pointed swift · 鵝 long broad | poultry sub-node |
+| 角 horns | 牛 curved pair · 脂 thick blunt · 罪 jagged | 牛 at depth · heaviness + 濃 · **炸 + heaviness after 23:00** |
+| 耳 ears | 豬 floppy triangle · 牛 side flap · 羊 pointed | land sub-node |
+| 足 feet | 牛 cleft hoof · 豬 trotter · 雞 splayed toes · 鴨 webbed | land sub-node + 鴨 of 羽 |
+| 膚 skins | 毛 hairy · 滑 smooth wet · 糙 rough seared · 甲 plated · 軟 sagging | fur mammals at depth · 蒸/生 · 烤/炸 · 甲殼 · 燜 |
+| 葉 plant parts | 闊葉 broad leaf · 針葉 herb sprig · 根 tuber · 藻帶 seaweed ribbon | 田 sub-nodes (葉/花/根) + 藻 |
+| 觸 tentacles | 八爪 suckered curl · 魷 straight pair · 水母 fine strands | 軟體 sub-nodes |
+
+Two notes from building it:
+
+- **罪角 is the one genuinely new data source.** Late-night fried food is
+  detectable TODAY — dishes carry timestamps — and no other feature in the
+  framework uses time-of-day. It is also the most characterful trait in the
+  set, which is a hint: *when* someone eats is as expressive as what.
+- **Watch for semantic collisions.** The first 牛耳 was two dark ovals on the
+  body and read unmistakably as EYES. Any gesture placed on the upper body
+  must be checked against the face vocabulary below, because the eye reading
+  wins every time.
+
+## 眼 · 口 — the late, rare features
+
+Owner, 2026-08-02: *"eyes would add much character… but I feel that it should
+be later on, very high level features, that it finally gains the eyes,
+exponentially more expressive. Same for mouth, teeth. But for this visual
+style, either have a mouth or a pair of eyes, not together. Unless it's a
+super rare case."* Agreed, and made exact — a face must be earned by what the
+ENGINE achieved, never by tenure or rating count:
+
+- **眼 eyes ← BREADTH.** They open as the fog retreats, when the engine knows
+  most of the palate (~14 of 18 dims at KNOWS_AT). The being opens its eyes
+  when it can finally *see* your whole taste. This gives fog — already the
+  most honest thing in the visual system — its most expressive payoff.
+- **口 mouth ← CONVICTION.** Strong loves and real dislikes; a decided palate.
+  It grows a mouth when it has *bitten*. Teeth stay a few marks, never a grin.
+- **Either, not both.** Whichever signal is stronger wins. Both only when
+  breadth AND conviction are both extreme — genuinely rare, and it should
+  stay that way, because the ordinary state must stay ordinary or the rare
+  state means nothing.
+
+## Drawing rules, calibrated against the owner's hand (2026-08-02)
+
+The owner sketched seven beings. They corrected PROPORTION more than shape,
+and these are now the renderer's rules — they matter more than any individual
+gesture, because they are what makes the set look like one species of drawing:
+
+1. **The body carries the silhouette; every appendage is a small accent that
+   hugs it.** Limbs that sprawl read as a spider, not a taste organism. When in
+   doubt, shorter and closer.
+2. **Interior tone is a breath of light, not an object.** A flat highlight
+   ellipse at readable alpha reads as a grey ball sitting inside the creature —
+   it must be a soft radial fade, strong only where the skin justifies it.
+3. **Hair is a dense fine fringe around the ENTIRE outline**, not sparse spikes.
+4. **Rough skin is dark pits**, not pale specks. **Shell is graphic nested
+   bands.** **Sear marks are faint scorches**, not grey dashes.
+5. **Translucent things are pale grey** — tentacles, fins, antennae. Not black.
+6. **Eyes are small and close together.** Anything else reads as a cartoon.
+7. **Never centre a line down a round body** — it reads as a seam splitting the
+   creature. (Killed the first spine twice: once as a zipper, once as a seam.)
+8. **Wings leave from the SHOULDER, angled out.** Attached high and aimed
+   skyward, both sides merge into one jagged crest above the head.
+
+9. **No gradients.** The house style is cut-paper ink: flat shapes with crisp
+   edges. A radial fade reads as 3D shading and breaks the register (owner,
+   2026-08-02: *"too much gradient and doesn't fit this style"*).
+10. **脊 the spine is CUT.** Tried three ways — centred ticks read as a zipper,
+    a centred line as a seam, off-centre as a scratch. A round ink body has no
+    good place for a spine, and vertebrate-vs-invertebrate is already carried
+    by which limbs exist. Deleted rather than kept faint: a feature that never
+    reads is clutter, not subtlety.
+11. **Wings take the arm station, or the ear station if claws already own the
+    flank.** Two limbs must never contend for one attachment point.
+
+**The bug that hid half the anatomy.** The body is built as
+`x=cx+sin(ph), y=cy−cos(ph)`, so "away from the creature" at angle ph is
+`(sin ph, −cos ph)`. Several appendages hand-rolled their own direction with
+the sign inverted on one side, so wings and tails were drawn INTO the body and
+buried under the fill — features that were coded, gated, and firing correctly,
+but invisible. The owner spotted it from the renders alone ("a lot of stuff
+mentioned but missing, I think there's a bug"). Every appendage now leaves the
+rim through a single `out(ang, L)` helper. **Lesson: when a feature is present
+in the data and absent on screen, suspect the geometry before the gate.**
+
+**Gesture pool** (still waiting for an honest detector): antennae, whiskers,
+plated armour at 甲殼 depth, and anything requiring ingredient reads finer
+than the current 4-item list. Nothing leaves the pool without a detector +
+gate + growth curve.
 
 ## Attachment loop (from the lifeform-psychology research, ranked)
 
