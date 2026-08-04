@@ -480,7 +480,29 @@ See BACKLOG "Data audit" item — the audit runs before any phase-1 code.
 
 1. Data audit (BACKLOG item 1).
 2. Per-user domain-evidence aggregate (like cuisine affinity; replayable by
-   replay.ts on re-rates), persisted with taste_profile_version.
+   replay.ts on re-rates), persisted with taste_profile_version. — **BUILT
+   2026-08-04** (`src/lib/domainEvidence.ts` + `taste_profiles.domain_evidence`,
+   migration recorded in supabase/applied/). Classifier reads columns that
+   already exist: diet flags → depth-1 domains + 甲殼, ingredients → 菌/藻 and
+   the crustacean sub-nodes, name morphemes → land/shell sub-nodes ONLY (a name
+   never authors a domain; the rating is the evidence). Metabolism as
+   arithmetic: `weight = 0.5 + calibrated score`, so exposure counts, liking
+   amplifies and dislike CARVES; one meal's weight is SPLIT across the domains
+   it hits, so a mixed dish never double-counts against the evidence floors.
+   Execution-confounded ratings contribute exposure but no opinion — the person
+   ate it, the flick was about the kitchen. Rebuilt (never patched) by
+   replay.ts, so a rename heals anatomy exactly as it heals the palate, and the
+   aggregate is a pure function of history with NO wall-clock decay
+   ("absence fades" belongs at read time, against updated_at).
+   Measured on the owner's real 60 rated dishes: sea 31.7% · land 22.3% ·
+   shell 20.3% · field 9.6% · air 7.3% · 藻 4.4% · 菌 4.4%; sub-nodes
+   prawn-dominant shell, pork-dominant land. Under the shipped gates that grows
+   tendrils (0.94) and claws (0.46) and correctly grows NOTHING else — legs sit
+   a hair under the 0.22 share gate, and 田/菌/藻 are below the absolute
+   evidence floor. Both gates, always.
+   **NOT YET RENDERED IN PRODUCTION** — the creature door stays shut until (a)
+   the snapshot (SVG) renderer learns the same anatomy, per the two-renderer
+   contract, and (b) the owner approves the first live being.
 3. Creature renderer behind the FormInputs contract (+ domain record), grown
    path persisted per (user, profile version); blob remains the fallback when
    domain evidence is empty. — **BUILT 2026-08-04** (`src/lib/creatureForm.ts`,

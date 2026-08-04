@@ -3,6 +3,8 @@ import { supabaseServer, supabaseAdmin } from '@/lib/supabase/server';
 import { extractVoiceSignal } from '@/lib/voice';
 import { updateTaste, updateCuisineAffinity, bumpEvidence, emptyTaste, taughtDims, calibratedScore, executionRangeFor, type TasteVector } from '@/lib/taste';
 import { replayProfile } from '@/lib/replay';
+import { accumulateDomains } from '@/lib/domainEvidence';
+import type { DomainEvidence } from '@/lib/creatureForm';
 import { directionOf, outcomeOf } from '@/lib/seal';
 import { fetchRatedRows, findExecutionReference, type ExecRow } from '@/lib/executionOffer';
 
@@ -26,7 +28,7 @@ export async function POST(req: NextRequest) {
 
   const { data: dish, error: dishErr } = await supabase
     .from('dishes')
-    .select('id, attributes, cuisine, dish_identity_id, canonical_dish_id, name, name_zh, photo_url, restaurants(id, name)')
+    .select('id, attributes, cuisine, dish_identity_id, canonical_dish_id, name, name_zh, diet, ingredients, photo_url, restaurants(id, name)')
     .eq('id', dish_id).single();
   if (dishErr || !dish) return NextResponse.json({ error: 'Dish not found.' }, { status: 404 });
 
@@ -70,6 +72,7 @@ export async function POST(req: NextRequest) {
   let nextVector: TasteVector;
   let nextAffinity: Record<string, number>;
   let nextEvidence = evidence;
+  let nextDomains: DomainEvidence;
   const nextCount = isRerate ? count : count + 1;
   // What this flick actually taught, after centring on the person's own neutral
   // point. Set by whichever branch runs; the "you just taught me" feedback below
@@ -94,6 +97,7 @@ export async function POST(req: NextRequest) {
     nextVector = rebuilt.vector;
     nextAffinity = rebuilt.cuisine_affinity;
     nextEvidence = rebuilt.evidence;
+    nextDomains = rebuilt.domain_evidence;
     // Replay scored this dish against the centre AS IT STOOD at the dish's own
     // position in history — not at the end of it, which is where a re-rate sits
     // in wall-clock time but not in the event stream. Taking the centre replay
@@ -119,12 +123,18 @@ export async function POST(req: NextRequest) {
     // Evidence bumps mirror rating_count semantics exactly: a re-rate corrects the
     // vector but must not age the per-dim learning rate.
     nextEvidence = bumpEvidence(evidence, dish.attributes, voiceAttrs);
+    // 骨 grows on the same calibrated score the vector learns from, so a
+    // first-rate builds anatomy without paying for a full replay — the same
+    // incremental/replay split cuisine affinity already uses.
+    nextDomains = accumulateDomains(
+      (profile?.domain_evidence ?? {}) as DomainEvidence, dish as any, learnedScore);
   }
 
   const { error: tasteErr } = await supabase.from('taste_profiles').upsert({
     user_id: user.id,
     vector: nextVector,
     cuisine_affinity: nextAffinity,
+    domain_evidence: nextDomains,
     rating_count: nextCount,
     evidence: nextEvidence,
     updated_at: new Date().toISOString(),

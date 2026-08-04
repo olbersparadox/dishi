@@ -6,6 +6,8 @@ import {
   calibratedScore, isExecutionConfounded, isExecutionSibling,
   type TasteVector, type EvidenceMap, type ExecutionSiblingKey,
 } from './taste';
+import { accumulateDomains, emptyDomainEvidence } from './domainEvidence';
+import type { DomainEvidence } from './creatureForm';
 
 /**
  * Rebuilds a user's ENTIRE taste profile from scratch by re-running every one of
@@ -47,6 +49,12 @@ export async function replayProfile(
   userId: string,
 ): Promise<{
   vector: TasteVector; evidence: EvidenceMap; cuisine_affinity: Record<string, number>;
+  /** 骨 · what the palate lives on — the creature's body plan (domainEvidence.ts).
+   *  Rebuilt here rather than incrementally so it heals on rename/re-rate exactly
+   *  as the vector does, and so it is a pure function of history: same events in,
+   *  same anatomy out, at any time. Deliberately carries NO wall-clock decay for
+   *  that reason — "absence fades" belongs at read time, against updated_at. */
+  domain_evidence: DomainEvidence;
   replayed: number;
   /** Per dish_id, the neutral point that dish's rating was scored against. */
   centers: Record<string, number>;
@@ -56,7 +64,10 @@ export async function replayProfile(
   const [{ data: rows, error }, { data: duelRows }] = await Promise.all([
     supabase
       .from('ratings')
-      .select('dish_id, score, execution_score, voice_attributes, created_at, dishes(attributes, cuisine, dish_identity_id, canonical_dish_id)')
+      // diet/ingredients/names ride along for the 骨 domain aggregate — the same
+      // rows, one wider select, so domain evidence is rebuilt by the SAME replay
+      // that heals the vector. A renamed dish therefore heals its anatomy too.
+      .select('dish_id, score, execution_score, voice_attributes, created_at, dishes(attributes, cuisine, dish_identity_id, canonical_dish_id, diet, ingredients, name, name_zh)')
       .eq('user_id', userId)
       .order('created_at', { ascending: true }),
     supabaseAdmin()
@@ -70,8 +81,13 @@ export async function replayProfile(
   // One merged, time-ordered event stream so a duel answered between two ratings
   // learns in the position it actually happened — the vector's evidence-decayed
   // learning rate is order-sensitive, so interleaving must be faithful.
+  /** What the 骨 register reads off a dish. Carried on the event so domain
+   *  evidence replays in the same order, from the same rows, as everything else. */
+  type DomainSource = { diet: string[] | null; ingredients: string[] | null; name: string | null; name_zh: string | null };
+
   type Event =
-    | { t: number; kind: 'rating'; dishId: string; attrs: Record<string, number>; cuisine: string | null; score: number; voice: Record<string, number> | null }
+    | { t: number; kind: 'rating'; dishId: string; attrs: Record<string, number>; cuisine: string | null; score: number; voice: Record<string, number> | null; domain: DomainSource }
+    | { t: number; kind: 'exposure'; dishId: string; domain: DomainSource }
     | { t: number; kind: 'duel'; winner: Record<string, number>; loser: Record<string, number> }
     | { t: number; kind: 'tie'; a: Record<string, number>; b: Record<string, number> };
 
@@ -101,14 +117,29 @@ export async function replayProfile(
     // how taste flicks are read. It still counts as a rating; see `replayed`.
     // (Self is excluded by dish_id inside the rule — ratings are unique per
     // user+dish, so identity of the row is identity of the dish.)
+    const domain: DomainSource = {
+      diet: dish.diet ?? null, ingredients: dish.ingredients ?? null,
+      name: dish.name ?? null, name_zh: dish.name_zh ?? null,
+    };
+
     const me = siblingKey(r);
     const siblings = (rows as any[])
       .filter(o => o.dishes && isExecutionSibling(me, siblingKey(o)))
       .map(o => o.execution_score as number | null);
-    if (isExecutionConfounded(r.execution_score, siblings)) { confounded++; continue; }
+    if (isExecutionConfounded(r.execution_score, siblings)) {
+      confounded++;
+      // The palate correctly ignores this flick — it was about the kitchen, not
+      // the food. But the person DID eat the dish, and 骨 is a record of what a
+      // body lives on, not of how it felt about one bad plate. So the domain
+      // keeps the EXPOSURE and drops the opinion: a neutral-weight event.
+      // Without this, someone whose only lobster was badly cooked would have
+      // eaten lobster and grown nothing.
+      events.push({ t: new Date(r.created_at).getTime(), kind: 'exposure', dishId: r.dish_id, domain });
+      continue;
+    }
 
     const voice = r.voice_attributes && Object.keys(r.voice_attributes).length ? r.voice_attributes : null;
-    events.push({ t: new Date(r.created_at).getTime(), kind: 'rating', dishId: r.dish_id, attrs: dish.attributes ?? {}, cuisine: dish.cuisine, score: r.score, voice });
+    events.push({ t: new Date(r.created_at).getTime(), kind: 'rating', dishId: r.dish_id, attrs: dish.attributes ?? {}, cuisine: dish.cuisine, score: r.score, voice, domain });
   }
 
   for (const d of (duelRows ?? []) as any[]) {
@@ -130,6 +161,7 @@ export async function replayProfile(
   let vector = emptyTaste();
   let evidence: EvidenceMap = {};
   let affinity: Record<string, number> = {};
+  let domains: DomainEvidence = emptyDomainEvidence();
   let replayed = 0; // ratings only — preserves rating_count-mirroring semantics
   const priorScores: number[] = []; // raw scores of ratings already applied
   // The centre each dish's rating actually learned from, so a caller can report
@@ -143,8 +175,15 @@ export async function replayProfile(
       vector = updateTaste(vector, evidence, e.attrs, learned, e.voice);
       evidence = bumpEvidence(evidence, e.attrs, e.voice);
       affinity = updateCuisineAffinity(affinity, e.cuisine, learned);
+      // Domains learn from the CALIBRATED score, like the vector: a person whose
+      // flicks run cold must not read as disliking everything they eat.
+      domains = accumulateDomains(domains, e.domain, learned);
       priorScores.push(e.score);
       replayed++;
+    } else if (e.kind === 'exposure') {
+      // Ate it; the flick told us nothing (see above). Neutral weight — passing
+      // the score that makes DOMAIN_EXPOSURE the whole contribution.
+      domains = accumulateDomains(domains, e.domain, 0);
     } else if (e.kind === 'duel') {
       vector = updateTasteFromDuel(vector, evidence, e.winner, e.loser);
       evidence = bumpEvidenceFromDuel(evidence, e.winner, e.loser);
@@ -158,5 +197,5 @@ export async function replayProfile(
   // the learning rate. Execution-confounded ones are added back: the person did
   // rate the dish, so gates built on rating_count (the seal gate, export
   // confidence) must still see it — only the palate ignores it.
-  return { vector, evidence, cuisine_affinity: affinity, replayed: replayed + confounded, centers, confounded };
+  return { vector, evidence, cuisine_affinity: affinity, domain_evidence: domains, replayed: replayed + confounded, centers, confounded };
 }

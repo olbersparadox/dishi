@@ -1177,6 +1177,13 @@ no new extraction needed for phase 1.
 
 ## 2. 墨靈 phase 1 — domain evidence aggregate + creature skeleton — *(Fable, after item 1 review)*
 
+**AGGREGATE BUILT 2026-08-04** (`src/lib/domainEvidence.ts`,
+`taste_profiles.domain_evidence`, wired into replay + all four profile-writing
+routes; 25 tests). The creature renderer was built 2026-08-04 too. What remains
+before a user sees a creature: snapshot (SVG) parity per the two-renderer
+contract, then the owner's go on the first live being. See the framework doc's
+ship path for the measured result on real history.
+
 Per-user domain-evidence aggregate (sea/land/air/field shares from rated
 dishes' stored ingredients + protein parse), persisted like cuisine affinity;
 then the creature render behind the same FormInputs contract (see framework
