@@ -18,7 +18,6 @@
 // replacement per CLAUDE.md — no importable legacy.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { TasteFormLive, TasteFormReveal } from './TasteForm';
-import { topGlyphDims } from '@/lib/blobForm';
 import type { DomainEvidence } from '@/lib/creatureForm';
 import { useLang, cuisineLabel } from '@/lib/i18n';
 import { useShrinkToFitWidth } from '@/lib/shrinkToFit';
@@ -314,13 +313,10 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
     vector: state.vector, evidence: state.evidence,
     ratingCount: state.stats.ratings, seed: `${userId}:v${state.profile_version}`,
   };
-  const glyphDims = topGlyphDims(state.vector, state.evidence);
-  const glyph = glyphDims.map(d => t(`dim.${d}`).charAt(0)).join(' ');
-
   if (showMigration) {
     return (
       <div className="card"><div className="card-body" style={{ textAlign: 'center' }}>
-        <TasteFormLive inputs={formInputs} size={190} glyph={glyph} />
+        <TasteFormLive inputs={formInputs} size={190} />
         <h3 style={{ marginTop: 12 }}>{t('form.migration.title')}</h3>
         <p className="card-meta" style={{ marginTop: 4 }}>{t('form.migration.blurb')}</p>
         <button className="btn primary" style={{ marginTop: 14 }} onClick={dismissMigration}>
@@ -393,7 +389,7 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
           glass overlay is up, so its blob never ghosts behind the growth screen's. */}
       <div className="taste-blob-anchor">
         <TasteFormReveal
-          inputs={formInputs} size={190} glyph={glyph}
+          inputs={formInputs} size={190}
           vector={state.vector} labelFor={(dim) => t(`dim.${dim}`)}
           domains={state.domain_evidence}
         />

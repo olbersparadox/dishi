@@ -8,14 +8,14 @@
 //
 // RatingStack owns the pipeline + persistence and streams each card's state in via `live`;
 // this component renders it and reports refinements back through callbacks.
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLang } from '@/lib/i18n';
 import { ingredientZh } from '@/lib/ingredientLabel';
 import { wordKeyFor } from '@/lib/flickWords';
 import DishName from '@/components/DishName';
 import DishInfoDisplay from '@/components/DishInfoDisplay';
 import { CheckIcon, CloseIcon } from '@/components/icons';
-import { topGlyphDims, type FormInputs } from '@/lib/blobForm';
+import type { FormInputs } from '@/lib/blobForm';
 import type { DomainEvidence } from '@/lib/creatureForm';
 import { TasteFormLive } from '@/components/TasteForm';
 import type { SuggestRow } from '@/lib/dishSuggest';
@@ -144,13 +144,8 @@ export default function TasteGrowth({ live, engine, blobInputs, blobDomains, onE
   // actual silhouette grows mid-session as ratings commit.
   const effectiveBlobInputs: FormInputs = blobInputs ?? { vector: {}, evidence: {}, ratingCount: 0, seed: 'grow:loading' };
   // The header blob IS the Taste-AI blob — the same TasteFormLive canvas (ink
-  // gradient, breathing highlight, glyph characters), not a static SVG imitation of
+  // gradient, breathing highlight, grown anatomy), not a static SVG imitation of
   // it. Same inputs + same seed as the 味 AI card, so the two are pixel-siblings.
-  const glyph = useMemo(
-    () => topGlyphDims(effectiveBlobInputs.vector, effectiveBlobInputs.evidence).map(d => t(`dim.${d}`).charAt(0)).join(' '),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [JSON.stringify(effectiveBlobInputs.vector), JSON.stringify(effectiveBlobInputs.evidence)],
-  );
   const [dishes, setDishes] = useState<Dish[]>(() => Array.from({ length: rowCount }, emptyDish));
   const [fill, setFill] = useState(BASE);
   const [absorbed, setAbsorbed] = useState(0);
@@ -366,7 +361,7 @@ export default function TasteGrowth({ live, engine, blobInputs, blobDomains, onE
             {/* key on seed: TasteFormLive samples its shape once per mount (deps
                 [inputs.seed, size]), so remount when the real profile arrives —
                 otherwise the loading-fallback circle would stick for the session. */}
-            <TasteFormLive key={effectiveBlobInputs.seed} inputs={effectiveBlobInputs} size={150} glyph={glyph} domains={blobDomains} />
+            <TasteFormLive key={effectiveBlobInputs.seed} inputs={effectiveBlobInputs} size={150} domains={blobDomains} />
           </div>
         </div>
         <h2 className="grow2-title">{t('grow.build.title')}</h2>

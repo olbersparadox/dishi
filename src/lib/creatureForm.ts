@@ -505,15 +505,26 @@ export function drawCreatureFrame(
   // 龍蝦 read; 蟹 is 1:1. Prawn's fine pincers wait in the gesture pool — its
   // share picks the nearer of the two shipped gestures for now.
   const clawF = smooth01((c - 0.06) / 0.28) * absF(ev('shell'), 3, 5);
-  // the ramp IS the size: a bud (萌) is a genuinely small pincer, growing with
-  // evidence. A floor here (tried: .5+.5·clawF) defeats both gates — one crab
-  // dish rendered half-grown claws. Below .12 the gesture is sub-pixel noise,
-  // so it simply isn't drawn yet.
+  // GATE and SIZE are separate jobs, and conflating them cost the claw its
+  // legibility. I first set size = clawF outright, reasoning that a floor would
+  // "defeat both gates — one crab dish rendering half-grown claws". That was
+  // wrong, and measurable: the evidence floor absF(ev,3,5) already returns 0
+  // below ~4 shellfish meals, so one crab dish draws NOTHING no matter what the
+  // size ramp says. The gates decide IF; the ramp only decides how big once
+  // they have already said yes.
+  // Meanwhile size = clawF punished a real habit: the owner's own profile
+  // (19.8% shellfish, evidence 7.05, both gates passed) rendered at 44% — a nub
+  // you could not read as a claw. The share gate is the slow one (it wants ~34%
+  // share for full size), so mid-share eaters sat invisible for a long time.
   if (clawF > 0.12) {
     const mix = subMix(domains.sub?.shell, ['lobster', 'crab', 'prawn']);
     const species: ClawSpecies = mix.crab >= mix.lobster ? 'crab' : 'lobster';
     const clawInk = isSmooth ? SKIN.base : 'rgba(33,29,24,.93)';
-    const sizeF = clawF;
+    // Once earned, a claw reads as a claw: the ramp spans 0.5→1.0 rather than
+    // 0→1, so the youngest claw the gates allow is still half-size and visibly
+    // a pincer, and growth after that is legible rather than a slow fade-in
+    // from nothing. The bud stage (萌) lives in the GATES now, where it belongs.
+    const sizeF = 0.5 + 0.5 * clawF;
     const [sL, sR] = species === 'lobster' ? [1.22, 0.82] : [1, 1];
     // the calibrated gesture holds its proportions against a body of half-width
     // 0.62·R_claw with the wrist at 0.48·R_claw from centre; here the wrist
