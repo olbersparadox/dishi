@@ -16,6 +16,7 @@ import DishName from '@/components/DishName';
 import DishInfoDisplay from '@/components/DishInfoDisplay';
 import { CheckIcon, CloseIcon } from '@/components/icons';
 import { topGlyphDims, type FormInputs } from '@/lib/blobForm';
+import type { DomainEvidence } from '@/lib/creatureForm';
 import { TasteFormLive } from '@/components/TasteForm';
 import type { SuggestRow } from '@/lib/dishSuggest';
 
@@ -99,7 +100,7 @@ export type GrowEngine = {
   justUnlocked?: boolean;
 };
 
-export default function TasteGrowth({ live, engine, blobInputs, onExit, onCancel, onPickPlace, onAddPlace, onEditName, onReclassify, onRetry, identitySlot, sealSlots }: {
+export default function TasteGrowth({ live, engine, blobInputs, blobDomains, onExit, onCancel, onPickPlace, onAddPlace, onEditName, onReclassify, onRetry, identitySlot, sealSlots }: {
   live: GrowDish[];
   engine?: GrowEngine | null;                            // REAL taste-engine confidence for the bar
   // The REAL profile (same vector/evidence/ratingCount/seed blobForm.ts consumes
@@ -107,6 +108,11 @@ export default function TasteGrowth({ live, engine, blobInputs, onExit, onCancel
   // shape, so it's the actual identity the person is building, growing as ratings
   // commit during the session. null while the first /api/buddy read is in flight.
   blobInputs?: FormInputs | null;
+  // 骨 domain evidence, same /api/buddy read — undefined renders the blob
+  // (fail-closed). The absorb-in-session moment is exactly where growth
+  // should be visible, so the header creature updates live with every flick,
+  // same as the vector already does.
+  blobDomains?: DomainEvidence;
   onExit: () => void;                                    // the ✓ = done / keep
   onCancel?: () => void;                                 // the ✕ = discard the session
   onPickPlace?: (i: number, label: string) => void;      // persist a restaurant pick
@@ -360,7 +366,7 @@ export default function TasteGrowth({ live, engine, blobInputs, onExit, onCancel
             {/* key on seed: TasteFormLive samples its shape once per mount (deps
                 [inputs.seed, size]), so remount when the real profile arrives —
                 otherwise the loading-fallback circle would stick for the session. */}
-            <TasteFormLive key={effectiveBlobInputs.seed} inputs={effectiveBlobInputs} size={150} glyph={glyph} />
+            <TasteFormLive key={effectiveBlobInputs.seed} inputs={effectiveBlobInputs} size={150} glyph={glyph} domains={blobDomains} />
           </div>
         </div>
         <h2 className="grow2-title">{t('grow.build.title')}</h2>

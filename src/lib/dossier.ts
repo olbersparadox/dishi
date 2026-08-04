@@ -41,6 +41,7 @@
 
 import { wordKeyFor } from './flickWords';
 import { engineConfidence, exploredDims } from './buddy';
+import type { DomainEvidence } from './creatureForm';
 
 /** Same bar the buddy card's 識 N 味 uses (/api/buddy: evidence >= 3 ratings
  * taught the dim). Duplicated as a named constant rather than imported from
@@ -107,6 +108,10 @@ export type PublicDossier = {
    * so the form can never disagree with them. */
   vector: Record<string, number>;
   evidence: Record<string, number>;
+  // 骨 domain evidence — absent/empty renders today's blob (fail-closed, same
+  // as every 墨靈 phase-2 site). A visitor's dossier and the owner's own Taste
+  // tab must show the SAME being, so this rides the identical field.
+  domain_evidence?: DomainEvidence;
 };
 
 export type DossierRawAnchor = {
@@ -142,6 +147,7 @@ export function projectDossier(raw: {
   distinctCuisines: number;
   vector: Record<string, number>;
   evidence: Record<string, number>;
+  domain_evidence?: DomainEvidence;
   affinity: Record<string, number>;
   anchors: DossierRawAnchor[];
 }): PublicDossier {
@@ -198,6 +204,7 @@ export function projectDossier(raw: {
       })),
     vector: raw.vector,
     evidence: raw.evidence,
+    domain_evidence: raw.domain_evidence,
   };
 }
 

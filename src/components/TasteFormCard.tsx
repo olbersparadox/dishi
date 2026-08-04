@@ -19,6 +19,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { TasteFormLive, TasteFormReveal } from './TasteForm';
 import { topGlyphDims } from '@/lib/blobForm';
+import type { DomainEvidence } from '@/lib/creatureForm';
 import { useLang, cuisineLabel } from '@/lib/i18n';
 import { useShrinkToFitWidth } from '@/lib/shrinkToFit';
 import ExplainModal from './ExplainModal';
@@ -49,6 +50,10 @@ type BuddyState = {
   vector: Record<string, number>;
   evidence: Record<string, number>;
   profile_version: number;
+  // 骨 domain evidence — absent/empty renders today's blob (fail-closed, same
+  // as every 墨靈 phase-2 piece). Optional so a stale cached response (pre
+  // this field) degrades to the blob rather than crashing on a missing key.
+  domain_evidence?: DomainEvidence;
 };
 
 type Identity = {
@@ -390,6 +395,7 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
         <TasteFormReveal
           inputs={formInputs} size={190} glyph={glyph}
           vector={state.vector} labelFor={(dim) => t(`dim.${dim}`)}
+          domains={state.domain_evidence}
         />
       </div>
 

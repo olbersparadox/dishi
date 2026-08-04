@@ -29,6 +29,7 @@ import SealRevealBadge, { type SealResult } from '@/components/SealRevealBadge';
 import type { DuelDish } from '@/components/DuelSide';
 import ExecutionSlider, { type ExecutionRow } from '@/components/ExecutionSlider';
 import type { FormInputs } from '@/lib/blobForm';
+import type { DomainEvidence } from '@/lib/creatureForm';
 
 type Phase = 'flick' | 'grow';
 type Prepared = { file: File; url: string; meta: PhotoMeta };
@@ -190,6 +191,7 @@ export default function RatingStack({ photos, picks, userId, onExit }: {
   // response as `engine` above; refreshed together so the bar and the blob can never
   // show two different moments of the profile.
   const [blobInputs, setBlobInputs] = useState<FormInputs | null>(null);
+  const [blobDomains, setBlobDomains] = useState<DomainEvidence | undefined>(undefined);
   const baselineV = useRef<number | null>(null); // version at session start (see justUnlocked)
   // While any rating session is open, hide the Taste-AI page's own blob behind the
   // glass (body class → .taste-blob-anchor). The overlays here are deliberately
@@ -220,6 +222,7 @@ export default function RatingStack({ photos, picks, userId, onExit }: {
         vector: s.vector ?? {}, evidence: s.evidence ?? {},
         ratingCount: s.stats?.ratings ?? 0, seed: `${userId}:v${s.profile_version ?? 1}`,
       });
+      setBlobDomains(s.domain_evidence ?? undefined);
     } catch { /* keep the last good reading */ }
   };
   // Read the engine ONCE ON MOUNT, before anything is rated. Without this the growth
@@ -707,7 +710,7 @@ export default function RatingStack({ photos, picks, userId, onExit }: {
         {/* No onCancel in picksMode: TasteGrowth falls back to onExit, so its ✕ is a
             plain close-and-keep rather than a discard that would delete dishes we
             never created. */}
-        <TasteGrowth live={dishes} engine={engine} blobInputs={blobInputs} onExit={finishExit} onCancel={picksMode ? undefined : cancelSession} onPickPlace={onPickPlace} onAddPlace={onAddPlace} onEditName={onEditName} onReclassify={onReclassify} onRetry={onRetry}
+        <TasteGrowth live={dishes} engine={engine} blobInputs={blobInputs} blobDomains={blobDomains} onExit={finishExit} onCancel={picksMode ? undefined : cancelSession} onPickPlace={onPickPlace} onAddPlace={onAddPlace} onEditName={onEditName} onReclassify={onReclassify} onRetry={onRetry}
           sealSlots={(() => {
             // This session's verdicts first, then anything recovered from a
             // session that never got to paint. De-duped by row id: a reveal can

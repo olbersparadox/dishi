@@ -72,6 +72,7 @@ export default function PublicDossier({ dossier, isOwner }: { dossier: Dossier; 
             size={190}
             vector={d.vector}
             labelFor={label}
+            domains={d.domain_evidence}
           />
         </div>
         <div className="version-line" style={{ marginTop: 10 }}>

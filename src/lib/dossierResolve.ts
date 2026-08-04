@@ -18,6 +18,7 @@ import { normalizeUsername, validateUsername, hasClaimedUsername } from '@/lib/u
 import { projectDossier, type DossierRawAnchor, type PublicDossier } from '@/lib/dossier';
 import { versionForProfile, ratchetVersion } from '@/lib/version';
 import { confidenceInputsFrom } from '@/lib/tasteExport';
+import type { DomainEvidence } from '@/lib/creatureForm';
 
 export type ResolvedDossier = { ownerId: string; dossier: PublicDossier };
 
@@ -52,7 +53,7 @@ export const resolveDossier = cache(async (
 
   const { data: taste } = await admin
     .from('taste_profiles')
-    .select('vector, evidence, cuisine_affinity, rating_count, version_unlocked')
+    .select('vector, evidence, cuisine_affinity, rating_count, version_unlocked, domain_evidence')
     .eq('user_id', prof.id)
     .maybeSingle();
   if (!taste) return null;
@@ -157,6 +158,7 @@ export const resolveDossier = cache(async (
       distinctCuisines,
       vector,
       evidence: (taste.evidence ?? {}) as Record<string, number>,
+      domain_evidence: (taste.domain_evidence ?? {}) as DomainEvidence,
       affinity,
       anchors,
     }),

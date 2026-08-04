@@ -181,10 +181,11 @@ export function TasteFormLive({
  * back. No new data, just a second way to read the same profile.
  */
 export function TasteFormReveal({
-  inputs, size = 190, glyph, vector, labelFor,
+  inputs, size = 190, glyph, vector, labelFor, domains,
 }: {
   inputs: FormInputs; size?: number; glyph?: string;
   vector: Record<string, number>; labelFor: (dim: string) => string;
+  domains?: DomainEvidence;
 }) {
   const [showRadar, setShowRadar] = useState(false);
 
@@ -213,7 +214,7 @@ export function TasteFormReveal({
         transition: 'opacity 220ms ease, transform 220ms ease',
         pointerEvents: 'none',
       }}>
-        <TasteFormLive inputs={inputs} size={size} glyph={glyph} />
+        <TasteFormLive inputs={inputs} size={size} glyph={glyph} domains={domains} />
       </div>
       <div style={{
         position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',

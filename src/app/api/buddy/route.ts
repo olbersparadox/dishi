@@ -128,6 +128,11 @@ export async function GET() {
       vector: inputs.vector,
       evidence: profile?.evidence ?? {},
       profile_version: profile?.profile_version ?? 1,
+      // 骨 domain evidence (domainEvidence.ts) — what the creature grows from.
+      // Empty {} for every profile until this rating's replay rebuilds it;
+      // TasteFormLive/Snapshot read that as "render the blob", so this is
+      // additive and fails closed exactly like every other 墨靈 phase-2 piece.
+      domain_evidence: profile?.domain_evidence ?? {},
     },
   });
 }
