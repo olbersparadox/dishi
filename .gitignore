@@ -43,3 +43,10 @@ ds-bundle/
 .design-sync/learnings/
 .design-sync/node_modules
 .design-sync/fonts/
+
+# Dev harnesses (src/app/dev-*): local-only review surfaces that mount REAL
+# components against hand-driven inputs — dev-picker, dev-onboard, dev-naming,
+# dev-creature. They were kept untracked by hand until one slipped into a commit
+# (2026-08-04); committing one makes Vercel build and PUBLICLY SERVE that route
+# on the deployed site, which is the actual reason they stay out.
+src/app/dev-*/
