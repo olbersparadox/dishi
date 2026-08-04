@@ -59,7 +59,30 @@ export function hasAnatomy(domains: DomainEvidence | undefined): domains is Doma
 }
 
 const smooth01 = (x: number) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
-const clamp01 = (x: number) => Math.max(0, Math.min(1, x));
+
+/**
+ * 風 · how far a single hair bends, in radians.
+ *
+ * A gust vector sweeps across the body (~1.3 wavelengths, swelling and lulling
+ * on a slower cycle) and each hair bends by the component of it PERPENDICULAR
+ * to itself — the cross product. So a hair pointing into the wind barely moves
+ * while a broadside one bends most, and the coat ripples instead of swinging as
+ * one rigid mass. A travelling ripple is also far easier to see than uniform
+ * jitter, which is what lets the amplitude stay genuinely subtle.
+ *
+ * Pure and exported so the motion is testable WITHOUT a compositor: rAF is
+ * paused whenever the preview pane is hidden, which makes pixel-sampling a live
+ * canvas an unreliable way to prove that anything is moving (it reports a
+ * perfectly still creature either way).
+ *
+ * @param nx,ny   the hair's outward unit direction
+ * @param offsetX the hair's horizontal offset from body centre (the gust travels)
+ */
+export function hairWindBend(nx: number, ny: number, offsetX: number, R: number, t: number): number {
+  const swell = 0.55 + 0.45 * Math.sin(t * 0.00029); // gusts, then lulls
+  const g = swell * Math.sin(t * 0.0015 - (offsetX / (R * 2.2)) * 4.2);
+  return 0.38 * g * (0.3 * nx - ny); // cross(hair, wind), wind ≈ (g, .3g)
+}
 
 /* ── 姿/性 temperament — read from dims the engine ALREADY learns ───────────
    Costs no new data: method + flavor preferences become motion parameters and
@@ -595,8 +618,10 @@ export function drawCreatureFrame(
     ctx.save();
     ctx.lineCap = 'round';
     // literal 3px, not a proportion (owner's spec): hair must read as hair at
-    // any size rather than thickening into spikes on a large render
-    ctx.lineWidth = 3;
+    // any size rather than thickening into spikes on a large render. Because it
+    // is fixed, it becomes the yardstick everything else below is measured in.
+    const HAIR_W = 3;
+    ctx.lineWidth = HAIR_W;
     ctx.strokeStyle = inkFill(ctx, c0, size); // hair IS the body colour
     // ANCHORED TO THE STATIC SILHOUETTE. Deriving the count and the arc-length
     // positions from the LIVE outline makes both drift with the breath: `total`
@@ -614,14 +639,20 @@ export function drawCreatureFrame(
       seg.push(dl); total += dl; cum.push(total);
     }
     // spaced by ARC LENGTH, not by angle — even angular spacing thins the coat
-    // wherever the radius is largest, packing the sides and stripping top/bottom
-    const N = Math.max(22, Math.round(total / (R * 0.088)));
-    // 風 · the coat moves hair by hair, never as one rigid mass. A gust sweeps
-    // across the body; each hair bends by the component of it PERPENDICULAR to
-    // itself (the cross product), so a hair pointing into the wind barely moves
-    // while a broadside one bends most. That difference is what reads as wind
-    // through fur — a uniform rotation reads as the creature turning instead.
-    const swell = 0.55 + 0.45 * Math.sin(t * 0.00029); // gusts, then lulls
+    // wherever the radius is largest, packing the sides and stripping top/bottom.
+    //
+    // The gap and the strand length both take a PIXEL floor, because what makes
+    // a coat legible is the strand's size against the fixed 3px stroke, not its
+    // size relative to the body. Scaled purely by R, both fall toward 3px as the
+    // creature shrinks: neighbours touch and the fur fuses into one solid dark
+    // rim, and each hair ends up barely longer than it is wide (owner,
+    // 2026-08-04: "184 or below, more like the solid dark rim"). With floors the
+    // coat gets COARSER as the being gets small — fewer, relatively longer
+    // strands, which is how distant fur actually reads — instead of finer and
+    // unresolvable. Above ~200px the proportional values still win, so the sizes
+    // the owner already approved are untouched.
+    const gap = Math.max(R * 0.088, HAIR_W * 1.55);
+    const N = Math.max(22, Math.round(total / gap));
     let k = 0;
     for (let i = 0; i < N; i++) {
       const target = (i / N) * total;
@@ -631,11 +662,16 @@ export function drawCreatureFrame(
       const px = p0.x + (p1.x - p0.x) * fr, py = p0.y + (p1.y - p0.y) * fr;
       let nx = px - cx, ny = py - cy;
       const d = Math.hypot(nx, ny) || 1; nx /= d; ny /= d;
-      const L = R * (0.095 + rnd() * 0.035);
+      // Floored against the stroke so a strand is never barely longer than it is
+      // wide, capped against R so a thumbnail grows a short coat rather than
+      // spikes — and the per-hair variation is applied AFTER the clamp, never
+      // inside it. Clamping the varied value collapses every hair to exactly the
+      // floor once the body is small, and a coat of identical strands reads as a
+      // comb, not as fur.
+      const hairBase = Math.min(Math.max(R * 0.11, HAIR_W * 2.0), R * 0.32);
+      const L = hairBase * (0.82 + rnd() * 0.36);
       const side = px >= cx ? 1 : -1;
-      // the gust travels across the creature rather than striking it all at once
-      const g = swell * Math.sin(t * 0.0015 - ((px - cx) / (R * 2.2)) * 2.6);
-      const bend = 0.26 * g * (0.3 * nx - ny); // cross(hair, wind), wind ≈ (g, .3g)
+      const bend = hairWindBend(nx, ny, px - cx, R, t);
       // base lean stays MIRRORED about the vertical axis (owner's reference:
       // every hair sweeps outward-and-down); the wind is added in screen space,
       // unmirrored, so the two sides genuinely bend independently

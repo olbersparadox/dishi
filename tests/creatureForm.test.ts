@@ -3,7 +3,7 @@
 // itself is canvas-only and is verified visually on /dev-creature — but the
 // gates are where honesty lives, and honesty is testable.
 import { describe, it, expect } from 'vitest';
-import { hasAnatomy, temperOf } from '../src/lib/creatureForm';
+import { hasAnatomy, temperOf, hairWindBend } from '../src/lib/creatureForm';
 import type { FormInputs } from '../src/lib/blobForm';
 
 const inputs = (vector: Record<string, number>, evidence: Record<string, number>): FormInputs =>
@@ -54,6 +54,12 @@ describe('temperOf — 姿 read only from dims the engine knows', () => {
     )).sharp);
   });
 
+  it('sanity: an empty palate is fully calm-less and energy-less, not NaN', () => {
+    const t = temperOf(inputs({}, {}));
+    expect(Number.isFinite(t.energy)).toBe(true);
+    expect(t.energy + t.calm + t.weight + t.bounce).toBe(0);
+  });
+
   it('method shares normalize: only positive, known method prefs count', () => {
     const t = temperOf(inputs(
       { fried: 0.6, steamed: 0.6, baked: -0.9, grilled: 0.4 },
@@ -63,5 +69,59 @@ describe('temperOf — 姿 read only from dims the engine knows', () => {
     expect(t.m.steamed).toBeCloseTo(0.5, 5);
     expect(t.m.baked).toBe(0);
     expect(t.m.grilled).toBe(0);
+  });
+});
+
+// The coat's motion. Tested here rather than by sampling the live canvas
+// because requestAnimationFrame is paused whenever the preview pane is hidden —
+// a pixel probe then reports a perfectly still creature whether or not the
+// animation works, which is exactly the kind of false green worth avoiding.
+describe('hairWindBend — wind moves each hair, not the whole creature', () => {
+  const R = 40;
+  const HAIRS = [ // outward unit directions around the body
+    { nx: 1, ny: 0, x: R }, { nx: 0, ny: 1, x: 0 },
+    { nx: -1, ny: 0, x: -R }, { nx: 0, ny: -1, x: 0 },
+    { nx: 0.707, ny: 0.707, x: R * 0.707 }, { nx: -0.707, ny: 0.707, x: -R * 0.707 },
+  ];
+  const at = (t: number) => HAIRS.map(h => hairWindBend(h.nx, h.ny, h.x, R, t));
+
+  it('moves over time — a still coat is the bug this replaced', () => {
+    const track = [0, 400, 900, 1400, 2000, 2700, 3400].map(t => hairWindBend(0, 1, 0, R, t));
+    expect(Math.max(...track) - Math.min(...track)).toBeGreaterThan(0.1);
+  });
+
+  it('is DIFFERENTIAL: at one instant, hairs bend by different amounts', () => {
+    // the whole point — a shared value would move the coat as one rigid mass
+    for (const t of [700, 1500, 2600, 5200]) {
+      const b = at(t);
+      expect(Math.max(...b) - Math.min(...b)).toBeGreaterThan(0.15);
+    }
+  });
+
+  it('bends hairs in BOTH directions at once (left and right), never all one way', () => {
+    const b = at(1500);
+    expect(b.some(v => v > 0.02)).toBe(true);
+    expect(b.some(v => v < -0.02)).toBe(true);
+  });
+
+  it('a hair facing the wind bends less than a broadside one', () => {
+    // wind ≈ (g, .3g): the (1,0) hair lies nearly along it, (0,1) across it
+    const t = 1200;
+    expect(Math.abs(hairWindBend(0, 1, 0, R, t)))
+      .toBeGreaterThan(Math.abs(hairWindBend(1, 0, 0, R, t)));
+  });
+
+  it('the gust TRAVELS: same hair, different flank, different phase', () => {
+    const t = 1800;
+    expect(Math.abs(hairWindBend(0, 1, R, R, t) - hairWindBend(0, 1, -R, R, t)))
+      .toBeGreaterThan(0.05);
+  });
+
+  it('stays subtle — never swings a hair far enough to read as a limb', () => {
+    let worst = 0;
+    for (let t = 0; t < 30000; t += 50) {
+      for (const h of HAIRS) worst = Math.max(worst, Math.abs(hairWindBend(h.nx, h.ny, h.x, R, t)));
+    }
+    expect(worst).toBeLessThan(0.42); // ≈24°, and only for hairs fully broadside
   });
 });
