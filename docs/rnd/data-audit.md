@@ -153,18 +153,65 @@ reads or writes `diet`, so the one known casualty is out of its scope.
 `ignore: []` in openrouter.ts is a documented owner decision (2026-07-31) whose
 own bar for re-arming is *"a provider seen failing vision calls repeatedly
 across days… one bad answer is weather; the logs are climate."* This is one
-day, and in any case exclusion is impossible (single endpoint). Options:
+day, and in any case exclusion is impossible (single endpoint).
 
-1. **`reasoning: 'off'` for the vision calls only**, and re-derive diet flags
-   from the returned ingredients via the existing text path (`enrichOneDish`,
-   which still works and keeps its reasoning). Restores photo logging; costs
-   one extra cheap text call per photo; keeps flag discipline where the A/B
-   says it matters. **Recommended.**
-2. **Change `OPENROUTER_MODEL`** to a vision model that terminates reasoning.
-   Cleanest if a good one exists, but re-opens the whole 2026-07-29 A/B
-   (prompt tuning, diet discipline, latency) — the model comment says as much.
-3. **Wait it out.** Precedent says provider degradation has been transient
-   before. Cheap, but photo logging stays broken meanwhile and fails silently.
+**UPDATE, same day, after measurement — the original recommendation below is
+withdrawn.** Two of its premises failed under test:
+
+- "`enrichOneDish` still works" was FALSE — the text path fails identically
+  (it was assumed, not tested; the probe that would have caught it took one
+  minute). Scope is ALL LLM calls, not vision.
+- Reasoning-off does NOT hold flag discipline on today's model. Re-ran the
+  July A/B's question over 22 real rated dishes + 4 objective canaries
+  (scripts/eval-flag-discipline.ts): identical flag sets 5/22, spurious `soy`
+  added 8× (龍蝦刺身 and 炒蝦 flagged soy — the seasoning rule breaking,
+  exactly the July failure), real protein/allergen flags lost 6× (蝦餃 lost
+  pork), canaries 豉油雞 and 照燒雞 both FAIL on spurious soy. The one
+  passing spot-check (カキフライ) was real but unrepresentative — the lesson
+  is the same as ever: one case is weather.
+- "Raise max_tokens" also dies, on LATENCY not cost: with an 8000 cap the
+  real prompts ran past two minutes; enrich's budget is 12s and Vercel's 60s.
+  (Cost was never the issue — reasoning tokens were ALWAYS billed; July's
+  working calls already paid ~2394 thinking tokens each. Today's broken calls
+  still bill a full cap of thinking and return nothing.)
+
+**SECOND UPDATE, same day — every remaining door measured on the same
+instrument** (scripts/eval-flag-discipline.ts: 22 rated dishes + 4 objective
+canaries; the soy canaries verified against DIET_PROMPT_GUIDANCE's own text —
+"soy sauce as a seasoning alone NEVER fires this flag"):
+
+| configuration | identical | spurious soy | lost flags | soy canaries | p50 |
+|---|---|---|---|---|---|
+| qwen3.7-plus, reasoning off | 5/22 | 8 | 6 | both FAIL | **2.5s** |
+| qwen3.7-plus, think budget 300 | 4/22 | 11 | 6 | both FAIL | 7.7s |
+| qwen3.7-plus, think budget 600 | 4/19 | 7 | 5 | both FAIL | 12.6s |
+| qwen3.7-plus, think budget 1000 | 7/19 | 7 | 4 | both FAIL | 19.5s |
+| qwen3-vl-32b-instruct | 8/22 | 8 | 7 | both FAIL | 1.4s |
+| qwen3-vl-8b-instruct | 1/22 | 12 | 14 | both FAIL | 1.0s |
+| mistral-small-3.2 | 6/21 | 4 | 8 | both FAIL | 4.7s |
+| google/openai/anthropic models | — | — | — | — | 403 (account wall, the Aug-1 ToS/regional block) |
+| unbounded thinking (July's regime) | July's quality | — | — | passed then | **>2 min now** |
+
+Findings that settle it:
+
+- The endpoint DOES respect an explicit `reasoning: { max_tokens }` budget now
+  (consumes exactly the budget, then answers — CallOpts extended to allow it).
+  But capped thinking buys NOTHING: discipline is flat-to-worse across
+  300–1000 while latency triples to octuples. July's discipline lived in
+  UNBOUNDED thinking specifically, and that now costs minutes.
+- No reachable configuration passes the soy-seasoning canaries today. The
+  July A/B's premise — that a discipline-holding configuration exists to
+  protect — no longer describes reality. Some STORED baselines are themselves
+  noisy on the soy rule (花雕麻油雞湯麵 stored `soy`), so the identity column
+  understates every arm; the canaries are the honest signal.
+- **Recommendation: `reasoning: 'off'` globally.** It is not a trade against a
+  working alternative anymore — it is the best point on every axis at once
+  among options that exist: fastest (2.5s vs July's ~16s enrich), cheapest
+  (~0 thinking tokens vs ~2400 billed per call in July), and its flag quality
+  is comparable to every other reachable arm. Production's tripwire re-ask
+  (dietSuspicion) stays as the safety net and fires on the suspicious rows.
+  Owner's call — it reverses the 2026-07-29 verdict, but that verdict's
+  premise is gone.
 
 Ship path note: this does **not** block 墨靈 phase 2. Domain evidence is
 computed from ALREADY-STORED columns over rating history, so the aggregate can

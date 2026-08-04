@@ -86,7 +86,16 @@ type ContentPart =
  * model, so the env toggle that briefly wired it was removed. Kept as a
  * capability because any future OPENROUTER_MODEL swap should re-run exactly
  * this A/B, and the request plumbing is the annoying half of that. */
-type CallOpts = { maxTokens?: number; expectJson?: boolean; timeoutMs?: number; reasoning?: 'off' | 'low' };
+type CallOpts = {
+  maxTokens?: number; expectJson?: boolean; timeoutMs?: number;
+  /** 'off' | 'low' per the A/B above; `{ max_tokens }` is an EXPLICIT thinking
+   * budget (OpenRouter-normalized), added 2026-08-04 when the provider changed
+   * `max_tokens` to bound thinking+answer combined and unbounded thinking began
+   * eating every completion budget in the app (see docs/rnd/data-audit.md,
+   * "LIVE OUTAGE"). Verified: the endpoint consumes exactly the budget given
+   * and then answers (finish: stop) — thinking bounded by US, not by them. */
+  reasoning?: 'off' | 'low' | { max_tokens: number };
+};
 
 export async function callClaude(
   system: string,
@@ -173,7 +182,11 @@ async function callClaudeOnce(
       max_tokens: opts.maxTokens ?? 1000,
       // OpenRouter-normalized reasoning control (see CallOpts). Absent unless a
       // caller explicitly opted in, so default behavior is byte-identical.
-      ...(opts.reasoning ? { reasoning: opts.reasoning === 'off' ? { enabled: false } : { effort: 'low' } } : {}),
+      ...(opts.reasoning ? {
+        reasoning: opts.reasoning === 'off' ? { enabled: false }
+          : opts.reasoning === 'low' ? { effort: 'low' }
+          : opts.reasoning,
+      } : {}),
       messages: [
         { role: 'system', content: system },
         { role: 'user', content: userContent },
