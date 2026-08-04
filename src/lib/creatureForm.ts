@@ -257,33 +257,42 @@ export function drawCreatureFrame(
   }
   const R = size * 0.19 * (0.55 + 0.45 * gBase) * 1.12;
   const cx = c0;
-  const cy = c0 - size * 0.03 + R * 0.1 * l - R * 0.05 * s + R * 0.1 * tem.weight
-    + (t ? s * size * 0.012 * Math.sin(t * 0.0008) : 0);
-  const pulse = t ? 1 + 0.02 * l * Math.sin(t * 0.0007) : 1;
   const squash = 1 - 0.2 * l + 0.14 * a + 0.1 * f;
   const widen = 1 + 0.14 * l - 0.14 * a + 0.12 * c - 0.06 * f;
-  const pts: Pt[] = [];
-  for (let i = 0; i < P; i++) {
-    const ph = (i / P) * TAU;
-    const up = Math.max(0, Math.cos(ph)), down = Math.max(0, -Math.cos(ph));
-    let r = radii[i] / gBase // the blob's unit identity, lobes and all
-      + 0.42 * s * Math.cos(ph)
-      + 0.3 * l * Math.cos(ph - Math.PI)
-      + 0.2 * l * Math.abs(Math.sin(ph))
-      - 0.2 * a * Math.abs(Math.sin(ph))
-      + 0.38 * m.baked * up * up
-      - 0.14 * m.baked * down
-      + 0.26 * m.braised * down
-      + 0.1 * tem.bounce * Math.abs(Math.sin(ph * 2))
-      + spikes[i]
-      + (t ? 0.045 * s * Math.sin(t * 0.0012 + ph * 3) : 0);
-    r = Math.max(0.15, r * pulse);
-    pts.push({ x: cx + Math.sin(ph) * r * R * widen, y: cy - Math.cos(ph) * r * R * squash });
-  }
-  if (tem.energy > 0.05) { // forward lean — aggression is posture, not just speed
-    const lean = tem.energy * 0.2;
-    for (const p of pts) p.x += ((cy - p.y) / R) * lean * R * 0.5;
-  }
+  const cyAt = (tt: number) => c0 - size * 0.03 + R * 0.1 * l - R * 0.05 * s + R * 0.1 * tem.weight
+    + (tt ? s * size * 0.012 * Math.sin(tt * 0.0008) : 0);
+  /* The silhouette at a given time. Callable at t=0 to recover the STATIC body,
+     which anything anchored to the skin needs: a feature placed off the
+     breathing outline drifts with the breath instead of staying put. */
+  const bodyAt = (tt: number): Pt[] => {
+    const cyT = cyAt(tt);
+    const pulse = tt ? 1 + 0.02 * l * Math.sin(tt * 0.0007) : 1;
+    const out: Pt[] = [];
+    for (let i = 0; i < P; i++) {
+      const ph = (i / P) * TAU;
+      const up = Math.max(0, Math.cos(ph)), down = Math.max(0, -Math.cos(ph));
+      let r = radii[i] / gBase // the blob's unit identity, lobes and all
+        + 0.42 * s * Math.cos(ph)
+        + 0.3 * l * Math.cos(ph - Math.PI)
+        + 0.2 * l * Math.abs(Math.sin(ph))
+        - 0.2 * a * Math.abs(Math.sin(ph))
+        + 0.38 * m.baked * up * up
+        - 0.14 * m.baked * down
+        + 0.26 * m.braised * down
+        + 0.1 * tem.bounce * Math.abs(Math.sin(ph * 2))
+        + spikes[i]
+        + (tt ? 0.045 * s * Math.sin(tt * 0.0012 + ph * 3) : 0);
+      r = Math.max(0.15, r * pulse);
+      out.push({ x: cx + Math.sin(ph) * r * R * widen, y: cyT - Math.cos(ph) * r * R * squash });
+    }
+    if (tem.energy > 0.05) { // forward lean — aggression is posture, not just speed
+      const lean = tem.energy * 0.2;
+      for (const p of out) p.x += ((cyT - p.y) / R) * lean * R * 0.5;
+    }
+    return out;
+  };
+  const cy = cyAt(t);
+  const pts = bodyAt(t);
   // appendages attach to the DRAWN silhouette, never to a bounding box — a
   // wrist placed off global extents buries wherever the body bulges (measured:
   // claw reach collapsed to 9% on the blob before this rule).
@@ -585,28 +594,52 @@ export function drawCreatureFrame(
   if (isHairy) {
     ctx.save();
     ctx.lineCap = 'round';
-    ctx.lineWidth = 4;
+    // literal 3px, not a proportion (owner's spec): hair must read as hair at
+    // any size rather than thickening into spikes on a large render
+    ctx.lineWidth = 3;
     ctx.strokeStyle = inkFill(ctx, c0, size); // hair IS the body colour
+    // ANCHORED TO THE STATIC SILHOUETTE. Deriving the count and the arc-length
+    // positions from the LIVE outline makes both drift with the breath: `total`
+    // changes, N flips between values, and every hair slides around the rim —
+    // which reads as the whole coat slowly ROTATING (owner, 2026-08-04: the
+    // animation "should not be the whole thing rotating"). Anchors come from
+    // t=0 and are evaluated on the live outline at the same material point, so
+    // each hair stays rooted to its own patch of skin.
+    const anchor = bodyAt(0);
     const seg: number[] = [], cum = [0];
     let total = 0;
     for (let i = 0; i < P; i++) {
-      const p = pts[i], q = pts[(i + 1) % P];
+      const p = anchor[i], q = anchor[(i + 1) % P];
       const dl = Math.hypot(q.x - p.x, q.y - p.y);
       seg.push(dl); total += dl; cum.push(total);
     }
-    const N = Math.max(28, Math.round(total / (R * 0.068)));
+    // spaced by ARC LENGTH, not by angle — even angular spacing thins the coat
+    // wherever the radius is largest, packing the sides and stripping top/bottom
+    const N = Math.max(22, Math.round(total / (R * 0.088)));
+    // 風 · the coat moves hair by hair, never as one rigid mass. A gust sweeps
+    // across the body; each hair bends by the component of it PERPENDICULAR to
+    // itself (the cross product), so a hair pointing into the wind barely moves
+    // while a broadside one bends most. That difference is what reads as wind
+    // through fur — a uniform rotation reads as the creature turning instead.
+    const swell = 0.55 + 0.45 * Math.sin(t * 0.00029); // gusts, then lulls
     let k = 0;
     for (let i = 0; i < N; i++) {
       const target = (i / N) * total;
       while (k < P - 1 && cum[k + 1] < target) k++;
       const fr = seg[k] ? (target - cum[k]) / seg[k] : 0;
-      const p0 = pts[k], p1 = pts[(k + 1) % P];
+      const p0 = pts[k], p1 = pts[(k + 1) % P]; // live outline, static anchor
       const px = p0.x + (p1.x - p0.x) * fr, py = p0.y + (p1.y - p0.y) * fr;
       let nx = px - cx, ny = py - cy;
       const d = Math.hypot(nx, ny) || 1; nx /= d; ny /= d;
       const L = R * (0.095 + rnd() * 0.035);
       const side = px >= cx ? 1 : -1;
-      const tilt = side * (0.42 + (rnd() - 0.5) * 0.16);
+      // the gust travels across the creature rather than striking it all at once
+      const g = swell * Math.sin(t * 0.0015 - ((px - cx) / (R * 2.2)) * 2.6);
+      const bend = 0.26 * g * (0.3 * nx - ny); // cross(hair, wind), wind ≈ (g, .3g)
+      // base lean stays MIRRORED about the vertical axis (owner's reference:
+      // every hair sweeps outward-and-down); the wind is added in screen space,
+      // unmirrored, so the two sides genuinely bend independently
+      const tilt = side * (0.42 + (rnd() - 0.5) * 0.16) + bend;
       const ca = Math.cos(tilt), sa2 = Math.sin(tilt);
       ctx.beginPath();
       ctx.moveTo(px - nx * R * 0.02, py - ny * R * 0.02); // rooted just inside the rim
