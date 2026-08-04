@@ -32,6 +32,36 @@ import { buildMing, labelTier } from '@/lib/logogram';
  *  ink ring is the rim, and a guide drawn on top of it would only double it. */
 const GUIDES = [0.25, 0.5, 0.75];
 
+/**
+ * How each label tier is inked. Tuned to 初學's feel (owner, 2026-08-05): a
+ * mostly-pale ring of words with a couple of dark accents, rather than a wall
+ * of mid-grey. The whole non-accent ladder sits one step lighter than the
+ * tokens' full strength — only `called` is at full ink, and it earns it by
+ * being the thing you are meant to read first.
+ *
+ * Resolved against paper, these come out roughly:
+ *   called #5f5c58 · held #b4afa6 · quiet #c9c5bd · fog #d8d2c5
+ *
+ * `called` is held back from full --ink too (owner, 2026-08-05). It can afford
+ * to be: WEIGHT is what marks a called-out taste, so the colour only has to
+ * separate it, not shout. At full ink it read as a hard black accent against a
+ * pale ring rather than as part of the same hand.
+ *
+ * That ORDER is the contract, not the numbers: strictly lightening from called
+ * to fog, with fog lightest. `quiet` is a dim the engine has LEARNED and merely
+ * has no opinion about; `fog` is one it has never been taught. If those two
+ * ever cross, the figure starts rendering "no opinion" as "never tasted" —
+ * the exact fabrication it was built to remove. A vitest guard pins the
+ * ordering by resolving these to luminance, so a future "just a bit lighter"
+ * cannot quietly invert them.
+ */
+export const TIER_INK = {
+  called: { fill: 'var(--ink)', opacity: 0.75, weight: 700 },
+  held: { fill: 'var(--ink-soft)', opacity: 0.55, weight: 400 },
+  quiet: { fill: 'var(--ink-soft)', opacity: 0.38, weight: 400 },
+  fog: { fill: 'var(--ink-faint)', opacity: 0.7, weight: 400 },
+} as const;
+
 export default function TasteRadar({ vector, evidence, seed, size = 280, labelFor }: {
   vector: Record<string, number>;
   evidence: EvidenceMap;
@@ -158,18 +188,9 @@ export default function TasteRadar({ vector, evidence, seed, size = 280, labelFo
         const label = labelFor ? labelFor(dim) : dim;
         const anchor = Math.abs(Math.cos(a)) < 0.15 ? 'middle' : Math.cos(a) > 0 ? 'start' : 'end';
 
-        // Four tiers of ink (lib/logogram.ts labelTier). `quiet` — learned, but
-        // no real opinion — is drawn with --ink-soft held back, which is what
-        // keeps a mature palate from flattening into two shades: the owner's
-        // profile has learned all 18 dims, so without this tier nothing is ever
-        // set lighter than --ink-soft.
-        // fog stays the LIGHTEST and is a different token entirely. That gap is
-        // load-bearing, not styling: "no opinion" must never look like "never
-        // tasted". Concretely, --ink-soft at 0.55 over paper resolves to about
-        // #b4afa6, still darker than --ink-faint's #c9c2b2. Do not drop that
-        // 0.55 much below ~0.45 without rechecking: past there `quiet` becomes
-        // lighter than `fog` and the two tiers silently swap meaning.
-        const tier = labelTier(evidence[dim], vector[dim] ?? 0, strong);
+        // Four tiers of ink — see TIER_INK above for the ladder and the
+        // ordering contract it has to keep.
+        const ink = TIER_INK[labelTier(evidence[dim], vector[dim] ?? 0, strong)];
         return (
           <text
             key={dim}
@@ -177,10 +198,9 @@ export default function TasteRadar({ vector, evidence, seed, size = 280, labelFo
             textAnchor={anchor}
             dominantBaseline="middle"
             fontSize={labelFont}
-            fontWeight={tier === 'called' ? 700 : 400}
-            fill={tier === 'called' ? 'var(--ink)'
-              : tier === 'fog' ? 'var(--ink-faint)' : 'var(--ink-soft)'}
-            fillOpacity={tier === 'quiet' ? 0.55 : 1}
+            fontWeight={ink.weight}
+            fill={ink.fill}
+            fillOpacity={ink.opacity}
           >
             {label}
           </text>
