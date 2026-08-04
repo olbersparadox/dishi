@@ -135,3 +135,90 @@ flips on identical text — same class the cross-venue eval measured as
 run-to-run noise); B-arm coverage was halved by the provider window, so the
 3a paired count is 26, not 54; session coords were proxied (see Method) —
 production gets real ones from step 1.
+
+## SUPERSEDED — the 2026-08-02 run measured the wrong model
+
+Discovered 2026-08-04 (see `9253b5a`, "The 'outage' was a 26-day local/prod
+model divergence"): production has run `OPENROUTER_MODEL=qwen3-vl-32b-instruct`
+(non-thinking) since 2026-07-09, but `.env.local` never got the variable and
+`openrouter.ts` fell back to `qwen/qwen3.7-plus` (thinking) — silently, for 26
+days. This eval ran 2026-08-02, inside that window. **Every number above,
+including the GO call, was measured against a model the app does not ship.**
+`.env.local` is now pinned to the real production model; nothing below is.
+
+## Field pass, 2026-08-04 — the GO call does not survive the correct model
+
+First live field test of 3b, wired that session (`59bc3a5`). Owner scanned
+大爺燒鵝 (香港仔田灣, session VYGX4, 35 items, real `scan_lat`/`scan_lng` ~13m
+from the photo), photographed 油雞髀腩仔飯 five minutes later, rated it at
+home. Vision returned 燒鴨叉燒飯 — wrong protein, wrong cut — and nothing was
+adopted (`name_from_menu_at` null).
+
+Two things looked identical from the DB row alone and have opposite
+implications, so the exact photo was replayed against the exact live shortlist
+(`scripts/diagnose-daaiye-miss.ts`, correct model, 3 runs/arm):
+
+- **Baseline (no context): 燒鴨叉燒飯, 3/3.** Matches what production
+  returned — 3b's lookup did not fire in production (the 1.5s budget failing
+  closed is the leading suspect; the confirming log line is behind a Vercel
+  billing limit as of this writing).
+- **+shortlist (the real 40-name VYGX4 list): 大爺燒鵝雙拼飯, 3/3.** Wearing
+  menu authority. **This is the kill-criterion class, deterministic.** The
+  dish was actually a 自選雙拼飯 combo (build-your-own — the menu names no
+  single dish for it); the shortlist supplied a confident, wrong, real menu
+  name instead of the honest miss baseline gives.
+
+So the suppression bug is, right now, the only reason this specific wrong
+adoption isn't already live in the DB.
+
+## Re-run on the correct model, 2026-08-04 — EDITED tier, n=20 (10 with shortlist)
+
+`SIM_USER_ID=<owner> npx tsx scripts/eval-vision-naming.ts --edited-only`,
+same harness, same proxy method as the 08-02 run, only the model changed
+(`qwen3-vl-32b-instruct`). Directly comparable to that run's EDITED-tier row.
+
+```
+A baseline:      exact 0/20, same-dish 3/20
+B +locale (3a):  exact 0/20, same-dish 3/20
+C +shortlist:    exact 2/10, same-dish 3/10
+
+Arm C adoption (n=10 with shortlist):
+  truth on list: 2
+  adopted:       5
+  ADOPTED-WRONG: 3   <- kill-criterion class
+```
+
+**60% of adoptions were wrong (3/5).** 30% of all shortlisted cases hit the
+kill criterion, vs. 1/16 (6%) on the 08-02 run. Three distinct wrong
+adoptions, all wearing menu authority:
+
+- 油雞髀腩仔飯 → 無骨海南雞配油飯 ("Hainanese chicken rice with crispy pork
+  belly" — wrong chicken preparation, wrong rice, right menu, wrong dish)
+- 燒鵝髀飯 → 脆皮潤腸飯 (a completely different dish)
+- 土魷蒸肉餅 → 冬菇馬蹄蒸肉餅 (the same kill-criterion event the 08-02 run
+  already flagged once — it reproduces)
+
+Baseline accuracy is unchanged from 08-02 (0/16 → 0/20 exact on EDITED,
+same selection-effect caveat: this tier is conditioned on the shipped
+pipeline having already failed). The model swap did not change what vision
+sees; it changed how eagerly it commits to a forced match, and the correct
+production model commits far more readily to a wrong one.
+
+## Read — GO is withdrawn, pending a strong-model decision
+
+The 08-02 "GO, ~5/6 adoption accuracy" call is **withdrawn** — it was never a
+measurement of what ships. On the model that actually runs in production,
+adoption is wrong more often than it's right in this sample. Auto-adopt as
+currently designed should not ship on this evidence.
+
+**Not yet decided** (per CLAUDE.md: decisions touching the name authority
+ladder go to the strongest model tier, not Sonnet — this section records
+facts, not the call): whether this kills 3b outright, or whether it moves
+straight to the item-5 two-name pick (offer the shortlist match as a
+one-tap alternative rather than auto-substituting it) that the 08-02 doc
+already named as the mitigation for exactly this failure class. The n=10
+shortlist sample here is small; a fuller re-run (`--edited-only` was chosen
+to conserve calls) would firm up the 30% figure before either path ships.
+
+Suppression (the reason nothing wrong has shipped yet) should stay in place
+until that decision is made.
