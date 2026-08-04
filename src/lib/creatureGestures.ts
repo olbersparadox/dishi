@@ -190,44 +190,9 @@ export function clawMotion(t: number, side: number): ClawMotion {
 }
 
 /** Claw axis: ~41° below horizontal, measured off the reference. The wrist sits
-    along this same direction, so a limb's attachment and its aim agree. */
+    along this same direction, so a limb's attachment and its aim agree.
+    The pair itself is mounted by creatureForm.ts, which attaches each wrist to
+    the DRAWN silhouette (flank points) — never to a bounding box: a wrist
+    placed off global extents buries wherever the body bulges (measured — reach
+    collapsed to 9% of body width against the calibrated 40%). */
 export const CLAW_AXIS = 0.72;
-/** Wrist depth as a fraction of the body's rim IN THE CLAW'S OWN DIRECTION.
-    It must be the local rim, not a global half-extent: on a lumpy body the
-    flank bulges past the bounding box, so a wrist placed off the bounding box
-    ends up deep inside and the claw barely emerges (measured — reach collapsed
-    to 9% of body width against the calibrated 40%). Same failure family as the
-    framework's "bug that hid half the anatomy": when a feature is present in
-    the data and absent on screen, suspect the geometry before the gate. */
-const WRIST_K = 0.96;
-/** Claw size per unit MEAN body radius. Keyed to the mean, not the local rim,
-    so a lumpy silhouette cannot make one claw bigger than the other and swamp
-    the deliberate 龍蝦 asymmetry. */
-const R_K = 1.57;
-
-/** Draw the claw PAIR on a body. This is the only entry point a renderer should
-    use: asymmetry, flank placement, mirroring and the motion clock all live
-    here, because every one of them is a way to get the gesture wrong by hand.
-    (A port that passed the growth value as `scale` gave two equal claws and
-    lost the lobster's defining big/small read.)
-
-    `rimL`/`rimR` are the body's radius along each claw's own axis, and `bodyR`
-    its mean radius. `growth` is 0..1 saturating evidence — a young node is a
-    nub, not invisible. */
-export function drawClawPair(ctx: CanvasRenderingContext2D, o: {
-  cx: number; cy: number; bodyR: number; rimL: number; rimR: number;
-  species: ClawSpecies; growth: number; t: number; ink: string;
-}) {
-  const g = Math.max(0, Math.min(1, o.growth));
-  const size = 0.5 + 0.5 * g;
-  // 龍蝦 is asymmetric — one oversized claw is the whole lobster read. 蟹 is 1:1.
-  const [sL, sR] = o.species === 'lobster' ? [1.22, 0.82] : [1.0, 1.0];
-  const R = o.bodyR * R_K;
-  const draw = o.species === 'lobster' ? drawLobsterClaw : drawCrabClaw;
-  const mL = clawMotion(o.t, -1), mR = clawMotion(o.t, 1);
-  const c = Math.cos(CLAW_AXIS), s = Math.sin(CLAW_AXIS);
-  draw(ctx, o.cx - c * o.rimL * WRIST_K, o.cy + s * o.rimL * WRIST_K,
-    Math.PI - CLAW_AXIS + mL.sway, R, size * sL, mL, o.ink);
-  draw(ctx, o.cx + c * o.rimR * WRIST_K, o.cy + s * o.rimR * WRIST_K,
-    CLAW_AXIS + mR.sway, R, size * sR, mR, o.ink);
-}

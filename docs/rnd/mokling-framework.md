@@ -329,23 +329,25 @@ harness (`src/lib/creatureGestures.ts`, driven by the untracked
 `TasteFormLive` takes an optional `limbs` prop that nothing in the app passes,
 so today's blob is byte-for-byte today's blob.
 
-Two things block shipping, and neither is the gesture:
+What blocked shipping, and where each blocker stands now:
 
-1. **No data.** There is no domain evidence anywhere — `DIMS` is 18
-   flavor/texture/body/method dims and carries no ingredient domain at all.
-   The per-user domain-evidence aggregate is ship-path step 2 and does not
-   exist. A first port invented a `vector.sea_crustacean` field, which meant
-   the gate was permanently false and the claws never drew: **a feature keyed
-   to a field that does not exist is not a shipped feature, and "the code is
-   there" is not evidence — rendering it is.**
-2. **The blob is not a body for anatomy.** Hanging the gesture on the current
-   blob scrambles the gesture's own proportions — measured on the real form:
-   the blob's radius along the two claw axes differed by 33% (156px vs 117px),
-   so the small claw protruded FURTHER than the big one and the deliberate
-   1.22 : 0.82 龍蝦 asymmetry inverted. A calibrated limb assumes a body plan
-   designed to carry limbs. Limbs come with the creature renderer (step 3), as
-   one member of the whole vocabulary — body plan, skin, posture, appendage
-   set — never bolted onto the blob one at a time.
+1. **No data (STILL OPEN — the production gate).** There is no domain evidence
+   anywhere — `DIMS` is 18 flavor/texture/body/method dims and carries no
+   ingredient domain at all. The per-user domain-evidence aggregate is
+   ship-path step 2 and does not exist. A first port invented a
+   `vector.sea_crustacean` field, which meant the gate was permanently false
+   and the claws never drew: **a feature keyed to a field that does not exist
+   is not a shipped feature, and "the code is there" is not evidence —
+   rendering it is.**
+2. **The blob is not a body for anatomy (RESOLVED 2026-08-04 by the creature
+   renderer).** Hanging the gesture on the blob alone scrambled its
+   proportions — the blob's radius along the two claw axes differed by 33%,
+   so the small claw protruded further than the big one and the 1.22 : 0.82
+   龍蝦 asymmetry inverted. The fix was never a better mount point; it was the
+   creature renderer itself (`src/lib/creatureForm.ts`): limbs attach to the
+   DRAWN silhouette (flank/bottom points on the final pts), and the claw's
+   size converts from the creature body's own half-width (re-measured on the
+   real render: 44.6%/24.6% reach against the calibrated ~40/~25).
 
 Core insight, hard-learned across 7 failed rounds: **topology is not a parameter.**
 The claw must visibly PINCH, which means: (1) palm + fixed finger are ONE rigid
@@ -481,7 +483,19 @@ See BACKLOG "Data audit" item — the audit runs before any phase-1 code.
    replay.ts on re-rates), persisted with taste_profile_version.
 3. Creature renderer behind the FormInputs contract (+ domain record), grown
    path persisted per (user, profile version); blob remains the fallback when
-   domain evidence is empty.
+   domain evidence is empty. — **BUILT 2026-08-04** (`src/lib/creatureForm.ts`,
+   live canvas): the v6 lab body ported whole — body plan, 5 skins, posture/
+   temperament, wings/fronds/ribbons/tendrils/caps/legs, calibrated claws.
+   The body is the BLOB's own sampleForm silhouette with domain anatomy
+   layered multiplicatively, so zero domain evidence degrades to exactly
+   today's blob — "a new version of the ink-blob", one being, not a second
+   renderer beside it. `TasteFormLive` takes optional `domains`; NOTHING in
+   production passes it (blocked on step 2). Reviewed on the untracked
+   /dev-creature harness across 8 scenario lives; temperament/skin detectors
+   read the learned 18 dims (evidence-gated — fog stays silent, unit-tested
+   in tests/creatureForm.test.ts). Still owed before production: snapshot
+   (SVG) parity — two renderers, one being — and the owner's pass on each
+   skin/limb at real profiles.
 4. 銘 renderer for version cards / export header / share image.
 5. Rating-moment absorb animation; then ceremonies; then 相見.
 

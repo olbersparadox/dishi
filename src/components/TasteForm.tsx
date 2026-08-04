@@ -8,7 +8,7 @@
 // can never show a different being than the numbers say.
 import { useEffect, useRef, useState } from 'react';
 import { sampleForm, formToSvgPath, fogExtent, type FormInputs } from '@/lib/blobForm';
-import { drawClawPair, CLAW_AXIS, type ClawSpecies } from '@/lib/creatureGestures';
+import { drawCreatureFrame, hasAnatomy, type DomainEvidence } from '@/lib/creatureForm';
 import TasteRadar from './TasteRadar';
 
 const PAPER_INK = ['#3a3733', '#211d18', '#2e2a24'] as const;
@@ -45,30 +45,24 @@ export function TasteFormSnapshot({
   );
 }
 
-/** Grown anatomy layered onto the form (register 骨). Absent by default, and
- *  absent is exactly today's blob — the creature renderer is additive and must
- *  fail closed until a node's evidence actually exists. NOTHING in production
- *  passes this yet: the 甲殼 gate needs the per-user domain-evidence aggregate
- *  (ship path step 2 in docs/rnd/mokling-framework.md), and there is no domain
- *  data in the 18-dim vector to fake it from. The dev harness at /dev-creature
- *  drives it by hand so the gesture can be seen on the real body. */
-export type FormLimbs = {
-  /** 甲殼 crustacean: which sub-node reads, and 0..1 saturating evidence. */
-  claws?: { species: ClawSpecies; growth: number };
-};
-
 /**
  * Live breathing render. Draws the SAME deterministic base form as the
  * snapshot, with time-varying noise layered on top purely as motion — the
  * noise never touches the underlying sample, so pausing at any frame and
  * comparing to TasteFormSnapshot with identical inputs always matches.
- * (Limbs are the one exception, and a deliberate one: they are grown anatomy,
- * not motion. The snapshot renderer must learn the same gestures before any
- * limb reaches production, or the two renderers would disagree.)
+ *
+ * `domains` is the creature door (register 骨 — creatureForm.ts): when domain
+ * evidence exists the SAME profile renders as the grown lifeform instead of
+ * the plain blob. Absent or empty → exactly today's blob, untouched. NOTHING
+ * in production passes it yet: the per-user domain aggregate (ship path step
+ * 2, docs/rnd/mokling-framework.md) does not exist, and inventing a field for
+ * it is how the sea_crustacean bug happened. The untracked /dev-creature
+ * harness drives it by hand. Before production wiring, the snapshot renderer
+ * must learn the same anatomy — two renderers, one being, never disagreeing.
  */
 export function TasteFormLive({
-  inputs, size = 280, glyph, limbs,
-}: { inputs: FormInputs; size?: number; glyph?: string; limbs?: FormLimbs }) {
+  inputs, size = 280, glyph, domains,
+}: { inputs: FormInputs; size?: number; glyph?: string; domains?: DomainEvidence }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef = useRef<number | null>(null);
   const visibleRef = useRef(true);
@@ -88,29 +82,23 @@ export function TasteFormLive({
     const c = size / 2;
     const scale = size * 0.36;
 
-    // Limb attachment, measured off the STATIC form (not the breathing outline,
-    // or every wrist would jitter with the breath). A limb needs the rim radius
-    // along ITS OWN direction — a global half-extent buries the wrist wherever
-    // the silhouette bulges. Sample i lies at screen angle angles[i] − π/2.
-    const rimAt = (theta: number) => {
-      let best = 0, bestD = Infinity;
-      for (let i = 0; i < angles.length; i++) {
-        const a = angles[i] - Math.PI / 2;
-        const d = Math.abs(Math.atan2(Math.sin(a - theta), Math.cos(a - theta)));
-        if (d < bestD) { bestD = d; best = radii[i]; }
-      }
-      return best * scale;
-    };
-    const bodyR = (radii.reduce((s, r) => s + r, 0) / radii.length) * scale;
-    const rimL = rimAt(Math.PI - CLAW_AXIS);
-    const rimR = rimAt(CLAW_AXIS);
-
     const io = new IntersectionObserver(([e]) => { visibleRef.current = e.isIntersecting; },
       { threshold: 0.05 });
     io.observe(canvas);
 
+    // With lived domain evidence, the SAME profile renders as the creature —
+    // one being, two stages of growth. Without it, the blob path below runs
+    // untouched (fail closed: additive-only, today's pixels are today's).
+    const creature = hasAnatomy(domains);
+
     function frame(t: number) {
       if (!visibleRef.current) { rafRef.current = requestAnimationFrame(frame); return; }
+
+      if (creature) {
+        drawCreatureFrame(ctx!, size, inputs, domains, t, glyph);
+        rafRef.current = requestAnimationFrame(frame);
+        return;
+      }
       ctx!.clearRect(0, 0, size, size);
 
       const wash = ctx!.createRadialGradient(c, c, size * 0.2, c, c, size * 0.48);
@@ -118,16 +106,6 @@ export function TasteFormLive({
       wash.addColorStop(1, `rgba(${PAPER_WASH},0)`);
       ctx!.fillStyle = wash;
       ctx!.beginPath(); ctx!.arc(c, c, size * 0.48, 0, Math.PI * 2); ctx!.fill();
-
-      // Limbs go on BEFORE the body, so the body fill covers each wrist join —
-      // the same z-order the gesture was calibrated in. Never alpha.
-      if (limbs?.claws) {
-        drawClawPair(ctx!, {
-          cx: c, cy: c, bodyR, rimL, rimR,
-          species: limbs.claws.species, growth: limbs.claws.growth,
-          t, ink: PAPER_INK[1],
-        });
-      }
 
       const px: number[] = [], py: number[] = [];
       for (let i = 0; i < angles.length; i++) {
@@ -176,7 +154,7 @@ export function TasteFormLive({
       io.disconnect();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [inputs.seed, size, limbs?.claws?.species, limbs?.claws?.growth]);
+  }, [inputs.seed, size, domains && JSON.stringify(domains)]);
 
   return <canvas ref={canvasRef} style={{ width: size, height: size }} aria-label="Your taste form, live" role="img" />;
 }
