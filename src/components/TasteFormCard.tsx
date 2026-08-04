@@ -390,7 +390,7 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
       <div className="taste-blob-anchor">
         <TasteFormReveal
           inputs={formInputs} size={190}
-          vector={state.vector} labelFor={(dim) => t(`dim.${dim}`)}
+          labelFor={(dim) => t(`dim.${dim}`)}
           domains={state.domain_evidence}
         />
       </div>

@@ -181,12 +181,16 @@ export function TasteFormLive({
  * back. No new data, just a second way to read the same profile.
  */
 export function TasteFormReveal({
-  inputs, size = 190, glyph, vector, labelFor, domains,
+  inputs, size = 190, glyph, labelFor, domains,
 }: {
   inputs: FormInputs; size?: number; glyph?: string;
-  vector: Record<string, number>; labelFor: (dim: string) => string;
+  labelFor: (dim: string) => string;
   domains?: DomainEvidence;
 }) {
+  // The 銘 reads from the SAME `inputs` the creature grows from — vector,
+  // evidence and seed — rather than taking its own copy of the vector. Both
+  // faces of this card are then incapable of showing a different palate than
+  // the other, which is the two-renderer contract applied to the reveal.
   const [showRadar, setShowRadar] = useState(false);
 
   // Radar renders larger than the blob so the 18 labels have room to breathe;
@@ -222,7 +226,8 @@ export function TasteFormReveal({
         transition: 'opacity 220ms ease, transform 220ms ease',
         pointerEvents: 'none',
       }}>
-        <TasteRadar vector={vector} size={radarSize} labelFor={labelFor} />
+        <TasteRadar vector={inputs.vector} evidence={inputs.evidence} seed={inputs.seed}
+          size={radarSize} labelFor={labelFor} />
       </div>
     </div>
   );

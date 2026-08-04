@@ -42,7 +42,7 @@ Registers are independent — that is what makes the output space multiply
 | 膚 skin & edge | method dims (already learned: 炸烤燜蒸生焗) | medium | edge/surface treatment: 炸 crusted granular rim, 蒸 wet sheen, 烤 sear marks, 燜 heavy sag, 生 translucent wash, 焗 risen dome — **built, lab v6** |
 | 姿 motion & temperament | flavor + method dims (辣甜酸苦鮮鹹 / 濃清) | medium | motion signature AND static posture: 辣+炸烤 → jagged edge, forward lean, quick darts; 蒸生+清 → smoothed contour, upright, slow drift; 燜+濃 → low centre of mass, heavy settle; 甜 → round springy profile — **built, lab v6** |
 | 脊 spine | vertebrate share of the diet | slow | a dorsal ridge (lit crest + shadow) on vertebrate-fed bodies; crab and mushroom eaters have none — **built, lab v6** |
-| 銘 DNA | the full 18-dim vector + evidence + domain record | exact, always current | the written logogram: outward strokes = love, inward = dislike, stroke count = evidence, silence = fog — **built, lab v3** |
+| 銘 DNA | the full 18-dim vector + evidence + domain record | exact, always current | the written logogram: outward strokes = love, inward = dislike, stroke count = evidence, silence = fog — **shipped 2026-08-05, merged into the radar as one figure** (see ship path 4) |
 
 **Registers must be genuinely independent** (the v6 range test proves it): a
 dessert life is near-silent in 骨 — 榖 (flour, sugar, dairy) is SKIN in this
@@ -518,7 +518,35 @@ See BACKLOG "Data audit" item — the audit runs before any phase-1 code.
    in tests/creatureForm.test.ts). Still owed before production: snapshot
    (SVG) parity — two renderers, one being — and the owner's pass on each
    skin/limb at real profiles.
-4. 銘 renderer for version cards / export header / share image.
+4. ~~銘 renderer~~ **SHIPPED 2026-08-05, and it landed somewhere the plan did
+   not expect: MERGED INTO THE RADAR rather than added as a separate card.**
+   The owner's ask was "replace the taste radar or merge with it somehow"; the
+   two turned out to already share a coordinate system — `dimAngle(i)` and the
+   radar's local `angleFor(i)` were the same expression over the same DIMS
+   order — so the 銘 ring and the radar polygon are now ONE figure on one
+   compass and one radius (`src/lib/logogram.ts` geometry,
+   `src/components/TasteRadar.tsx` render). A maximally-loved dim's polygon
+   vertex lands exactly on the ring where its stroke leaves. Reached by tapping
+   the creature/blob, same as the radar always was.
+
+   The merge earns its keep on honesty, not decoration: **a radar has no axis
+   for evidence.** It maps -1..1 to a radius, so an unrated dim plots at
+   mid-radius, indistinguishable from a measured neutral — the chart asserted a
+   reading it did not have, for as long as it has existed. The 銘 carries
+   evidence in the ink, so fog is now visible: no stroke, no vertex dot, a
+   faint label, and it cannot be named a top taste (that callout is
+   evidence-gated now — a high number off one tasting is a guess).
+
+   Two calibration facts, both measured on the owner's live profile rather than
+   reasoned: (a) the lab's linear `round(e/2)` stroke count saturates almost
+   immediately on real data (14 of 18 dims are past 12 ratings), so every
+   mature seat drew the cap and the count said nothing — replaced with tiers
+   capped at 4; (b) the lab's long fine strokes read as FUR at production size,
+   colliding with the creature's own hair register — the 銘 needs short heavy
+   marks. Both only showed up on a real profile; the harness fixtures hid them.
+
+   Version cards / export header / share image still to follow — the renderer
+   they need now exists.
 5. Rating-moment absorb animation; then ceremonies; then 相見.
 
 ## Open questions for the owner

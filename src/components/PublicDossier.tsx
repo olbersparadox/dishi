@@ -70,7 +70,6 @@ export default function PublicDossier({ dossier, isOwner }: { dossier: Dossier; 
           <TasteFormReveal
             inputs={{ vector: d.vector, evidence: d.evidence, ratingCount: d.ratingCount, seed: `${d.username}:v${d.version}` }}
             size={190}
-            vector={d.vector}
             labelFor={label}
             domains={d.domain_evidence}
           />
