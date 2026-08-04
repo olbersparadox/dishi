@@ -82,7 +82,7 @@ fish-vs-lobster live, and it activates node-by-node as data proves out):
 
 - 海 sea — bell body, water-bob motion
   - 魚 fish → fin/tail gestures
-  - 甲殼 crustacean (lobster, crab, prawn) → claw nubs, segmented plate strokes
+  - 甲殼 crustacean (lobster, crab, prawn) → **claw gestures** (SHIPPED 2026-08-04)
   - 軟體 mollusc/jelly → trailing tendrils
 - 陸 land — grounded squat mass, heavy breath
   - 牛 beef → bulk, slow mass
@@ -318,6 +318,65 @@ gesture, because they are what makes the set look like one species of drawing:
     reads is clutter, not subtlety.
 11. **Wings take the arm station, or the ear station if claws already own the
     flank.** Two limbs must never contend for one attachment point.
+
+## Claw implementation rules (shipped 2026-08-04)
+
+**龍蝦 & 蟹 gestures built, tested, and ported to live render.**
+
+Core insight, hard-learned across 7 failed rounds: **topology is not a parameter.**
+The claw must visibly PINCH, which means: (1) palm + fixed finger are ONE rigid
+mass (never move); (2) ONLY the dactyl rotates about a single hinge. Earlier
+versions had both halves fanning apart from the wrist (a leaf flapping, not a
+claw closing). This could never be fixed by parameter tweaks — the structure
+was wrong.
+
+**Procedural geometry rules:**
+
+1. **Rounded-corner triangles need per-corner rounding clamped.** A fixed radius
+   on an acute apex eats the whole corner (rt = rad/tan(θ/2), so 24° apex gets
+   only 1/5 the rounding a 90° corner gets). Clamp each corner to 68% of its
+   shorter edge so tips can actually round without disappearing.
+2. **Overlap is verified by connectivity, not eyeballed.** Drawings in flat ink
+   hide whether shapes actually intersect (two separate triangles look like one
+   from the outline alone). Flood-fill from each component to count connected
+   components; if >1, the overlap failed.
+3. **Corner rounding retracts the drawn edge.** At a 35° wrist corner, rounding
+   retracts ~3.2× the radius along each edge. If a hinge is planted TOO shallow
+   into an overlapped corner, rounding can un-bury it. Bury deep enough that
+   the retraction can't escape.
+4. **Mirror-don't-rotate for left-flank limbs.** When an appendage points left
+   (negative cross-axis), negate the cross-axis when building local points — do
+   NOT rotate the frame. Rotation swaps jaws/fingers vertically and reads as a
+   vertical flip. Mirror preserves anatomy.
+
+**Motion rules:**
+
+- A claw rests OPEN (dactyl at REST_OPEN = 0.17 rad ≈ 10°), not breathing
+  symmetrically. It PINCHES: snap shut in 18% of the snap window, release over
+  the remaining 82% (asymmetric easing makes it snappy).
+- The creature fires 2–3 snaps per ~7s cycle, then goes QUIET. 90% of the cycle
+  is idle (motion is only a 0.01rad subtle breath). Sides are offset (the right
+  fires 3, left fires 2, out of phase) so they never chop in unison.
+- Motion is LAYERED: the dactyl rotates around its hinge, the palm never moves,
+  the whole limb sways by 0.01rad max. Static geometry NEVER changes; honesty
+  is preserved (motion on top = the creature's identity is immutable).
+- **Recoil on the snap:** the whole limb kicks back (−0.02rad sway spike) during
+  pinch, selling the kinetic snap.
+
+**Gestalt tuning (for texture and legibility):**
+
+- Tips rounded ~0.11L effective (clamped from 0.20L spec). Blunt-ended pincers,
+  not needles. The roundness cost reach, so length was raised to pay for it.
+- Small jaw on lobster (~0.65× the big), 1:1 pair on crab. Reach ~40%/25% of
+  body width on lobster, ~60% (equal) on crab.
+- Wrist angle from reference: 44° below horizontal for lobster pairs.
+- **Limb attachment:** claws attach 0.24R–0.48R from body centre, angled forward-down.
+  They must hug the silhouette; anything sprawling reads as ears.
+
+**Crab vs lobster (phase 1):** both claws use the same gesture type code path;
+species choice is wired to the taxonomy node detector (crustacean sub-node
+dominance: 龍蝦 on high lobster share, 蟹 on high crab share). Mid-range gives
+an in-between arm per the blend rule.
 
 **The bug that hid half the anatomy.** The body is built as
 `x=cx+sin(ph), y=cy−cos(ph)`, so "away from the creature" at angle ph is

@@ -8,6 +8,7 @@
 // can never show a different being than the numbers say.
 import { useEffect, useRef, useState } from 'react';
 import { sampleForm, formToSvgPath, fogExtent, type FormInputs } from '@/lib/blobForm';
+import { drawLobsterClaw, drawCrabClaw, clawMotion } from '@/lib/creatureGestures';
 import TasteRadar from './TasteRadar';
 
 const PAPER_INK = ['#3a3733', '#211d18', '#2e2a24'] as const;
@@ -112,6 +113,23 @@ export function TasteFormLive({
       ink.addColorStop(0, PAPER_INK[0]); ink.addColorStop(0.6, PAPER_INK[1]); ink.addColorStop(1, PAPER_INK[2]);
       ctx!.fillStyle = ink;
       ctx!.fill();
+
+      // Draw claws if the vector hints at crustacean (甲殼). The motion layers
+      // on top of static geometry; the creature's identity never changes.
+      const crustaceanShare = (inputs.vector.sea_crustacean || 0);
+      const hasClaws = crustaceanShare > 0.15;
+      if (hasClaws) {
+        ctx!.fillStyle = PAPER_INK[1];
+        const mL = clawMotion(t, -1);
+        const mR = clawMotion(t, 1);
+        // Position claws inside the body ellipse (body is .62R wide, .66R tall)
+        const fx = size * 0.24;
+        const fy = size * 0.19;
+        // Both claws from the same gesture fn; only species choice picks lobster vs crab.
+        // For now, use lobster (the smaller one emerges from a higher gate ~5 events).
+        drawLobsterClaw(ctx!, c - fx, c + fy, Math.PI - 0.72 + mL.sway, size * 0.5, 1, crustaceanShare, mL);
+        drawLobsterClaw(ctx!, c + fx, c + fy, 0.72 + mR.sway, size * 0.5, 1, crustaceanShare, mR);
+      }
 
       ctx!.fillStyle = `rgba(${PAPER_HIGHLIGHT},0.16)`;
       ctx!.beginPath();
