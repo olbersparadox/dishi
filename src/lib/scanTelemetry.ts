@@ -156,6 +156,12 @@ export function formatScanSummary(s: ScanSummary): string {
   const stat = (c: CallStat) => `p50:${num(c.p50)}/p95:${num(c.p95)}/max:${num(c.max)}/fail:${c.failed}of${c.ok + c.failed}`;
   return [
     'scan-telemetry',
+    // WHICH BRAIN answered. Server-side env, never client-reported. Added
+    // 2026-08-04: a whole day was lost diagnosing a "production outage" that
+    // was really local dev running a different model than production, because
+    // no log line anywhere named the model in use next to the scan's own
+    // numbers. Drift between environments must be visible at a glance.
+    `model=${process.env.OPENROUTER_MODEL ?? 'UNSET'}`,
     `lang=${s.lang}`,
     `items=${s.items}`,
     `append=${s.append}`,

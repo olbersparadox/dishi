@@ -3,9 +3,10 @@
 > **STATUS: owner-signed-off 2026-08-04.** The ingredients backfill it
 > recommended was approved and run the same day (see "Backfill" at the end).
 >
-> ⚠️ **The backfill uncovered a LIVE PHOTO-VISION OUTAGE — see the section at
-> the end of this document. Photo dish logging is currently broken in
-> production.** It is unrelated to the audit's findings but was found by it.
+> ℹ️ This document briefly reported a LIVE PRODUCTION OUTAGE. **That report was
+> wrong — production was healthy throughout.** The real finding was a 26-day
+> local/production model divergence; see "The env divergence" below, which is
+> worth reading for the diagnostic failure as much as the fix.
 
 BACKLOG item 1 (owner, 2026-08-02: "i'm surprised Vision has carried so little
 data over… review how much data are we actually using, and what else we could
@@ -101,123 +102,73 @@ they are dish properties, not user constraints.
 
 ---
 
-# ⚠️ LIVE OUTAGE: photo vision returns nothing (found 2026-08-04)
+# The env divergence — what the "outage" actually was (2026-08-04)
 
-Found while running the ingredients backfill. **Unrelated to the audit's
-findings — but it breaks the app's core logging flow, and it is live now.**
+**There was no production outage. Production was healthy the entire time.**
+This section replaces an earlier one that reported a live outage; that report
+was wrong, and the way it went wrong is the useful part.
 
-## Symptom
+## The finding
 
-Every photo-vision call returns HTTP 200 with `content: null`. The model spends
-its entire completion budget on reasoning tokens and emits no answer:
+`OPENROUTER_MODEL` has been set in Vercel since **2026-07-09** to
+`qwen3-vl-32b-instruct`, a NON-thinking vision model. `.env.local` (untouched
+since 2026-07-07) never received the variable, and `openrouter.ts` carried
+`process.env.OPENROUTER_MODEL || 'qwen/qwen3.7-plus'` — so **every local run,
+probe, eval and A/B for 26 days silently exercised a THINKING model that
+production had not used since July.**
 
-```
-finish_reason: "length"   completion_tokens: 401
-completion_tokens_details.reasoning_tokens: 400   content: null
-```
+Nothing broke on Aug 2. What changed around then was the provider's
+thinking-token accounting: `max_tokens` began bounding thinking+answer
+together, so the local-only model started spending its whole budget on
+reasoning and returning empty completions. That looked exactly like a
+production outage and was diagnosed as one — for hours — while production
+served scans normally.
 
-`inferDish` treats a null as a failed call and returns the
-`{ name: 'Unknown dish', vision_failed: true }` placeholder (vision.ts:141).
-So **the next photo the owner logs will come back "Unknown dish"** with no
-cuisine, no attributes, no diet flags — and, because attributes are empty, it
-teaches the taste engine nothing.
+## The evidence that settled it
 
-## What was ruled out
+- Production runtime logs, during the same hours: `model=qwen3-vl-32b-instruct`,
+  `scan-telemetry lang=japanese items=9 enrich=p50:3342 fail:0of9`,
+  `lang=chinese items=6 fail:0of6`. Zero failures.
+- Owner field test: a Japanese menu scanned end-to-end with full chips,
+  heaviness, and a personalised hook line — the exact surfaces reported dead.
+- Local, same minutes, same code: `inferDish -> "Unknown dish"`,
+  `enrichOneDish -> []`.
 
-| hypothesis | test | result |
-|---|---|---|
-| token budget too small | same call at 400 / 500 / 1500 / 3000 | reasoning consumed **the entire budget every time** (`reasoning_tokens == max_tokens`); never any content. Not a budget problem |
-| one bad image | 5 different dish photos, newest first | 5/5 identical failure |
-| one bad prompt | both `SYSTEM` (inferDish) and `ANCHORED_SYSTEM` | both fail identically |
-| provider-specific, route around it | `provider: { ignore: ['Alibaba'] }` | **HTTP 404 "All providers have been ignored"** — `/models/qwen%2Fqwen3.7-plus/endpoints` reports exactly **1 endpoint, Alibaba**. The documented ignore-list lever does not exist for this model |
-| our regression | `git log` on vision.ts / openrouter.ts | no relevant commit; last successful photo log was 2026-08-02 (3 rows, conf 0.95, ingredients present). Provider-side change, same shape as the degradation already documented in openrouter.ts |
+## Why it took a field test to catch
 
-`reasoning: { enabled: false }` **restores correct answers immediately**
-(`finish: stop`, `reasoning_tokens: 0`, correct ingredients).
+Every local probe shared one hidden variable (the local env), so ~20
+"independent confirmations" were one measurement repeated. The falsifying
+instrument — `scan-telemetry` in Vercel logs — is prescribed in CLAUDE.md as
+step ONE of any scan diagnosis, and was reached for last. **A claim about
+production requires production telemetry; local probes can only ever support a
+claim about local.**
 
-## Why this is not simply fixed with reasoning-off
+## What was changed in response
 
-The 2026-07-29 A/B recorded in `openrouter.ts` rejected reasoning-off for
-production: the **diet-flag derivation discipline collapses** without it
-(9/35 dishes broke the soy rule; カキフライ lost `shellfish` while its own
-ingredient list still said "oyster"). Allergen flags feed the tripwires, so
-that is a safety regression, not a style one.
+1. `.env.local` now pins `OPENROUTER_MODEL` to production's value.
+2. **The fallback is deleted.** An unset `OPENROUTER_MODEL` now `console.error`s
+   `FATAL CONFIG` and throws, rather than silently choosing a different brain.
+   (The shout matters: callers turn exceptions into a quiet `null`, which is the
+   same silent-degradation shape that hid this for 26 days.)
+3. `scan-telemetry` now logs `model=` beside the scan's own numbers, so
+   environment drift is visible at a glance in the logs that already exist.
+4. The reasoning A/B comment in `openrouter.ts` is annotated: it measured
+   qwen3.7-plus, i.e. **not the shipped model**, so its conclusions do not
+   describe today's app. Today's model is non-thinking and has no reasoning
+   behaviour to tune.
 
-Note the asymmetry, which is what made the backfill safe: **ingredient
-extraction survived reasoning-off in that same A/B** — what broke was deriving
-flags FROM the ingredients. The backfill writes only `ingredients` and never
-reads or writes `diet`, so the one known casualty is out of its scope.
+## What this invalidates
 
-## The decision (owner's — not taken unilaterally)
+Every measurement in this document's earlier "outage" section, and the entire
+model/reasoning sweep run on 2026-08-04, was performed against qwen3.7-plus —
+not the shipped model. `scripts/eval-flag-discipline.ts` remains valid as an
+instrument (it reads `OPENROUTER_MODEL`, so it now measures the real thing),
+but its recorded RESULTS are void. Notably, its "candidate" arm
+`qwen3-vl-32b-instruct` was production's own model being benchmarked against
+baselines that model had itself written.
 
-`ignore: []` in openrouter.ts is a documented owner decision (2026-07-31) whose
-own bar for re-arming is *"a provider seen failing vision calls repeatedly
-across days… one bad answer is weather; the logs are climate."* This is one
-day, and in any case exclusion is impossible (single endpoint).
-
-**UPDATE, same day, after measurement — the original recommendation below is
-withdrawn.** Two of its premises failed under test:
-
-- "`enrichOneDish` still works" was FALSE — the text path fails identically
-  (it was assumed, not tested; the probe that would have caught it took one
-  minute). Scope is ALL LLM calls, not vision.
-- Reasoning-off does NOT hold flag discipline on today's model. Re-ran the
-  July A/B's question over 22 real rated dishes + 4 objective canaries
-  (scripts/eval-flag-discipline.ts): identical flag sets 5/22, spurious `soy`
-  added 8× (龍蝦刺身 and 炒蝦 flagged soy — the seasoning rule breaking,
-  exactly the July failure), real protein/allergen flags lost 6× (蝦餃 lost
-  pork), canaries 豉油雞 and 照燒雞 both FAIL on spurious soy. The one
-  passing spot-check (カキフライ) was real but unrepresentative — the lesson
-  is the same as ever: one case is weather.
-- "Raise max_tokens" also dies, on LATENCY not cost: with an 8000 cap the
-  real prompts ran past two minutes; enrich's budget is 12s and Vercel's 60s.
-  (Cost was never the issue — reasoning tokens were ALWAYS billed; July's
-  working calls already paid ~2394 thinking tokens each. Today's broken calls
-  still bill a full cap of thinking and return nothing.)
-
-**SECOND UPDATE, same day — every remaining door measured on the same
-instrument** (scripts/eval-flag-discipline.ts: 22 rated dishes + 4 objective
-canaries; the soy canaries verified against DIET_PROMPT_GUIDANCE's own text —
-"soy sauce as a seasoning alone NEVER fires this flag"):
-
-| configuration | identical | spurious soy | lost flags | soy canaries | p50 |
-|---|---|---|---|---|---|
-| qwen3.7-plus, reasoning off | 5/22 | 8 | 6 | both FAIL | **2.5s** |
-| qwen3.7-plus, think budget 300 | 4/22 | 11 | 6 | both FAIL | 7.7s |
-| qwen3.7-plus, think budget 600 | 4/19 | 7 | 5 | both FAIL | 12.6s |
-| qwen3.7-plus, think budget 1000 | 7/19 | 7 | 4 | both FAIL | 19.5s |
-| qwen3-vl-32b-instruct | 8/22 | 8 | 7 | both FAIL | 1.4s |
-| qwen3-vl-8b-instruct | 1/22 | 12 | 14 | both FAIL | 1.0s |
-| mistral-small-3.2 | 6/21 | 4 | 8 | both FAIL | 4.7s |
-| google/openai/anthropic models | — | — | — | — | 403 (account wall, the Aug-1 ToS/regional block) |
-| unbounded thinking (July's regime) | July's quality | — | — | passed then | **>2 min now** |
-
-Findings that settle it:
-
-- The endpoint DOES respect an explicit `reasoning: { max_tokens }` budget now
-  (consumes exactly the budget, then answers — CallOpts extended to allow it).
-  But capped thinking buys NOTHING: discipline is flat-to-worse across
-  300–1000 while latency triples to octuples. July's discipline lived in
-  UNBOUNDED thinking specifically, and that now costs minutes.
-- No reachable configuration passes the soy-seasoning canaries today. The
-  July A/B's premise — that a discipline-holding configuration exists to
-  protect — no longer describes reality. Some STORED baselines are themselves
-  noisy on the soy rule (花雕麻油雞湯麵 stored `soy`), so the identity column
-  understates every arm; the canaries are the honest signal.
-- **Recommendation: `reasoning: 'off'` globally.** It is not a trade against a
-  working alternative anymore — it is the best point on every axis at once
-  among options that exist: fastest (2.5s vs July's ~16s enrich), cheapest
-  (~0 thinking tokens vs ~2400 billed per call in July), and its flag quality
-  is comparable to every other reachable arm. Production's tripwire re-ask
-  (dietSuspicion) stays as the safety net and fires on the suspicious rows.
-  Owner's call — it reverses the 2026-07-29 verdict, but that verdict's
-  premise is gone.
-
-Ship path note: this does **not** block 墨靈 phase 2. Domain evidence is
-computed from ALREADY-STORED columns over rating history, so the aggregate can
-be built and backfilled while vision is degraded.
-
----
+**No production change is needed. No reasoning flip, no model change, no cap
+change.**
 
 # Backfill — executed 2026-08-04
 

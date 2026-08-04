@@ -1,12 +1,43 @@
 // Shared OpenRouter client for every LLM call in Dishi (menu scan, dish vision, voice
 // note extraction, hand-added menu item attributes).
 //
-// MODEL: qwen/qwen3.7-plus — Jerry's choice (changed from anthropic/claude-sonnet-5).
-// Requirement for any model in this slot: it MUST accept image input, since the menu
-// scanner and dish vision callers send photos. If scans start failing or returning
-// empty items, model capability is the first thing to check.
-// Overridable via Vercel env (no redeploy-with-code-change needed to A/B models).
-const MODEL = process.env.OPENROUTER_MODEL || 'qwen/qwen3.7-plus';
+/* MODEL comes from OPENROUTER_MODEL and there is NO fallback, deliberately.
+ *
+ * There used to be one (`|| 'qwen/qwen3.7-plus'`), and it cost a full day.
+ * Production has set OPENROUTER_MODEL to a non-thinking vision model since
+ * 2026-07-09, but `.env.local` never got the variable — so every local run,
+ * probe, eval and A/B for 26 days silently exercised qwen3.7-plus, a THINKING
+ * model production had not used since July. Nobody noticed until the provider
+ * changed thinking-token accounting (~2026-08-02) and the local-only model
+ * started returning empty completions, which read exactly like a production
+ * outage and was diagnosed as one. It was not: production was healthy
+ * throughout (scan-telemetry fail:0of9). Full account: docs/rnd/data-audit.md,
+ * "The env divergence".
+ *
+ * A missing model config must therefore CRASH, loudly, at the first call. A
+ * wrong-but-plausible model is worse than no model: it produces confident
+ * measurements of something you are not shipping.
+ *
+ * Requirement for any model in this slot: it MUST accept image input — the menu
+ * scanner and dish vision callers send photos. If scans start failing or return
+ * empty items, model capability is still the first thing to check.
+ */
+const MODEL = process.env.OPENROUTER_MODEL;
+const MODEL_UNSET_MSG =
+  'OPENROUTER_MODEL is not set. There is no default on purpose — see the note in '
+  + 'src/lib/openrouter.ts. Copy the value from Vercel → Environment Variables into '
+  + '.env.local, so local runs and evals measure the model production actually ships.';
+/** Throws — and shouts first. The throw alone is not enough: every caller here
+ *  is wrapped in failure handling that turns exceptions into a quiet `null`,
+ *  which is precisely the silent degradation that let a 26-day model divergence
+ *  go unnoticed. The console.error survives that swallowing. */
+function requireModel(): string {
+  if (!MODEL) {
+    console.error(`FATAL CONFIG: ${MODEL_UNSET_MSG}`);
+    throw new Error(MODEL_UNSET_MSG);
+  }
+  return MODEL;
+}
 
 const ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
 
@@ -72,8 +103,19 @@ type ContentPart =
 /** Options shared by the one-shot and streaming callers.
  *
  * `reasoning` (OpenRouter's normalized control) currently has NO production
- * caller, deliberately — a 38-dish A/B on the live endpoint (2026-07-29)
- * closed the question for qwen3.7-plus:
+ * caller, deliberately.
+ *
+ * ⚠️ SCOPE OF THE A/B BELOW (corrected 2026-08-04): it was run against
+ * **qwen3.7-plus**, which is NOT what production runs — production has set
+ * OPENROUTER_MODEL to a non-thinking vision model since 2026-07-09. The A/B
+ * was almost certainly executed locally, where an absent env var fell through
+ * to the qwen3.7-plus default (that fallback is now removed; see the MODEL
+ * note at the top of this file). So these findings describe a model the app
+ * does not ship, and they say nothing about the current one — which, being
+ * non-thinking, has no reasoning behaviour to tune at all. Kept verbatim as a
+ * decision record, not as guidance for today.
+ *
+ * The A/B, for qwen3.7-plus:
  *   - 'off': 20x faster (enrich p50 37s -> 2s, reasoning_tokens 2394 -> 0)
  *     but the diet-flag DERIVATION DISCIPLINE collapses — the soy-seasoning
  *     rule broke on 9/35 dishes, and カキフライ lost `shellfish` while its own
@@ -82,10 +124,11 @@ type ContentPart =
  *   - 'low': quality holds (20/27 flag-identical) but ZERO latency win
  *     (p50 39.7s) — this endpoint treats effort as binary, so 'low' still
  *     thinks at full length.
- * Fast-but-unsafe or safe-but-not-fast: no setting is ever right for THIS
+ * Fast-but-unsafe or safe-but-not-fast: no setting was ever right for THAT
  * model, so the env toggle that briefly wired it was removed. Kept as a
- * capability because any future OPENROUTER_MODEL swap should re-run exactly
- * this A/B, and the request plumbing is the annoying half of that. */
+ * capability because any future OPENROUTER_MODEL swap TO A THINKING MODEL
+ * should re-run exactly this A/B — with the env var set, so it measures what
+ * is actually deployed — and the request plumbing is the annoying half. */
 type CallOpts = {
   maxTokens?: number; expectJson?: boolean; timeoutMs?: number;
   /** 'off' | 'low' per the A/B above; `{ max_tokens }` is an EXPLICIT thinking
@@ -177,7 +220,7 @@ async function callClaudeOnce(
       'X-Title': 'Dishi',
     },
     body: JSON.stringify({
-      model: MODEL,
+      model: requireModel(),
       provider: PROVIDER_ROUTING,
       max_tokens: opts.maxTokens ?? 1000,
       // OpenRouter-normalized reasoning control (see CallOpts). Absent unless a
@@ -287,7 +330,7 @@ export async function* callClaudeStream(
         'X-Title': 'Dishi',
       },
       body: JSON.stringify({
-        model: MODEL,
+        model: requireModel(),
         provider: PROVIDER_ROUTING,
         max_tokens: opts.maxTokens ?? 1000,
         stream: true,
