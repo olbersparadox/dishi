@@ -222,3 +222,48 @@ to conserve calls) would firm up the 30% figure before either path ships.
 
 Suppression (the reason nothing wrong has shipped yet) should stay in place
 until that decision is made.
+
+## Two further findings, 2026-08-05 (`scripts/probe-picker-viability.ts`)
+
+Re-running production's REAL lookup over the same 10 shortlisted eval cases —
+rather than the eval's proxy — turns up two things that reframe the item.
+
+**1. Neither eval measured production's shortlist.** The eval proxies session
+coords from the linked restaurant; production requires real `scan_lat`, which
+only exists for sessions scanned after the 2026-08-03 wiring. So 4 of the 10
+cases (花雕麻油雞湯麵, 和風牛肉烏龍麵, 燒鵝髀飯, 土魷蒸肉餅) return an EMPTY
+list under the real rule, including two of the three kill events and BOTH
+correct adoptions. The 08-04 re-run fixed the model but not this; its 3/10
+figure is not a production measurement either. **The only clean production
+measurement to date is the 大爺燒鵝 field replay above** — real coords, real
+session, real lookup, real model — and that one is ADOPTED-WRONG 3/3.
+
+**2. GPS cannot tell HK restaurants apart, and that is not fixable by tuning
+the radius.** Distances from one dish photo to each nearby scanned menu:
+
+```
+油雞髀腩仔飯 →  CCQHK   4m   (Japanese teishoku, 9 items)
+                J4RKV  24m   (rice-noodle shop, 6 items)
+                VYGX4 102m   (大爺燒鵝 — THE CORRECT MENU, 35 items)
+```
+
+The right menu is the FARTHEST of the three. Three unrelated restaurants sit
+within ~25m of each other, well inside phone-GPS error, so the 250m union
+mixes them (紋甲魷魚刺身 and 特大赤蝦刺身 — Japanese sashimi — are handed a
+roast-goose menu) and nearest-session scoping would be *worse*, not better:
+it picks the 4m Japanese shop for a 燒鵝 dish. Tightening the radius cannot
+separate what GPS cannot resolve.
+
+**What CAN separate them: `restaurant_id`.** The field dish resolved to
+`126efbb2` (大爺燒鵝) and session VYGX4 carries the same `restaurant_id` —
+an exact join that yields precisely the right 35 items and nothing else. But
+that id is resolved CLIENT-SIDE AFTER the dish is created (`loadNearby`),
+which is to say **after `inferDish` has already run**. Auto-adoption is
+structurally stuck with noisy GPS; anything that happens on the growth card
+gets the clean restaurant-scoped menu for free.
+
+That is an argument for the picker independent of the honesty argument: it is
+the only design that can use the good data. Note it does NOT rescue the field
+case (大爺燒鵝雙拼飯 came from the correct restaurant's own menu — the dish was
+a 自選雙拼飯 with no menu name at all), so the two defects are separate:
+contamination is fixable by scoping, forced-matching is not fixable by prompt.
