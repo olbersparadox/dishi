@@ -44,6 +44,33 @@ function ellipsePoint(cx: number, cy: number, rx: number, ry: number, rot: numbe
   return { x: cx + x * cr - y * sr, y: cy + x * sr + y * cr };
 }
 
+/**
+ * A def's id, derived from its own CONTENT rather than a per-instance counter.
+ *
+ * This is load-bearing, not tidiness. The counter it replaced restarted at 0
+ * for every recorder, so every snapshot on a page emitted `g0`, `g1`, `c2`…
+ * and `url(#c2)` resolves to the FIRST `c2` in the DOCUMENT — another
+ * creature's clip path or gradient. On the 膚 board that silently clipped one
+ * creature's skin against a different creature's outline, so features that
+ * were present and correct in the SVG string rendered as nothing on screen.
+ * It only reproduced with several snapshots mounted at once, which is why
+ * isolated rasterisation of the same markup looked fine.
+ *
+ * Content-hashing fixes it in both directions: different defs can never
+ * collide, and identical defs deliberately SHARE one id (same geometry, same
+ * paint — one def is correct and smaller). It is also deterministic, so
+ * server and client render byte-identical markup and hydration stays quiet —
+ * which a global counter would not guarantee.
+ */
+function defId(kind: 'g' | 'c', content: string): string {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < content.length; i++) {
+    h ^= content.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return kind + h.toString(36);
+}
+
 export class SvgContext {
   // ── the state drawCreatureFrame actually sets ──────────────────────────────
   fillStyle: string | SvgGradient = '#000';
@@ -58,7 +85,6 @@ export class SvgContext {
   private d = '';                       // current path
   private body: string[] = [];          // emitted elements, in paint order
   private defs: string[] = [];
-  private ids = 0;
   /** Open <g clip-path> nesting. save() marks depth; restore() closes back. */
   private groupDepth = 0;
   private saveStack: { groupDepth: number; alpha: number }[] = [];
@@ -113,16 +139,19 @@ export class SvgContext {
 
   private paintRef(style: string | SvgGradient): string {
     if (typeof style === 'string') return style;
-    const id = `g${this.ids++}`;
     const stops = style.stops
       .map(s => `<stop offset="${fmt(s.offset)}" stop-color="${esc(s.color)}"/>`).join('');
+    let attrs: string;
     if (style.kind === 'linear') {
       const [x0, y0, x1, y1] = style.coords;
-      this.defs.push(`<linearGradient id="${id}" gradientUnits="userSpaceOnUse" x1="${fmt(x0)}" y1="${fmt(y0)}" x2="${fmt(x1)}" y2="${fmt(y1)}">${stops}</linearGradient>`);
+      attrs = `gradientUnits="userSpaceOnUse" x1="${fmt(x0)}" y1="${fmt(y0)}" x2="${fmt(x1)}" y2="${fmt(y1)}"`;
     } else {
       const [x0, y0, r0, x1, y1, r1] = style.coords;
-      this.defs.push(`<radialGradient id="${id}" gradientUnits="userSpaceOnUse" cx="${fmt(x1)}" cy="${fmt(y1)}" r="${fmt(r1)}" fx="${fmt(x0)}" fy="${fmt(y0)}" fr="${fmt(r0)}">${stops}</radialGradient>`);
+      attrs = `gradientUnits="userSpaceOnUse" cx="${fmt(x1)}" cy="${fmt(y1)}" r="${fmt(r1)}" fx="${fmt(x0)}" fy="${fmt(y0)}" fr="${fmt(r0)}"`;
     }
+    const tag = style.kind === 'linear' ? 'linearGradient' : 'radialGradient';
+    const id = defId('g', `${tag}|${attrs}|${stops}`);
+    this.defs.push(`<${tag} id="${id}" ${attrs}>${stops}</${tag}>`);
     return `url(#${id})`;
   }
 
@@ -145,7 +174,7 @@ export class SvgContext {
    *  by the current path. Modelled as a <clipPath> def plus an open <g> that
    *  restore() closes — nesting composes exactly like the canvas clip stack. */
   clip() {
-    const id = `c${this.ids++}`;
+    const id = defId('c', this.d);
     this.defs.push(`<clipPath id="${id}"><path d="${this.d}"/></clipPath>`);
     this.body.push(`<g clip-path="url(#${id})">`);
     this.groupDepth++;

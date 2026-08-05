@@ -180,7 +180,7 @@ export function domainShares(domains: DomainEvidence): DomainShares {
   };
 }
 
-export type SkinType = 'shell' | 'soft' | 'smooth' | 'hairy' | 'none';
+export type SkinType = 'shell' | 'soft' | 'smooth' | 'rough' | 'hairy' | 'none';
 
 /**
  * Which surface the being wears. EXTRACTED from the render loop so it can be
@@ -217,6 +217,7 @@ export function skinOf(domains: DomainEvidence, sh: DomainShares, m: MethodShare
   if (sh.c > 0.3 && absF(ev('shell'), 3, 5) > 0.4) return 'shell';
   if (m.steamed > 0.5) return 'soft';       // 軟 ← 蒸
   if (m.raw > 0.5) return 'smooth';         // 滑 ← 生
+  if (m.fried > 0.5) return 'rough';        // 糙 ← 炸
   if (sh.l + sh.a > 0.45 && absF(ev('land') + ev('air'), 6, 9) > 0.4) return 'hairy';
   return 'none';
 }
@@ -232,6 +233,9 @@ const SKIN_SMOOTH_LAND = { base: '#332f2a', mid: '#454039', hi: '#847f76', rim: 
 // Read off the owner's reference — earlier passes drew the body at 72% alpha,
 // which washed it grey; z-order (body behind limbs) is the fix, not opacity.
 const SKIN_SOFT = { halo: '#d2cfc7', layer: '#332f2b', core: '#221f1a' };
+// 糙 rough: one dot = a grey circle overlapping a black one. Both must read
+// against the body's own gradient (L29–55): black sits below it, grey above.
+const SKIN_ROUGH = { black: '#0a0908', grey: '#5a544c' };
 
 const INK = ['#3a3733', '#211d18', '#2e2a24'] as const;
 const HILITE = '250,247,241';
@@ -492,6 +496,7 @@ export function drawCreatureFrame(
   const isShell = skin === 'shell';
   const isSoft = skin === 'soft';
   const isSmooth = skin === 'smooth';
+  const isRough = skin === 'rough';
   const isHairy = skin === 'hairy';
   const SKIN = (s + c + ag) >= (l + a + f + fg) ? SKIN_SMOOTH_SEA : SKIN_SMOOTH_LAND;
 
@@ -854,6 +859,54 @@ export function drawCreatureFrame(
       ctx.moveTo(px - nx * R * 0.02, py - ny * R * 0.02); // rooted just inside the rim
       ctx.lineTo(px + (nx * ca - ny * sa2) * L, py + (ny * ca + nx * sa2) * L);
       ctx.stroke();
+    }
+    ctx.restore();
+  }
+  /* 糙 ROUGH — the owner's spec (2026-08-05), verbatim:
+       · one dot = one GREY circle overlapping a BLACK circle
+       · 4 dots anchored at the upper right of the body
+       · 3 dots anchored at the lower left
+       · none of them touching the rim
+     Anchored to the DRAWN silhouette (bodyBox), and each dot is pulled back
+     along its own ray until the whole pair clears the outline — so "not
+     touching the rim" holds on a lobed body, not just a round one. */
+  if (isRough) {
+    const bb = bodyBox(pts);
+    // Distance from the drawn centre to the rim along one direction.
+    const rimAt = (ang: number) => {
+      let best = bb.hr, near = Infinity;
+      for (const p of pts) {
+        const pa = Math.atan2(p.y - bb.cy, p.x - bb.cx);
+        const d = Math.abs(Math.atan2(Math.sin(pa - ang), Math.cos(pa - ang)));
+        if (d < near) { near = d; best = Math.hypot(p.x - bb.cx, p.y - bb.cy); }
+      }
+      return best;
+    };
+    const DOTS: [number, number, number][] = [
+      [0.44, -0.58, 1], [0.67, -0.42, 0.86],      // upper-right cluster (4)
+      [0.42, -0.30, 0.92], [0.68, -0.18, 0.84],
+      [-0.65, 0.46, 0.94], [-0.48, 0.32, 0.86],   // lower-left cluster (3)
+      [-0.49, 0.60, 0.88],
+    ];
+    const R0 = bb.hr * 0.105;
+    ctx.save();
+    ctx.beginPath(); closedPath(ctx, pts); ctx.clip();
+    for (const [u, v, sc] of DOTS) {
+      const r = R0 * sc;
+      let x = bb.cx + u * bb.hr, y = bb.cy + v * bb.vr;
+      const ang = Math.atan2(y - bb.cy, x - bb.cx);
+      const dist = Math.hypot(x - bb.cx, y - bb.cy);
+      // 1.35r covers the pair's own offset as well as the circle itself
+      const max = rimAt(ang) - r * 1.35;
+      if (dist > max && dist > 0) {
+        const k = max / dist;
+        x = bb.cx + (x - bb.cx) * k;
+        y = bb.cy + (y - bb.cy) * k;
+      }
+      ctx.fillStyle = SKIN_ROUGH.black;
+      ctx.beginPath(); ctx.arc(x + r * 0.13, y + r * 0.11, r, 0, TAU); ctx.fill();
+      ctx.fillStyle = SKIN_ROUGH.grey;
+      ctx.beginPath(); ctx.arc(x - r * 0.13, y - r * 0.11, r, 0, TAU); ctx.fill();
     }
     ctx.restore();
   }

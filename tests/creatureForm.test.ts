@@ -5,6 +5,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   hasAnatomy, temperOf, hairWindBend, hairMetrics, out, skinOf, domainShares, bodyBox,
+  creatureSnapshotSvg,
 } from '../src/lib/creatureForm';
 import type { DomainEvidence, SkinType } from '../src/lib/creatureForm';
 import type { FormInputs } from '../src/lib/blobForm';
@@ -156,10 +157,14 @@ describe('skinOf — 膚 is METHOD-driven (the rearrangement, owner 2026-08-05)'
     expect(skin(THIN, 'steamed')).not.toBe('smooth');
   });
 
+  it('糙 ROUGH belongs to 炸 fried', () => {
+    expect(skin(THIN, 'fried')).toBe('rough');
+  });
+
   it('the methods without a skin render none — the open work', () => {
-    // 炸 · 燜 · 焗 · 烤 have no skin. Pinning them as 'none' means the day one
-    // is designed, this test FAILS and forces the ledger to be updated with it.
-    for (const dim of ['fried', 'braised', 'baked', 'grilled']) {
+    // 燜 · 焗 · 烤 have no skin. Pinning them as 'none' means the day one is
+    // designed, this test FAILS and forces the ledger to be updated with it.
+    for (const dim of ['braised', 'baked', 'grilled']) {
       expect(skin(THIN, dim)).toBe('none');
     }
   });
@@ -335,6 +340,65 @@ describe('hairMetrics — the coat yields to the anatomy under it at small sizes
     for (const size of [72, 96, 120, 150, 184, 280]) {
       const hm = hairMetrics(size, R(size));
       expect(hm.gap).toBeGreaterThan(hm.w * 1.2);
+    }
+  });
+});
+
+describe('糙 rough — the owner\'s spec, through the real renderer', () => {
+  // Owner, 2026-08-05: one dot = a grey circle overlapping a black circle;
+  // 4 dots upper-right, 3 lower-left, none touching the rim.
+  const svg = creatureSnapshotSvg(
+    { vector: { umami: 0.4, fried: 0.9 }, evidence: { umami: 20, fried: 20 }, ratingCount: 45, seed: 'rough:v1' },
+    { sea: 2 }, 200,
+  );
+  // ctx.arc serialises as an arc-pair <path>: the two anchors are opposite
+  // points on the rim, so centre = their midpoint and r = half their span.
+  // Array.from, not spread — bare tsc lacks downlevelIteration.
+  const circles = (fill: string) =>
+    Array.from(svg.matchAll(
+      /<path d="M([\d.-]+) ([\d.-]+)A([\d.-]+) [\d.-]+ [\d.-]+ \d \d ([\d.-]+) ([\d.-]+)[^"]*" fill="([^"]+)"/g,
+    ), m => m).filter(m => m[6] === fill)
+      .map(m => ({ cx: (+m[1] + +m[4]) / 2, cy: (+m[2] + +m[5]) / 2, r: +m[3] }));
+
+  const grey = circles('#5a544c');
+  const black = circles('#0a0908');
+
+  /** The drawn body outline. Found by SHAPE — the longest bezier path — not by
+   *  a def id: ids are content-hashed, so hardcoding one is exactly the kind
+   *  of brittle coupling that broke when the collision bug was fixed. */
+  const outline = () => {
+    const paths = Array.from(svg.matchAll(/<path d="(M[^"]*C[^"]+)"/g), m => m[1]);
+    const longest = paths.sort((a, b) => b.length - a.length)[0];
+    return longest.match(/-?[\d.]+[, ]-?[\d.]+/g)!
+      .map(t => t.split(/[, ]/).map(Number))
+      .map(([x, y]) => ({ x, y }));
+  };
+
+  it('draws 7 dots — one grey circle over one black circle each', () => {
+    expect(grey).toHaveLength(7);
+    expect(black).toHaveLength(7);
+    // every grey rides its own black: offset is ~0.17r, so well under 1r
+    for (const g of grey) {
+      const nearest = Math.min(...black.map(b => Math.hypot(b.cx - g.cx, b.cy - g.cy)));
+      expect(nearest).toBeLessThan(g.r);
+      expect(nearest).toBeGreaterThan(0); // genuinely offset, not concentric
+    }
+  });
+
+  it('anchors 4 upper-RIGHT and 3 lower-LEFT of the drawn body', () => {
+    // Body centre from the drawn outline, same source the renderer uses.
+    const bb = bodyBox(outline());
+    const upper = grey.filter(d => d.cx > bb.cx && d.cy < bb.cy);
+    const lower = grey.filter(d => d.cx < bb.cx && d.cy > bb.cy);
+    expect(upper).toHaveLength(4);
+    expect(lower).toHaveLength(3);
+  });
+
+  it('no dot touches the rim', () => {
+    const pts = outline();
+    for (const d of [...grey, ...black]) {
+      const nearestRim = Math.min(...pts.map(p => Math.hypot(p.x - d.cx, p.y - d.cy)));
+      expect(nearestRim).toBeGreaterThan(d.r);
     }
   });
 });
