@@ -72,7 +72,7 @@ export default function OtpForm({ onVerified }: {
     <>
       {!sent ? (
         <div style={{ display: 'flex', gap: 8 }}>
-          <input className="field" type="email" placeholder={t('auth.placeholder')}
+          <input className="field otp-email-field" type="email" placeholder={t('auth.placeholder')}
             value={email} onChange={e => setEmail(e.target.value)} autoComplete="email" />
           <button className={`join-go${sending ? ' loading' : ''}`} aria-label={t('auth.send')} title={t('auth.send')}
             onClick={sendCode} disabled={!email.includes('@') || sending}>

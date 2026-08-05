@@ -372,6 +372,9 @@ input, textarea, select, ::placeholder {
   font: inherit; font-family: var(--font-body), system-ui, sans-serif;
   background: var(--paper-raised);
 }
+/* Sign-in email box read too long next to the small round send button
+   (owner call) — 30% narrower than the .field default. */
+.otp-email-field { width: 70%; }
 .label { display: block; font-size: var(--fs-caption); font-weight: 400; color: var(--ink-soft); margin: 18px 0 8px; }
 
 .tabbar {
