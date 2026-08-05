@@ -50,3 +50,8 @@ ds-bundle/
 # (2026-08-04); committing one makes Vercel build and PUBLICLY SERVE that route
 # on the deployed site, which is the actual reason they stay out.
 src/app/dev-*/
+
+# Design references captured from real dish photos + a real taste profile
+# (design-refs/). Same reason as scripts/seal-rows.json: real eating data does
+# not belong in a public repo. Regenerate with the dev-refs harness.
+design-refs/
