@@ -4,7 +4,7 @@
 // gates are where honesty lives, and honesty is testable.
 import { describe, it, expect } from 'vitest';
 import {
-  hasAnatomy, temperOf, hairWindBend, hairMetrics, out, skinOf, domainShares,
+  hasAnatomy, temperOf, hairWindBend, hairMetrics, out, skinOf, domainShares, bodyBox,
 } from '../src/lib/creatureForm';
 import type { DomainEvidence, SkinType } from '../src/lib/creatureForm';
 import type { FormInputs } from '../src/lib/blobForm';
@@ -98,6 +98,43 @@ describe('out — the rim\'s outward direction, the one place the sign lives', (
     expect(p3.y).toBeCloseTo(p1.y * 3, 10);
     expect(pNeg.x).toBeCloseTo(-p1.x, 10);
     expect(pNeg.y).toBeCloseTo(-p1.y, 10);
+  });
+});
+
+describe('bodyBox — anything on the skin anchors to the DRAWN silhouette', () => {
+  // The bug this pins (owner, 2026-08-05: "the lighter curvy layer is at the
+  // bottom instead of the top"): 軟's pale halo was placed against the nominal
+  // (cx, cy) while the body's taste lobes pull its DRAWN centre far off that
+  // point, so the ruffle meant for the crown pooled under the belly.
+  it('reports the centre of the drawn points, not the centre they orbit', () => {
+    // A body lobed upward: every point is offset up by 20 from a nominal 100.
+    const lobed = [
+      { x: 100, y: 40 }, { x: 140, y: 80 }, { x: 100, y: 100 }, { x: 60, y: 80 },
+    ];
+    const bb = bodyBox(lobed);
+    expect(bb.cx).toBe(100);
+    expect(bb.cy).toBe(70);          // NOT 100 — this is the whole point
+    expect(bb.hr).toBe(40);
+    expect(bb.vr).toBe(30);
+  });
+
+  it('a halo sized and placed off bodyBox clears the crown more than the belly', () => {
+    // Reproduces the shipped geometry: same wobble, same 1.12 scale, same
+    // upward nudge. If a future edit re-anchors this to a nominal centre on a
+    // lobed body, the top clearance collapses and this fails.
+    const pts = Array.from({ length: 96 }, (_, i) => {
+      const ph = (i / 96) * TAU;
+      const r = 40 * (1 + 0.25 * Math.max(0, Math.cos(ph))); // strong top lobe
+      return { x: 100 + Math.sin(ph) * r, y: 100 - Math.cos(ph) * r };
+    });
+    const bb = bodyBox(pts);
+    const haloY = (ha: number) =>
+      bb.cy - bb.vr * 0.08 + Math.sin(ha) * bb.vr * 1.12;
+    const topClear = bb.cy - bb.vr - haloY(-Math.PI / 2);   // halo above body top
+    const botClear = haloY(Math.PI / 2) - (bb.cy + bb.vr);  // halo below body base
+    expect(topClear).toBeGreaterThan(0);
+    expect(botClear).toBeGreaterThan(0);      // still enclosed all round
+    expect(topClear).toBeGreaterThan(botClear); // but the ruffle reads at the CROWN
   });
 });
 

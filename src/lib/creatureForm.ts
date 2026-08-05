@@ -286,6 +286,36 @@ export function out(ph: number, L: number): Pt {
   return { x: Math.sin(ph) * L, y: -Math.cos(ph) * L };
 }
 
+/**
+ * The DRAWN silhouette's own box — centre and half-extents of `pts`.
+ *
+ * Anything anchored to the SKIN must place itself against this, never against
+ * the nominal `(cx, cy)`. The two are not the same point and the gap is not
+ * small: the body's radius is modulated per-angle by the palate's taste lobes,
+ * so a profile with strong upper-compass dims draws a body whose visible
+ * centre sits well above `cy`. Measured on a steamed+umami life at size 200:
+ * drawn centre y = 74.1 against cy = 92.0, a 16px error — enough to push a
+ * halo that was written to peek out at the CROWN down to the BELLY instead.
+ *
+ * That was a real, shipped bug (owner: "the lighter curvy layer is at the
+ * bottom instead of the top"), and the reason it deserves a named helper is
+ * that the lesson had ALREADY been learned three times in this same file —
+ * appendages attach to the drawn silhouette, the 滑 reflection anchors to the
+ * drawn box, and 軟's own core anchors to the drawn box — while 軟's halo,
+ * three lines above that core, still used `(cx, cy)`. Prose lessons do not
+ * survive; a helper that is the only way to get the box does.
+ */
+export function bodyBox(pts: Pt[]): { cx: number; cy: number; hr: number; vr: number } {
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  for (const p of pts) {
+    if (p.x < x0) x0 = p.x;
+    if (p.x > x1) x1 = p.x;
+    if (p.y < y0) y0 = p.y;
+    if (p.y > y1) y1 = p.y;
+  }
+  return { cx: (x0 + x1) / 2, cy: (y0 + y1) / 2, hr: (x1 - x0) / 2, vr: (y1 - y0) / 2 };
+}
+
 function closedPath(ctx: CanvasRenderingContext2D, pts: Pt[]) {
   const n = pts.length; if (n < 3) return;
   ctx.moveTo(pts[0].x, pts[0].y);
@@ -481,6 +511,15 @@ export function drawCreatureFrame(
   // so nothing the creature grows is occluded by its own skin. Z-order is the
   // fix; opacity was the wrong lever (lab, measured).
   if (isSoft) {
+    /* EVERY layer here anchors to `bodyBox(pts)` — the drawn silhouette —
+       never to (cx, cy). The halo used to use (cx, cy) while the core two
+       layers below already used the drawn box, so on a lobed body the pale
+       ruffle slid off the crown and pooled under the belly. Both now read
+       from one box, so they cannot disagree again. Sizes are proportional to
+       that box too: expressing the halo in R/widen/squash sized it from the
+       NOMINAL body, so it could sit narrower than the drawn one and let the
+       flanks poke through the thing meant to sit behind them. */
+    const bb = bodyBox(pts);
     ctx.fillStyle = SKIN_SOFT.halo;
     const HN = 96; const hp: Pt[] = [];
     for (let i = 0; i < HN; i++) {
@@ -488,23 +527,21 @@ export function drawCreatureFrame(
       const k = 1
         + Math.sin(ha * 6 + (t ? t * 0.0011 : 0)) * 0.07
         + Math.sin(ha * 9 - (t ? t * 0.0007 : 0)) * 0.042;
+      // Lifted toward the crown: the ruffle is a soft-food silhouette read
+      // from the owner's reference sheet (「ruffled cloud bumps along the
+      // crown」), so the clearance must be widest at the top and nearly shut
+      // at the belly — which is also where the darker core lands.
       hp.push({
-        x: cx + R * 0.06 + Math.cos(ha) * R * 1.1 * widen * k,
-        y: cy - R * 0.05 + Math.sin(ha) * R * 1.05 * squash * k,
+        x: bb.cx + bb.hr * 0.06 + Math.cos(ha) * bb.hr * 1.12 * k,
+        y: bb.cy - bb.vr * 0.08 + Math.sin(ha) * bb.vr * 1.12 * k,
       });
     }
     ctx.beginPath(); closedPath(ctx, hp); ctx.fill();
     ctx.fillStyle = SKIN_SOFT.layer;
     ctx.beginPath(); closedPath(ctx, pts); ctx.fill();
-    let sx0 = 1e9, sx1 = -1e9, sy0 = 1e9, sy1 = -1e9;
-    for (const p of pts) {
-      if (p.x < sx0) sx0 = p.x; if (p.x > sx1) sx1 = p.x;
-      if (p.y < sy0) sy0 = p.y; if (p.y > sy1) sy1 = p.y;
-    }
-    const HRs = (sx1 - sx0) / 2, VRs = (sy1 - sy0) / 2;
     ctx.fillStyle = SKIN_SOFT.core;
     ctx.beginPath();
-    ctx.ellipse((sx0 + sx1) / 2, (sy0 + sy1) / 2 + VRs * 0.13, HRs * 0.8, VRs * 0.7, 0, 0, TAU);
+    ctx.ellipse(bb.cx, bb.cy + bb.vr * 0.13, bb.hr * 0.8, bb.vr * 0.7, 0, 0, TAU);
     ctx.fill();
   }
 
@@ -706,14 +743,14 @@ export function drawCreatureFrame(
       return { x: cx + dx * k, y: cy + dy * k };
     });
     // anchored to the drawn bounding box, not (cx,cy) — identical outlines
-    // must place identical reflections (measured on 清蒸魚 vs 壽司 in the lab)
-    let bx0 = 1e9, bx1 = -1e9, by0 = 1e9, by1 = -1e9;
-    for (const p of pts) {
-      if (p.x < bx0) bx0 = p.x; if (p.x > bx1) bx1 = p.x;
-      if (p.y < by0) by0 = p.y; if (p.y > by1) by1 = p.y;
-    }
-    const HR = (bx1 - bx0) / 2, VR = (by1 - by0) / 2;
-    const RX = (bx0 + bx1) / 2 - HR * 0.2, RY = (by0 + by1) / 2 - VR * 0.26;
+    // must place identical reflections (measured on 清蒸魚 vs 壽司 in the lab).
+    // Via `bodyBox` since 2026-08-05: this block had the rule right but kept
+    // its own private copy of the arithmetic, and the copy 軟's halo did NOT
+    // have is precisely what let that halo drift onto the belly. One helper,
+    // no copies.
+    const sb = bodyBox(pts);
+    const HR = sb.hr, VR = sb.vr;
+    const RX = sb.cx - HR * 0.2, RY = sb.cy - VR * 0.26;
     const refPath = (k: number) => {
       const X = (u: number) => RX + HR * u * k, Y = (v: number) => RY + VR * v * k;
       ctx.beginPath();
