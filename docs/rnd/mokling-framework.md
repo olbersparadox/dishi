@@ -250,10 +250,23 @@ recorded per user.
    fragment, and separately if two different beings at the same size share any
    id at all.
 
-   Left deliberately unfixed alongside it: `paintRef` pushes a fresh `<defs>`
-   entry every call, so a furry creature emits ~100 byte-identical gradient
-   defs. Pure markup weight, no correctness effect, and deduping would change
-   every snapshot's bytes — a separate round, not a rider on this one.
+   **Its sibling, fixed in the round after (2026-08-06):** `paintRef` pushed a
+   fresh `<defs>` entry on every call, because canvas has no reusable paint
+   object — the renderer re-sets `ctx.strokeStyle` before each stroke. A furry
+   life emitted **70 defs carrying 2 distinct ones**, and `<defs>` was **46% of
+   the file** (16,753 of 36,117 bytes at 190px). Collapsing to one def per id
+   is safe for the same reason the ids work at all: content-derived ids mean an
+   id already minted PROVES its def is byte-identical, so the skip is pure
+   subtraction and no reference can dangle. The `<g clip-path>` is still emitted
+   every time — deduping the DEF must never drop a clip the paint order needs,
+   and two marks do share one silhouette (糙 and 甲 on a shelled body).
+   Measured across all eight scenario lives: **43–45% smaller** for the three
+   furry ones, **byte-identical** for the other five (nothing to dedupe, so the
+   markup hash and every id are unchanged — the earlier worry that this would
+   churn every snapshot was wrong). Render proven unchanged, not eyeballed:
+   normalising the prefix and collapsing the OLD output's duplicate defs
+   reproduces the new output exactly, on all eight. Pinned by "emits one def
+   per id — no byte-identical twins".
 
 ## The one law
 

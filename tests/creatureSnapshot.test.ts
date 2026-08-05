@@ -120,6 +120,22 @@ describe('every snapshot is self-contained — no creature paints with a neighbo
     expect(shared, 'ids shared across two beings couple their fates on one page').toEqual([]);
   });
 
+  // Canvas re-sets ctx.strokeStyle before every stroke, so paintRef used to
+  // append a byte-identical <linearGradient> per call — 70 defs carrying 2
+  // distinct ones on a furry life, 46% of the file. Safe to collapse precisely
+  // because ids are content-derived: an id already minted proves its def is
+  // identical. This asserts the collapse, and the id-resolution test above is
+  // what stops it from ever dropping a def something still points at.
+  it('emits one def per id — no byte-identical twins', () => {
+    for (const [name, domains] of Object.entries(LIVES)) {
+      const svg = creatureSnapshotSvg(INPUTS, domains, 190, '鮮');
+      const defs = svg.slice(svg.indexOf('<defs>'), svg.indexOf('</defs>'));
+      const ids = idsIn(defs);
+      const dupes = ids.filter((id, i) => ids.indexOf(id) !== i);
+      expect(dupes, `${name} repeats ${dupes.length} def(s)`).toEqual([]);
+    }
+  });
+
   // Identical twins MAY share ids — they carry identical defs, so a borrower
   // survives the lender unmounting. That is why the prefix is hashed from the
   // markup rather than made unique per instance, and why determinism holds.

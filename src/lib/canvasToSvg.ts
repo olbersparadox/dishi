@@ -103,7 +103,15 @@ export class SvgContext {
   private defs: string[] = [];
   /** Every id this recorder minted — the exact token set toInnerSvg() prefixes.
    *  Rewriting only these (never a blind regex over the markup) keeps glyph
-   *  text and colour strings out of the substitution's reach. */
+   *  text and colour strings out of the substitution's reach.
+   *
+   *  It is also what keeps `defs` to ONE entry per id. Canvas has no reusable
+   *  paint object — the renderer re-sets ctx.strokeStyle before every stroke —
+   *  so paintRef used to append a byte-identical twin per call: a furry life
+   *  emitted 70 defs carrying 2 distinct ones, and <defs> was 46% of the file
+   *  (16,753 of 36,117 bytes at 190px). Because ids are content-derived, an id
+   *  already minted PROVES its def is byte-identical, so skipping the push is
+   *  a pure subtraction — no reference can dangle. */
   private mintedIds = new Set<string>();
   /** Open <g clip-path> nesting. save() marks depth; restore() closes back. */
   private groupDepth = 0;
@@ -171,8 +179,10 @@ export class SvgContext {
     }
     const tag = style.kind === 'linear' ? 'linearGradient' : 'radialGradient';
     const id = defId('g', `${tag}|${attrs}|${stops}`);
-    this.mintedIds.add(id);
-    this.defs.push(`<${tag} id="${id}" ${attrs}>${stops}</${tag}>`);
+    if (!this.mintedIds.has(id)) {
+      this.mintedIds.add(id);
+      this.defs.push(`<${tag} id="${id}" ${attrs}>${stops}</${tag}>`);
+    }
     return `url(#${id})`;
   }
 
@@ -196,8 +206,13 @@ export class SvgContext {
    *  restore() closes — nesting composes exactly like the canvas clip stack. */
   clip() {
     const id = defId('c', this.d);
-    this.mintedIds.add(id);
-    this.defs.push(`<clipPath id="${id}"><path d="${this.d}"/></clipPath>`);
+    if (!this.mintedIds.has(id)) {
+      this.mintedIds.add(id);
+      this.defs.push(`<clipPath id="${id}"><path d="${this.d}"/></clipPath>`);
+    }
+    // the <g> is always emitted — deduping the DEF must never drop a clip the
+    // paint order depends on (two separate marks can share one silhouette, as
+    // 糙 and 甲 do on a shelled body)
     this.body.push(`<g clip-path="url(#${id})">`);
     this.groupDepth++;
   }
