@@ -31,6 +31,15 @@ memory is not.
 **Keep it current in the same commit that changes a status.** A stale ledger
 is worse than none, because it will be trusted.
 
+**How this was built, so it can be rebuilt the same way.** Statuses were
+GATHERED cheaply (a Haiku subagent listing every status-claim comment in
+`src/`, so the raw scan never entered an expensive context), then ADJUDICATED
+against code — one targeted grep per claim, never a broad file read. That
+order matters: gathering returns what the repo *says*, and what the repo said
+was wrong in two places. Two files asserted "nothing passes `domains` yet"
+while four production surfaces passed it, one of them 150 lines below the
+comment. **Never author this ledger from stated statuses alone.**
+
 Status vocabulary, chosen so each word names a different KIND of not-done —
 the distinction that matters is what it would take to finish:
 
@@ -123,17 +132,30 @@ present-tense body the design calls for.
 
 ### Surfaces and ceremonies
 
+Every **NOT BUILT** row below was verified by grep against `src/` on
+2026-08-05, not inferred from this document's own prose — the failure mode
+this ledger exists to stop. Each returned zero non-harness files.
+
 | surface | status |
 |---|---|
-| creature on Taste tab · public dossier · growth screen | **SHIPPED** (`953abcd`) |
-| share image (creature + 銘 side by side) | **NOT BUILT** |
-| version cards · export header | **NOT BUILT** |
-| rating-moment absorb beat | **NOT BUILT** (ship path 5) |
-| 對決 split animation | **NOT BUILT** — ranked #3 in the attachment loop |
+| creature on Taste tab · public dossier · growth screen | **SHIPPED** (`953abcd`, via `TasteFormLive`) |
+| SVG snapshot renderer (`TasteFormSnapshot` + `canvasToSvg.ts`) | **BUILT, PARITY-VERIFIED, UNUSED** — mounted only in dev harnesses; no production consumer exists yet |
+| share image (creature + 銘 side by side) | **NOT BUILT** — renderer ready |
+| version cards · export header | **NOT BUILT** — renderer ready |
+| rating-moment absorb beat | **NOT BUILT** — `RatingStack.tsx` holds no reference to the being at all; the creature appears only afterwards, on the growth screen |
+| 對決 split animation | **NOT BUILT** — the duel components reference no creature; ranked #3 in the attachment loop |
 | ceremonial metamorphosis (Fibonacci gates) | **NOT BUILT** |
 | 相見 two beings meet | **NOT BUILT** |
 | absence-forgiveness (settled/paler, rehydrates) | **NOT BUILT** |
 | earned rare traits | **NOT BUILT** |
+
+**The snapshot row changes the roadmap and is worth reading twice.** The three
+still-unbuilt static surfaces — share image, version cards, export header —
+were assumed expensive because a being had to be drawable as a still. It
+already is: the SVG renderer exists, matches the canvas within measured
+tolerance, and is exercised by the parity panel. Those surfaces need a
+consumer, not a renderer. Conversely, a renderer with no consumer is exactly
+the thing that rots unnoticed, so its parity test is load-bearing.
 
 ### Detector layer — what unblocks what
 
