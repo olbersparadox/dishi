@@ -147,6 +147,27 @@ row says 烤/炸, and 榖 appears solely as an OPEN question (is it skin texture
 or anatomy?). The comment promotes an open question to a settled decision —
 the same class of error as an undated status note.
 
+**糙's DRAWING (as opposed to its detector) is CONFIRMED, and a wrong redesign
+of it was tried and reverted the same day.** The shipped shape — two clusters
+of two-tone dot-pairs, one upper-right, one lower-left — is correct. The
+existing code comment already said so ("the clusters are the whole read, a
+random spread loses it"), which reads as distilled owner feedback from an
+earlier round; it should have been trusted rather than second-guessed.
+What was genuinely wrong, and is now fixed, was CONTRAST: the dark half of
+each dot-pair sat only 6 luminance points off the body fill (`#1a1714`
+against a fill stop at L29.5) and could not be seen at production size.
+Darkened to `#0d0b09` (commit 349b093) — 18 points clear of the body's
+darkest stop, 44 of its lightest — with the two-cluster shape untouched.
+
+A full replacement of the shape itself — a scattered field of dark craters,
+ported from a different trace specimen in the rescued lab artifact (其七,
+"ears · rough skin · mouth · duck feet") on the theory that it better matched
+this document's drawing rule 4 ("dark pits, not pale specks") — was tried
+(commit 105da70) and reverted within the hour (commit aeb6972) on the owner's
+direct correction. The lesson: a rule written in prose does not outrank a
+design already confirmed in the shipped code's own rationale comment. Do not
+re-attempt the crater version.
+
 **Resolutions for 烤, all owner calls, none to be taken in code unilaterally:**
 (a) status quo — temperament-only, the only method of six that says nothing;
 (b) restore the spec — 烤 joins 炸 in `isRough`, one line, and per the table
@@ -243,9 +264,12 @@ one to design LAST despite being the original question — it is the hardest,
 because it has to differ from both 炸's crust and 焗's dry surface, and
 because the owner has already killed one attempt at it (stripes).
 
-`糙 rough` ships but its detector is **PROVISIONAL**: the agreed map keys it to
-根/榖, which has no domain, so it rides 炸 to stay reviewable. Flagged in the
-code, not hidden. It resolves when the 榖 open question below is answered.
+`糙 rough`'s detector is 炸 only — no "agreed map" keying it to 根/榖 ever
+existed in this document; that claim was a stale code comment (corrected
+2026-08-05, see "膚 has two owners" above, where the drawing's confirmed shape
+is also recorded). Whether 烤 joins the detector is the one still-open item
+there; 根/榖 is a separate, still-open question about 田's base ingredients,
+unrelated to 糙's detector or its drawing.
 
 ### 姿 · 銘 · 面
 
