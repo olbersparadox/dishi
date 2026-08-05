@@ -93,10 +93,10 @@ armoured, soft AND furred.
 | 蒸 steamed | 軟 soft (pale halo behind, dark core) | **SHIPPED** — pinned by `skinOf()` + tests |
 | 炸 fried | 糙 rough — **owner's spec: one dot = a grey circle overlapping a black circle; 4 dots upper-right, 3 lower-left, none touching the rim** — plus crust nubs on the rim | **SHIPPED** |
 | 燜 braised | 釉 glaze — **near-black rim, warmer pool inset from it, two speculars (long left flank, short hook upper-right)** — plus its body sag | **SHIPPED** |
-| 焗 baked | — none — (has body SHAPE: dome) | **TO DESIGN** |
+| 焗 baked | 金 gold — **smooth top-to-bottom golden gradient, no marks at all** — plus its risen dome | **SHIPPED** |
 | 烤 grilled | — none — (energy term only) | **TO DESIGN** |
 
-Binding rules: design the two gaps ONE at a time, owner verifies each at
+Binding rules: design the last gap (烤), owner verifies each at
 200px AND 72px before the next; all six must stay distinct at 72px; the
 collision risk is inside the wet family (生·蒸·燜) and the dry family
 (炸·焗·烤), not across them. Known gap to fix once, not per-skin: the
@@ -516,9 +516,14 @@ gesture, because they are what makes the set look like one species of drawing:
 8. **Wings leave from the SHOULDER, angled out.** Attached high and aimed
    skyward, both sides merge into one jagged crest above the head.
 
-9. **No gradients.** The house style is cut-paper ink: flat shapes with crisp
-   edges. A radial fade reads as 3D shading and breaks the register (owner,
-   2026-08-02: *"too much gradient and doesn't fit this style"*).
+9. **No gradients — EXCEPT 金, by later owner decision.** The house style is
+   cut-paper ink: flat shapes with crisp edges, and a RADIAL fade in
+   particular reads as 3D shading (owner, 2026-08-02: *"too much gradient and
+   doesn't fit this style"*). Overridden once, deliberately, on 2026-08-06:
+   焗's 金 skin is a smooth vertical gradient, briefed with a reference. The
+   rule still holds everywhere else — this is one named exception, not a
+   licence to shade. (The body's own `inkFill` was always a near-flat linear
+   ramp between three all-but-identical inks, which is texture, not shading.)
 10. **脊 the spine is CUT.** Tried three ways — centred ticks read as a zipper,
     a centred line as a seam, off-centre as a scratch. A round ink body has no
     good place for a spine, and vertebrate-vs-invertebrate is already carried

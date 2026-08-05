@@ -165,12 +165,14 @@ describe('skinOf — 膚 is METHOD-driven (the rearrangement, owner 2026-08-05)'
     expect(skin(THIN, 'braised')).toBe('glazed');
   });
 
-  it('the methods without a skin render none — the open work', () => {
-    // 焗 · 烤 have no skin. Pinning them as 'none' means the day one is
-    // designed, this test FAILS and forces the ledger to be updated with it.
-    for (const dim of ['baked', 'grilled']) {
-      expect(skin(THIN, dim)).toBe('none');
-    }
+  it('金 GOLD belongs to 焗 baked', () => {
+    expect(skin(THIN, 'baked')).toBe('golden');
+  });
+
+  it('烤 grilled is the last method with no skin — the open work', () => {
+    // Pinning it as 'none' means the day 烤 is designed, this test FAILS and
+    // forces the ledger to be updated in the same commit.
+    expect(skin(THIN, 'grilled')).toBe('none');
   });
 
   it('method skins are mutually exclusive by construction, not by luck', () => {

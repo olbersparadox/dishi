@@ -180,7 +180,7 @@ export function domainShares(domains: DomainEvidence): DomainShares {
   };
 }
 
-export type SkinType = 'shell' | 'soft' | 'smooth' | 'rough' | 'glazed' | 'hairy' | 'none';
+export type SkinType = 'shell' | 'soft' | 'smooth' | 'rough' | 'glazed' | 'golden' | 'hairy' | 'none';
 
 /**
  * Which surface the being wears. EXTRACTED from the render loop so it can be
@@ -219,6 +219,7 @@ export function skinOf(domains: DomainEvidence, sh: DomainShares, m: MethodShare
   if (m.raw > 0.5) return 'smooth';         // 滑 ← 生
   if (m.fried > 0.5) return 'rough';        // 糙 ← 炸
   if (m.braised > 0.5) return 'glazed';     // 釉 ← 燜
+  if (m.baked > 0.5) return 'golden';       // 金 ← 焗
   if (sh.l + sh.a > 0.45 && absF(ev('land') + ev('air'), 6, 9) > 0.4) return 'hairy';
   return 'none';
 }
@@ -243,6 +244,14 @@ const SKIN_ROUGH = { black: '#0a0908', grey: '#5a544c' };
    inversion is the whole signature: every other skin is lighter at the rim or
    flat, so 釉 cannot be mistaken for them at a glance. */
 const SKIN_GLAZE = { deep: '#0d0c0b', pool: '#2b2723', shine: '#d5d2ca', shineLow: '#8f8a80' };
+/* 金 gold (焗 baked): a smooth top-to-bottom golden gradient and NOTHING else
+   — no speculars, no marks. The absence is the signature: it is the only skin
+   with no incident on it at all, which is what keeps it apart from 釉's
+   speculars and 糙's dots on a body that also happens to be domed.
+   Deliberately the warmest thing in the palette (top spread 59 against the
+   house's usual 7-15) because "golden" was the owner's whole brief; it is a
+   knowing departure from the otherwise desaturated inks, not a slip. */
+const SKIN_GOLD = { top: '#8b7550', mid: '#4e4132', base: '#171310' };
 
 const INK = ['#3a3733', '#211d18', '#2e2a24'] as const;
 const HILITE = '250,247,241';
@@ -251,6 +260,23 @@ const WASH = '217,210,194';
 function inkFill(ctx: CanvasRenderingContext2D, c: number, s: number) {
   const g = ctx.createLinearGradient(c - s * 0.3, c - s * 0.3, c + s * 0.3, c + s * 0.3);
   g.addColorStop(0, INK[0]); g.addColorStop(0.6, INK[1]); g.addColorStop(1, INK[2]);
+  return g;
+}
+
+/** 金's vertical gradient, spanning the DRAWN body rather than the nominal
+ *  box — a gradient hung off (cx, cy) would slide up or down the silhouette
+ *  as the palate's lobes move it, exactly the way 軟's halo once did. Three
+ *  stops, not two: the reference holds a long even light across the crown and
+ *  falls away through the lower half, which a straight two-stop ramp cannot
+ *  do. */
+function goldFill(
+  ctx: CanvasRenderingContext2D,
+  bb: { cx: number; cy: number; hr: number; vr: number },
+) {
+  const g = ctx.createLinearGradient(bb.cx, bb.cy - bb.vr, bb.cx, bb.cy + bb.vr);
+  g.addColorStop(0, SKIN_GOLD.top);
+  g.addColorStop(0.5, SKIN_GOLD.mid);
+  g.addColorStop(1, SKIN_GOLD.base);
   return g;
 }
 
@@ -542,6 +568,7 @@ export function drawCreatureFrame(
   const isSmooth = skin === 'smooth';
   const isRough = skin === 'rough';
   const isGlazed = skin === 'glazed';
+  const isGolden = skin === 'golden';
   const isHairy = skin === 'hairy';
   const SKIN = (s + c + ag) >= (l + a + f + fg) ? SKIN_SMOOTH_SEA : SKIN_SMOOTH_LAND;
 
@@ -756,7 +783,8 @@ export function drawCreatureFrame(
   // (measured in the lab: washing it inverted the three tones)
   if (!isSoft) {
     ctx.save(); ctx.globalAlpha = isSmooth ? 1 : rawA;
-    ctx.fillStyle = isGlazed ? SKIN_GLAZE.deep
+    ctx.fillStyle = isGolden ? goldFill(ctx, bodyBox(pts))
+      : isGlazed ? SKIN_GLAZE.deep
       : isSmooth ? SKIN.base : inkFill(ctx, c0, size);
     ctx.fill();
     ctx.restore();
