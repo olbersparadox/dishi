@@ -199,8 +199,8 @@ describe('skinOf — 膚 is METHOD-driven (the rearrangement, owner 2026-08-05)'
 });
 
 describe('糙 rough — the confirmed two-cluster treatment, through the real renderer', () => {
-  // The owner's confirmed treatment: 7 two-tone dot-pairs in exactly two
-  // clusters — 4 upper-RIGHT, 3 lower-LEFT. This went invisible twice (nominal-
+  // The owner's FINAL spec (2026-08-05, verbatim): "3 dots on the upper right,
+  // and 3 dots on the lower left." This skin went invisible twice (nominal-
   // centre anchoring + undersized dots), and a wrong crater redesign replaced
   // it once, so the layout is pinned through creatureSnapshotSvg — the same
   // string production mounts — rather than through any harness.
@@ -220,14 +220,14 @@ describe('糙 rough — the confirmed two-cluster treatment, through the real re
         cy: (Number(m[2]) + Number(m[4])) / 2,
       }));
 
-  it('draws exactly 7 dark + 7 light — the pairs, nothing scattered', () => {
-    expect(centers('#0d0b09')).toHaveLength(7);
-    expect(centers('#5a544a')).toHaveLength(7);
+  it('draws exactly 6 dark + 6 light — 3+3 pairs, nothing scattered', () => {
+    expect(centers('#0d0b09')).toHaveLength(6);
+    expect(centers('#5a544a')).toHaveLength(6);
   });
 
-  it('clusters sit upper-RIGHT (4) and lower-LEFT (3) of the drawn body', () => {
+  it('clusters sit upper-RIGHT (3) and lower-LEFT (3) of the drawn body', () => {
     const dark = centers('#0d0b09').sort((a, b) => a.cy - b.cy);
-    const upper = dark.slice(0, 4), lower = dark.slice(4);
+    const upper = dark.slice(0, 3), lower = dark.slice(3);
     const mean = (ps: { cx: number; cy: number }[], k: 'cx' | 'cy') =>
       ps.reduce((s, p) => s + p[k], 0) / ps.length;
     // Two genuinely separate clusters, not a smear: vertical gap between them

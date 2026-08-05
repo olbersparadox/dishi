@@ -191,8 +191,8 @@ export type SkinType = 'shell' | 'soft' | 'smooth' | 'rough' | 'hairy' | 'none';
  *
  * 膚 IS BECOMING METHOD-ONLY (owner, 2026-08-05): one skin per cooking method,
  * with 甲/毛 leaving for 骨 because a carapace and a pelt are body parts an
- * animal GREW, not treatments applied to a surface. Full decision and the
- * cleared board: docs/rnd/mokling-framework.md, "The rearrangement".
+ * animal GREW, not treatments applied to a surface. Live status:
+ * docs/rnd/mokling-framework.md, the "膚" section — the ONLY place 膚 status lives.
  *
  * WHERE THAT SEQUENCE STANDS. Landed: 軟 re-pointed from 田+菌 onto 蒸, and 滑
  * left to 生 alone. Still pending: 甲 and 毛 remain in this chain on purpose —
@@ -242,8 +242,9 @@ const SKIN_SMOOTH_LAND = { base: '#332f2a', mid: '#454039', hi: '#847f76', rim: 
 // which washed it grey; z-order (body behind limbs) is the fix, not opacity.
 const SKIN_SOFT = { halo: '#d2cfc7', layer: '#332f2b', core: '#221f1a' };
 // 糙 rough: ONE two-tone dot duplicated and resized — placement is the
-// character. The LAYOUT (7 dots, two clusters: upper-right 4, lower-left 3)
-// is the owner-confirmed treatment and is not a tuning surface. These TONES
+// character. THE LAYOUT IS THE OWNER'S FINAL SPEC (2026-08-05, verbatim): "3
+// dots on the upper right, and 3 dots on the lower left." Not a tuning
+// surface. These TONES
 // are: the lab's light half (#4b473f, L71) sat over body fill of L30-55, so
 // at production dot sizes the pair read as nothing — the treatment was
 // confirmed as a design and never actually legible at real size, in the lab
@@ -877,28 +878,15 @@ export function drawCreatureFrame(
     }
     ctx.restore();
   }
-  /* 糙 ROUGH — 7 two-tone dot-pairs in two clusters (upper-right 4,
-     lower-left 3); the clusters are the whole read, a random spread loses it.
-     THE LAYOUT IS THE OWNER-CONFIRMED TREATMENT (2026-08-05, reconfirmed
-     after a crater redesign was reverted the same day) — u/v/scale/rotation
-     below are not tuning surfaces.
-
-     What WAS wrong, twice, was legibility, and both defects were of the same
-     family this file keeps re-learning:
-     (1) dots anchored to the NOMINAL centre (cx, cy) — the identical bug
-         bodyBox() was built for when 軟's halo pooled under the belly. On a
-         lobed body the drawn centre sits well above cy, so the "upper-right
-         shoulder" cluster landed mid-body and the "lower-left" one slid to
-         the rim. Now anchored to bodyBox, like everything skin-relative.
-     (2) sized off nominal R with a light tone one step too dark — biggest dot
-         ~11px on a 200px cell, dark ring 18 luminance points off the body.
-         Present in the SVG, invisible on screen; "verified-present" is not
-         "verified-visible". Now sized off the drawn body (hr), one size step
-         up, light tone one step up. */
+  /* 糙 ROUGH — THE OWNER'S FINAL SPEC (2026-08-05, verbatim): "3 dots on the
+     upper right, and 3 dots on the lower left." Two-tone dot-pairs, two
+     clusters, 3 + 3. Layout is not a tuning surface; anchored and sized to
+     the DRAWN body via bodyBox (never the nominal centre — the bug that hid
+     this skin and 軟's halo). */
   if (isRough) {
     const rb = bodyBox(pts);
     const DOTS: [number, number, number][] = [
-      [0.28, -0.46, 1], [0.56, -0.34, 0.8], [0.34, -0.22, 0.6], [0.58, -0.1, 0.5],
+      [0.28, -0.46, 1], [0.56, -0.34, 0.8], [0.34, -0.22, 0.6],
       [-0.5, 0.18, 0.94], [-0.3, 0.32, 0.72], [-0.5, 0.4, 0.56],
     ];
     ctx.save();

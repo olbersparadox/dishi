@@ -79,77 +79,38 @@ the distinction that matters is what it would take to finish:
 | 蟲 antennae · carapace | — | **DORMANT** | no HK data until insect dishes actually appear |
 | whiskers · plated armour | — | **POOL** | no detector |
 
-### 膚 — current state (the ONLY 膚 status table; supersedes every earlier 膚 note)
+### 膚 (the ONE 膚 section — no other passage in this file carries 膚 status)
 
 **膚 is METHOD-ONLY** (owner, 2026-08-05): one skin per cooking method, six
-total. 甲 shell and 毛 hairy are body parts, not surface treatments — they
-belong to 骨 and leave the skin precedence chain once their 骨 overlay exists.
-Until then they stay (pulling them first would strip shell/land eaters with
-nothing put back), so 甲 still outranks method: a steamed crab reads armoured.
-Why method-only is right and not just tidy: the registers then COMPOSE —
-steamed AND armoured, soft AND furred, ~24 legible states — instead of five
-skins fighting for one winner-take-all slot.
+total. 甲 shell and 毛 hairy are 骨 body parts, not skins; they leave the
+precedence chain once their 骨 overlay exists (until then 甲 still outranks
+method — a steamed crab reads armoured). Registers compose: steamed AND
+armoured, soft AND furred.
 
 | method | skin | status |
 |---|---|---|
-| 生 raw | 滑 smooth·wet (sea/land tone) + translucent wash + wet rim | **SHIPPED** — 生's alone since 2026-08-05 |
-| 蒸 steamed | 軟 soft (pale halo behind, dark core) | **SHIPPED 2026-08-05** — re-pointed off 田+菌; `skinOf()` + tests pin it |
-| 炸 fried | 糙 rough — **confirmed treatment: 7 two-tone dot-pairs in TWO clusters, upper-right 4 / lower-left 3** — plus crust nubs on the rim | **SHIPPED**; legibility fixed 2026-08-05 (bodyBox anchor, drawn-body sizing, lighter top tone; layout pinned through `creatureSnapshotSvg` tests) |
+| 生 raw | 滑 smooth·wet + translucent wash + wet rim | **SHIPPED** — 生's alone |
+| 蒸 steamed | 軟 soft (pale halo behind, dark core) | **SHIPPED** — pinned by `skinOf()` + tests |
+| 炸 fried | 糙 rough — **owner's final spec, verbatim: "3 dots on the upper right, and 3 dots on the lower left"** (two-tone dot-pairs) — plus crust nubs on the rim | **SHIPPED** — anchored/sized to the drawn body (`bodyBox`); layout pinned through `creatureSnapshotSvg` tests |
 | 燜 braised | — none — (has body SHAPE: sag) | **TO DESIGN** — proposed 潤 lacquered |
 | 焗 baked | — none — (has body SHAPE: dome) | **TO DESIGN** — proposed 酥 dry-crisp |
-| 烤 grilled | — none — (no skin, no shape; only an energy term shared with 炸) | **TO DESIGN LAST** — proposed 焦 scorched; hardest (must differ from 炸 AND 焗) and one attempt, sear stripes, was already killed |
+| 烤 grilled | — none — (energy term only) | **TO DESIGN LAST** — proposed 焦 scorched; sear stripes were killed by the owner ("a skin of its own, not an overlay"), never reinstate them. Open sub-question, owner's call at design time: share 糙's detector / own skin / a shape channel |
 
-Rules binding the three new designs: ONE at a time, owner verifies each at
-200px AND 72px before the next; all six must stay distinct at 72px (anatomy
-that only reads large is decoration); the collisions live INSIDE the wet
-family (生·蒸·燜) and the dry family (炸·焗·烤), not across them.
+Binding rules: design the three gaps ONE at a time, owner verifies each at
+200px AND 72px before the next; all six must stay distinct at 72px; the
+collision risk is inside the wet family (生·蒸·燜) and the dry family
+(炸·焗·烤), not across them. Known gaps to fix together later, not per-skin:
+share > 0.5 gate has no absolute evidence floor (one steamed dish = full
+skin), and a mixed palate wears nothing (owner's own profile: top share 蒸
+0.306 → bare).
 
-Known gaps carried consciously — fix together, not as per-skin patches:
-- method skins gate on share > 0.5 with NO absolute evidence floor, so one
-  steamed dish with no other method evidence draws a full skin;
-- a mixed palate clears no gate and wears nothing (the owner's own profile:
-  top method share 蒸 at 0.306 → bare body). Revisit the threshold only after
-  the three missing skins land — one variable at a time.
-
-### 膚 — decision log (dated history; the table above is the live state)
-
-Every earlier 膚 section of this document is superseded by the current-state
-table plus this log. The old sections accumulated as investigation narratives
-— each partially corrected by the next, none deleted — until the document
-disagreed with itself in three places and a wrong redesign was derived from
-one of the stale passages. History belongs here, dated; state belongs in ONE
-table above; nothing else in this file carries 膚 status.
-
-- **2026-08-02 (lab):** five-skin set built (毛滑糙甲軟). 烤 sear marks
-  REMOVED by the owner: *"pale stripes over fur read as neither grill nor
-  coat. If 烤 needs to say something later it will be a skin of its own, not
-  an overlay on someone else's."* Never reinstate stripes as an overlay.
-- **2026-08-04 (port):** v6 body ported whole and faithfully (audited
-  2026-08-05; a briefly-recorded PORT-GAP verdict on 烤 was wrong — the
-  removal above was the truth). One silent drift DID ship: 軟 keyed to 田+菌
-  instead of the spec's 燜, invisible because the name matched on both sides.
-- **2026-08-05 — the rearrangement (owner):** 膚 declared METHOD-ONLY; 甲/毛
-  reclassified as 骨 body parts, to leave the skin chain once their overlay
-  exists; 軟 re-pointed to 蒸 (deliberately overriding the old 軟←燜 spec
-  row); 滑 left to 生 alone (the old `steamed + raw*0.8` blend would have
-  handed 蒸 two skins). The whole decision was extracted from the render loop
-  into `skinOf()` with tests — inline canvas logic is where the 軟 drift hid.
-- **2026-08-05 — 糙's treatment CONFIRMED (owner):** 7 two-tone dot-pairs in
-  two clusters, upper-right 4 / lower-left 3. A crater redesign — derived
-  from the 其七 trace and this document's own old drawing-rule wording — was
-  tried and REVERTED on the owner's direct correction; do not re-attempt it.
-  The same day the clusters were made actually legible: they had been
-  anchored to the nominal centre (the identical bug 軟's halo had) and sized
-  near-invisible, so the treatment had been "confirmed" as a design without
-  ever being legible at real size, in the lab or in production.
-- **Stale claims retired:** no "agreed map" keys 糙 to 根/榖 — that was a code
-  comment promoting an open question into a decision. 根/榖 remains open, and
-  it is a question about 田's base ingredients, not about 糙.
-- **OPEN — 烤's eventual expression**, owner decides when its design round
-  starts: join 炸 in 糙's detector (the pre-rearrangement spec said 烤/炸)?
-  its own skin (焦 scorched)? or a SHAPE channel — taut/contracted, the
-  register 燜's sag and 焗's dome already use — which cannot collide with any
-  skin at all?
+Do-not-repeat list (each of these happened): don't re-derive 糙 from old
+drawing-rule prose or from the lab files — a crater redesign from those
+sources was reverted on owner correction; don't anchor skin features to the
+nominal centre (bodyBox exists because that bug hid both 軟's halo and 糙's
+clusters); don't trust "present in the SVG" as "visible on screen" — verify
+with an unscaled screenshot; 軟 belongs to 蒸, not 田+菌 and not 燜; no
+"agreed map" ties 糙 to 根/榖 (根/榖 is an open 田 question only).
 
 
 ### 姿 · 銘 · 面
@@ -287,7 +248,7 @@ Registers are independent — that is what makes the output space multiply
 | register | fed by | tempo | expresses as |
 |---|---|---|---|
 | 骨 body plan | ingredient DOMAIN shares (sea / land / air / field / 菌 / 藻) | slow, reversible over seasons | silhouette family + appendage grammar: tendrils, leg-nubs, wing fans, fronds, caps, ribbons — **built, lab v3–v6** |
-| 膚 skin & edge | cooking-method dims — **METHOD-ONLY since 2026-08-05** | medium | one skin per method. **This row carries NO status** — the live table is "膚 — current state" in the Ledger. (This row's old prose listed lab-v6 treatments including one the owner had killed, and misled the Ledger once; registers here describe the concept only.) |
+| 膚 skin & edge | cooking-method dims — **METHOD-ONLY since 2026-08-05** | medium | one skin per method. **This row carries NO status** — the live table is the "膚" section in the Ledger. (This row's old prose listed lab-v6 treatments including one the owner had killed, and misled the Ledger once; registers here describe the concept only.) |
 | 姿 motion & temperament | flavor + method dims (辣甜酸苦鮮鹹 / 濃清) | medium | motion signature AND static posture: 辣+炸烤 → jagged edge, forward lean, quick darts; 蒸生+清 → smoothed contour, upright, slow drift; 燜+濃 → low centre of mass, heavy settle; 甜 → round springy profile — **built, lab v6** |
 | 脊 spine | vertebrate share of the diet | slow | a dorsal ridge (lit crest + shadow) on vertebrate-fed bodies; crab and mushroom eaters have none — **built, lab v6** |
 | 銘 DNA | the full 18-dim vector + evidence + domain record | exact, always current | the written logogram: outward strokes = love, inward = dislike, stroke count = evidence, silence = fog — **shipped 2026-08-05, merged into the radar as one figure** (see ship path 4) |
@@ -507,7 +468,7 @@ with the detector beside it. **No detector, no feature.**
 | 角 horns | 牛 curved pair · 脂 thick blunt · 罪 jagged | 牛 at depth · heaviness + 濃 · **炸 + heaviness after 23:00** |
 | 耳 ears | 豬 floppy triangle · 牛 side flap · 羊 pointed | land sub-node |
 | 足 feet | 牛 cleft hoof · 豬 trotter · 雞 splayed toes · 鴨 webbed | land sub-node + 鴨 of 羽 |
-| 膚 skins | ⚠ SUPERSEDED ROW — the 2026-08-05 rearrangement re-keyed 膚 to method-only ("膚 — current state" is authoritative). Lab detectors kept for the record: 毛←fur mammals · 滑←蒸/生 · 糙←烤/炸 · 甲←甲殼 · 軟←燜 — of these, only 糙's 烤-half remains an open question | (superseded) |
+| 膚 skins | ⚠ SUPERSEDED ROW — the 2026-08-05 rearrangement re-keyed 膚 to method-only (the Ledger "膚" section is authoritative). Lab detectors kept for the record: 毛←fur mammals · 滑←蒸/生 · 糙←烤/炸 · 甲←甲殼 · 軟←燜 — of these, only 糙's 烤-half remains an open question | (superseded) |
 | 葉 plant parts | 闊葉 broad leaf · 針葉 herb sprig · 根 tuber · 藻帶 seaweed ribbon | 田 sub-nodes (葉/花/根) + 藻 |
 | 觸 tentacles | 八爪 suckered curl · 魷 straight pair · 水母 fine strands | 軟體 sub-nodes |
 

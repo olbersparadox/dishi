@@ -207,7 +207,7 @@ const VOCAB=[
   /* ⚠ SUPERSEDED (2026-08-05, added after rescue — everything else in this
      file is verbatim): this 糙 card draws scattered pale specks and is NOT
      the confirmed treatment. Production's two-cluster two-tone dot-pairs
-     (creatureForm.ts `isRough`, upper-right 4 / lower-left 3) are
+     (creatureForm.ts `isRough`, 3 upper-right / 3 lower-left) are
      owner-confirmed; a port of the scattered style was tried and reverted the
      same day. Also do not port from the 其七 TRACE's rough craters for the
      same reason. Kept for the record only. */
