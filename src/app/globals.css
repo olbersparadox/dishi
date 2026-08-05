@@ -1645,6 +1645,10 @@ body.rating-open .taste-blob-anchor { visibility: hidden; }
 .join-go:not(:disabled) { background: var(--ink); color: var(--glaze); }
 .join-go:not(:disabled):hover { background: var(--ink-soft); }
 .join-go:disabled { color: var(--ink-faint); cursor: default; }
+/* In flight (spinner showing) reads as "working", not "not ready yet" — stays
+   inked through :disabled rather than falling back to the pale not-enough-
+   input look those two states would otherwise share. */
+.join-go.loading:disabled { background: var(--ink); color: var(--glaze); }
 
 /* --- session bar, shown above scan results once a table session exists ---
    Handoff Screen 4: a quiet #eee9dd inset strip — serif code, small meta,

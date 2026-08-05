@@ -35,6 +35,7 @@ export default function OtpForm({ onVerified }: {
   const { t } = useLang();
   const [email, setEmail] = useState('');
   const [sent, setSent] = useState(false);
+  const [sending, setSending] = useState(false);
   const [code, setCode] = useState('');
   const [verifying, setVerifying] = useState(false);
   const [error, setError] = useState('');
@@ -47,11 +48,12 @@ export default function OtpForm({ onVerified }: {
   }, []);
 
   async function sendCode() {
-    setError('');
+    setSending(true); setError('');
     try { localStorage.setItem(EMAIL_KEY, email); } catch { /* fine */ }
     // No emailRedirectTo: the template carries no magic link, so there's no
     // redirect target — this is pure OTP. {{ .Token }} is delivered regardless.
     const { error: err } = await supabaseBrowser().auth.signInWithOtp({ email });
+    setSending(false);
     if (err) { setError(err.message); return; }
     setSent(true);
   }
@@ -72,9 +74,9 @@ export default function OtpForm({ onVerified }: {
         <div style={{ display: 'flex', gap: 8 }}>
           <input className="field" type="email" placeholder={t('auth.placeholder')}
             value={email} onChange={e => setEmail(e.target.value)} autoComplete="email" />
-          <button className="join-go" aria-label={t('auth.send')} title={t('auth.send')}
-            onClick={sendCode} disabled={!email.includes('@')}>
-            <ArrowRightIcon size={20} />
+          <button className={`join-go${sending ? ' loading' : ''}`} aria-label={t('auth.send')} title={t('auth.send')}
+            onClick={sendCode} disabled={!email.includes('@') || sending}>
+            {sending ? <span className="icon-btn-spinner" aria-hidden /> : <ArrowRightIcon size={20} />}
           </button>
         </div>
       ) : (
@@ -90,9 +92,9 @@ export default function OtpForm({ onVerified }: {
             <input className="field code-input" inputMode="numeric" autoComplete="one-time-code"
               placeholder={t('auth.codeplaceholder')}
               value={code} onChange={e => setCode(e.target.value.replace(/\D/g, ''))} />
-            <button className="join-go" aria-label={t('auth.verify')} title={t('auth.verify')}
+            <button className={`join-go${verifying ? ' loading' : ''}`} aria-label={t('auth.verify')} title={t('auth.verify')}
               onClick={verifyCode} disabled={code.trim().length === 0 || verifying}>
-              <ArrowRightIcon size={20} />
+              {verifying ? <span className="icon-btn-spinner" aria-hidden /> : <ArrowRightIcon size={20} />}
             </button>
           </div>
           <button className="btn ghost small" style={{ marginTop: 10 }} onClick={() => { setSent(false); setCode(''); }}>
