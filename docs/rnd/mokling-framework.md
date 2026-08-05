@@ -85,7 +85,7 @@ All five SKIN TYPES shipped. The gap is in the method-surface list beside them:
 
 | treatment | fed by | status |
 |---|---|---|
-| 毛 hairy · 滑 smooth · 糙 rough · 甲 plated · 軟 sagging | domain + method | **SHIPPED** (all five) |
+| 毛 hairy · 滑 smooth · 糙 rough · 甲 plated · 軟 sagging | domain + method (**split ownership, no stated rule** — see "膚 has two owners" below) | **SHIPPED** (all five, but 軟 ships a DIFFERENT detector than the spec and 糙 ships only half of its) |
 | 炸 crusted rim | fried | **SHIPPED** |
 | 蒸 wet sheen | steamed | **SHIPPED** |
 | 生 translucent wash | raw | **SHIPPED** |
@@ -111,15 +111,58 @@ the one method dim of six with no visible surface **by owner decision**, with
 its energy contribution to 姿 temperament as its only expression. Do not
 reinstate stripes as an overlay.
 
-The recorded future direction ("a skin of its own") has a wrinkle worth
-flagging when it comes up: the lab's own VOCAB card 糙 `rough · seared` names
-its detector as **烤/炸 share**, while production's shipped 糙 detector rides
-炸 only and its comment keys the concept to 根/榖 (the open 榖 question).
-Three candidate resolutions, all owner calls, none to be made in code
-unilaterally: (a) status quo — 烤 stays temperament-only; (b) 烤 joins 炸 in
-feeding the existing 糙 rough skin, per the lab VOCAB card — one line, but it
-changes what 糙 MEANS and collides with the 榖 question; (c) a genuinely new
-烤-dominant skin — a design session, honoring "a skin of its own" literally.
+### 膚 has two owners, and that is why 烤 has nowhere to go
+
+Asked "if cooking method is skin, where do 軟 and 甲 come from?" (owner,
+2026-08-05), the answer is that **three of the five skins are domain-driven
+and two are method-driven, and nothing in this framework states which register
+owns the slot when both have a claim.** Verified across all three sources:
+
+| skin | this doc's 膚 spec row | lab v7 VOCAB card | PRODUCTION | verdict |
+|---|---|---|---|---|
+| 毛 hairy | fur mammals at depth | 羊/fur mammals at depth | 陸+羽 share | agrees — DOMAIN |
+| 甲 plated | 甲殼 | 甲殼 share | shell share | agrees — DOMAIN |
+| 滑 smooth wet | 蒸/生 | 蒸/生 share | steamed + raw | agrees — METHOD |
+| 糙 rough seared | **烤/炸** | **烤/炸 share** | **炸 only** | 烤 half DROPPED |
+| 軟 sagging | **燜 braised** | **燜 braised share** | **田+菌 share** | REGISTER CHANGED |
+
+Two real divergences fall out of that table:
+
+1. **軟 changed register during the port, and nothing records the decision.**
+   Both spec sources key it to 燜 braised — a METHOD. Production keys it to
+   field + fungus — a DOMAIN. Same name, two different meanings. Two
+   consequences: 燜's specified skin does not exist anywhere, and the skin
+   that 田/菌 actually grows has no spec basis at all. This is the single
+   largest spec-to-production gap found so far, and it is invisible from
+   either side alone — the name matches, so nothing looks wrong.
+
+2. **糙 lost its 烤 half.** Both spec sources say 烤/炸; production ships 炸
+   only. This **corrects commit b9872e7**, which claimed adding 烤 to
+   `isRough` "changes what 糙 MEANS": it does not — it restores the specified
+   meaning. The caution was right, the reasoning was wrong.
+
+Also flagged: production's 糙 comment states the detector is "keyed to 根/榖
+in the agreed map." No agreed map in this document says that. The only 膚 spec
+row says 烤/炸, and 榖 appears solely as an OPEN question (is it skin texture
+or anatomy?). The comment promotes an open question to a settled decision —
+the same class of error as an undated status note.
+
+**Resolutions for 烤, all owner calls, none to be taken in code unilaterally:**
+(a) status quo — temperament-only, the only method of six that says nothing;
+(b) restore the spec — 烤 joins 炸 in `isRough`, one line, and per the table
+above this is a RESTORATION not a redefinition, though it inherits 糙's
+unresolved 根/榖 confusion; (c) a genuinely new 烤-dominant skin, honoring
+"a skin of its own" literally, but walking straight back into the fur
+collision that killed sear marks; (d) **give 烤 a SHAPE channel instead of a
+skin** — the register 燜 (sag) and 焗 (dome) already use successfully on every
+body type. Grilled food contracts and tightens, so a taut drawn-in silhouette
+is the natural opposite of 燜's sag, it is honest to the food, and it cannot
+fight fur because shape lives underneath the coat rather than on it. (d)
+sidesteps the two-owner problem entirely instead of arguing about who wins.
+
+Whichever is chosen, **軟's register divergence is the more urgent item**: 烤
+is a missing feature, but 軟 is a feature that silently means something other
+than what the framework says it means.
 
 `糙 rough` ships but its detector is **PROVISIONAL**: the agreed map keys it to
 根/榖, which has no domain, so it rides 炸 to stay reviewable. Flagged in the
@@ -832,9 +875,15 @@ See BACKLOG "Data audit" item — the audit runs before any phase-1 code.
   changed eating visibly transforms, but one week of travel food does not).
 - Does the creature ever appear to OTHER users outside an explicit share
   (e.g. beside a 貼文)? Default no until decided.
-- Where does 烤 live visually, if anywhere? The owner killed sear marks in the
-  lab ("a skin of its own, not an overlay on someone else's") and today 烤
-  feeds temperament only. Options recorded in the Ledger's 膚 section:
-  (a) stay temperament-only; (b) join 炸 in the 糙 rough detector, per the
-  lab VOCAB card — entangled with the 榖 question above; (c) design a new
-  烤-dominant skin. No code until called.
+- **Does 膚 belong to domain or to method?** Today it is three domain-driven
+  skins and two method-driven ones with no stated rule, which is the root
+  cause of both items below. Settling this settles them.
+- **軟 means something different in production than in this document** —
+  spec says 燜 braised (method), production ships 田+菌 (domain). Which is
+  correct? Whichever wins, one of the two has to change. See "膚 has two
+  owners" in the Ledger.
+- Where does 烤 live visually, if anywhere? Sear marks were killed in the lab
+  ("a skin of its own, not an overlay on someone else's") and 烤 feeds
+  temperament only today. Four options recorded in the Ledger's 膚 section;
+  (d) — giving 烤 a SHAPE channel rather than a skin — is the one that avoids
+  the two-owner problem instead of arguing it. No code until called.
