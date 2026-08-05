@@ -242,7 +242,12 @@ const SKIN_SMOOTH_LAND = { base: '#332f2a', mid: '#454039', hi: '#847f76', rim: 
 // which washed it grey; z-order (body behind limbs) is the fix, not opacity.
 const SKIN_SOFT = { halo: '#d2cfc7', layer: '#332f2b', core: '#221f1a' };
 // 糙 rough: ONE two-tone dot duplicated and resized — placement is the character.
-const SKIN_ROUGH = { dark: '#1a1714', light: '#4b473f' };
+// dark was #1a1714 (L23) — only 6 luminance points off the body fill's own
+// darkest gradient stop (#211d18, L29.5), so the ring that is meant to give
+// each speck a defined edge was structurally present but had almost no
+// contrast to read by. #0d0b09 (L11) clears the body's darkest stop by 18
+// points and its lightest by 44, so the pit reads against either.
+const SKIN_ROUGH = { dark: '#0d0b09', light: '#4b473f' };
 
 const INK = ['#3a3733', '#211d18', '#2e2a24'] as const;
 const HILITE = '250,247,241';
