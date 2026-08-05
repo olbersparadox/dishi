@@ -190,6 +190,37 @@ function inkFill(ctx: CanvasRenderingContext2D, c: number, s: number) {
 }
 
 type Pt = { x: number; y: number };
+
+/** The rim's own outward direction at angle `ph` — the ONE place this sign
+ *  lives. `bodyAt` (inside `drawCreatureFrame`) places every silhouette point
+ *  at `(cx + sin(ph)·r·R, cyT − cos(ph)·r·R)`, so "away from the creature" at
+ *  a given ph is unambiguously `(sin ph, −cos ph)`, never derived any other
+ *  way. Exported so it can be unit-tested directly rather than only through a
+ *  rendered frame.
+ *
+ *  This exists because a future appendage getting the sign wrong is a KNOWN
+ *  failure, not a hypothetical one: the lab lost wings and tails to exactly
+ *  this — each appendage hand-rolled its own direction, the sign was inverted
+ *  on one side, and they were drawn INTO the body and buried under the fill.
+ *  They were coded, gated, and firing correctly; only the geometry was wrong
+ *  (docs/rnd/mokling-framework.md, "The bug that hid half the anatomy"). A
+ *  symmetric pair built by calling `out` at `ph` and `TAU - ph` cannot drift
+ *  into that bug, because both sides read off the same formula instead of two
+ *  hand-typed copies that can silently diverge.
+ *
+ *  NOT YET USED by the six shipped appendages (wings/fronds/algae/tendrils/
+ *  claws/legs) in `drawCreatureFrame` below — each was independently checked
+ *  against this exact invariant (opposite sides mirror in x, agree in y) when
+ *  this helper was added, and none carries the lab's bug, so their shipped,
+ *  owner-tuned geometry is left untouched rather than refactored for its own
+ *  sake. This is for whatever ports next from
+ *  `docs/rnd/mokling-lab-v7-vocabulary.js` (尾/鰭/翼/角/耳 — none of which
+ *  exist here yet): call `out(ph, L)` for the displacement, don't re-derive
+ *  sin/cos by hand. */
+export function out(ph: number, L: number): Pt {
+  return { x: Math.sin(ph) * L, y: -Math.cos(ph) * L };
+}
+
 function closedPath(ctx: CanvasRenderingContext2D, pts: Pt[]) {
   const n = pts.length; if (n < 3) return;
   ctx.moveTo(pts[0].x, pts[0].y);

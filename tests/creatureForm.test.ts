@@ -3,8 +3,10 @@
 // itself is canvas-only and is verified visually on /dev-creature — but the
 // gates are where honesty lives, and honesty is testable.
 import { describe, it, expect } from 'vitest';
-import { hasAnatomy, temperOf, hairWindBend, hairMetrics } from '../src/lib/creatureForm';
+import { hasAnatomy, temperOf, hairWindBend, hairMetrics, out } from '../src/lib/creatureForm';
 import type { FormInputs } from '../src/lib/blobForm';
+
+const TAU = Math.PI * 2;
 
 const inputs = (vector: Record<string, number>, evidence: Record<string, number>): FormInputs =>
   ({ vector, evidence, ratingCount: 30, seed: 't:v1' });
@@ -26,6 +28,64 @@ describe('hasAnatomy — the blob-fallback gate', () => {
 
   it('a sub-mix alone (no domain events) is not anatomy — sub-nodes cannot outrank their parent', () => {
     expect(hasAnatomy({ sub: { shell: { crab: 9 } } })).toBe(false);
+  });
+});
+
+describe('out — the rim\'s outward direction, the one place the sign lives', () => {
+  // Pins the exact bug the lab lost wings and tails to: a hand-rolled
+  // direction with the sign inverted on one side, which drew the appendage
+  // INTO the body instead of away from it. Any two calls at mirror angles
+  // must themselves be mirrors — never independently signed.
+  const CASES = [0, 0.3, Math.PI / 2, 1.9, Math.PI, 4.1, 3 * Math.PI / 2, 6.0];
+
+  it('top of the rim (ph=0) points straight up: x=0, y=-L', () => {
+    const p = out(0, 10);
+    expect(p.x).toBeCloseTo(0, 10);
+    expect(p.y).toBeCloseTo(-10, 10);
+  });
+
+  it('bottom of the rim (ph=π) points straight down: x=0, y=+L', () => {
+    const p = out(Math.PI, 10);
+    expect(p.x).toBeCloseTo(0, 10);
+    expect(p.y).toBeCloseTo(10, 10);
+  });
+
+  it('right flank (ph=π/2) points right: x=+L, y=0', () => {
+    const p = out(Math.PI / 2, 10);
+    expect(p.x).toBeCloseTo(10, 10);
+    expect(p.y).toBeCloseTo(0, 10);
+  });
+
+  it('left flank (ph=3π/2) points left: x=-L, y=0', () => {
+    const p = out(3 * Math.PI / 2, 10);
+    expect(p.x).toBeCloseTo(-10, 10);
+    expect(p.y).toBeCloseTo(0, 10);
+  });
+
+  it('mirrors across the vertical axis: out(ph) and out(TAU-ph) agree in y, negate in x', () => {
+    for (const ph of CASES) {
+      const a = out(ph, 12), b = out(TAU - ph, 12);
+      expect(b.x).toBeCloseTo(-a.x, 10);
+      expect(b.y).toBeCloseTo(a.y, 10);
+    }
+  });
+
+  it('is always the unit direction at ph, scaled by L — never a fixed axis', () => {
+    for (const ph of CASES) {
+      const p = out(ph, 7);
+      expect(p.x).toBeCloseTo(Math.sin(ph) * 7, 10);
+      expect(p.y).toBeCloseTo(-Math.cos(ph) * 7, 10);
+      expect(Math.hypot(p.x, p.y)).toBeCloseTo(7, 10);
+    }
+  });
+
+  it('scales linearly with L, including negative L reversing direction', () => {
+    const ph = 0.85;
+    const p1 = out(ph, 1), p3 = out(ph, 3), pNeg = out(ph, -1);
+    expect(p3.x).toBeCloseTo(p1.x * 3, 10);
+    expect(p3.y).toBeCloseTo(p1.y * 3, 10);
+    expect(pNeg.x).toBeCloseTo(-p1.x, 10);
+    expect(pNeg.y).toBeCloseTo(-p1.y, 10);
   });
 });
 

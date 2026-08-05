@@ -192,13 +192,21 @@ recorded per user.
    not an API); the framework doc above did not previously make that
    distinction, and conflating them would have meant porting hardcoded traces
    as if they took arguments.
-2. **Production has no single `out(ang, L)` appendage helper.** The lab's worst
-   bug — wings and tails coded, gated, firing correctly, and drawn INTO the
-   body where the fill buried them — was fixed by routing every appendage
-   through one helper. The port hand-rolls direction per appendage instead, so
-   the bug class is reachable again the moment a new limb is added. The lesson
-   was recorded but not carried: *when a feature is present in the data and
-   absent on screen, suspect the geometry before the gate.*
+2. ~~Production has no single `out(ang, L)` appendage helper.~~ **BUILT
+   2026-08-05** → `out(ph, L)`, exported from `creatureForm.ts`, unit-tested
+   in `tests/creatureForm.test.ts` (pins the exact invariant that failed in
+   the lab: `out(ph)` and `out(TAU-ph)` must mirror in x and agree in y — two
+   independently-signed copies is the bug, one shared formula is the fix).
+   The lab's own `out()` implementation does not survive in the rescued
+   artifact — it belongs to a v8/v9 pass the owner reverted before that
+   snapshot — so this was built fresh from the framework's own specification
+   (`x=cx+sin(ph), y=cy−cos(ph)` ⟹ outward at ph is `(sin ph, −cos ph)`) and
+   checked directly against `bodyAt`'s placement formula in production.
+   **Deliberately NOT wired into the six shipped appendages** (wings, fronds,
+   algae, tendrils, claws, legs) — each was checked against the same mirror
+   invariant by hand and none carries the bug, so their owner-tuned geometry
+   was left untouched rather than refactored with no visible benefit. It
+   exists for whatever ports next from `mokling-lab-v7-vocabulary.js`.
 
 ## The one law
 
