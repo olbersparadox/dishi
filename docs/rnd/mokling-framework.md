@@ -111,50 +111,40 @@ the one method dim of six with no visible surface **by owner decision**, with
 its energy contribution to 姿 temperament as its only expression. Do not
 reinstate stripes as an overlay.
 
-### 膚 has two owners, and that is why 烤 has nowhere to go
+### 膚 had two owners — RESOLVED, see "The rearrangement" below
 
 Asked "if cooking method is skin, where do 軟 and 甲 come from?" (owner,
-2026-08-05), the answer is that **three of the five skins are domain-driven
-and two are method-driven, and nothing in this framework states which register
-owns the slot when both have a claim.** Verified across all three sources:
+2026-08-05): three of the five skins were domain-driven and two were
+method-driven, with no rule for which owned the slot when both had a claim.
+**Settled by the owner the same day** — 膚 is method-only now, 甲/毛 move to
+骨. Full decision and the cleared board are under "The rearrangement" further
+down; this note only records that the question was real and is closed, so it
+is not re-opened as if still live.
 
-| skin | this doc's 膚 spec row | lab v7 VOCAB card | PRODUCTION | verdict |
-|---|---|---|---|---|
-| 毛 hairy | fur mammals at depth | 羊/fur mammals at depth | 陸+羽 share | agrees — DOMAIN |
-| 甲 plated | 甲殼 | 甲殼 share | shell share | agrees — DOMAIN |
-| 滑 smooth wet | 蒸/生 | 蒸/生 share | steamed + raw | agrees — METHOD |
-| 糙 rough seared | **烤/炸** | **烤/炸 share** | **炸 only** | 烤 half DROPPED |
-| 軟 sagging | **燜 braised** | **燜 braised share** | **田+菌 share** | REGISTER CHANGED |
+**軟's register change is also resolved**, in production: it was specified as
+燜 braised (a METHOD) and shipped as 田+菌 (a DOMAIN), silently, with the name
+staying the same on both sides so nothing looked wrong. It now runs on 蒸,
+extracted into `skinOf()` and pinned by `tests/creatureForm.test.ts` so this
+class of drift cannot recur unnoticed.
 
-Two real divergences fall out of that table:
+**糙's DRAWING is also resolved**, same day, different bug: production's
+craters had no contrast against the body and were shaped as two clustered
+dot-pairs (a design that also directly contradicted the framework's own
+drawing rule — "dark pits, not pale specks"). Replaced with a direct port of
+the owner's own traced reference (其七 in `mokling-lab-v7-vocabulary.js`) —
+one dark fill, no highlight, distributed across most of the body rather than
+two corners. `SKIN_ROUGH` is now a single crater colour; the old two-tone
+pair is deleted, not kept as commented-out history.
 
-1. **軟 changed register during the port, and nothing records the decision.**
-   Both spec sources key it to 燜 braised — a METHOD. Production keys it to
-   field + fungus — a DOMAIN. Same name, two different meanings. Two
-   consequences: 燜's specified skin does not exist anywhere, and the skin
-   that 田/菌 actually grows has no spec basis at all. This is the single
-   largest spec-to-production gap found so far, and it is invisible from
-   either side alone — the name matches, so nothing looks wrong.
-
-2. **糙 lost its 烤 half.** Both spec sources say 烤/炸; production ships 炸
-   only. This **corrects commit b9872e7**, which claimed adding 烤 to
-   `isRough` "changes what 糙 MEANS": it does not — it restores the specified
-   meaning. The caution was right, the reasoning was wrong.
-
-Also flagged: production's 糙 comment states the detector is "keyed to 根/榖
-in the agreed map." No agreed map in this document says that. The only 膚 spec
-row says 烤/炸, and 榖 appears solely as an OPEN question (is it skin texture
-or anatomy?). The comment promotes an open question to a settled decision —
-the same class of error as an undated status note.
-
-**Resolutions for 烤, all owner calls, none to be taken in code unilaterally:**
-(a) status quo — temperament-only, the only method of six that says nothing;
-(b) restore the spec — 烤 joins 炸 in `isRough`, one line, and per the table
-above this is a RESTORATION not a redefinition, though it inherits 糙's
-unresolved 根/榖 confusion; (c) a genuinely new 烤-dominant skin, honoring
-"a skin of its own" literally, but walking straight back into the fur
-collision that killed sear marks; (d) **give 烤 a SHAPE channel instead of a
-skin** — the register 燜 (sag) and 焗 (dome) already use successfully on every
+**Still open, and NOT settled by any of the above:** whether 烤 shares 糙's
+skin. The framework's own 膚 spec row and the lab's VOCAB card both say
+烤/炸 together; production has only ever wired 炸. Options, all owner calls:
+(a) status quo — 烤 stays temperament-only, the one method of six that says
+nothing; (b) restore the spec — add 烤 to `isRough`, one line, and per the
+sources above this is a RESTORATION, not a redefinition; (c) a genuinely new
+烤-dominant skin, honoring "a skin of its own" literally, but walking back
+into the fur collision that killed sear marks; (d) **give 烤 a SHAPE channel
+instead of a skin** — the register 燜 (sag) and 焗 (dome) already use successfully on every
 body type. Grilled food contracts and tightens, so a taut drawn-in silhouette
 is the natural opposite of 燜's sag, it is honest to the food, and it cannot
 fight fur because shape lives underneath the coat rather than on it. (d)
@@ -243,9 +233,11 @@ one to design LAST despite being the original question — it is the hardest,
 because it has to differ from both 炸's crust and 焗's dry surface, and
 because the owner has already killed one attempt at it (stripes).
 
-`糙 rough` ships but its detector is **PROVISIONAL**: the agreed map keys it to
-根/榖, which has no domain, so it rides 炸 to stay reviewable. Flagged in the
-code, not hidden. It resolves when the 榖 open question below is answered.
+`糙 rough`'s detector is 炸 only — no "agreed map" keying it to 根/榖 ever
+existed in this document; that claim was a stale code comment, corrected
+2026-08-05 along with the drawing itself (see "膚 had two owners" above).
+Whether 烤 joins it is the one still-open item there; 根/榖 is a separate,
+still-open question about 田's base ingredients, not 糙's detector.
 
 ### 姿 · 銘 · 面
 
