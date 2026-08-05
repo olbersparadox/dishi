@@ -180,7 +180,7 @@ export function domainShares(domains: DomainEvidence): DomainShares {
   };
 }
 
-export type SkinType = 'shell' | 'soft' | 'smooth' | 'rough' | 'glazed' | 'golden' | 'charred' | 'hairy' | 'none';
+export type SkinType = 'soft' | 'smooth' | 'rough' | 'glazed' | 'golden' | 'charred' | 'none';
 
 /**
  * Which surface the being wears. EXTRACTED from the render loop so it can be
@@ -210,19 +210,41 @@ export type SkinType = 'shell' | 'soft' | 'smooth' | 'rough' | 'glazed' | 'golde
  * evidence normalises to m.steamed = 1 and draws a full skin. Fix the skins
  * together, with the owner — not piecemeal.
  */
-export function skinOf(domains: DomainEvidence, sh: DomainShares, m: MethodShares): SkinType {
-  const ev = (k: (typeof DOMAIN_KEYS)[number]) => Math.max(0, domains[k] ?? 0);
-  const absF = (evd: number, min = 5, span = 7) => smooth01((evd - min) / span);
-
-  if (sh.c > 0.3 && absF(ev('shell'), 3, 5) > 0.4) return 'shell';
+export function skinOf(m: MethodShares): SkinType {
   if (m.steamed > 0.5) return 'soft';       // 軟 ← 蒸
   if (m.raw > 0.5) return 'smooth';         // 滑 ← 生
   if (m.fried > 0.5) return 'rough';        // 糙 ← 炸
   if (m.braised > 0.5) return 'glazed';     // 釉 ← 燜
   if (m.baked > 0.5) return 'golden';       // 金 ← 焗
   if (m.grilled > 0.5) return 'charred';    // 烙 ← 烤
-  if (sh.l + sh.a > 0.45 && absF(ev('land') + ev('air'), 6, 9) > 0.4) return 'hairy';
   return 'none';
+}
+
+/**
+ * 骨 OVERLAYS — body parts the animal GREW, read from what was EATEN.
+ *
+ * Deliberately a separate function from skinOf, and deliberately returning
+ * FLAGS rather than a winner: 膚 is one slot with one occupant, but 骨 parts
+ * are not skins and do not compete with them. A steamed crab is soft AND
+ * armoured; a grilled land eater is char-branded AND furred. That composition
+ * is the whole point of the 2026-08-05 rearrangement.
+ *
+ * Both can also fire at once (shell needs >0.30 share, fur >0.45, and those
+ * sum under 1), so a shell-and-land eater wears plates and a coat. Honest, and
+ * rare enough to be a feature rather than a mess.
+ *
+ * Gates are unchanged from when these lived in the precedence chain — share
+ * AND an absolute evidence floor, both, always.
+ */
+export type BoneOverlay = { shell: boolean; fur: boolean };
+
+export function boneOverlay(domains: DomainEvidence, sh: DomainShares): BoneOverlay {
+  const ev = (k: (typeof DOMAIN_KEYS)[number]) => Math.max(0, domains[k] ?? 0);
+  const absF = (evd: number, min = 5, span = 7) => smooth01((evd - min) / span);
+  return {
+    shell: sh.c > 0.3 && absF(ev('shell'), 3, 5) > 0.4,
+    fur: sh.l + sh.a > 0.45 && absF(ev('land') + ev('air'), 6, 9) > 0.4,
+  };
 }
 
 /* ── 膚 skin palettes — three flat tones each, cut-paper ink, NO gradients
@@ -571,15 +593,19 @@ export function drawCreatureFrame(
   // ── skin type: ONE source of truth, `skinOf` above, which carries the
   // rearrangement's rationale and is unit-tested. Never re-derive the
   // conditions here — a second copy is exactly how 軟 drifted last time.
-  const skin = skinOf(domains, { s, l, a, c, f, fg, ag }, m);
-  const isShell = skin === 'shell';
+  // TWO REGISTERS, resolved independently — 膚 from how it was cooked, 骨 from
+  // what was eaten. skinOf cannot even see `domains` any more, which is what
+  // stops 膚 quietly re-acquiring a domain dependency the way 軟 once did.
+  const skin = skinOf(m);
+  const bone = boneOverlay(domains, { s, l, a, c, f, fg, ag });
+  const isShell = bone.shell;
   const isSoft = skin === 'soft';
   const isSmooth = skin === 'smooth';
   const isRough = skin === 'rough';
   const isGlazed = skin === 'glazed';
   const isGolden = skin === 'golden';
   const isCharred = skin === 'charred';
-  const isHairy = skin === 'hairy';
+  const isHairy = bone.fur;
   const SKIN = (s + c + ag) >= (l + a + f + fg) ? SKIN_SMOOTH_SEA : SKIN_SMOOTH_LAND;
 
   // 軟 SOFT goes down first — halo, membrane, core all behind every appendage,
@@ -732,7 +758,13 @@ export function drawCreatureFrame(
   if (clawF > 0.12) {
     const mix = subMix(domains.sub?.shell, ['lobster', 'crab', 'prawn']);
     const species: ClawSpecies = mix.crab >= mix.lobster ? 'crab' : 'lobster';
-    const clawInk = isSmooth ? SKIN.base : 'rgba(33,29,24,.93)';
+    /* One ink for every body. The old `isSmooth ? SKIN.base : ...` existed
+       because 滑's body was lighter back then and a dark claw looked stuck on
+       — but that was tuned against ONE skin and never revisited as five more
+       arrived, so it quietly meant "match 滑, ignore 軟/糙/釉/金/烙". Deleted
+       at the owner's call: 骨 parts wear neutral ink and never chase 膚's
+       colour. One rule beats six special cases. */
+    const clawInk = 'rgba(33,29,24,.93)';
     // Once earned, a claw reads as a claw: the ramp spans 0.5→1.0 rather than
     // 0→1, so the youngest claw the gates allow is still half-size and visibly
     // a pincer, and growth after that is legible rather than a slow fade-in
@@ -953,6 +985,64 @@ export function drawCreatureFrame(
     }
     ctx.restore();
   }
+  /* 糙 ROUGH — the owner's spec (2026-08-05), verbatim:
+       · one dot = one GREY circle overlapping a BLACK circle
+       · 4 dots anchored at the upper right of the body
+       · 3 dots anchored at the lower left
+       · none of them touching the rim
+     Anchored to the DRAWN silhouette (bodyBox), and each dot is pulled back
+     along its own ray until the whole pair clears the outline — so "not
+     touching the rim" holds on a lobed body, not just a round one. */
+  if (isRough) {
+    const bb = bodyBox(pts);
+    // Distance from the drawn centre to the rim along one direction.
+    const rimAt = (ang: number) => {
+      let best = bb.hr, near = Infinity;
+      for (const p of pts) {
+        const pa = Math.atan2(p.y - bb.cy, p.x - bb.cx);
+        const d = Math.abs(Math.atan2(Math.sin(pa - ang), Math.cos(pa - ang)));
+        if (d < near) { near = d; best = Math.hypot(p.x - bb.cx, p.y - bb.cy); }
+      }
+      return best;
+    };
+    const DOTS: [number, number, number][] = [
+      // upper-right cluster (4). The first was the only one at full scale;
+      // owner shrank it 20% (1 → 0.80), so the cluster now has no dominant dot.
+      [0.44, -0.58, 0.80], [0.67, -0.42, 0.86],
+      [0.42, -0.30, 0.92], [0.68, -0.18, 0.84],
+      // lower-left cluster (3). All three shrunk 15% together (owner) so the
+      // lower half reads lighter than the upper; then its largest took a
+      // further 15% (0.80 → 0.68), leaving no dominant dot in either cluster.
+      [-0.65, 0.46, 0.68], [-0.48, 0.32, 0.73],
+      [-0.49, 0.60, 0.75],
+    ];
+    const R0 = bb.hr * 0.105;
+    ctx.save();
+    ctx.beginPath(); closedPath(ctx, pts); ctx.clip();
+    for (const [u, v, sc] of DOTS) {
+      const r = R0 * sc;
+      let x = bb.cx + u * bb.hr, y = bb.cy + v * bb.vr;
+      const ang = Math.atan2(y - bb.cy, x - bb.cx);
+      const dist = Math.hypot(x - bb.cx, y - bb.cy);
+      // 1.35r covers the pair's own offset as well as the circle itself
+      const max = rimAt(ang) - r * 1.35;
+      if (dist > max && dist > 0) {
+        const k = max / dist;
+        x = bb.cx + (x - bb.cx) * k;
+        y = bb.cy + (y - bb.cy) * k;
+      }
+      ctx.fillStyle = SKIN_ROUGH.black;
+      ctx.beginPath(); ctx.arc(x + r * 0.13, y + r * 0.11, r, 0, TAU); ctx.fill();
+      ctx.fillStyle = SKIN_ROUGH.grey;
+      ctx.beginPath(); ctx.arc(x - r * 0.13, y - r * 0.11, r, 0, TAU); ctx.fill();
+    }
+    ctx.restore();
+  }
+  /* ── 骨 OVERLAYS — drawn LAST, on top of whichever 膚 skin is present.
+     Order matters now in a way it never used to: while 甲/毛 were part of the
+     skin precedence chain they were mutually exclusive with 糙, so nothing
+     could overlap. As independent layers they can co-occur, so plates and
+     coat go over the surface texture rather than under it. */
   // 甲 SHELL — stacked "M" plates, each a LIGHT edge over a DARK gap line; the
   // pair is what sells armour (either line alone reads as a scratch). Flat
   // treads, not a zigzag — the flats are what make it a plate edge.
@@ -1036,59 +1126,6 @@ export function drawCreatureFrame(
       ctx.moveTo(px - nx * R * 0.02, py - ny * R * 0.02); // rooted just inside the rim
       ctx.lineTo(px + (nx * ca - ny * sa2) * L, py + (ny * ca + nx * sa2) * L);
       ctx.stroke();
-    }
-    ctx.restore();
-  }
-  /* 糙 ROUGH — the owner's spec (2026-08-05), verbatim:
-       · one dot = one GREY circle overlapping a BLACK circle
-       · 4 dots anchored at the upper right of the body
-       · 3 dots anchored at the lower left
-       · none of them touching the rim
-     Anchored to the DRAWN silhouette (bodyBox), and each dot is pulled back
-     along its own ray until the whole pair clears the outline — so "not
-     touching the rim" holds on a lobed body, not just a round one. */
-  if (isRough) {
-    const bb = bodyBox(pts);
-    // Distance from the drawn centre to the rim along one direction.
-    const rimAt = (ang: number) => {
-      let best = bb.hr, near = Infinity;
-      for (const p of pts) {
-        const pa = Math.atan2(p.y - bb.cy, p.x - bb.cx);
-        const d = Math.abs(Math.atan2(Math.sin(pa - ang), Math.cos(pa - ang)));
-        if (d < near) { near = d; best = Math.hypot(p.x - bb.cx, p.y - bb.cy); }
-      }
-      return best;
-    };
-    const DOTS: [number, number, number][] = [
-      // upper-right cluster (4). The first was the only one at full scale;
-      // owner shrank it 20% (1 → 0.80), so the cluster now has no dominant dot.
-      [0.44, -0.58, 0.80], [0.67, -0.42, 0.86],
-      [0.42, -0.30, 0.92], [0.68, -0.18, 0.84],
-      // lower-left cluster (3). All three shrunk 15% together (owner) so the
-      // lower half reads lighter than the upper; then its largest took a
-      // further 15% (0.80 → 0.68), leaving no dominant dot in either cluster.
-      [-0.65, 0.46, 0.68], [-0.48, 0.32, 0.73],
-      [-0.49, 0.60, 0.75],
-    ];
-    const R0 = bb.hr * 0.105;
-    ctx.save();
-    ctx.beginPath(); closedPath(ctx, pts); ctx.clip();
-    for (const [u, v, sc] of DOTS) {
-      const r = R0 * sc;
-      let x = bb.cx + u * bb.hr, y = bb.cy + v * bb.vr;
-      const ang = Math.atan2(y - bb.cy, x - bb.cx);
-      const dist = Math.hypot(x - bb.cx, y - bb.cy);
-      // 1.35r covers the pair's own offset as well as the circle itself
-      const max = rimAt(ang) - r * 1.35;
-      if (dist > max && dist > 0) {
-        const k = max / dist;
-        x = bb.cx + (x - bb.cx) * k;
-        y = bb.cy + (y - bb.cy) * k;
-      }
-      ctx.fillStyle = SKIN_ROUGH.black;
-      ctx.beginPath(); ctx.arc(x + r * 0.13, y + r * 0.11, r, 0, TAU); ctx.fill();
-      ctx.fillStyle = SKIN_ROUGH.grey;
-      ctx.beginPath(); ctx.arc(x - r * 0.13, y - r * 0.11, r, 0, TAU); ctx.fill();
     }
     ctx.restore();
   }

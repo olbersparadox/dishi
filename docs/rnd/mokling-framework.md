@@ -81,11 +81,22 @@ the distinction that matters is what it would take to finish:
 
 ### 膚 (the ONE 膚 section — no other passage in this file carries 膚 status)
 
-**膚 is METHOD-ONLY** (owner, 2026-08-05): one skin per cooking method, six
-total. 甲 shell and 毛 hairy are 骨 body parts, not skins; they leave the
-precedence chain once their 骨 overlay exists (until then 甲 still outranks
-method — a steamed crab reads armoured). Registers compose: steamed AND
-armoured, soft AND furred.
+**膚 is METHOD-ONLY** (owner, 2026-08-05; completed 2026-08-06). One skin per
+cooking method, six total. 甲 shell and 毛 hairy are 骨 body parts, not skins —
+they have **LEFT the precedence chain entirely** and are now independent
+overlays (`boneOverlay()`), drawn on top of whichever method skin is present.
+Registers compose for real now: a steamed crab is soft AND armoured, a grilled
+land eater char-branded AND furred.
+
+`skinOf()` takes only `MethodShares` — it can no longer SEE domain evidence,
+which is what structurally prevents 膚 from quietly re-acquiring a domain
+dependency the way 軟 once did. That is the guarantee, not the comment above
+it.
+
+Draw order matters now in a way it did not before: while 甲/毛 sat in the skin
+chain they were mutually exclusive with 糙, so nothing could overlap. As
+independent layers they co-occur, so all four 膚 marks are drawn first and the
+骨 overlays go on top.
 
 | method | skin | status |
 |---|---|---|

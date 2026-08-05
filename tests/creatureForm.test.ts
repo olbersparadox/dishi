@@ -4,7 +4,7 @@
 // gates are where honesty lives, and honesty is testable.
 import { describe, it, expect } from 'vitest';
 import {
-  hasAnatomy, temperOf, hairWindBend, hairMetrics, out, skinOf, domainShares, bodyBox,
+  hasAnatomy, temperOf, hairWindBend, hairMetrics, out, skinOf, boneOverlay, domainShares, bodyBox,
   creatureSnapshotSvg,
 } from '../src/lib/creatureForm';
 import type { DomainEvidence, SkinType } from '../src/lib/creatureForm';
@@ -12,14 +12,17 @@ import type { FormInputs } from '../src/lib/blobForm';
 
 const TAU = Math.PI * 2;
 
-/** Resolve a skin the way the renderer does: real shares, real method mix. */
-const skin = (domains: DomainEvidence, methodDim?: string): SkinType => {
+/** Resolve a skin the way the renderer does — from the METHOD mix alone. */
+const skin = (methodDim?: string): SkinType => {
   const vector: Record<string, number> = { umami: 0.4 };
   const evidence: Record<string, number> = { umami: 20 };
   if (methodDim) { vector[methodDim] = 0.9; evidence[methodDim] = 20; }
   const t = temperOf({ vector, evidence, ratingCount: 45, seed: 's:v1' });
-  return skinOf(domains, domainShares(domains), t.m);
+  return skinOf(t.m);
 };
+
+/** 骨 overlays, resolved from domain evidence the way the renderer does. */
+const bone = (domains: DomainEvidence) => boneOverlay(domains, domainShares(domains));
 
 const inputs = (vector: Record<string, number>, evidence: Record<string, number>): FormInputs =>
   ({ vector, evidence, ratingCount: 30, seed: 't:v1' });
@@ -146,31 +149,30 @@ describe('skinOf — 膚 is METHOD-driven (the rearrangement, owner 2026-08-05)'
   const THIN: DomainEvidence = { sea: 2 }; // passes hasAnatomy, grows nothing
 
   it('軟 SOFT belongs to 蒸 steamed — NOT to the 田+菌 domain', () => {
-    expect(skin(THIN, 'steamed')).toBe('soft');
-    // The old wiring: a vegetable+mushroom eater used to get 軟 for free.
-    // Under the rearrangement their skin comes from how they COOK.
-    expect(skin({ field: 14, fungus: 8 })).not.toBe('soft');
+    expect(skin('steamed')).toBe('soft');
+    // The old wiring: a vegetable+mushroom eater got 軟 for free from their
+    // DIET. skinOf can no longer see domains at all, so that cannot recur.
   });
 
   it('滑 SMOOTH is 生 raw alone now — 蒸 must not also trip it', () => {
-    expect(skin(THIN, 'raw')).toBe('smooth');
-    expect(skin(THIN, 'steamed')).not.toBe('smooth');
+    expect(skin('raw')).toBe('smooth');
+    expect(skin('steamed')).not.toBe('smooth');
   });
 
   it('糙 ROUGH belongs to 炸 fried', () => {
-    expect(skin(THIN, 'fried')).toBe('rough');
+    expect(skin('fried')).toBe('rough');
   });
 
   it('釉 GLAZE belongs to 燜 braised', () => {
-    expect(skin(THIN, 'braised')).toBe('glazed');
+    expect(skin('braised')).toBe('glazed');
   });
 
   it('金 GOLD belongs to 焗 baked', () => {
-    expect(skin(THIN, 'baked')).toBe('golden');
+    expect(skin('baked')).toBe('golden');
   });
 
   it('烙 CHARRED belongs to 烤 grilled', () => {
-    expect(skin(THIN, 'grilled')).toBe('charred');
+    expect(skin('grilled')).toBe('charred');
   });
 
   it('method skins are mutually exclusive by construction, not by luck', () => {
@@ -182,22 +184,39 @@ describe('skinOf — 膚 is METHOD-driven (the rearrangement, owner 2026-08-05)'
     });
     expect(t.m.steamed).toBeCloseTo(0.5, 6);
     expect(t.m.raw).toBeCloseTo(0.5, 6);
-    expect(skinOf(THIN, domainShares(THIN), t.m)).toBe('none');
+    expect(skinOf(t.m)).toBe('none');
   });
 
-  it('甲 and 毛 still outrank method — sequenced, not yet moved to 骨', () => {
-    // Deliberate interim state: pulling them before the 骨 overlay exists
-    // would strip shell and land eaters of their identity with nothing put
-    // back. When that overlay ships, these two expectations flip.
-    expect(skin({ shell: 20 }, 'steamed')).toBe('shell');
-    expect(skin({ land: 20 })).toBe('hairy');
-    // ...but a land eater who cooks wet still shows the METHOD, because 毛
-    // sits below the method skins in the chain.
-    expect(skin({ land: 20 }, 'steamed')).toBe('soft');
+  it('膚 and 骨 COMPOSE — a steamed crab is soft AND armoured', () => {
+    // The whole point of the rearrangement. Under the old precedence chain
+    // shell took the one slot and the cooking method left no trace at all.
+    expect(skin('steamed')).toBe('soft');
+    expect(bone({ shell: 20 }).shell).toBe(true);
+    // ...and a grilled land eater is char-branded AND furred.
+    expect(skin('grilled')).toBe('charred');
+    expect(bone({ land: 20 }).fur).toBe(true);
+  });
+
+  it('骨 flags are independent of each other and of method', () => {
+    // shell needs >0.30 share, fur >0.45 — those sum under 1, so a
+    // shell-and-land eater legitimately wears both.
+    const both = bone({ shell: 20, land: 26 });
+    expect(both.shell).toBe(true);
+    expect(both.fur).toBe(true);
+    // and a thin domain record grows neither, whatever the method says
+    expect(bone({ sea: 2 })).toEqual({ shell: false, fur: false });
+  });
+
+  it('甲 and 毛 have LEFT 膚 — they no longer outrank or block a method skin', () => {
+    // The rearrangement, now structural rather than sequenced. Before this,
+    // shell won the slot outright and a steamed crab read armoured with no
+    // trace of how it was cooked.
+    expect(skin('steamed')).toBe('soft');          // domains cannot interfere
+    expect(bone({ shell: 20 }).shell).toBe(true);  // ...and the shell is still there
   });
 
   it('no domain and no method preference is bare — nothing is invented', () => {
-    expect(skin(THIN)).toBe('none');
+    expect(skin()).toBe('none');
   });
 });
 
