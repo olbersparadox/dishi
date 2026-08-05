@@ -91,7 +91,35 @@ All five SKIN TYPES shipped. The gap is in the method-surface list beside them:
 | 生 translucent wash | raw | **SHIPPED** |
 | 燜 heavy sag | braised | **SHIPPED** |
 | 焗 risen dome | baked | **SHIPPED** |
-| 烤 sear marks | grilled | **PORT-GAP** — specified as built in lab v6, absent in production. `m.grilled` feeds temperament ONLY; it is the one method dim of six with no visible surface. |
+| 烤 sear marks | grilled | **KILLED** (owner, confirmed in the lab BEFORE the v6 port — this row said PORT-GAP for a few hours on 2026-08-05, and that was wrong; see below) |
+
+**The 烤 correction, and what it proves about ledger method.** The PORT-GAP
+status was authored from this document's own stale prose ("烤 sear marks …
+built, lab v6" in the Four Registers table) — exactly the author-from-prose
+failure this Ledger's header warns against. The artifact itself carries the
+truth, in the lab body's own comment, owner-confirmed:
+
+> 烤 sear marks REMOVED entirely (owner, confirmed). They were a leftover
+> method-driven mark painting across skins that are now domain-driven — pale
+> stripes over fur read as neither grill nor coat. If 烤 needs to say
+> something later it will be a skin of its own, not an overlay on someone
+> else's.
+
+So the v6 port was FAITHFUL and complete (all five skins + all eight
+appendage/surface blocks verified present in production, 2026-08-05); 烤 is
+the one method dim of six with no visible surface **by owner decision**, with
+its energy contribution to 姿 temperament as its only expression. Do not
+reinstate stripes as an overlay.
+
+The recorded future direction ("a skin of its own") has a wrinkle worth
+flagging when it comes up: the lab's own VOCAB card 糙 `rough · seared` names
+its detector as **烤/炸 share**, while production's shipped 糙 detector rides
+炸 only and its comment keys the concept to 根/榖 (the open 榖 question).
+Three candidate resolutions, all owner calls, none to be made in code
+unilaterally: (a) status quo — 烤 stays temperament-only; (b) 烤 joins 炸 in
+feeding the existing 糙 rough skin, per the lab VOCAB card — one line, but it
+changes what 糙 MEANS and collides with the 榖 question; (c) a genuinely new
+烤-dominant skin — a design session, honoring "a skin of its own" literally.
 
 `糙 rough` ships but its detector is **PROVISIONAL**: the agreed map keys it to
 根/榖, which has no domain, so it rides 炸 to stay reviewable. Flagged in the
@@ -232,7 +260,7 @@ Registers are independent — that is what makes the output space multiply
 | register | fed by | tempo | expresses as |
 |---|---|---|---|
 | 骨 body plan | ingredient DOMAIN shares (sea / land / air / field / 菌 / 藻) | slow, reversible over seasons | silhouette family + appendage grammar: tendrils, leg-nubs, wing fans, fronds, caps, ribbons — **built, lab v3–v6** |
-| 膚 skin & edge | method dims (already learned: 炸烤燜蒸生焗) | medium | edge/surface treatment: 炸 crusted granular rim, 蒸 wet sheen, 烤 sear marks, 燜 heavy sag, 生 translucent wash, 焗 risen dome — **built, lab v6** |
+| 膚 skin & edge | method dims (already learned: 炸烤燜蒸生焗) | medium | edge/surface treatment: 炸 crusted granular rim, 蒸 wet sheen, 燜 heavy sag, 生 translucent wash, 焗 risen dome — **built, lab v6**. (烤 sear marks were in this list, then REMOVED by the owner in the lab — this stale mention misled the Ledger for a few hours; see the Ledger's 膚 section for the verbatim decision) |
 | 姿 motion & temperament | flavor + method dims (辣甜酸苦鮮鹹 / 濃清) | medium | motion signature AND static posture: 辣+炸烤 → jagged edge, forward lean, quick darts; 蒸生+清 → smoothed contour, upright, slow drift; 燜+濃 → low centre of mass, heavy settle; 甜 → round springy profile — **built, lab v6** |
 | 脊 spine | vertebrate share of the diet | slow | a dorsal ridge (lit crest + shadow) on vertebrate-fed bodies; crab and mushroom eaters have none — **built, lab v6** |
 | 銘 DNA | the full 18-dim vector + evidence + domain record | exact, always current | the written logogram: outward strokes = love, inward = dislike, stroke count = evidence, silence = fog — **shipped 2026-08-05, merged into the radar as one figure** (see ship path 4) |
@@ -804,3 +832,9 @@ See BACKLOG "Data audit" item — the audit runs before any phase-1 code.
   changed eating visibly transforms, but one week of travel food does not).
 - Does the creature ever appear to OTHER users outside an explicit share
   (e.g. beside a 貼文)? Default no until decided.
+- Where does 烤 live visually, if anywhere? The owner killed sear marks in the
+  lab ("a skin of its own, not an overlay on someone else's") and today 烤
+  feeds temperament only. Options recorded in the Ledger's 膚 section:
+  (a) stay temperament-only; (b) join 炸 in the 糙 rough detector, per the
+  lab VOCAB card — entangled with the 榖 question above; (c) design a new
+  烤-dominant skin. No code until called.
