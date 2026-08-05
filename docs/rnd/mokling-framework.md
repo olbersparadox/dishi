@@ -15,6 +15,160 @@ Prototype evidence: docs/rnd/mokling-lab-v1.html (kept v1) and the artifact
 Research annex inside the lab: generative-identity art, growth algorithms,
 digital-lifeform psychology.
 
+## Ledger — what exists and what does not (authoritative, 2026-08-05)
+
+**Read this table before answering "is X built?" — never answer from the
+prose below, and never from a grep of one file.** This section exists because
+that failure actually happened: asked whether tails and fins were in the
+framework, a grep of `creatureForm.ts` alone returned nothing and the answer
+came back "not in the framework at all — deliberately." Both halves were
+wrong. They are specified here AND were built in lab v7; what is true is only
+that they were never ported. Status used to live as inline prose scattered
+across 600 lines of this document plus BACKLOG plus DECISIONS plus the code,
+so "what is built" could not be checked, only remembered. A ledger is the fix;
+memory is not.
+
+**Keep it current in the same commit that changes a status.** A stale ledger
+is worse than none, because it will be trusted.
+
+Status vocabulary, chosen so each word names a different KIND of not-done —
+the distinction that matters is what it would take to finish:
+
+| status | meaning |
+|---|---|
+| **SHIPPED** | renders in production today |
+| **PORT-GAP** | built in lab v6, silently dropped when v6 was ported — spec and lab code both exist |
+| **LAB-ONLY** | built in lab v7, never ported. Code exists ONLY in the external artifact, **not in this repo** |
+| **READY** | gesture unbuilt, but the detector data already exists today |
+| **NEEDS-DETECTOR** | needs a new sub-node aggregate before any gesture is honest |
+| **DEFERRED** | deliberately unbuilt; detector already specified |
+| **KILLED** | deliberately removed — do not restore |
+| **DORMANT** | in the tree by design, no data will exist for a long time |
+| **POOL** | no detector, no gate — waiting |
+
+### 骨 appendages
+
+| gesture | variants | status | unblocked by |
+|---|---|---|---|
+| 觸 tendrils | generic | **SHIPPED** | — |
+| 螯 claws | 蟹 · 龍蝦 | **SHIPPED** (`creatureGestures.ts`) | — |
+| 足 legs | 牛 · 豬 · 雞 | **SHIPPED** (`drawLeg`) | — |
+| 翼 wings | generic fan | **SHIPPED** | — |
+| 葉 fronds | generic | **SHIPPED** | — |
+| 藻 ribbons | generic | **SHIPPED** | — |
+| 菌 caps | generic | **SHIPPED** | — |
+| 螯 pincers | 蝦 prawn | **READY** | detector exists (`SHELL_SUB.prawn`); only the gesture is missing |
+| 角 horns | 牛 · 脂 · 罪 | **LAB-ONLY** | 牛 READY (`LAND_SUB`), 脂 READY (`heaviness`), 罪 needs a time-of-day read |
+| 耳 ears | 豬 · 牛 · 羊 | **LAB-ONLY** | 豬/牛 READY (`LAND_SUB`); 羊 needs `lamb` added to the land sub bag |
+| 尾 tails | 魚 · 甲殼 · 牛 · 豬 · 禽 | **LAB-ONLY** | 甲殼/牛/豬 READY; 魚 and 禽 need their sub-nodes |
+| 翼 wings | 雞 · 鴨 · 鵝 | **LAB-ONLY** | 羽 sub-node — **the diet flags already distinguish `duck_goose` from `chicken`** |
+| 足 webbed | 鴨 | **LAB-ONLY** | same 羽 sub-node |
+| 鰭 fins | 尖 · 圓 · 帶 | **LAB-ONLY** | 魚 sub-node × method |
+| 觸 tentacles | 八爪 · 魷 · 水母 | **LAB-ONLY** | 軟體 sub-node (ingredient words — the pattern 藻 already uses) |
+| 葉 plant parts | 闊葉 · 針葉 · 根 | **LAB-ONLY** | 田 sub-node (豆 is free from the `soy` flag; 葉/根 need words) |
+| 脊 spine | dorsal ridge | **KILLED** | drawing rule 10 — tried three ways, all read as a seam |
+| 蟲 antennae · carapace | — | **DORMANT** | no HK data until insect dishes actually appear |
+| whiskers · plated armour | — | **POOL** | no detector |
+
+### 膚 skin and method surface
+
+All five SKIN TYPES shipped. The gap is in the method-surface list beside them:
+
+| treatment | fed by | status |
+|---|---|---|
+| 毛 hairy · 滑 smooth · 糙 rough · 甲 plated · 軟 sagging | domain + method | **SHIPPED** (all five) |
+| 炸 crusted rim | fried | **SHIPPED** |
+| 蒸 wet sheen | steamed | **SHIPPED** |
+| 生 translucent wash | raw | **SHIPPED** |
+| 燜 heavy sag | braised | **SHIPPED** |
+| 焗 risen dome | baked | **SHIPPED** |
+| 烤 sear marks | grilled | **PORT-GAP** — specified as built in lab v6, absent in production. `m.grilled` feeds temperament ONLY; it is the one method dim of six with no visible surface. |
+
+`糙 rough` ships but its detector is **PROVISIONAL**: the agreed map keys it to
+根/榖, which has no domain, so it rides 炸 to stay reviewable. Flagged in the
+code, not hidden. It resolves when the 榖 open question below is answered.
+
+### 姿 · 銘 · 面
+
+| feature | status |
+|---|---|
+| 姿 temperament + static posture | **SHIPPED** |
+| 銘 logogram (replaced the radar) | **SHIPPED** 2026-08-05 |
+| 眼 eyes ← BREADTH (~14/18 dims at KNOWS_AT) | **DEFERRED** — detector specified, data already exists |
+| 口 mouth ← CONVICTION | **DEFERRED** — detector specified, data already exists |
+
+Eyes and mouth are the one area where "not built" is fully intentional and
+fully designed: both detectors are named, both read data that exists today,
+and the rule (either, not both) is settled. They are waiting on the owner's
+call about WHEN, not on any engineering.
+
+### Metabolism — the feature lifecycle
+
+Specified as 萌 bud → 成 formed → 精 articulated → 萎 atrophy → 蛻 shed.
+Only the first half exists:
+
+| stage | status |
+|---|---|
+| 萌 bud · 成 formed | **SHIPPED** (the share + floor gates) |
+| 精 articulated | **PARTIAL** — claws have their own idle gesture; no general articulation stage |
+| 萎 atrophy | **NOT BUILT** — `domainEvidence.ts` is deliberately a pure function of history with NO wall-clock decay |
+| 蛻 shed | **NOT BUILT** |
+| 圖鑑 molt archive | **NOT BUILT** — this is what makes the being a biography rather than a snapshot |
+| evidence half-life | **UNTUNED** — open question; proposal ~3–4 months |
+
+This is the largest conceptual gap in the whole framework. "Nothing is set in
+stone" is the owner's central metabolism direction, and today the body can only
+grow — it never atrophies or sheds. A being that only accumulates is not the
+present-tense body the design calls for.
+
+### Surfaces and ceremonies
+
+| surface | status |
+|---|---|
+| creature on Taste tab · public dossier · growth screen | **SHIPPED** (`953abcd`) |
+| share image (creature + 銘 side by side) | **NOT BUILT** |
+| version cards · export header | **NOT BUILT** |
+| rating-moment absorb beat | **NOT BUILT** (ship path 5) |
+| 對決 split animation | **NOT BUILT** — ranked #3 in the attachment loop |
+| ceremonial metamorphosis (Fibonacci gates) | **NOT BUILT** |
+| 相見 two beings meet | **NOT BUILT** |
+| absence-forgiveness (settled/paler, rehydrates) | **NOT BUILT** |
+| earned rare traits | **NOT BUILT** |
+
+### Detector layer — what unblocks what
+
+The single highest-leverage table here: most LAB-ONLY gestures are NOT blocked
+by missing data. They are blocked by sub-node aggregation that in several cases
+is nearly free, because the flag or parse already exists and is simply not
+recorded per user.
+
+| sub-node | exists today? | unblocks |
+|---|---|---|
+| shell: lobster · crab · prawn | **YES** (`SHELL_SUB`) | claws ✓, prawn pincers, 甲殼 tail |
+| land: beef · pork · chicken | **YES** (`LAND_SUB`) | legs ✓, 牛角, 豬/牛耳, 牛/豬 tails |
+| land: lamb | no — the `lamb` flag exists, there is just no sub bag entry | 羊 ears |
+| air: 雞 vs 鴨鵝 | no — **but `FLAG_DOMAINS` already reads `chicken` and `duck_goose` separately** | wing variants, webbed feet, 禽 tail |
+| sea: 魚 fish | no — `dishStructure.PROTEINS` parses `fish`, but it is ephemeral (merge-veto only, never persisted) | fins, 魚 tail |
+| sea: 軟體 mollusc | no — needs ingredient words, exactly the pattern `ALGAE_WORDS` already established | tentacle variants |
+| field: 葉 · 根 · 豆 · 花 | no — 豆 is free from the `soy` flag; 葉/根 need words | plant-part variants |
+| time-of-day | no — dishes carry timestamps, nothing reads the hour | 罪角, the framework's one genuinely new data source |
+| 榖 base | **UNDECIDED** — skin texture or anatomy? | 糙 rough's real detector |
+
+### Two structural risks, named so they stop being invisible
+
+1. **The v7 drawing code exists only in the external artifact.** It is not in
+   this repo — `mokling-lab-v1.html` is v1 and contains none of it. Every
+   LAB-ONLY row above is therefore one lost artifact away from being a rebuild
+   from the spec table alone. Pulling that code into `docs/rnd/` is cheap
+   insurance and should happen before any further porting work.
+2. **Production has no single `out(ang, L)` appendage helper.** The lab's worst
+   bug — wings and tails coded, gated, firing correctly, and drawn INTO the
+   body where the fill buried them — was fixed by routing every appendage
+   through one helper. The port hand-rolls direction per appendage instead, so
+   the bug class is reachable again the moment a new limb is added. The lesson
+   was recorded but not carried: *when a feature is present in the data and
+   absent on screen, suspect the geometry before the gate.*
+
 ## The one law
 
 **Only mouth-data feeds the being.** Every visible feature must trace to
@@ -236,7 +390,14 @@ An "agile aggressive mammal" is exactly this: land body plan (骨) + fried/spicy
 temperament (性) — two independent registers composing, which is why the
 combination space stays huge.
 
-## The full stroke vocabulary (built, lab v7)
+## The full stroke vocabulary (built, lab v7 — NOT ported)
+
+> **Status:** every row below is **LAB-ONLY** unless the Ledger at the top of
+> this document says otherwise. "Built, lab v7" means built in the artifact,
+> not in the repo: the production port took the **v6** body (ship path step 3),
+> so tails, fins, horns, ears, webbed feet and every multi-variant version of
+> wings/tentacles/plant-parts stayed behind. Read the Ledger for the per-row
+> truth and for which of these are detector-blocked versus merely unbuilt.
 
 Owner's expansion, 2026-08-02: "many different tails… fins… wings, chicken,
 duck, goose… horn, beside from cow, could be heaviness, fat, evil food… ears…

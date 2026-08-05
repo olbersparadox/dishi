@@ -18,11 +18,22 @@
 // the seed decides micro-texture only; motion is layered on top of the grown
 // geometry and never changes identity.
 //
-// PRODUCTION STATUS: nothing passes `domains` yet. The per-user domain
-// aggregate (ship path step 2, docs/rnd/mokling-framework.md) does not exist,
-// and inventing a field for it is how the sea_crustacean bug happened. The
-// untracked /dev-creature harness drives this by hand. Before production:
-// the snapshot renderer must learn the same anatomy (two-renderer contract).
+// PRODUCTION STATUS: LIVE since 2026-08-05. `domain_evidence` is passed by
+// TasteFormCard, TasteGrowth and PublicDossier, and the snapshot renderer
+// learned the same anatomy (canvasToSvg.ts), closing the two-renderer
+// contract. This comment asserted "nothing passes domains yet" for a while
+// after that stopped being true — a status note with no date is a trap, so
+// this one carries one. The lesson that earned the original note still holds:
+// a first port invented a `vector.sea_crustacean` field, so the gate was
+// permanently false and the claws never drew. A feature keyed to a field that
+// does not exist is not a shipped feature; rendering it is the evidence.
+//
+// WHAT IS AND IS NOT BUILT lives in ONE place: docs/rnd/mokling-framework.md,
+// section "Ledger — what exists and what does not". Check it before concluding
+// a feature is missing from the framework. 尾 tails, 鰭 fins, 角 horns and
+// 耳 ears are all SPECIFIED there and were BUILT in lab v7 — they are simply
+// not ported into this file. Absence here is not absence from the design, and
+// a grep of this file alone has already produced exactly that wrong answer.
 
 import {
   sampleForm, growth, seededRandom, fogExtent, dimAngle, type FormInputs,
