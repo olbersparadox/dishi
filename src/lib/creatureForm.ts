@@ -240,7 +240,7 @@ const SKIN_SMOOTH_LAND = { base: '#332f2a', mid: '#454039', hi: '#847f76', rim: 
 // 軟 soft: pale halo BEHIND the body, opaque near-black body, darker core.
 // Read off the owner's reference — earlier passes drew the body at 72% alpha,
 // which washed it grey; z-order (body behind limbs) is the fix, not opacity.
-const SKIN_SOFT = { halo: '#cbc8c0', layer: '#332f2b', core: '#221f1a' };
+const SKIN_SOFT = { halo: '#d2cfc7', layer: '#332f2b', core: '#221f1a' };
 // 糙 rough: ONE two-tone dot duplicated and resized — placement is the character.
 const SKIN_ROUGH = { dark: '#1a1714', light: '#4b473f' };
 
