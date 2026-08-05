@@ -242,16 +242,12 @@ const SKIN_SMOOTH_LAND = { base: '#332f2a', mid: '#454039', hi: '#847f76', rim: 
 // which washed it grey; z-order (body behind limbs) is the fix, not opacity.
 const SKIN_SOFT = { halo: '#d2cfc7', layer: '#332f2b', core: '#221f1a' };
 // 糙 rough: ONE two-tone dot duplicated and resized — placement is the character.
-// The owner's own traced value (其七 in mokling-lab-v7-vocabulary.js) —
-// a single near-black at half alpha, no paired highlight. Two prior values
-// are dead history, not tuning steps to preserve: the original #1a1714/#4b473f
-// pair was a dark-ring-under-light-highlight design that directly contradicted
-// the framework's own drawing rule ("dark pits, not pale specks"), and
-// darkening the ring alone to #0d0b09 fixed its contrast but not its shape —
-// seven dots in two corners still read as flecked dust, not a skin, which is
-// why the owner still couldn't see it. This constant is now a single crater
-// colour because the drawing is now a field of craters, not a highlight pair.
-const SKIN_ROUGH = { crater: 'rgba(9,8,7,.5)' };
+// dark was #1a1714 (L23) — only 6 luminance points off the body fill's own
+// darkest gradient stop (#211d18, L29.5), so the ring that is meant to give
+// each speck a defined edge was structurally present but had almost no
+// contrast to read by. #0d0b09 (L11) clears the body's darkest stop by 18
+// points and its lightest by 44, so the pit reads against either.
+const SKIN_ROUGH = { dark: '#0d0b09', light: '#4b473f' };
 
 const INK = ['#3a3733', '#211d18', '#2e2a24'] as const;
 const HILITE = '250,247,241';
@@ -878,35 +874,22 @@ export function drawCreatureFrame(
     }
     ctx.restore();
   }
-  /* 糙 ROUGH — dark craters, covering the body. REPLACED IN FULL 2026-08-05.
-     The old version (two clusters of 7 two-tone dots — a dark ring UNDER a
-     LIGHT highlight) is deleted, not kept commented out: it directly
-     contradicted the framework's own drawing rule 4, "rough skin is dark
-     pits, not pale specks", and the owner could not see it on 炸 at
-     production sizes even after the ring was darkened for contrast, because
-     seven dots in two corners read as flecked dust, not a skin.
-
-     This is a direct port of the owner's OWN traced reference — 其七 in
-     docs/rnd/mokling-lab-v7-vocabulary.js ("ears · rough skin · mouth · duck
-     feet"), the fidelity-test drawing built from the owner's hand sketch, not
-     the lab's generic VOCAB card (which also drew pale specks and is now
-     superseded for this skin). ONE dark fill at partial alpha, distributed by
-     sqrt(random)·r for even coverage across most of the radius — not a random
-     angle/radius pair, which clumps at the centre — so the texture reads
-     everywhere on the body rather than in two corners. This resolves the
-     three-way disagreement between the framework's spec, the lab's generic
-     vocab card, and production: the owner's own trace wins, the other two
-     no longer have any implementation attached to them. */
+  // 糙 ROUGH — 7 two-tone dots in two clusters (upper-right 4, lower-left 3);
+  // the clusters are the whole read, a random spread loses it
   if (isRough) {
+    const DOTS: [number, number, number][] = [
+      [0.28, -0.46, 1], [0.56, -0.34, 0.8], [0.34, -0.22, 0.6], [0.58, -0.1, 0.5],
+      [-0.5, 0.18, 0.94], [-0.3, 0.32, 0.72], [-0.5, 0.4, 0.56],
+    ];
     ctx.save();
     ctx.beginPath(); closedPath(ctx, pts); ctx.clip();
-    ctx.fillStyle = SKIN_ROUGH.crater;
-    const nC = 22;
-    for (let i = 0; i < nC; i++) {
-      const a = rnd() * TAU, d = Math.sqrt(rnd()) * R * 0.78;
-      const x = cx + Math.cos(a) * d * widen, y = cy + Math.sin(a) * d * squash;
-      const rw = R * (0.06 + rnd() * 0.13), rh = R * (0.05 + rnd() * 0.10);
-      ctx.beginPath(); ctx.ellipse(x, y, rw, rh, rnd() * TAU, 0, TAU); ctx.fill();
+    for (const [u, v, sc] of DOTS) {
+      const x = cx + u * R * widen, y = cy + v * R * squash, r = R * 0.14 * sc;
+      // dark UNDER and slightly larger — a rim around the light, not a shadow
+      ctx.fillStyle = SKIN_ROUGH.dark;
+      ctx.beginPath(); ctx.ellipse(x, y, r, r * 0.88, -0.38, 0, TAU); ctx.fill();
+      ctx.fillStyle = SKIN_ROUGH.light;
+      ctx.beginPath(); ctx.ellipse(x - r * 0.1, y - r * 0.1, r * 0.8, r * 0.68, -0.38, 0, TAU); ctx.fill();
     }
     ctx.restore();
   }
