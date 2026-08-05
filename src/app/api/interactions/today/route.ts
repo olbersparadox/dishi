@@ -138,13 +138,33 @@ export async function GET() {
       const sA = contentScore(vector, pair.a.attributes, {});
       const sB = contentScore(vector, pair.b.attributes, {});
       const predictedWinner = sA >= sB ? pair.a.id : pair.b.id;
-      const { data: inserted } = await admin
+      // Re-check for an open duel IMMEDIATELY before inserting. This GET is not
+      // a pure read — it seals and inserts — and selection is deterministic, so
+      // two concurrent calls would otherwise both insert the SAME pair, leaving
+      // a duplicate that resurfaces as the identical duel right after the first
+      // is answered (observed live twice, see useInteractions' own note). The
+      // client now sends one request per load; this is the cross-tab backstop.
+      // Fails closed: on a race the pair is simply not served this round.
+      let raceQuery = admin
         .from('dish_duels')
-        .insert({ user_id: user.id, dish_a: pair.a.id, dish_b: pair.b.id, predicted_winner: predictedWinner, predicted_p: pair.p })
         .select('id')
-        .single();
-      if (inserted) {
-        duelOut = { kind: 'duel', duel: { id: inserted.id, a: cardById[pair.a.id], b: cardById[pair.b.id] }, rematch: pair.rematch };
+        .eq('user_id', user.id)
+        .is('answered_at', null)
+        .gte('served_at', new Date(now - 24 * H).toISOString());
+      // `pending` is deliberately NOT a race: reaching here with one set means a
+      // dish went missing mid-flight, and that path is meant to fall through to
+      // a fresh pair (see above). Only a row that appeared AFTER our snapshot is.
+      if (pending) raceQuery = raceQuery.neq('id', pending.id);
+      const { data: raced } = await raceQuery.limit(1);
+      if (!raced?.length) {
+        const { data: inserted } = await admin
+          .from('dish_duels')
+          .insert({ user_id: user.id, dish_a: pair.a.id, dish_b: pair.b.id, predicted_winner: predictedWinner, predicted_p: pair.p })
+          .select('id')
+          .single();
+        if (inserted) {
+          duelOut = { kind: 'duel', duel: { id: inserted.id, a: cardById[pair.a.id], b: cardById[pair.b.id] }, rematch: pair.rematch };
+        }
       }
     }
   }
