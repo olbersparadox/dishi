@@ -79,197 +79,78 @@ the distinction that matters is what it would take to finish:
 | 蟲 antennae · carapace | — | **DORMANT** | no HK data until insect dishes actually appear |
 | whiskers · plated armour | — | **POOL** | no detector |
 
-### 膚 skin and method surface
+### 膚 — current state (the ONLY 膚 status table; supersedes every earlier 膚 note)
 
-All five SKIN TYPES shipped. The gap is in the method-surface list beside them:
+**膚 is METHOD-ONLY** (owner, 2026-08-05): one skin per cooking method, six
+total. 甲 shell and 毛 hairy are body parts, not surface treatments — they
+belong to 骨 and leave the skin precedence chain once their 骨 overlay exists.
+Until then they stay (pulling them first would strip shell/land eaters with
+nothing put back), so 甲 still outranks method: a steamed crab reads armoured.
+Why method-only is right and not just tidy: the registers then COMPOSE —
+steamed AND armoured, soft AND furred, ~24 legible states — instead of five
+skins fighting for one winner-take-all slot.
 
-| treatment | fed by | status |
+| method | skin | status |
 |---|---|---|
-| 毛 hairy · 滑 smooth · 糙 rough · 甲 plated · 軟 sagging | **being rearranged to METHOD-ONLY** (owner, 2026-08-05 — 甲/毛 move to 骨, 軟 re-points to 蒸; see "The rearrangement" below) | **SHIPPED as 5 skins**, but the rearrangement leaves 燜 · 焗 · 烤 with no skin — three to design, one at a time |
-| 炸 crusted rim | fried | **SHIPPED** |
-| 蒸 wet sheen | steamed | **SHIPPED** |
-| 生 translucent wash | raw | **SHIPPED** |
-| 燜 heavy sag | braised | **SHIPPED** |
-| 焗 risen dome | baked | **SHIPPED** |
-| 烤 sear marks | grilled | **KILLED** (owner, confirmed in the lab BEFORE the v6 port — this row said PORT-GAP for a few hours on 2026-08-05, and that was wrong; see below) |
+| 生 raw | 滑 smooth·wet (sea/land tone) + translucent wash + wet rim | **SHIPPED** — 生's alone since 2026-08-05 |
+| 蒸 steamed | 軟 soft (pale halo behind, dark core) | **SHIPPED 2026-08-05** — re-pointed off 田+菌; `skinOf()` + tests pin it |
+| 炸 fried | 糙 rough — **confirmed treatment: 7 two-tone dot-pairs in TWO clusters, upper-right 4 / lower-left 3** — plus crust nubs on the rim | **SHIPPED**; legibility fixed 2026-08-05 (bodyBox anchor, drawn-body sizing, lighter top tone; layout pinned through `creatureSnapshotSvg` tests) |
+| 燜 braised | — none — (has body SHAPE: sag) | **TO DESIGN** — proposed 潤 lacquered |
+| 焗 baked | — none — (has body SHAPE: dome) | **TO DESIGN** — proposed 酥 dry-crisp |
+| 烤 grilled | — none — (no skin, no shape; only an energy term shared with 炸) | **TO DESIGN LAST** — proposed 焦 scorched; hardest (must differ from 炸 AND 焗) and one attempt, sear stripes, was already killed |
 
-**The 烤 correction, and what it proves about ledger method.** The PORT-GAP
-status was authored from this document's own stale prose ("烤 sear marks …
-built, lab v6" in the Four Registers table) — exactly the author-from-prose
-failure this Ledger's header warns against. The artifact itself carries the
-truth, in the lab body's own comment, owner-confirmed:
+Rules binding the three new designs: ONE at a time, owner verifies each at
+200px AND 72px before the next; all six must stay distinct at 72px (anatomy
+that only reads large is decoration); the collisions live INSIDE the wet
+family (生·蒸·燜) and the dry family (炸·焗·烤), not across them.
 
-> 烤 sear marks REMOVED entirely (owner, confirmed). They were a leftover
-> method-driven mark painting across skins that are now domain-driven — pale
-> stripes over fur read as neither grill nor coat. If 烤 needs to say
-> something later it will be a skin of its own, not an overlay on someone
-> else's.
+Known gaps carried consciously — fix together, not as per-skin patches:
+- method skins gate on share > 0.5 with NO absolute evidence floor, so one
+  steamed dish with no other method evidence draws a full skin;
+- a mixed palate clears no gate and wears nothing (the owner's own profile:
+  top method share 蒸 at 0.306 → bare body). Revisit the threshold only after
+  the three missing skins land — one variable at a time.
 
-So the v6 port was FAITHFUL and complete (all five skins + all eight
-appendage/surface blocks verified present in production, 2026-08-05); 烤 is
-the one method dim of six with no visible surface **by owner decision**, with
-its energy contribution to 姿 temperament as its only expression. Do not
-reinstate stripes as an overlay.
+### 膚 — decision log (dated history; the table above is the live state)
 
-### 膚 has two owners, and that is why 烤 has nowhere to go
+Every earlier 膚 section of this document is superseded by the current-state
+table plus this log. The old sections accumulated as investigation narratives
+— each partially corrected by the next, none deleted — until the document
+disagreed with itself in three places and a wrong redesign was derived from
+one of the stale passages. History belongs here, dated; state belongs in ONE
+table above; nothing else in this file carries 膚 status.
 
-Asked "if cooking method is skin, where do 軟 and 甲 come from?" (owner,
-2026-08-05), the answer is that **three of the five skins are domain-driven
-and two are method-driven, and nothing in this framework states which register
-owns the slot when both have a claim.** Verified across all three sources:
+- **2026-08-02 (lab):** five-skin set built (毛滑糙甲軟). 烤 sear marks
+  REMOVED by the owner: *"pale stripes over fur read as neither grill nor
+  coat. If 烤 needs to say something later it will be a skin of its own, not
+  an overlay on someone else's."* Never reinstate stripes as an overlay.
+- **2026-08-04 (port):** v6 body ported whole and faithfully (audited
+  2026-08-05; a briefly-recorded PORT-GAP verdict on 烤 was wrong — the
+  removal above was the truth). One silent drift DID ship: 軟 keyed to 田+菌
+  instead of the spec's 燜, invisible because the name matched on both sides.
+- **2026-08-05 — the rearrangement (owner):** 膚 declared METHOD-ONLY; 甲/毛
+  reclassified as 骨 body parts, to leave the skin chain once their overlay
+  exists; 軟 re-pointed to 蒸 (deliberately overriding the old 軟←燜 spec
+  row); 滑 left to 生 alone (the old `steamed + raw*0.8` blend would have
+  handed 蒸 two skins). The whole decision was extracted from the render loop
+  into `skinOf()` with tests — inline canvas logic is where the 軟 drift hid.
+- **2026-08-05 — 糙's treatment CONFIRMED (owner):** 7 two-tone dot-pairs in
+  two clusters, upper-right 4 / lower-left 3. A crater redesign — derived
+  from the 其七 trace and this document's own old drawing-rule wording — was
+  tried and REVERTED on the owner's direct correction; do not re-attempt it.
+  The same day the clusters were made actually legible: they had been
+  anchored to the nominal centre (the identical bug 軟's halo had) and sized
+  near-invisible, so the treatment had been "confirmed" as a design without
+  ever being legible at real size, in the lab or in production.
+- **Stale claims retired:** no "agreed map" keys 糙 to 根/榖 — that was a code
+  comment promoting an open question into a decision. 根/榖 remains open, and
+  it is a question about 田's base ingredients, not about 糙.
+- **OPEN — 烤's eventual expression**, owner decides when its design round
+  starts: join 炸 in 糙's detector (the pre-rearrangement spec said 烤/炸)?
+  its own skin (焦 scorched)? or a SHAPE channel — taut/contracted, the
+  register 燜's sag and 焗's dome already use — which cannot collide with any
+  skin at all?
 
-| skin | this doc's 膚 spec row | lab v7 VOCAB card | PRODUCTION | verdict |
-|---|---|---|---|---|
-| 毛 hairy | fur mammals at depth | 羊/fur mammals at depth | 陸+羽 share | agrees — DOMAIN |
-| 甲 plated | 甲殼 | 甲殼 share | shell share | agrees — DOMAIN |
-| 滑 smooth wet | 蒸/生 | 蒸/生 share | steamed + raw | agrees — METHOD |
-| 糙 rough seared | **烤/炸** | **烤/炸 share** | **炸 only** | 烤 half DROPPED |
-| 軟 sagging | **燜 braised** | **燜 braised share** | **田+菌 share** | REGISTER CHANGED |
-
-Two real divergences fall out of that table:
-
-1. **軟 changed register during the port, and nothing records the decision.**
-   Both spec sources key it to 燜 braised — a METHOD. Production keys it to
-   field + fungus — a DOMAIN. Same name, two different meanings. Two
-   consequences: 燜's specified skin does not exist anywhere, and the skin
-   that 田/菌 actually grows has no spec basis at all. This is the single
-   largest spec-to-production gap found so far, and it is invisible from
-   either side alone — the name matches, so nothing looks wrong.
-
-2. **糙 lost its 烤 half.** Both spec sources say 烤/炸; production ships 炸
-   only. This **corrects commit b9872e7**, which claimed adding 烤 to
-   `isRough` "changes what 糙 MEANS": it does not — it restores the specified
-   meaning. The caution was right, the reasoning was wrong.
-
-Also flagged: production's 糙 comment states the detector is "keyed to 根/榖
-in the agreed map." No agreed map in this document says that. The only 膚 spec
-row says 烤/炸, and 榖 appears solely as an OPEN question (is it skin texture
-or anatomy?). The comment promotes an open question to a settled decision —
-the same class of error as an undated status note.
-
-**糙's DRAWING (as opposed to its detector) is CONFIRMED, and a wrong redesign
-of it was tried and reverted the same day.** The shipped shape — two clusters
-of two-tone dot-pairs, one upper-right, one lower-left — is correct. The
-existing code comment already said so ("the clusters are the whole read, a
-random spread loses it"), which reads as distilled owner feedback from an
-earlier round; it should have been trusted rather than second-guessed.
-What was genuinely wrong, and is now fixed, was CONTRAST: the dark half of
-each dot-pair sat only 6 luminance points off the body fill (`#1a1714`
-against a fill stop at L29.5) and could not be seen at production size.
-Darkened to `#0d0b09` (commit 349b093) — 18 points clear of the body's
-darkest stop, 44 of its lightest — with the two-cluster shape untouched.
-
-A full replacement of the shape itself — a scattered field of dark craters,
-ported from a different trace specimen in the rescued lab artifact (其七,
-"ears · rough skin · mouth · duck feet") on the theory that it better matched
-this document's drawing rule 4 ("dark pits, not pale specks") — was tried
-(commit 105da70) and reverted within the hour (commit aeb6972) on the owner's
-direct correction. The lesson: a rule written in prose does not outrank a
-design already confirmed in the shipped code's own rationale comment. Do not
-re-attempt the crater version.
-
-**Resolutions for 烤, all owner calls, none to be taken in code unilaterally:**
-(a) status quo — temperament-only, the only method of six that says nothing;
-(b) restore the spec — 烤 joins 炸 in `isRough`, one line, and per the table
-above this is a RESTORATION not a redefinition, though it inherits 糙's
-unresolved 根/榖 confusion; (c) a genuinely new 烤-dominant skin, honoring
-"a skin of its own" literally, but walking straight back into the fur
-collision that killed sear marks; (d) **give 烤 a SHAPE channel instead of a
-skin** — the register 燜 (sag) and 焗 (dome) already use successfully on every
-body type. Grilled food contracts and tightens, so a taut drawn-in silhouette
-is the natural opposite of 燜's sag, it is honest to the food, and it cannot
-fight fur because shape lives underneath the coat rather than on it. (d)
-sidesteps the two-owner problem entirely instead of arguing about who wins.
-
-Whichever is chosen, **軟's register divergence is the more urgent item**: 烤
-is a missing feature, but 軟 is a feature that silently means something other
-than what the framework says it means.
-
-### The rearrangement — 膚 becomes method-only (owner, 2026-08-05)
-
-The owner's resolution to the two-owner problem, and it dissolves the 烤
-question rather than arbitrating it:
-
-1. **膚 belongs to METHOD, exclusively. One skin per cooking method, all six.**
-2. **甲 shell and 毛 hairy LEAVE 膚.** They are body parts — a carapace and a
-   pelt are things an animal grew, not treatments applied to a surface — so
-   they belong to 骨 and stop competing for the skin slot.
-3. **軟 re-points from 田+菌 to 蒸.** This deliberately overrides the old spec
-   row (which said 軟 ← 燜) and it is recorded here as a DECISION precisely so
-   it is never mistaken for a second silent divergence like the one above.
-   燜 loses its claim on 軟 and needs its own skin.
-4. **Sequence: clear all six method skins FIRST, verify, then re-add 甲/毛 as
-   domain overlays.** Additive, one element at a time, owner verifies before
-   the next — the standing working method for anatomy.
-
-Why this is the right shape and not just tidier: it converts a winner-take-all
-slot into independent layers. Today a crab eater's cooking method is invisible
-because 甲 overrides it, and a land eater who eats steamed shows smooth with no
-trace of fur — both lose real information. Once the registers separate, they
-compose: steamed AND armoured, soft AND furred. Roughly 6 method skins × fur
-on/off × shell on/off ≈ 24 legible states, up from 5 mutually exclusive ones,
-with each axis independently readable.
-
-**The cleared board** (rendered on `/dev-methods`, every cell on domain
-evidence too thin to grow anything, so only method can mark the body —
-verified numerically: each gap cell emits exactly 2 SVG paths, the body and
-its fog wash, nothing else):
-
-| method | skin | state |
-|---|---|---|
-| 生 raw | 滑 smooth · wet | **dedicated** — becomes 生's alone once 蒸 moves out |
-| 炸 fried | 糙 rough · seared | **dedicated** |
-| 蒸 steamed | 軟 soft · sagging | **rewire only** — 軟 already exists, re-point it off 田+菌 |
-| 燜 braised | — none — | **GAP** — has a body sag, no surface |
-| 焗 baked | — none — | **GAP** — has a risen dome, no surface |
-| 烤 grilled | — none — | **GAP** — the most silent: no skin, no shape, only an energy term shared with 炸 |
-
-So: two already done, one rewire, **three skins to design** — 燜, 焗, 烤.
-Work them ONE AT A TIME, owner verifies each before the next.
-
-**Step 1 SHIPPED 2026-08-05:** 軟 re-pointed from 田+菌 onto 蒸, 滑 left to 生
-alone, and the whole decision extracted from the render loop into `skinOf()`
-in `creatureForm.ts` with a vitest file pinning it. The extraction is the
-point: the previous 軟 change was invisible because the decision lived inline
-in a canvas function nothing could test, so the name matching on both sides
-was enough to hide it. 甲 and 毛 deliberately stay in the chain until their 骨
-overlay exists — pulling them first would strip shell and land eaters of their
-identity with nothing put back.
-
-**A consequence to watch, and it is not small.** Dropping the old
-`steamed + raw*0.8` blend means each method skin now needs a MAJORITY of the
-palate's method preference on its own. A wet-leaning eater at 0.3 steamed +
-0.3 raw used to clear the blend at 0.54 and wear 滑; now they clear neither
-gate and wear nothing. Measured on the owner's live profile (61 dishes):
-highest method share is 蒸 at 0.306, so that being had no method skin before
-and has none now — unchanged, but only because it was already under both
-bars. **The rearrangement makes skins harder to earn, and mixed palates are
-the common case**, so expect more bare bodies until the three missing skins
-land and, possibly, a lower threshold. Do not tune that threshold in the same
-pass as a new skin — one variable at a time.
-
-**The constraint that will decide them.** The six split into wet (生 · 蒸 · 燜)
-and dry (炸 · 焗 · 烤), and the collision risk is inside those groups, not
-across them: 蒸-soft vs 燜 are both wet-collapsed, and 炸 vs 焗 vs 烤 are three
-variations on "cooked dry surface." All six must stay distinct at **72px**,
-the feed thumbnail size — this framework's own rule is that anatomy which only
-reads at 280px is decoration. On the cleared board today the three gap bodies
-are indistinguishable at 72px, which is exactly the baseline each new skin has
-to beat.
-
-Proposed starting points, owner to accept or replace: 燜 → 潤 lacquered (dark
-sticky braise glaze), 焗 → 酥 dry-crisp (pale matte, fine surface cracks),
-烤 → 焦 scorched (dry matte with dark char at the high points). 烤's is the
-one to design LAST despite being the original question — it is the hardest,
-because it has to differ from both 炸's crust and 焗's dry surface, and
-because the owner has already killed one attempt at it (stripes).
-
-`糙 rough`'s detector is 炸 only — no "agreed map" keying it to 根/榖 ever
-existed in this document; that claim was a stale code comment (corrected
-2026-08-05, see "膚 has two owners" above, where the drawing's confirmed shape
-is also recorded). Whether 烤 joins the detector is the one still-open item
-there; 根/榖 is a separate, still-open question about 田's base ingredients,
-unrelated to 糙's detector or its drawing.
 
 ### 姿 · 銘 · 面
 
@@ -406,7 +287,7 @@ Registers are independent — that is what makes the output space multiply
 | register | fed by | tempo | expresses as |
 |---|---|---|---|
 | 骨 body plan | ingredient DOMAIN shares (sea / land / air / field / 菌 / 藻) | slow, reversible over seasons | silhouette family + appendage grammar: tendrils, leg-nubs, wing fans, fronds, caps, ribbons — **built, lab v3–v6** |
-| 膚 skin & edge | method dims (already learned: 炸烤燜蒸生焗) | medium | edge/surface treatment: 炸 crusted granular rim, 蒸 wet sheen, 燜 heavy sag, 生 translucent wash, 焗 risen dome — **built, lab v6**. (烤 sear marks were in this list, then REMOVED by the owner in the lab — this stale mention misled the Ledger for a few hours; see the Ledger's 膚 section for the verbatim decision) |
+| 膚 skin & edge | cooking-method dims — **METHOD-ONLY since 2026-08-05** | medium | one skin per method. **This row carries NO status** — the live table is "膚 — current state" in the Ledger. (This row's old prose listed lab-v6 treatments including one the owner had killed, and misled the Ledger once; registers here describe the concept only.) |
 | 姿 motion & temperament | flavor + method dims (辣甜酸苦鮮鹹 / 濃清) | medium | motion signature AND static posture: 辣+炸烤 → jagged edge, forward lean, quick darts; 蒸生+清 → smoothed contour, upright, slow drift; 燜+濃 → low centre of mass, heavy settle; 甜 → round springy profile — **built, lab v6** |
 | 脊 spine | vertebrate share of the diet | slow | a dorsal ridge (lit crest + shadow) on vertebrate-fed bodies; crab and mushroom eaters have none — **built, lab v6** |
 | 銘 DNA | the full 18-dim vector + evidence + domain record | exact, always current | the written logogram: outward strokes = love, inward = dislike, stroke count = evidence, silence = fog — **shipped 2026-08-05, merged into the radar as one figure** (see ship path 4) |
@@ -626,7 +507,7 @@ with the detector beside it. **No detector, no feature.**
 | 角 horns | 牛 curved pair · 脂 thick blunt · 罪 jagged | 牛 at depth · heaviness + 濃 · **炸 + heaviness after 23:00** |
 | 耳 ears | 豬 floppy triangle · 牛 side flap · 羊 pointed | land sub-node |
 | 足 feet | 牛 cleft hoof · 豬 trotter · 雞 splayed toes · 鴨 webbed | land sub-node + 鴨 of 羽 |
-| 膚 skins | 毛 hairy · 滑 smooth wet · 糙 rough seared · 甲 plated · 軟 sagging | fur mammals at depth · 蒸/生 · 烤/炸 · 甲殼 · 燜 |
+| 膚 skins | ⚠ SUPERSEDED ROW — the 2026-08-05 rearrangement re-keyed 膚 to method-only ("膚 — current state" is authoritative). Lab detectors kept for the record: 毛←fur mammals · 滑←蒸/生 · 糙←烤/炸 · 甲←甲殼 · 軟←燜 — of these, only 糙's 烤-half remains an open question | (superseded) |
 | 葉 plant parts | 闊葉 broad leaf · 針葉 herb sprig · 根 tuber · 藻帶 seaweed ribbon | 田 sub-nodes (葉/花/根) + 藻 |
 | 觸 tentacles | 八爪 suckered curl · 魷 straight pair · 水母 fine strands | 軟體 sub-nodes |
 
@@ -674,8 +555,14 @@ gesture, because they are what makes the set look like one species of drawing:
    ellipse at readable alpha reads as a grey ball sitting inside the creature —
    it must be a soft radial fade, strong only where the skin justifies it.
 3. **Hair is a dense fine fringe around the ENTIRE outline**, not sparse spikes.
-4. **Rough skin is dark pits**, not pale specks. **Shell is graphic nested
-   bands.** **Sear marks are faint scorches**, not grey dashes.
+4. **糙 rough is the confirmed two-cluster dot-pair treatment — the "膚 —
+   current state" table is authoritative, not this list.** (This rule's
+   original wording, "dark pits, not pale specks", described the 2026-08-02
+   sketch round; on 2026-08-05 it was read as outranking the shipped confirmed
+   design and misled a crater redesign the owner reverted. A drawing rule
+   calibrates HOW a treatment is inked; it never overrides WHICH treatment
+   was confirmed.) **Shell is graphic nested bands.** (Sear marks: killed —
+   see the 膚 decision log.)
 5. **Translucent things are pale grey** — tentacles, fins, antennae. Not black.
 6. **Eyes are small and close together.** Anything else reads as a cartoon.
 7. **Never centre a line down a round body** — it reads as a seam splitting the
@@ -980,7 +867,9 @@ See BACKLOG "Data audit" item — the audit runs before any phase-1 code.
   (e.g. beside a 貼文)? Default no until decided.
 - ~~Does 膚 belong to domain or to method?~~ ~~軟's register divergence?~~
   ~~Where does 烤 live?~~ **ALL THREE ANSWERED (owner, 2026-08-05): 膚 is
-  method-only, 甲/毛 move to 骨, 軟 re-points to 蒸, and 烤 gets a skin like
-  every other method.** See "The rearrangement" in the Ledger. What remains
-  is execution: three skins to design (燜 · 焗 · 烤), one at a time, each
-  verified at 72px before the next.
+  method-only, 甲/毛 move to 骨, 軟 re-points to 蒸.** State: "膚 — current
+  state" table in the Ledger; history: the 膚 decision log beside it. What
+  remains is execution — three skins to design (燜 · 焗 · 烤), one at a time,
+  each verified at 200px AND 72px before the next — plus one genuinely open
+  sub-question, recorded in the decision log: which expression 烤 eventually
+  gets (share 糙's detector / own skin 焦 / a shape channel).

@@ -67,7 +67,8 @@
  *      inverted sign on one side.
  *   5. Update the Ledger's status for that row in the SAME commit.
  *
- * Rescued 2026-08-05.
+ * Rescued 2026-08-05. Comments marked ⚠ were added AFTER rescue (dated);
+ * everything else is the verbatim extraction the diff verified.
  */
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -203,6 +204,13 @@ const VOCAB=[
     g.ellipse(b.x-b.r*.32,b.y-b.r*.42,b.r*.46,b.r*.20,-.4,0,TAU);g.fill();
     g.fillStyle=`rgba(${HILITE},.18)`;g.beginPath();
     g.ellipse(b.x+b.r*.35,b.y+b.r*.15,b.r*.18,b.r*.09,.5,0,TAU);g.fill();}},
+  /* ⚠ SUPERSEDED (2026-08-05, added after rescue — everything else in this
+     file is verbatim): this 糙 card draws scattered pale specks and is NOT
+     the confirmed treatment. Production's two-cluster two-tone dot-pairs
+     (creatureForm.ts `isRough`, upper-right 4 / lower-left 3) are
+     owner-confirmed; a port of the scattered style was tried and reverted the
+     same day. Also do not port from the 其七 TRACE's rough craters for the
+     same reason. Kept for the record only. */
   {nm:'糙',en:'rough · seared',d:'烤 / 炸 share',fn:(g,S)=>{const b=stub(g,S,.5,.5,.24);
     g.fillStyle=INK;g.beginPath();g.arc(b.x,b.y,b.r,0,TAU);g.fill();
     const rr=seededRandom('rough');g.save();
