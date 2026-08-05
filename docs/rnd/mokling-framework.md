@@ -515,9 +515,16 @@ See BACKLOG "Data audit" item — the audit runs before any phase-1 code.
    production passes it (blocked on step 2). Reviewed on the untracked
    /dev-creature harness across 8 scenario lives; temperament/skin detectors
    read the learned 18 dims (evidence-gated — fog stays silent, unit-tested
-   in tests/creatureForm.test.ts). Still owed before production: snapshot
-   (SVG) parity — two renderers, one being — and the owner's pass on each
-   skin/limb at real profiles.
+   in tests/creatureForm.test.ts). — **LIVE 2026-08-05.** Snapshot parity
+   shipped (`canvasToSvg.ts`), phase-2 wiring shipped (`953abcd`: Taste tab,
+   public dossier, in-session growth screen), and the owner's anatomy pass was
+   given as a STANDING sign-off — ship now, refine along the way, the anatomy
+   is ongoing work for the product's lifetime rather than a gate (DECISIONS.md,
+   "墨靈 anatomy: SIGNED OFF as a living surface"). The guardrail that remains:
+   the body changing because the PERSON changed is free; the RENDERER changing
+   rewrites every existing being retroactively, so a change large enough that
+   someone would not recognise their own being is a deliberate act, never a
+   side effect of a tuning round.
 4. ~~銘 renderer~~ **SHIPPED 2026-08-05. It did not become a new card — it took
    the radar's place.** `src/lib/logogram.ts` (geometry, 12 unit tests) +
    `src/components/TasteRadar.tsx` (render). Reached by tapping the

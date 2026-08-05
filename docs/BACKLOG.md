@@ -1269,17 +1269,18 @@ Note the creature's coarse domains (sea/land/air/field) are computable TODAY
 from stored `ingredients` + dishStructure protein parse over rating history —
 no new extraction needed for phase 1.
 
-## 2. 墨靈 phase 1 — domain evidence aggregate + creature skeleton — *(Fable, after item 1 review)*
+## 2. 墨靈 phase 1 — domain evidence aggregate + creature skeleton — ✅ CLOSED 2026-08-05
 
-**AGGREGATE BUILT 2026-08-04** (`src/lib/domainEvidence.ts`,
-`taste_profiles.domain_evidence`, wired into replay + all four profile-writing
-routes; 25 tests). The creature renderer was built 2026-08-04 too. What remains
-before a user sees a creature: snapshot (SVG) parity per the two-renderer
-contract, then the owner's go on the first live being. See the framework doc's
-ship path for the measured result on real history.
+Everything in this item shipped: the aggregate (`domainEvidence.ts` +
+`taste_profiles.domain_evidence`, 2026-08-04), the renderer
+(`creatureForm.ts`), snapshot parity (`canvasToSvg.ts`), and the wiring into
+all three production surfaces (`953abcd`). The last gate — the owner's pass on
+the anatomy — was given 2026-08-05 as a STANDING sign-off: ship now, refine
+along the way, anatomy is an ongoing enhancement for the product's lifetime,
+not a milestone. Full entry + the one guardrail it does not dissolve (renderer
+changes vs the body changing with the person) in DECISIONS.md, "墨靈 anatomy:
+SIGNED OFF as a living surface".
 
-Per-user domain-evidence aggregate (sea/land/air/field shares from rated
-dishes' stored ingredients + protein parse), persisted like cuisine affinity;
-then the creature render behind the same FormInputs contract (see framework
-doc for registers, gates, and the two-renderer 生靈/銘 pair). Additive-only,
-fail closed to today's blob when domain evidence is empty.
+Anatomy refinement continues under the recorded working method (one element per
+round, owner verifies before the next, sketch after two missed rounds) — that
+is ordinary ongoing work now, not a backlog gate.

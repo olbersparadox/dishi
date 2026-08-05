@@ -4926,3 +4926,50 @@ building) while refusing the cross-neighborhood namesake. Scans among the first
 five hits, not just the top one. Mutation-tested: removing the distance check
 fails 3 tests. The fixed chip behaviour awaits its own field confirmation before
 item 3 starts.
+
+---
+
+# 墨靈 anatomy: SIGNED OFF as a living surface, not a finished one (owner, 2026-08-05)
+
+**The owner's call, verbatim in substance:** sign off the anatomy now and refine
+along the way; it will be an area for much enhancement, but production time has
+to be distributed wisely, so this becomes an ongoing enhancement across the
+product lifecycle rather than a gate to clear once.
+
+This closes the last item on the framework's ship path (step 3's "the owner's
+pass on each skin/limb at real profiles"). The creature is live: the aggregate
+(`domainEvidence.ts` + `taste_profiles.domain_evidence`), the renderer
+(`creatureForm.ts`), snapshot parity (`canvasToSvg.ts`), and the phase-2 wiring
+(`953abcd`, Taste tab + public dossier + in-session growth screen) all shipped
+before this decision — the owner's go was the only thing outstanding.
+
+**Why this is safe to sign off early, and not a shortcut.** The being was
+designed reversible from the start (see "The metabolism"): features bud, form,
+articulate, atrophy and shed on recency-weighted evidence, and permanence lives
+in the 銘 and the 圖鑑 molt archive, NOT in the body. A surface built to change
+as the person's eating changes is, by construction, also a surface that can
+absorb craft revisions without breaking what it promised anyone.
+
+**The one guardrail this decision does NOT dissolve.** There are two different
+kinds of change and only the first is free:
+
+- The BODY changing because the PERSON changed (a claw sheds because they
+  stopped eating crab) — this is the product working, and needs no ceremony.
+- The RENDERER changing because we improved it — this rewrites every existing
+  being retroactively, including in already-shared 相見 cards and export
+  headers. Incremental tuning (a skin tone, a limb proportion) is fine and is
+  what this sign-off authorizes. A change large enough that an existing user
+  would not recognise their own being is a different act, and needs the same
+  deliberateness as a rename: not forbidden, but never a side effect of a
+  tuning round.
+
+**Working method stays as recorded** (the v10 fidelity failure and the claw
+rounds both proved it): one element per round, everything else untouched,
+owner verifies before the next; ask for a sketch after two missed rounds; derive
+structure from a reference by measurement before writing code. Signing off the
+anatomy does not license batching changes — it licenses shipping without waiting
+for the anatomy to be finished, because it never will be.
+
+**Immediate consequence:** onboarding is now free to be designed around the
+creature (Claude Design brief), since the being it stars is live rather than
+pending.
