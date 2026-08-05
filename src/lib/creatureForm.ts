@@ -180,7 +180,7 @@ export function domainShares(domains: DomainEvidence): DomainShares {
   };
 }
 
-export type SkinType = 'shell' | 'soft' | 'smooth' | 'rough' | 'glazed' | 'golden' | 'hairy' | 'none';
+export type SkinType = 'shell' | 'soft' | 'smooth' | 'rough' | 'glazed' | 'golden' | 'charred' | 'hairy' | 'none';
 
 /**
  * Which surface the being wears. EXTRACTED from the render loop so it can be
@@ -220,6 +220,7 @@ export function skinOf(domains: DomainEvidence, sh: DomainShares, m: MethodShare
   if (m.fried > 0.5) return 'rough';        // 糙 ← 炸
   if (m.braised > 0.5) return 'glazed';     // 釉 ← 燜
   if (m.baked > 0.5) return 'golden';       // 金 ← 焗
+  if (m.grilled > 0.5) return 'charred';    // 烙 ← 烤
   if (sh.l + sh.a > 0.45 && absF(ev('land') + ev('air'), 6, 9) > 0.4) return 'hairy';
   return 'none';
 }
@@ -254,6 +255,12 @@ const SKIN_GLAZE = { deep: '#0d0c0b', pool: '#2b2723', shine: '#d5d2ca', shineLo
    first pass read it as a hue and shipped a genuinely gold top (spread 59);
    that broke the desaturated ink register and was pulled straight back. */
 const SKIN_GOLD = { top: '#605b54', mid: '#322e2a', base: '#0e0b0a' };
+/* 烙 char-brand (烤 grilled): diagonal grill-iron stripes, read off the
+   owner's reference — even bands, alternating near-black gaps and lit
+   ridges, one raking-light gradient shared across ALL the ridges rather than
+   one per stripe. That sharing is what makes it read as one surface catching
+   one light source instead of a stack of separately-lit bars. */
+const SKIN_CHAR = { dark: '#0e0c0b', liteA: '#433d36', liteB: '#221f1b' };
 
 const INK = ['#3a3733', '#211d18', '#2e2a24'] as const;
 const HILITE = '250,247,241';
@@ -571,6 +578,7 @@ export function drawCreatureFrame(
   const isRough = skin === 'rough';
   const isGlazed = skin === 'glazed';
   const isGolden = skin === 'golden';
+  const isCharred = skin === 'charred';
   const isHairy = skin === 'hairy';
   const SKIN = (s + c + ag) >= (l + a + f + fg) ? SKIN_SMOOTH_SEA : SKIN_SMOOTH_LAND;
 
@@ -786,6 +794,7 @@ export function drawCreatureFrame(
   if (!isSoft) {
     ctx.save(); ctx.globalAlpha = isSmooth ? 1 : rawA;
     ctx.fillStyle = isGolden ? goldFill(ctx, bodyBox(pts))
+      : isCharred ? SKIN_CHAR.dark
       : isGlazed ? SKIN_GLAZE.deep
       : isSmooth ? SKIN.base : inkFill(ctx, c0, size);
     ctx.fill();
@@ -892,6 +901,56 @@ export function drawCreatureFrame(
       gb.cx + gb.hr * 0.66, gb.cy + gb.vr * 0.08,
       t => Math.max(0.4, gb.hr * 0.050 * Math.pow(Math.sin(Math.PI * t), 0.45)
         * (1 + 0.38 * Math.sin(t * 7.1 + 1.9) + 0.16 * Math.sin(t * 12.3 + 0.4))));
+    ctx.restore();
+  }
+  /* 烙 CHAR-BRAND — diagonal grill stripes over the base fill above (which is
+     already SKIN_CHAR.dark, so the "gaps" between ridges need no drawing at
+     all — only the lit ridges are painted, same z-order economy 軟 and 甲
+     use). Clip first, then translate+rotate to the DRAWN body's own centre
+     (bodyBox) so the stripe direction is fixed in body-space rather than
+     canvas-space — a lobed or squashed body tilts the stripes with it instead
+     of them staying screen-diagonal regardless of shape.
+     The raking gradient is built ONCE in the rotated frame and reused for
+     every ridge, which is what reads as one lit surface rather than a stack
+     of independently-lit bars — the reference's whole point. */
+  if (isCharred) {
+    // NO ctx.translate/rotate: the SVG recorder (canvasToSvg.ts) deliberately
+    // throws on any canvas method it does not implement rather than silently
+    // drop a stroke — the two-renderer contract catching exactly the bug it
+    // exists to catch. So the rotation is done by hand: dir is the unit
+    // vector ALONG each stripe, nrm the perpendicular the stripes stack along,
+    // both in absolute body coordinates, and every stripe is four explicit
+    // corners rather than a transformed rect.
+    const cb = bodyBox(pts);
+    const ang = -0.40;
+    const dir = { x: Math.cos(ang), y: Math.sin(ang) };
+    const nrm = { x: -Math.sin(ang), y: Math.cos(ang) };
+    const span = (cb.hr + cb.vr) * 1.6;
+    const period = cb.hr * 0.46;
+    const liteFrac = 0.56;                 // ridges read WIDER than the gaps
+    // One gradient along `dir`, shared by every ridge — a single light source
+    // across the whole surface, not one per stripe.
+    const grad = ctx.createLinearGradient(
+      cb.cx - dir.x * span, cb.cy - dir.y * span,
+      cb.cx + dir.x * span, cb.cy + dir.y * span,
+    );
+    grad.addColorStop(0, SKIN_CHAR.liteA);
+    grad.addColorStop(1, SKIN_CHAR.liteB);
+    ctx.save();
+    ctx.beginPath(); closedPath(ctx, pts); ctx.clip();
+    ctx.fillStyle = grad;
+    const n = Math.ceil((span * 2) / period) + 2;
+    for (let i = -n; i <= n; i++) {
+      const off = i * period, h = (period * liteFrac) / 2;
+      const mx = cb.cx + nrm.x * off, my = cb.cy + nrm.y * off;
+      ctx.beginPath();
+      ctx.moveTo(mx - dir.x * span + nrm.x * -h, my - dir.y * span + nrm.y * -h);
+      ctx.lineTo(mx + dir.x * span + nrm.x * -h, my + dir.y * span + nrm.y * -h);
+      ctx.lineTo(mx + dir.x * span + nrm.x * h, my + dir.y * span + nrm.y * h);
+      ctx.lineTo(mx - dir.x * span + nrm.x * h, my - dir.y * span + nrm.y * h);
+      ctx.closePath();
+      ctx.fill();
+    }
     ctx.restore();
   }
   // 甲 SHELL — stacked "M" plates, each a LIGHT edge over a DARK gap line; the

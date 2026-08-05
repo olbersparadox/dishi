@@ -94,9 +94,9 @@ armoured, soft AND furred.
 | 炸 fried | 糙 rough — **owner's spec: one dot = a grey circle overlapping a black circle; 4 dots upper-right, 3 lower-left, none touching the rim** — plus crust nubs on the rim | **SHIPPED** |
 | 燜 braised | 釉 glaze — **near-black rim, warmer pool inset from it, two speculars (long left flank, short hook upper-right)** — plus its body sag | **SHIPPED** |
 | 焗 baked | 金 gold — **smooth top-to-bottom gradient, no marks at all**; tone stays in the house ink palette (the name is figurative, like 滑 "wet") — plus its risen dome | **SHIPPED** |
-| 烤 grilled | — none — (energy term only) | **TO DESIGN** |
+| 烤 grilled | 烙 char-brand — **diagonal grill-iron stripes, one shared raking-light gradient across all ridges** | **SHIPPED** |
 
-Binding rules: design the last gap (烤), owner verifies each at
+All six method skins are shipped. Binding rules that stood while designing them, kept as reference for any future retune, owner verifies each at
 200px AND 72px before the next; all six must stay distinct at 72px; the
 collision risk is inside the wet family (生·蒸·燜) and the dry family
 (炸·焗·烤), not across them. Known gap to fix once, not per-skin: the
