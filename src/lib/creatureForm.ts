@@ -883,10 +883,15 @@ export function drawCreatureFrame(
       return best;
     };
     const DOTS: [number, number, number][] = [
-      [0.44, -0.58, 1], [0.67, -0.42, 0.86],      // upper-right cluster (4)
+      // upper-right cluster (4). The first was the only one at full scale;
+      // owner shrank it 20% (1 → 0.80), so the cluster now has no dominant dot.
+      [0.44, -0.58, 0.80], [0.67, -0.42, 0.86],
       [0.42, -0.30, 0.92], [0.68, -0.18, 0.84],
-      [-0.65, 0.46, 0.94], [-0.48, 0.32, 0.86],   // lower-left cluster (3)
-      [-0.49, 0.60, 0.88],
+      // lower-left cluster (3). All three shrunk 15% together (owner) so the
+      // lower half reads lighter than the upper; then its largest took a
+      // further 15% (0.80 → 0.68), leaving no dominant dot in either cluster.
+      [-0.65, 0.46, 0.68], [-0.48, 0.32, 0.73],
+      [-0.49, 0.60, 0.75],
     ];
     const R0 = bb.hr * 0.105;
     ctx.save();
