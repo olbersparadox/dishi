@@ -241,13 +241,16 @@ const SKIN_SMOOTH_LAND = { base: '#332f2a', mid: '#454039', hi: '#847f76', rim: 
 // Read off the owner's reference — earlier passes drew the body at 72% alpha,
 // which washed it grey; z-order (body behind limbs) is the fix, not opacity.
 const SKIN_SOFT = { halo: '#d2cfc7', layer: '#332f2b', core: '#221f1a' };
-// 糙 rough: ONE two-tone dot duplicated and resized — placement is the character.
-// dark was #1a1714 (L23) — only 6 luminance points off the body fill's own
-// darkest gradient stop (#211d18, L29.5), so the ring that is meant to give
-// each speck a defined edge was structurally present but had almost no
-// contrast to read by. #0d0b09 (L11) clears the body's darkest stop by 18
-// points and its lightest by 44, so the pit reads against either.
-const SKIN_ROUGH = { dark: '#0d0b09', light: '#4b473f' };
+// 糙 rough: ONE two-tone dot duplicated and resized — placement is the
+// character. The LAYOUT (7 dots, two clusters: upper-right 4, lower-left 3)
+// is the owner-confirmed treatment and is not a tuning surface. These TONES
+// are: the lab's light half (#4b473f, L71) sat over body fill of L30-55, so
+// at production dot sizes the pair read as nothing — the treatment was
+// confirmed as a design and never actually legible at real size, in the lab
+// or here. light raised one step (L84) so the pair reads without becoming a
+// pale speck; dark unchanged from the round that separated it from the body's
+// own darkest stop.
+const SKIN_ROUGH = { dark: '#0d0b09', light: '#5a544a' };
 
 const INK = ['#3a3733', '#211d18', '#2e2a24'] as const;
 const HILITE = '250,247,241';
@@ -874,9 +877,26 @@ export function drawCreatureFrame(
     }
     ctx.restore();
   }
-  // 糙 ROUGH — 7 two-tone dots in two clusters (upper-right 4, lower-left 3);
-  // the clusters are the whole read, a random spread loses it
+  /* 糙 ROUGH — 7 two-tone dot-pairs in two clusters (upper-right 4,
+     lower-left 3); the clusters are the whole read, a random spread loses it.
+     THE LAYOUT IS THE OWNER-CONFIRMED TREATMENT (2026-08-05, reconfirmed
+     after a crater redesign was reverted the same day) — u/v/scale/rotation
+     below are not tuning surfaces.
+
+     What WAS wrong, twice, was legibility, and both defects were of the same
+     family this file keeps re-learning:
+     (1) dots anchored to the NOMINAL centre (cx, cy) — the identical bug
+         bodyBox() was built for when 軟's halo pooled under the belly. On a
+         lobed body the drawn centre sits well above cy, so the "upper-right
+         shoulder" cluster landed mid-body and the "lower-left" one slid to
+         the rim. Now anchored to bodyBox, like everything skin-relative.
+     (2) sized off nominal R with a light tone one step too dark — biggest dot
+         ~11px on a 200px cell, dark ring 18 luminance points off the body.
+         Present in the SVG, invisible on screen; "verified-present" is not
+         "verified-visible". Now sized off the drawn body (hr), one size step
+         up, light tone one step up. */
   if (isRough) {
+    const rb = bodyBox(pts);
     const DOTS: [number, number, number][] = [
       [0.28, -0.46, 1], [0.56, -0.34, 0.8], [0.34, -0.22, 0.6], [0.58, -0.1, 0.5],
       [-0.5, 0.18, 0.94], [-0.3, 0.32, 0.72], [-0.5, 0.4, 0.56],
@@ -884,7 +904,7 @@ export function drawCreatureFrame(
     ctx.save();
     ctx.beginPath(); closedPath(ctx, pts); ctx.clip();
     for (const [u, v, sc] of DOTS) {
-      const x = cx + u * R * widen, y = cy + v * R * squash, r = R * 0.14 * sc;
+      const x = rb.cx + u * rb.hr, y = rb.cy + v * rb.vr, r = rb.hr * 0.17 * sc;
       // dark UNDER and slightly larger — a rim around the light, not a shadow
       ctx.fillStyle = SKIN_ROUGH.dark;
       ctx.beginPath(); ctx.ellipse(x, y, r, r * 0.88, -0.38, 0, TAU); ctx.fill();
