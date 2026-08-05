@@ -66,12 +66,22 @@ export function TasteFormSnapshot({
  *
  * `domains` is the creature door (register 骨 — creatureForm.ts): when domain
  * evidence exists the SAME profile renders as the grown lifeform instead of
- * the plain blob. Absent or empty → exactly today's blob, untouched. NOTHING
- * in production passes it yet: the per-user domain aggregate (ship path step
- * 2, docs/rnd/mokling-framework.md) does not exist, and inventing a field for
- * it is how the sea_crustacean bug happened. The untracked /dev-creature
- * harness drives it by hand. Before production wiring, the snapshot renderer
- * must learn the same anatomy — two renderers, one being, never disagreeing.
+ * the plain blob. Absent or empty → exactly today's blob, untouched.
+ *
+ * LIVE since 2026-08-05: TasteFormCard, TasteGrowth and PublicDossier all
+ * pass `taste_profiles.domain_evidence`, and TasteFormReveal below passes it
+ * straight through. The snapshot renderer learned the same anatomy
+ * (canvasToSvg.ts), closing the two-renderer contract. This comment claimed
+ * "NOTHING in production passes it yet" while the same file was passing it —
+ * an undated status note rots silently, so this one carries a date.
+ *
+ * The lesson that earned the original note still stands: a first port invented
+ * a `vector.sea_crustacean` field, so the gate was permanently false and the
+ * claws never drew. A feature keyed to a field that does not exist is not a
+ * shipped feature; rendering it is the evidence.
+ *
+ * What is and is not built: docs/rnd/mokling-framework.md, "Ledger — what
+ * exists and what does not". Do not infer a feature's absence from this file.
  */
 export function TasteFormLive({
   inputs, size = 280, glyph, domains,
