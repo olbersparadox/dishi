@@ -47,7 +47,7 @@ the distinction that matters is what it would take to finish:
 |---|---|
 | **SHIPPED** | renders in production today |
 | **PORT-GAP** | built in lab v6, silently dropped when v6 was ported — spec and lab code both exist |
-| **LAB-ONLY** | built in lab v7, never ported. Code exists ONLY in the external artifact, **not in this repo** |
+| **LAB-ONLY** | built in lab v7, never ported. Code is rescued into `docs/rnd/mokling-lab-v7-vocabulary.js` (2026-08-05) but has never rendered in production |
 | **READY** | gesture unbuilt, but the detector data already exists today |
 | **NEEDS-DETECTOR** | needs a new sub-node aggregate before any gesture is honest |
 | **DEFERRED** | deliberately unbuilt; detector already specified |
@@ -178,11 +178,20 @@ recorded per user.
 
 ### Two structural risks, named so they stop being invisible
 
-1. **The v7 drawing code exists only in the external artifact.** It is not in
-   this repo — `mokling-lab-v1.html` is v1 and contains none of it. Every
-   LAB-ONLY row above is therefore one lost artifact away from being a rebuild
-   from the spec table alone. Pulling that code into `docs/rnd/` is cheap
-   insurance and should happen before any further porting work.
+1. ~~The v7 drawing code exists only in the external artifact.~~ **RESCUED
+   2026-08-05** → `docs/rnd/mokling-lab-v7-vocabulary.js`. Extracted by exact
+   line range from the artifact, diffed byte-identical against the source, and
+   confirmed to parse. This closes the loss risk but changes nothing about
+   port status — every gesture in that file is still LAB-ONLY until it renders
+   in `creatureForm.ts`. The file carries its own porting checklist (re-base
+   off `stub()` onto the real silhouette, wire the named detector, add both
+   gates, route direction through the real body — the same four steps the
+   original v6 port got wrong at least once each). It also separates the
+   PORTABLE gesture library (VOCAB — parametric, one closure per variant) from
+   the seven ONE-OFF fidelity sketches (TRACES — calibration reference only,
+   not an API); the framework doc above did not previously make that
+   distinction, and conflating them would have meant porting hardcoded traces
+   as if they took arguments.
 2. **Production has no single `out(ang, L)` appendage helper.** The lab's worst
    bug — wings and tails coded, gated, firing correctly, and drawn INTO the
    body where the fill buried them — was fixed by routing every appendage
