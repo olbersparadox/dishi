@@ -253,7 +253,7 @@ const SKIN_GLAZE = { deep: '#0d0c0b', pool: '#2b2723', shine: '#d5d2ca', shineLo
    a baked crust IS, the way 滑 is called wet without being rendered wet. A
    first pass read it as a hue and shipped a genuinely gold top (spread 59);
    that broke the desaturated ink register and was pulled straight back. */
-const SKIN_GOLD = { top: '#55504a', mid: '#35312d', base: '#171412' };
+const SKIN_GOLD = { top: '#605b54', mid: '#322e2a', base: '#0e0b0a' };
 
 const INK = ['#3a3733', '#211d18', '#2e2a24'] as const;
 const HILITE = '250,247,241';
