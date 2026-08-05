@@ -1057,22 +1057,48 @@ export function drawCreatureFrame(
     ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     const M: [number, number][] = [[-1.3, 0], [-0.62, 0], [-0.48, 0.62], [-0.27, 0.62], [-0.13, 0.1],
       [0.13, 0.1], [0.27, 0.62], [0.48, 0.62], [0.62, 0], [1.3, 0]];
-    const nB = 4, h = R * 0.34, y0 = BB.cy - R * 0.4;
-    const trace = (yTop: number) => {
+    // Half-width of the DRAWN silhouette at a given height. Every band used to
+    // run the same `R * widen`, so all four were the same length and the stack
+    // read as wires laid across a blob rather than plates wrapping a shell —
+    // the flat ends being square-clipped by the rim is what gave it away.
+    // Measuring the outline per band is what makes them a dome; it is also the
+    // same nominal-vs-drawn distinction the rest of this renderer now obeys,
+    // since a lopsided palate's body is nowhere near an R-wide ellipse.
+    const spanAt = (y: number): number => {
+      let lo = Infinity, hi = -Infinity;
+      for (let i = 0; i < P; i++) {
+        const a = pts[i], b2 = pts[(i + 1) % P];
+        if ((a.y <= y) === (b2.y <= y)) continue;      // segment doesn't cross y
+        const x = a.x + ((y - a.y) / (b2.y - a.y)) * (b2.x - a.x);
+        if (x < lo) lo = x;
+        if (x > hi) hi = x;
+      }
+      return hi > lo ? (hi - lo) / 2 : 0;
+    };
+    // Vertical extent anchored to the drawn box, not to R: the ink (3 gaps plus
+    // the M's own 0.62 drop) is centred on the body and covers ±0.67 of it, so
+    // the crown and belly are armoured too instead of wearing a belt.
+    const nB = 4, h = (1.34 * BB.vr) / (nB - 1 + 0.62), y0 = BB.cy - 0.67 * BB.vr;
+    const trace = (yTop: number, span: number) => {
       ctx.beginPath();
       M.forEach(([u, v], i) => {
-        const x = BB.cx + u * R * widen, y = yTop + v * h;
+        // u/1.3 normalises the tread's own extremes to ±1, so the shape is
+        // unchanged and only its width follows the body
+        const x = BB.cx + (u / 1.3) * span, y = yTop + v * h;
         if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y);
       });
     };
     for (let b = 0; b < nB; b++) {
       const yTop = y0 + b * h;
+      // measured at the band's own ink centre, and overshot by a hair so the
+      // ends still clip flush against the rim instead of leaving a sliver
+      const span = spanAt(yTop + 0.31 * h) * 1.04;
       ctx.strokeStyle = 'rgba(8,7,6,.62)'; // the gap the next plate slides into
       ctx.lineWidth = Math.max(1.8, R * 0.085);
-      trace(yTop + R * 0.05); ctx.stroke();
+      trace(yTop + R * 0.05, span); ctx.stroke();
       ctx.strokeStyle = `rgba(${HILITE},.24)`; // lit top edge, drawn over it
       ctx.lineWidth = Math.max(1.4, R * 0.05);
-      trace(yTop); ctx.stroke();
+      trace(yTop, span); ctx.stroke();
     }
     ctx.restore();
   }

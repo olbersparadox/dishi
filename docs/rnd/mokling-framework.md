@@ -547,7 +547,19 @@ gesture, because they are what makes the set look like one species of drawing:
    ellipse at readable alpha reads as a grey ball sitting inside the creature —
    it must be a soft radial fade, strong only where the skin justifies it.
 3. **Hair is a dense fine fringe around the ENTIRE outline**, not sparse spikes.
-4. **Shell is graphic nested bands.**
+4. **Shell is graphic nested bands — and the bands FOLLOW THE BODY** (refined
+   2026-08-06). Every band originally ran the same `R * widen`, so all four were
+   the same length and the stack read as wires laid across a blob, the square
+   clip at each flat end giving it away. Each band's half-width now comes from
+   the DRAWN silhouette measured at that band's own height, so the plates narrow
+   toward the crown and the belly and the set reads as a dome. Measured on the
+   蒸+甲 board at 200px: 86 → 102 → 102 → 84. The vertical extent is anchored to
+   `BB.vr` too, centred on the drawn body at ±0.67 of it, because the old
+   `R`-based span sat low and left the crown bare — an armoured creature wearing
+   a belt. Same nominal-vs-drawn distinction as everywhere else in the renderer,
+   and it matters most on a sparse palate, whose body is nowhere near an R-wide
+   ellipse. Count (4), tread shape and the light-edge/dark-gap pair are
+   untouched — this round changed curvature only.
 5. **Translucent things are pale grey** — tentacles, fins, antennae. Not black.
 6. **Eyes are small and close together.** Anything else reads as a cartoon.
 7. **Never centre a line down a round body** — it reads as a seam splitting the
