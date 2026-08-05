@@ -302,9 +302,9 @@ function inkFill(ctx: CanvasRenderingContext2D, c: number, s: number) {
  *  do. */
 function goldFill(
   ctx: CanvasRenderingContext2D,
-  bb: { cx: number; cy: number; hr: number; vr: number },
+  box: { cx: number; cy: number; hr: number; vr: number },
 ) {
-  const g = ctx.createLinearGradient(bb.cx, bb.cy - bb.vr, bb.cx, bb.cy + bb.vr);
+  const g = ctx.createLinearGradient(box.cx, box.cy - box.vr, box.cx, box.cy + box.vr);
   g.addColorStop(0, SKIN_GOLD.top);
   g.addColorStop(0.5, SKIN_GOLD.mid);
   g.addColorStop(1, SKIN_GOLD.base);
@@ -577,8 +577,18 @@ export function drawCreatureFrame(
     }
     return out;
   };
-  const cy = cyAt(t);
   const pts = bodyAt(t);
+  /* THE BODY FRAME. Every mark that sits ON the skin — position OR outward
+     direction — measures from here, never from (cx, cy, R).
+     (cx, cy) is where the body was ASKED to be; BB is where it actually got
+     drawn, and the two differ because the palate's taste lobes push the
+     silhouette around. Measured: ~2px apart on the owner's 18-dim profile,
+     but 16px on a 2-dim one — so the error is worst for NEW palates, which
+     is precisely whose first creature matters most.
+     cx/cy/R stay legal for two things only: building the silhouette itself
+     (bodyAt, above) and as SIZE units. Positioning from them is the bug that
+     hid 軟's halo under the belly and slid 糙's clusters off their seats. */
+  const BB = bodyBox(pts);
   // appendages attach to the DRAWN silhouette, never to a bounding box — a
   // wrist placed off global extents buries wherever the body bulges (measured:
   // claw reach collapsed to 9% on the blob before this rule).
@@ -620,7 +630,6 @@ export function drawCreatureFrame(
        that box too: expressing the halo in R/widen/squash sized it from the
        NOMINAL body, so it could sit narrower than the drawn one and let the
        flanks poke through the thing meant to sit behind them. */
-    const bb = bodyBox(pts);
     ctx.fillStyle = SKIN_SOFT.halo;
     const HN = 96; const hp: Pt[] = [];
     for (let i = 0; i < HN; i++) {
@@ -633,8 +642,8 @@ export function drawCreatureFrame(
       // crown」), so the clearance must be widest at the top and nearly shut
       // at the belly — which is also where the darker core lands.
       hp.push({
-        x: bb.cx + bb.hr * 0.06 + Math.cos(ha) * bb.hr * 1.12 * k,
-        y: bb.cy - bb.vr * 0.08 + Math.sin(ha) * bb.vr * 1.12 * k,
+        x: BB.cx + BB.hr * 0.06 + Math.cos(ha) * BB.hr * 1.12 * k,
+        y: BB.cy - BB.vr * 0.08 + Math.sin(ha) * BB.vr * 1.12 * k,
       });
     }
     ctx.beginPath(); closedPath(ctx, hp); ctx.fill();
@@ -642,7 +651,7 @@ export function drawCreatureFrame(
     ctx.beginPath(); closedPath(ctx, pts); ctx.fill();
     ctx.fillStyle = SKIN_SOFT.core;
     ctx.beginPath();
-    ctx.ellipse(bb.cx, bb.cy + bb.vr * 0.13, bb.hr * 0.8, bb.vr * 0.7, 0, 0, TAU);
+    ctx.ellipse(BB.cx, BB.cy + BB.vr * 0.13, BB.hr * 0.8, BB.vr * 0.7, 0, 0, TAU);
     ctx.fill();
   }
 
@@ -798,7 +807,7 @@ export function drawCreatureFrame(
     const WRIST_BURIAL = species === 'lobster' ? 0.96 : 0.82;
     for (const side of [-1, 1] as const) {
       const p = flank(side, 1.95);
-      const bx = cx + (p.x - cx) * WRIST_BURIAL, by = cy + (p.y - cy) * WRIST_BURIAL;
+      const bx = BB.cx + (p.x - BB.cx) * WRIST_BURIAL, by = BB.cy + (p.y - BB.cy) * WRIST_BURIAL;
       const mo = clawMotion(t, side);
       const ang = side > 0 ? CLAW_AXIS + mo.sway : Math.PI - CLAW_AXIS + mo.sway;
       const drawFn = species === 'lobster' ? drawLobsterClaw : drawCrabClaw;
@@ -825,7 +834,7 @@ export function drawCreatureFrame(
   // (measured in the lab: washing it inverted the three tones)
   if (!isSoft) {
     ctx.save(); ctx.globalAlpha = isSmooth ? 1 : rawA;
-    ctx.fillStyle = isGolden ? goldFill(ctx, bodyBox(pts))
+    ctx.fillStyle = isGolden ? goldFill(ctx, BB)
       : isCharred ? SKIN_CHAR.dark
       : isGlazed ? SKIN_GLAZE.deep
       : isSmooth ? SKIN.base : inkFill(ctx, c0, size);
@@ -848,9 +857,9 @@ export function drawCreatureFrame(
     const w2 = t ? Math.sin(t * 0.00031 + 1.9) * 0.03 : 0;
     const M = Math.max(2.5, (R * 0.12) / Math.min(1, squash));
     const inset = pts.map(p => {
-      const dx = p.x - cx, dy = p.y - cy, d = Math.hypot(dx, dy) || 1;
+      const dx = p.x - BB.cx, dy = p.y - BB.cy, d = Math.hypot(dx, dy) || 1;
       const k = Math.max(0, d - M) / d;
-      return { x: cx + dx * k, y: cy + dy * k };
+      return { x: BB.cx + dx * k, y: BB.cy + dy * k };
     });
     // anchored to the drawn bounding box, not (cx,cy) — identical outlines
     // must place identical reflections (measured on 清蒸魚 vs 壽司 in the lab).
@@ -858,9 +867,8 @@ export function drawCreatureFrame(
     // its own private copy of the arithmetic, and the copy 軟's halo did NOT
     // have is precisely what let that halo drift onto the belly. One helper,
     // no copies.
-    const sb = bodyBox(pts);
-    const HR = sb.hr, VR = sb.vr;
-    const RX = sb.cx - HR * 0.2, RY = sb.cy - VR * 0.26;
+    const HR = BB.hr, VR = BB.vr;
+    const RX = BB.cx - HR * 0.2, RY = BB.cy - VR * 0.26;
     const refPath = (k: number) => {
       const X = (u: number) => RX + HR * u * k, Y = (v: number) => RY + VR * v * k;
       ctx.beginPath();
@@ -902,14 +910,13 @@ export function drawCreatureFrame(
      flank and one short hook at the upper right. Clipped to the body, so a
      lobed silhouette trims them rather than letting them float. */
   if (isGlazed) {
-    const gb = bodyBox(pts);
     ctx.save();
     ctx.beginPath(); closedPath(ctx, pts); ctx.clip();
     // the pool: offset down-right, leaving the thickest dark band up-left
     ctx.fillStyle = SKIN_GLAZE.pool;
     ctx.beginPath();
-    ctx.ellipse(gb.cx + gb.hr * 0.07, gb.cy + gb.vr * 0.11,
-      gb.hr * 0.70, gb.vr * 0.68, -0.18, 0, TAU);
+    ctx.ellipse(BB.cx + BB.hr * 0.07, BB.cy + BB.vr * 0.11,
+      BB.hr * 0.70, BB.vr * 0.68, -0.18, 0, TAU);
     ctx.fill();
     /* Speculars, drawn as WISPS not strokes: each half-width is
        sin(pi*t)^p for a pointed-ended brush shape, times two out-of-phase
@@ -921,17 +928,17 @@ export function drawCreatureFrame(
        reference the underside catches far less light than the top hook. */
     ctx.fillStyle = SKIN_GLAZE.shineLow;
     wisp(ctx,
-      gb.cx - gb.hr * 0.64, gb.cy - gb.vr * 0.46,
-      gb.cx - gb.hr * 1.05, gb.cy + gb.vr * 0.06,
-      gb.cx - gb.hr * 0.56, gb.cy + gb.vr * 0.60,
-      t => Math.max(0.4, gb.hr * 0.042 * Math.pow(Math.sin(Math.PI * t), 0.45)
+      BB.cx - BB.hr * 0.64, BB.cy - BB.vr * 0.46,
+      BB.cx - BB.hr * 1.05, BB.cy + BB.vr * 0.06,
+      BB.cx - BB.hr * 0.56, BB.cy + BB.vr * 0.60,
+      t => Math.max(0.4, BB.hr * 0.042 * Math.pow(Math.sin(Math.PI * t), 0.45)
         * (1 + 0.42 * Math.sin(t * 8.2 + 0.7) + 0.20 * Math.sin(t * 14.5 + 2.1))));
     ctx.fillStyle = SKIN_GLAZE.shine;
     wisp(ctx,
-      gb.cx + gb.hr * 0.30, gb.cy - gb.vr * 0.70,
-      gb.cx + gb.hr * 0.80, gb.cy - gb.vr * 0.42,
-      gb.cx + gb.hr * 0.66, gb.cy + gb.vr * 0.08,
-      t => Math.max(0.4, gb.hr * 0.050 * Math.pow(Math.sin(Math.PI * t), 0.45)
+      BB.cx + BB.hr * 0.30, BB.cy - BB.vr * 0.70,
+      BB.cx + BB.hr * 0.80, BB.cy - BB.vr * 0.42,
+      BB.cx + BB.hr * 0.66, BB.cy + BB.vr * 0.08,
+      t => Math.max(0.4, BB.hr * 0.050 * Math.pow(Math.sin(Math.PI * t), 0.45)
         * (1 + 0.38 * Math.sin(t * 7.1 + 1.9) + 0.16 * Math.sin(t * 12.3 + 0.4))));
     ctx.restore();
   }
@@ -953,18 +960,17 @@ export function drawCreatureFrame(
     // vector ALONG each stripe, nrm the perpendicular the stripes stack along,
     // both in absolute body coordinates, and every stripe is four explicit
     // corners rather than a transformed rect.
-    const cb = bodyBox(pts);
     const ang = -0.40;
     const dir = { x: Math.cos(ang), y: Math.sin(ang) };
     const nrm = { x: -Math.sin(ang), y: Math.cos(ang) };
-    const span = (cb.hr + cb.vr) * 1.6;
-    const period = cb.hr * 0.46;
+    const span = (BB.hr + BB.vr) * 1.6;
+    const period = BB.hr * 0.46;
     const liteFrac = 0.56;                 // ridges read WIDER than the gaps
     // One gradient along `dir`, shared by every ridge — a single light source
     // across the whole surface, not one per stripe.
     const grad = ctx.createLinearGradient(
-      cb.cx - dir.x * span, cb.cy - dir.y * span,
-      cb.cx + dir.x * span, cb.cy + dir.y * span,
+      BB.cx - dir.x * span, BB.cy - dir.y * span,
+      BB.cx + dir.x * span, BB.cy + dir.y * span,
     );
     grad.addColorStop(0, SKIN_CHAR.liteA);
     grad.addColorStop(1, SKIN_CHAR.liteB);
@@ -974,7 +980,7 @@ export function drawCreatureFrame(
     const n = Math.ceil((span * 2) / period) + 2;
     for (let i = -n; i <= n; i++) {
       const off = i * period, h = (period * liteFrac) / 2;
-      const mx = cb.cx + nrm.x * off, my = cb.cy + nrm.y * off;
+      const mx = BB.cx + nrm.x * off, my = BB.cy + nrm.y * off;
       ctx.beginPath();
       ctx.moveTo(mx - dir.x * span + nrm.x * -h, my - dir.y * span + nrm.y * -h);
       ctx.lineTo(mx + dir.x * span + nrm.x * -h, my + dir.y * span + nrm.y * -h);
@@ -994,14 +1000,13 @@ export function drawCreatureFrame(
      along its own ray until the whole pair clears the outline — so "not
      touching the rim" holds on a lobed body, not just a round one. */
   if (isRough) {
-    const bb = bodyBox(pts);
     // Distance from the drawn centre to the rim along one direction.
     const rimAt = (ang: number) => {
-      let best = bb.hr, near = Infinity;
+      let best = BB.hr, near = Infinity;
       for (const p of pts) {
-        const pa = Math.atan2(p.y - bb.cy, p.x - bb.cx);
+        const pa = Math.atan2(p.y - BB.cy, p.x - BB.cx);
         const d = Math.abs(Math.atan2(Math.sin(pa - ang), Math.cos(pa - ang)));
-        if (d < near) { near = d; best = Math.hypot(p.x - bb.cx, p.y - bb.cy); }
+        if (d < near) { near = d; best = Math.hypot(p.x - BB.cx, p.y - BB.cy); }
       }
       return best;
     };
@@ -1016,20 +1021,20 @@ export function drawCreatureFrame(
       [-0.65, 0.46, 0.68], [-0.48, 0.32, 0.73],
       [-0.49, 0.60, 0.75],
     ];
-    const R0 = bb.hr * 0.105;
+    const R0 = BB.hr * 0.105;
     ctx.save();
     ctx.beginPath(); closedPath(ctx, pts); ctx.clip();
     for (const [u, v, sc] of DOTS) {
       const r = R0 * sc;
-      let x = bb.cx + u * bb.hr, y = bb.cy + v * bb.vr;
-      const ang = Math.atan2(y - bb.cy, x - bb.cx);
-      const dist = Math.hypot(x - bb.cx, y - bb.cy);
+      let x = BB.cx + u * BB.hr, y = BB.cy + v * BB.vr;
+      const ang = Math.atan2(y - BB.cy, x - BB.cx);
+      const dist = Math.hypot(x - BB.cx, y - BB.cy);
       // 1.35r covers the pair's own offset as well as the circle itself
       const max = rimAt(ang) - r * 1.35;
       if (dist > max && dist > 0) {
         const k = max / dist;
-        x = bb.cx + (x - bb.cx) * k;
-        y = bb.cy + (y - bb.cy) * k;
+        x = BB.cx + (x - BB.cx) * k;
+        y = BB.cy + (y - BB.cy) * k;
       }
       ctx.fillStyle = SKIN_ROUGH.black;
       ctx.beginPath(); ctx.arc(x + r * 0.13, y + r * 0.11, r, 0, TAU); ctx.fill();
@@ -1052,11 +1057,11 @@ export function drawCreatureFrame(
     ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     const M: [number, number][] = [[-1.3, 0], [-0.62, 0], [-0.48, 0.62], [-0.27, 0.62], [-0.13, 0.1],
       [0.13, 0.1], [0.27, 0.62], [0.48, 0.62], [0.62, 0], [1.3, 0]];
-    const nB = 4, h = R * 0.34, y0 = cy - R * 0.4;
+    const nB = 4, h = R * 0.34, y0 = BB.cy - R * 0.4;
     const trace = (yTop: number) => {
       ctx.beginPath();
       M.forEach(([u, v], i) => {
-        const x = cx + u * R * widen, y = yTop + v * h;
+        const x = BB.cx + u * R * widen, y = yTop + v * h;
         if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y);
       });
     };
@@ -1109,14 +1114,14 @@ export function drawCreatureFrame(
       const fr = seg[k] ? (target - cum[k]) / seg[k] : 0;
       const p0 = pts[k], p1 = pts[(k + 1) % P]; // live outline, static anchor
       const px = p0.x + (p1.x - p0.x) * fr, py = p0.y + (p1.y - p0.y) * fr;
-      let nx = px - cx, ny = py - cy;
+      let nx = px - BB.cx, ny = py - BB.cy;
       const d = Math.hypot(nx, ny) || 1; nx /= d; ny /= d;
       // variation applied AFTER the clamp, never inside it: clamping the varied
       // value collapses every hair to exactly the floor once the body is small,
       // and a coat of identical strands reads as a comb, not as fur
       const L = HM.base * (0.82 + rnd() * 0.36);
-      const side = px >= cx ? 1 : -1;
-      const bend = hairWindBend(nx, ny, px - cx, R, t);
+      const side = px >= BB.cx ? 1 : -1;
+      const bend = hairWindBend(nx, ny, px - BB.cx, R, t);
       // base lean stays MIRRORED about the vertical axis (owner's reference:
       // every hair sweeps outward-and-down); the wind is added in screen space,
       // unmirrored, so the two sides genuinely bend independently
@@ -1135,7 +1140,7 @@ export function drawCreatureFrame(
     ctx.fillStyle = 'rgba(33,29,24,.92)';
     for (let i = 0; i < nN; i++) {
       const p = pts[Math.floor(rnd() * P)];
-      const dx = p.x - cx, dy = p.y - cy, d = Math.hypot(dx, dy) || 1;
+      const dx = p.x - BB.cx, dy = p.y - BB.cy, d = Math.hypot(dx, dy) || 1;
       const off = R * (0.01 + rnd() * 0.05);
       ctx.beginPath();
       ctx.arc(p.x + (dx / d) * off, p.y + (dy / d) * off, R * (0.02 + rnd() * 0.03), 0, TAU);
@@ -1162,12 +1167,13 @@ export function drawCreatureFrame(
     }
   }
 
-  // the glyph rides the body's own centre (cy shifts with weight/domain)
+  // the glyph rides the DRAWN centre, so it stays optically centred on a
+  // lobed body instead of drifting toward wherever the nominal centre sat
   if (glyph) {
     ctx.fillStyle = '#faf7f1';
     ctx.font = `500 ${Math.round(size * 0.09)}px "Songti TC","Noto Serif TC",serif`;
     ctx.textAlign = 'center';
-    ctx.fillText(glyph, cx, cy + size * 0.036);
+    ctx.fillText(glyph, BB.cx, BB.cy + size * 0.036);
   }
 }
 
