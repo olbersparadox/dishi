@@ -93,7 +93,7 @@ armoured, soft AND furred.
 | 蒸 steamed | 軟 soft (pale halo behind, dark core) | **SHIPPED** — pinned by `skinOf()` + tests |
 | 炸 fried | 糙 rough — **owner's spec: one dot = a grey circle overlapping a black circle; 4 dots upper-right, 3 lower-left, none touching the rim** — plus crust nubs on the rim | **SHIPPED** |
 | 燜 braised | 釉 glaze — **near-black rim, warmer pool inset from it, two speculars (long left flank, short hook upper-right)** — plus its body sag | **SHIPPED** |
-| 焗 baked | 金 gold — **smooth top-to-bottom golden gradient, no marks at all** — plus its risen dome | **SHIPPED** |
+| 焗 baked | 金 gold — **smooth top-to-bottom gradient, no marks at all**; tone stays in the house ink palette (the name is figurative, like 滑 "wet") — plus its risen dome | **SHIPPED** |
 | 烤 grilled | — none — (energy term only) | **TO DESIGN** |
 
 Binding rules: design the last gap (烤), owner verifies each at

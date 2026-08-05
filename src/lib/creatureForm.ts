@@ -244,14 +244,16 @@ const SKIN_ROUGH = { black: '#0a0908', grey: '#5a544c' };
    inversion is the whole signature: every other skin is lighter at the rim or
    flat, so 釉 cannot be mistaken for them at a glance. */
 const SKIN_GLAZE = { deep: '#0d0c0b', pool: '#2b2723', shine: '#d5d2ca', shineLow: '#8f8a80' };
-/* 金 gold (焗 baked): a smooth top-to-bottom golden gradient and NOTHING else
-   — no speculars, no marks. The absence is the signature: it is the only skin
-   with no incident on it at all, which is what keeps it apart from 釉's
-   speculars and 糙's dots on a body that also happens to be domed.
-   Deliberately the warmest thing in the palette (top spread 59 against the
-   house's usual 7-15) because "golden" was the owner's whole brief; it is a
-   knowing departure from the otherwise desaturated inks, not a slip. */
-const SKIN_GOLD = { top: '#8b7550', mid: '#4e4132', base: '#171310' };
+/* 金 gold (焗 baked): a smooth top-to-bottom gradient and NOTHING else — no
+   speculars, no marks. The absence is the signature: it is the only skin with
+   no incident on it at all, which is what keeps it apart from 釉's speculars
+   and 糙's dots on a body that also happens to be domed.
+   TONE STAYS IN THE HOUSE PALETTE (channel spread 5-11, against the house's
+   usual 7-15). "Golden" in the brief was figurative — the name describes what
+   a baked crust IS, the way 滑 is called wet without being rendered wet. A
+   first pass read it as a hue and shipped a genuinely gold top (spread 59);
+   that broke the desaturated ink register and was pulled straight back. */
+const SKIN_GOLD = { top: '#55504a', mid: '#35312d', base: '#171412' };
 
 const INK = ['#3a3733', '#211d18', '#2e2a24'] as const;
 const HILITE = '250,247,241';
