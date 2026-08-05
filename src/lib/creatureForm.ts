@@ -850,17 +850,17 @@ export function drawCreatureFrame(
        reference the underside catches far less light than the top hook. */
     ctx.fillStyle = SKIN_GLAZE.shineLow;
     wisp(ctx,
-      gb.cx - gb.hr * 0.64, gb.cy - gb.vr * 0.24,
-      gb.cx - gb.hr * 0.80, gb.cy + gb.vr * 0.10,
-      gb.cx - gb.hr * 0.58, gb.cy + gb.vr * 0.44,
-      t => Math.max(0.5, gb.hr * 0.062 * Math.pow(Math.sin(Math.PI * t), 0.5)
+      gb.cx - gb.hr * 0.64, gb.cy - gb.vr * 0.46,
+      gb.cx - gb.hr * 1.05, gb.cy + gb.vr * 0.06,
+      gb.cx - gb.hr * 0.56, gb.cy + gb.vr * 0.60,
+      t => Math.max(0.4, gb.hr * 0.042 * Math.pow(Math.sin(Math.PI * t), 0.45)
         * (1 + 0.42 * Math.sin(t * 8.2 + 0.7) + 0.20 * Math.sin(t * 14.5 + 2.1))));
     ctx.fillStyle = SKIN_GLAZE.shine;
     wisp(ctx,
-      gb.cx + gb.hr * 0.38, gb.cy - gb.vr * 0.64,
-      gb.cx + gb.hr * 0.72, gb.cy - gb.vr * 0.50,
-      gb.cx + gb.hr * 0.60, gb.cy - gb.vr * 0.18,
-      t => Math.max(0.5, gb.hr * 0.072 * Math.pow(Math.sin(Math.PI * t), 0.45)
+      gb.cx + gb.hr * 0.30, gb.cy - gb.vr * 0.70,
+      gb.cx + gb.hr * 0.80, gb.cy - gb.vr * 0.42,
+      gb.cx + gb.hr * 0.66, gb.cy + gb.vr * 0.08,
+      t => Math.max(0.4, gb.hr * 0.050 * Math.pow(Math.sin(Math.PI * t), 0.45)
         * (1 + 0.38 * Math.sin(t * 7.1 + 1.9) + 0.16 * Math.sin(t * 12.3 + 0.4))));
     ctx.restore();
   }
