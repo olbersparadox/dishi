@@ -96,13 +96,16 @@ armoured, soft AND furred.
 | 焗 baked | 金 gold — **smooth top-to-bottom gradient, no marks at all**; tone stays in the house ink palette (the name is figurative, like 滑 "wet") — plus its risen dome | **SHIPPED** |
 | 烤 grilled | 烙 char-brand — **diagonal grill-iron stripes, one shared raking-light gradient across all ridges** | **SHIPPED** |
 
-All six method skins are shipped. Binding rules that stood while designing them, kept as reference for any future retune, owner verifies each at
-200px AND 72px before the next; all six must stay distinct at 72px; the
-collision risk is inside the wet family (生·蒸·燜) and the dry family
-(炸·焗·烤), not across them. Known gap to fix once, not per-skin: the
-share > 0.5 gate has no absolute evidence floor (one steamed dish = full
-skin), and a mixed palate wears nothing (owner's own profile: top share 蒸
-0.306 → bare).
+All six method skins are shipped. Rules that stood while designing them,
+kept as reference for any future retune: verify at 200px AND 72px; all six
+must stay distinct at 72px; the collision risk sits inside the wet family
+(生·蒸·燜) and the dry family (炸·焗·烤), not across them.
+
+Known gap, deliberately not fixed here: the share > 0.5 gate has no absolute
+evidence floor, so one steamed dish with no other method evidence draws a
+full skin. And a mixed palate clears no gate at all — the owner's own
+profile (top share 蒸 at 0.306) wears none of the six. Fix together, with the
+owner, not per-skin.
 
 
 ### 姿 · 銘 · 面
@@ -817,8 +820,8 @@ See BACKLOG "Data audit" item — the audit runs before any phase-1 code.
 - Does the creature ever appear to OTHER users outside an explicit share
   (e.g. beside a 貼文)? Default no until decided.
 - ~~Does 膚 belong to domain or to method?~~ ~~軟's register divergence?~~
-  ~~Where does 烤 live?~~ **ALL THREE ANSWERED (owner, 2026-08-05): 膚 is
-  method-only, 甲/毛 move to 骨, 軟 re-points to 蒸.** State: "膚 — current
-  section in the Ledger. What remains is execution — four skins to design
-  (炸 · 燜 · 焗 · 烤), one at a time, each verified at 200px AND 72px before
-  the next.
+  ~~Where does 烤 live?~~ **ALL ANSWERED (owner, 2026-08-05/06): 膚 is
+  method-only; 甲/毛 move to 骨; 軟 re-points to 蒸; 糙/釉/金/烙 designed one
+  at a time for 炸/燜/焗/烤.** All six method skins are shipped — see the
+  "膚" section in the Ledger. Open: re-adding 甲/毛 as 骨 overlays now that
+  the six are settled.
