@@ -91,26 +91,18 @@ armoured, soft AND furred.
 |---|---|---|
 | 生 raw | 滑 smooth·wet + translucent wash + wet rim | **SHIPPED** — 生's alone |
 | 蒸 steamed | 軟 soft (pale halo behind, dark core) | **SHIPPED** — pinned by `skinOf()` + tests |
-| 炸 fried | 糙 rough — **owner's final spec, verbatim: "3 dots on the upper right, and 3 dots on the lower left"** (two-tone dot-pairs) — plus crust nubs on the rim | **SHIPPED** — anchored/sized to the drawn body (`bodyBox`); layout pinned through `creatureSnapshotSvg` tests |
-| 燜 braised | — none — (has body SHAPE: sag) | **TO DESIGN** — proposed 潤 lacquered |
-| 焗 baked | — none — (has body SHAPE: dome) | **TO DESIGN** — proposed 酥 dry-crisp |
-| 烤 grilled | — none — (energy term only) | **TO DESIGN LAST** — proposed 焦 scorched; sear stripes were killed by the owner ("a skin of its own, not an overlay"), never reinstate them. Open sub-question, owner's call at design time: share 糙's detector / own skin / a shape channel |
+| 炸 fried | — none — (has crust nubs on the rim, a separate rim treatment) | **TO DESIGN** |
+| 燜 braised | — none — (has body SHAPE: sag) | **TO DESIGN** |
+| 焗 baked | — none — (has body SHAPE: dome) | **TO DESIGN** |
+| 烤 grilled | — none — (energy term only) | **TO DESIGN** |
 
-Binding rules: design the three gaps ONE at a time, owner verifies each at
+Binding rules: design the four gaps ONE at a time, owner verifies each at
 200px AND 72px before the next; all six must stay distinct at 72px; the
 collision risk is inside the wet family (生·蒸·燜) and the dry family
-(炸·焗·烤), not across them. Known gaps to fix together later, not per-skin:
+(炸·焗·烤), not across them. Known gap to fix once, not per-skin: the
 share > 0.5 gate has no absolute evidence floor (one steamed dish = full
 skin), and a mixed palate wears nothing (owner's own profile: top share 蒸
 0.306 → bare).
-
-Do-not-repeat list (each of these happened): don't re-derive 糙 from old
-drawing-rule prose or from the lab files — a crater redesign from those
-sources was reverted on owner correction; don't anchor skin features to the
-nominal centre (bodyBox exists because that bug hid both 軟's halo and 糙's
-clusters); don't trust "present in the SVG" as "visible on screen" — verify
-with an unscaled screenshot; 軟 belongs to 蒸, not 田+菌 and not 燜; no
-"agreed map" ties 糙 to 根/榖 (根/榖 is an open 田 question only).
 
 
 ### 姿 · 銘 · 面
@@ -190,7 +182,7 @@ recorded per user.
 | sea: 軟體 mollusc | no — needs ingredient words, exactly the pattern `ALGAE_WORDS` already established | tentacle variants |
 | field: 葉 · 根 · 豆 · 花 | no — 豆 is free from the `soy` flag; 葉/根 need words | plant-part variants |
 | time-of-day | no — dishes carry timestamps, nothing reads the hour | 罪角, the framework's one genuinely new data source |
-| 榖 base | **UNDECIDED** — skin texture or anatomy? | 糙 rough's real detector |
+| 榖 base | **UNDECIDED** — skin texture or anatomy? | 田's base ingredients |
 
 ### Two structural risks, named so they stop being invisible
 
@@ -468,7 +460,7 @@ with the detector beside it. **No detector, no feature.**
 | 角 horns | 牛 curved pair · 脂 thick blunt · 罪 jagged | 牛 at depth · heaviness + 濃 · **炸 + heaviness after 23:00** |
 | 耳 ears | 豬 floppy triangle · 牛 side flap · 羊 pointed | land sub-node |
 | 足 feet | 牛 cleft hoof · 豬 trotter · 雞 splayed toes · 鴨 webbed | land sub-node + 鴨 of 羽 |
-| 膚 skins | ⚠ SUPERSEDED ROW — the 2026-08-05 rearrangement re-keyed 膚 to method-only (the Ledger "膚" section is authoritative). Lab detectors kept for the record: 毛←fur mammals · 滑←蒸/生 · 糙←烤/炸 · 甲←甲殼 · 軟←燜 — of these, only 糙's 烤-half remains an open question | (superseded) |
+| 膚 skins | ⚠ SUPERSEDED ROW — the 2026-08-05 rearrangement re-keyed 膚 to method-only; the Ledger "膚" section is authoritative | (superseded) |
 | 葉 plant parts | 闊葉 broad leaf · 針葉 herb sprig · 根 tuber · 藻帶 seaweed ribbon | 田 sub-nodes (葉/花/根) + 藻 |
 | 觸 tentacles | 八爪 suckered curl · 魷 straight pair · 水母 fine strands | 軟體 sub-nodes |
 
@@ -516,14 +508,7 @@ gesture, because they are what makes the set look like one species of drawing:
    ellipse at readable alpha reads as a grey ball sitting inside the creature —
    it must be a soft radial fade, strong only where the skin justifies it.
 3. **Hair is a dense fine fringe around the ENTIRE outline**, not sparse spikes.
-4. **糙 rough is the confirmed two-cluster dot-pair treatment — the "膚 —
-   current state" table is authoritative, not this list.** (This rule's
-   original wording, "dark pits, not pale specks", described the 2026-08-02
-   sketch round; on 2026-08-05 it was read as outranking the shipped confirmed
-   design and misled a crater redesign the owner reverted. A drawing rule
-   calibrates HOW a treatment is inked; it never overrides WHICH treatment
-   was confirmed.) **Shell is graphic nested bands.** (Sear marks: killed —
-   see the 膚 decision log.)
+4. **Shell is graphic nested bands.**
 5. **Translucent things are pale grey** — tentacles, fins, antennae. Not black.
 6. **Eyes are small and close together.** Anything else reads as a cartoon.
 7. **Never centre a line down a round body** — it reads as a seam splitting the
@@ -829,8 +814,6 @@ See BACKLOG "Data audit" item — the audit runs before any phase-1 code.
 - ~~Does 膚 belong to domain or to method?~~ ~~軟's register divergence?~~
   ~~Where does 烤 live?~~ **ALL THREE ANSWERED (owner, 2026-08-05): 膚 is
   method-only, 甲/毛 move to 骨, 軟 re-points to 蒸.** State: "膚 — current
-  state" table in the Ledger; history: the 膚 decision log beside it. What
-  remains is execution — three skins to design (燜 · 焗 · 烤), one at a time,
-  each verified at 200px AND 72px before the next — plus one genuinely open
-  sub-question, recorded in the decision log: which expression 烤 eventually
-  gets (share 糙's detector / own skin 焦 / a shape channel).
+  section in the Ledger. What remains is execution — four skins to design
+  (炸 · 燜 · 焗 · 烤), one at a time, each verified at 200px AND 72px before
+  the next.

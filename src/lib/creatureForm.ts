@@ -180,7 +180,7 @@ export function domainShares(domains: DomainEvidence): DomainShares {
   };
 }
 
-export type SkinType = 'shell' | 'soft' | 'smooth' | 'rough' | 'hairy' | 'none';
+export type SkinType = 'shell' | 'soft' | 'smooth' | 'hairy' | 'none';
 
 /**
  * Which surface the being wears. EXTRACTED from the render loop so it can be
@@ -207,25 +207,16 @@ export type SkinType = 'shell' | 'soft' | 'smooth' | 'rough' | 'hairy' | 'none';
  *
  * KNOWN GAP, deliberately not closed here: method skins gate on SHARE with no
  * absolute evidence floor, so a single steamed dish with no other method
- * evidence normalises to m.steamed = 1 and draws a full skin. Pre-existing for
- * 滑 and 糙; 軟 inherits the pattern rather than becoming the lone stricter
- * sibling. Fix all three together, with the owner — not piecemeal.
+ * evidence normalises to m.steamed = 1 and draws a full skin. Fix the skins
+ * together, with the owner — not piecemeal.
  */
 export function skinOf(domains: DomainEvidence, sh: DomainShares, m: MethodShares): SkinType {
   const ev = (k: (typeof DOMAIN_KEYS)[number]) => Math.max(0, domains[k] ?? 0);
   const absF = (evd: number, min = 5, span = 7) => smooth01((evd - min) / span);
 
   if (sh.c > 0.3 && absF(ev('shell'), 3, 5) > 0.4) return 'shell';
-  // 軟 SOFT ← 蒸. Overrides the old spec row (軟 ← 燜) by owner decision; 燜
-  // now needs a skin of its own. Written down so it is never re-read as drift.
-  if (m.steamed > 0.5) return 'soft';
-  // 滑 SMOOTH ← 生 alone. The old `steamed + raw*0.8` blend served both wet
-  // methods with one skin; with 蒸 owning 軟 that blend would hand 蒸 a second.
-  if (m.raw > 0.5) return 'smooth';
-  // 糙 ← 炸. The old comment claimed an "agreed map" keyed this to 根/榖 — no
-  // such map exists; the framework's only 膚 row says 烤/炸, and 榖 is an open
-  // question. Whether 烤 shares 糙 or earns its own is still to design.
-  if (m.fried > 0.5) return 'rough';
+  if (m.steamed > 0.5) return 'soft';       // 軟 ← 蒸
+  if (m.raw > 0.5) return 'smooth';         // 滑 ← 生
   if (sh.l + sh.a > 0.45 && absF(ev('land') + ev('air'), 6, 9) > 0.4) return 'hairy';
   return 'none';
 }
@@ -241,17 +232,6 @@ const SKIN_SMOOTH_LAND = { base: '#332f2a', mid: '#454039', hi: '#847f76', rim: 
 // Read off the owner's reference — earlier passes drew the body at 72% alpha,
 // which washed it grey; z-order (body behind limbs) is the fix, not opacity.
 const SKIN_SOFT = { halo: '#d2cfc7', layer: '#332f2b', core: '#221f1a' };
-// 糙 rough: ONE two-tone dot duplicated and resized — placement is the
-// character. THE LAYOUT IS THE OWNER'S FINAL SPEC (2026-08-05, verbatim): "3
-// dots on the upper right, and 3 dots on the lower left." Not a tuning
-// surface. These TONES
-// are: the lab's light half (#4b473f, L71) sat over body fill of L30-55, so
-// at production dot sizes the pair read as nothing — the treatment was
-// confirmed as a design and never actually legible at real size, in the lab
-// or here. light raised one step (L84) so the pair reads without becoming a
-// pale speck; dark unchanged from the round that separated it from the body's
-// own darkest stop.
-const SKIN_ROUGH = { dark: '#0d0b09', light: '#5a544a' };
 
 const INK = ['#3a3733', '#211d18', '#2e2a24'] as const;
 const HILITE = '250,247,241';
@@ -512,7 +492,6 @@ export function drawCreatureFrame(
   const isShell = skin === 'shell';
   const isSoft = skin === 'soft';
   const isSmooth = skin === 'smooth';
-  const isRough = skin === 'rough';
   const isHairy = skin === 'hairy';
   const SKIN = (s + c + ag) >= (l + a + f + fg) ? SKIN_SMOOTH_SEA : SKIN_SMOOTH_LAND;
 
@@ -875,29 +854,6 @@ export function drawCreatureFrame(
       ctx.moveTo(px - nx * R * 0.02, py - ny * R * 0.02); // rooted just inside the rim
       ctx.lineTo(px + (nx * ca - ny * sa2) * L, py + (ny * ca + nx * sa2) * L);
       ctx.stroke();
-    }
-    ctx.restore();
-  }
-  /* 糙 ROUGH — THE OWNER'S FINAL SPEC (2026-08-05, verbatim): "3 dots on the
-     upper right, and 3 dots on the lower left." Two-tone dot-pairs, two
-     clusters, 3 + 3. Layout is not a tuning surface; anchored and sized to
-     the DRAWN body via bodyBox (never the nominal centre — the bug that hid
-     this skin and 軟's halo). */
-  if (isRough) {
-    const rb = bodyBox(pts);
-    const DOTS: [number, number, number][] = [
-      [0.28, -0.46, 1], [0.56, -0.34, 0.8], [0.34, -0.22, 0.6],
-      [-0.5, 0.18, 0.94], [-0.3, 0.32, 0.72], [-0.5, 0.4, 0.56],
-    ];
-    ctx.save();
-    ctx.beginPath(); closedPath(ctx, pts); ctx.clip();
-    for (const [u, v, sc] of DOTS) {
-      const x = rb.cx + u * rb.hr, y = rb.cy + v * rb.vr, r = rb.hr * 0.17 * sc;
-      // dark UNDER and slightly larger — a rim around the light, not a shadow
-      ctx.fillStyle = SKIN_ROUGH.dark;
-      ctx.beginPath(); ctx.ellipse(x, y, r, r * 0.88, -0.38, 0, TAU); ctx.fill();
-      ctx.fillStyle = SKIN_ROUGH.light;
-      ctx.beginPath(); ctx.ellipse(x - r * 0.1, y - r * 0.1, r * 0.8, r * 0.68, -0.38, 0, TAU); ctx.fill();
     }
     ctx.restore();
   }

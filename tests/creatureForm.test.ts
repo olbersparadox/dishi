@@ -5,7 +5,6 @@
 import { describe, it, expect } from 'vitest';
 import {
   hasAnatomy, temperOf, hairWindBend, hairMetrics, out, skinOf, domainShares, bodyBox,
-  creatureSnapshotSvg,
 } from '../src/lib/creatureForm';
 import type { DomainEvidence, SkinType } from '../src/lib/creatureForm';
 import type { FormInputs } from '../src/lib/blobForm';
@@ -157,15 +156,10 @@ describe('skinOf — 膚 is METHOD-driven (the rearrangement, owner 2026-08-05)'
     expect(skin(THIN, 'steamed')).not.toBe('smooth');
   });
 
-  it('糙 ROUGH stays with 炸 fried', () => {
-    expect(skin(THIN, 'fried')).toBe('rough');
-  });
-
-  it('the three methods still without a skin render none — the open work', () => {
-    // 燜 · 焗 · 烤 are the gaps the cleared board exposed. Pinning them as
-    // 'none' means the day one is designed, this test FAILS and forces the
-    // ledger to be updated with it.
-    for (const dim of ['braised', 'baked', 'grilled']) {
+  it('the methods without a skin render none — the open work', () => {
+    // 炸 · 燜 · 焗 · 烤 have no skin. Pinning them as 'none' means the day one
+    // is designed, this test FAILS and forces the ledger to be updated with it.
+    for (const dim of ['fried', 'braised', 'baked', 'grilled']) {
       expect(skin(THIN, dim)).toBe('none');
     }
   });
@@ -195,57 +189,6 @@ describe('skinOf — 膚 is METHOD-driven (the rearrangement, owner 2026-08-05)'
 
   it('no domain and no method preference is bare — nothing is invented', () => {
     expect(skin(THIN)).toBe('none');
-  });
-});
-
-describe('糙 rough — the confirmed two-cluster treatment, through the real renderer', () => {
-  // The owner's FINAL spec (2026-08-05, verbatim): "3 dots on the upper right,
-  // and 3 dots on the lower left." This skin went invisible twice (nominal-
-  // centre anchoring + undersized dots), and a wrong crater redesign replaced
-  // it once, so the layout is pinned through creatureSnapshotSvg — the same
-  // string production mounts — rather than through any harness.
-  const svg = creatureSnapshotSvg(
-    { vector: { umami: 0.4, fried: 0.9 }, evidence: { umami: 20, fried: 20 }, ratingCount: 45, seed: 'rough:v1' },
-    { sea: 2 }, 200,
-  );
-  // The svg serializer emits ctx.ellipse() as an arc-pair <path> ("M p1 A … p2
-  // A … p1"), NOT as an <ellipse> element — p1 and p2 are opposite rim points,
-  // so the centre is their midpoint. Array.from, not spread: bare tsc chokes
-  // on iterating matchAll without downlevelIteration (the i18n.test.ts issue).
-  const centers = (fill: string) =>
-    Array.from(svg.matchAll(/<path d="M([\d.-]+) ([\d.-]+)A[\d.-]+ [\d.-]+ [\d.-]+ \d \d ([\d.-]+) ([\d.-]+)[^"]*" fill="([^"]+)"/g), m => m)
-      .filter(m => m[5] === fill)
-      .map(m => ({
-        cx: (Number(m[1]) + Number(m[3])) / 2,
-        cy: (Number(m[2]) + Number(m[4])) / 2,
-      }));
-
-  it('draws exactly 6 dark + 6 light — 3+3 pairs, nothing scattered', () => {
-    expect(centers('#0d0b09')).toHaveLength(6);
-    expect(centers('#5a544a')).toHaveLength(6);
-  });
-
-  it('clusters sit upper-RIGHT (3) and lower-LEFT (3) of the drawn body', () => {
-    const dark = centers('#0d0b09').sort((a, b) => a.cy - b.cy);
-    const upper = dark.slice(0, 3), lower = dark.slice(3);
-    const mean = (ps: { cx: number; cy: number }[], k: 'cx' | 'cy') =>
-      ps.reduce((s, p) => s + p[k], 0) / ps.length;
-    // Two genuinely separate clusters, not a smear: vertical gap between them
-    // must exceed the spread within either.
-    expect(mean(lower, 'cy') - mean(upper, 'cy')).toBeGreaterThan(15);
-    // Upper cluster to the RIGHT of centre, lower to the LEFT — the diagonal
-    // is the character. Anchored to the drawn body via bodyBox, so if a future
-    // edit re-anchors to the nominal centre on a lobed body, the clusters
-    // shear off their seats and these relations break.
-    expect(mean(upper, 'cx')).toBeGreaterThan(mean(lower, 'cx') + 15);
-  });
-
-  it('each light dot rides its own dark ring — pairs, not two populations', () => {
-    const dark = centers('#0d0b09');
-    for (const l of centers('#5a544a')) {
-      const nearest = Math.min(...dark.map(d => Math.hypot(d.cx - l.cx, d.cy - l.cy)));
-      expect(nearest).toBeLessThan(4); // offset is -0.1r ≈ 1px; 4 is generous
-    }
   });
 });
 
