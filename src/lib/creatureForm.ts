@@ -242,7 +242,7 @@ const SKIN_ROUGH = { black: '#0a0908', grey: '#5a544c' };
    mass sits inside it, and two bright speculars catch the wet surface. That
    inversion is the whole signature: every other skin is lighter at the rim or
    flat, so 釉 cannot be mistaken for them at a glance. */
-const SKIN_GLAZE = { deep: '#0d0c0b', pool: '#2b2723', shine: '#d5d2ca' };
+const SKIN_GLAZE = { deep: '#0d0c0b', pool: '#2b2723', shine: '#d5d2ca', shineLow: '#8f8a80' };
 
 const INK = ['#3a3733', '#211d18', '#2e2a24'] as const;
 const HILITE = '250,247,241';
@@ -327,6 +327,43 @@ function closedPath(ctx: CanvasRenderingContext2D, pts: Pt[]) {
     );
   }
   ctx.closePath();
+}
+
+/**
+ * A brush-like specular: a FILLED ribbon along a quadratic whose half-width
+ * varies with `wAt`, so the highlight swells and pinches down its length.
+ *
+ * ctx.stroke() cannot do this — lineWidth is one value for the whole path, so
+ * a stroked highlight reads as a uniform pipe no matter how the curve bends.
+ * Sampling the curve and offsetting each point along its own normal is the
+ * only way to get a stroke that looks brushed rather than extruded.
+ */
+function wisp(
+  ctx: CanvasRenderingContext2D,
+  x0: number, y0: number, qx: number, qy: number, x1: number, y1: number,
+  wAt: (t: number) => number,
+) {
+  const N = 26;
+  const a: Pt[] = [], b: Pt[] = [];
+  for (let i = 0; i <= N; i++) {
+    const t = i / N, u = 1 - t;
+    const px = u * u * x0 + 2 * u * t * qx + t * t * x1;
+    const py = u * u * y0 + 2 * u * t * qy + t * t * y1;
+    // tangent of the quadratic, for the perpendicular offset
+    const tx = 2 * u * (qx - x0) + 2 * t * (x1 - qx);
+    const ty = 2 * u * (qy - y0) + 2 * t * (y1 - qy);
+    const len = Math.hypot(tx, ty) || 1;
+    const nx = -ty / len, ny = tx / len;
+    const w = wAt(t);
+    a.push({ x: px + nx * w, y: py + ny * w });
+    b.push({ x: px - nx * w, y: py - ny * w });
+  }
+  ctx.beginPath();
+  ctx.moveTo(a[0].x, a[0].y);
+  for (let i = 1; i < a.length; i++) ctx.lineTo(a[i].x, a[i].y);
+  for (let i = b.length - 1; i >= 0; i--) ctx.lineTo(b[i].x, b[i].y);
+  ctx.closePath();
+  ctx.fill();
 }
 
 /** filled quad tapering w0→w1 — an ink stroke with weight */
@@ -803,21 +840,28 @@ export function drawCreatureFrame(
     ctx.ellipse(gb.cx + gb.hr * 0.07, gb.cy + gb.vr * 0.11,
       gb.hr * 0.70, gb.vr * 0.68, -0.18, 0, TAU);
     ctx.fill();
-    // speculars
-    ctx.strokeStyle = SKIN_GLAZE.shine;
-    ctx.lineCap = 'round';
-    ctx.lineWidth = Math.max(1.5, gb.hr * 0.10);
-    ctx.beginPath();                                   // long, left flank
-    ctx.moveTo(gb.cx - gb.hr * 0.64, gb.cy - gb.vr * 0.24);
-    ctx.quadraticCurveTo(gb.cx - gb.hr * 0.80, gb.cy + gb.vr * 0.10,
-      gb.cx - gb.hr * 0.58, gb.cy + gb.vr * 0.44);
-    ctx.stroke();
-    ctx.lineWidth = Math.max(1.5, gb.hr * 0.12);
-    ctx.beginPath();                                   // short hook, upper right
-    ctx.moveTo(gb.cx + gb.hr * 0.38, gb.cy - gb.vr * 0.64);
-    ctx.quadraticCurveTo(gb.cx + gb.hr * 0.72, gb.cy - gb.vr * 0.50,
-      gb.cx + gb.hr * 0.60, gb.cy - gb.vr * 0.18);
-    ctx.stroke();
+    /* Speculars, drawn as WISPS not strokes: each half-width is
+       sin(pi*t)^p for a pointed-ended brush shape, times two out-of-phase
+       harmonics so the ribbon swells and pinches irregularly instead of
+       reading as a uniform pipe. Phases are fixed rather than seeded — every
+       braised being should wear the same calibrated highlight, and micro-
+       variation here would make the shape unjudgeable round to round.
+       The LOWER (left flank) one is deliberately the dimmer tone: on the
+       reference the underside catches far less light than the top hook. */
+    ctx.fillStyle = SKIN_GLAZE.shineLow;
+    wisp(ctx,
+      gb.cx - gb.hr * 0.64, gb.cy - gb.vr * 0.24,
+      gb.cx - gb.hr * 0.80, gb.cy + gb.vr * 0.10,
+      gb.cx - gb.hr * 0.58, gb.cy + gb.vr * 0.44,
+      t => Math.max(0.5, gb.hr * 0.062 * Math.pow(Math.sin(Math.PI * t), 0.5)
+        * (1 + 0.42 * Math.sin(t * 8.2 + 0.7) + 0.20 * Math.sin(t * 14.5 + 2.1))));
+    ctx.fillStyle = SKIN_GLAZE.shine;
+    wisp(ctx,
+      gb.cx + gb.hr * 0.38, gb.cy - gb.vr * 0.64,
+      gb.cx + gb.hr * 0.72, gb.cy - gb.vr * 0.50,
+      gb.cx + gb.hr * 0.60, gb.cy - gb.vr * 0.18,
+      t => Math.max(0.5, gb.hr * 0.072 * Math.pow(Math.sin(Math.PI * t), 0.45)
+        * (1 + 0.38 * Math.sin(t * 7.1 + 1.9) + 0.16 * Math.sin(t * 12.3 + 0.4))));
     ctx.restore();
   }
   // 甲 SHELL — stacked "M" plates, each a LIGHT edge over a DARK gap line; the
