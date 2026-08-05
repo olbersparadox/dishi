@@ -206,6 +206,27 @@ its fog wash, nothing else):
 So: two already done, one rewire, **three skins to design** — 燜, 焗, 烤.
 Work them ONE AT A TIME, owner verifies each before the next.
 
+**Step 1 SHIPPED 2026-08-05:** 軟 re-pointed from 田+菌 onto 蒸, 滑 left to 生
+alone, and the whole decision extracted from the render loop into `skinOf()`
+in `creatureForm.ts` with a vitest file pinning it. The extraction is the
+point: the previous 軟 change was invisible because the decision lived inline
+in a canvas function nothing could test, so the name matching on both sides
+was enough to hide it. 甲 and 毛 deliberately stay in the chain until their 骨
+overlay exists — pulling them first would strip shell and land eaters of their
+identity with nothing put back.
+
+**A consequence to watch, and it is not small.** Dropping the old
+`steamed + raw*0.8` blend means each method skin now needs a MAJORITY of the
+palate's method preference on its own. A wet-leaning eater at 0.3 steamed +
+0.3 raw used to clear the blend at 0.54 and wear 滑; now they clear neither
+gate and wear nothing. Measured on the owner's live profile (61 dishes):
+highest method share is 蒸 at 0.306, so that being had no method skin before
+and has none now — unchanged, but only because it was already under both
+bars. **The rearrangement makes skins harder to earn, and mixed palates are
+the common case**, so expect more bare bodies until the three missing skins
+land and, possibly, a lower threshold. Do not tune that threshold in the same
+pass as a new skin — one variable at a time.
+
 **The constraint that will decide them.** The six split into wet (生 · 蒸 · 燜)
 and dry (炸 · 焗 · 烤), and the collision risk is inside those groups, not
 across them: 蒸-soft vs 燜 are both wet-collapsed, and 炸 vs 焗 vs 烤 are three

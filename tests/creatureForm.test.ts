@@ -3,10 +3,22 @@
 // itself is canvas-only and is verified visually on /dev-creature — but the
 // gates are where honesty lives, and honesty is testable.
 import { describe, it, expect } from 'vitest';
-import { hasAnatomy, temperOf, hairWindBend, hairMetrics, out } from '../src/lib/creatureForm';
+import {
+  hasAnatomy, temperOf, hairWindBend, hairMetrics, out, skinOf, domainShares,
+} from '../src/lib/creatureForm';
+import type { DomainEvidence, SkinType } from '../src/lib/creatureForm';
 import type { FormInputs } from '../src/lib/blobForm';
 
 const TAU = Math.PI * 2;
+
+/** Resolve a skin the way the renderer does: real shares, real method mix. */
+const skin = (domains: DomainEvidence, methodDim?: string): SkinType => {
+  const vector: Record<string, number> = { umami: 0.4 };
+  const evidence: Record<string, number> = { umami: 20 };
+  if (methodDim) { vector[methodDim] = 0.9; evidence[methodDim] = 20; }
+  const t = temperOf({ vector, evidence, ratingCount: 45, seed: 's:v1' });
+  return skinOf(domains, domainShares(domains), t.m);
+};
 
 const inputs = (vector: Record<string, number>, evidence: Record<string, number>): FormInputs =>
   ({ vector, evidence, ratingCount: 30, seed: 't:v1' });
@@ -86,6 +98,65 @@ describe('out — the rim\'s outward direction, the one place the sign lives', (
     expect(p3.y).toBeCloseTo(p1.y * 3, 10);
     expect(pNeg.x).toBeCloseTo(-p1.x, 10);
     expect(pNeg.y).toBeCloseTo(-p1.y, 10);
+  });
+});
+
+describe('skinOf — 膚 is METHOD-driven (the rearrangement, owner 2026-08-05)', () => {
+  // This decision drifted silently once: 軟 changed from the framework's
+  // 燜 braised to a 田+菌 domain read, and nothing caught it because the NAME
+  // matched on both sides. These tests exist so the next drift is loud.
+  const THIN: DomainEvidence = { sea: 2 }; // passes hasAnatomy, grows nothing
+
+  it('軟 SOFT belongs to 蒸 steamed — NOT to the 田+菌 domain', () => {
+    expect(skin(THIN, 'steamed')).toBe('soft');
+    // The old wiring: a vegetable+mushroom eater used to get 軟 for free.
+    // Under the rearrangement their skin comes from how they COOK.
+    expect(skin({ field: 14, fungus: 8 })).not.toBe('soft');
+  });
+
+  it('滑 SMOOTH is 生 raw alone now — 蒸 must not also trip it', () => {
+    expect(skin(THIN, 'raw')).toBe('smooth');
+    expect(skin(THIN, 'steamed')).not.toBe('smooth');
+  });
+
+  it('糙 ROUGH stays with 炸 fried', () => {
+    expect(skin(THIN, 'fried')).toBe('rough');
+  });
+
+  it('the three methods still without a skin render none — the open work', () => {
+    // 燜 · 焗 · 烤 are the gaps the cleared board exposed. Pinning them as
+    // 'none' means the day one is designed, this test FAILS and forces the
+    // ledger to be updated with it.
+    for (const dim of ['braised', 'baked', 'grilled']) {
+      expect(skin(THIN, dim)).toBe('none');
+    }
+  });
+
+  it('method skins are mutually exclusive by construction, not by luck', () => {
+    // Shares of one normalised total: at most one can clear 0.5. Feeding two
+    // wet methods equally must therefore yield neither skin, not both.
+    const t = temperOf({
+      vector: { steamed: 0.9, raw: 0.9 }, evidence: { steamed: 20, raw: 20 },
+      ratingCount: 45, seed: 's:v1',
+    });
+    expect(t.m.steamed).toBeCloseTo(0.5, 6);
+    expect(t.m.raw).toBeCloseTo(0.5, 6);
+    expect(skinOf(THIN, domainShares(THIN), t.m)).toBe('none');
+  });
+
+  it('甲 and 毛 still outrank method — sequenced, not yet moved to 骨', () => {
+    // Deliberate interim state: pulling them before the 骨 overlay exists
+    // would strip shell and land eaters of their identity with nothing put
+    // back. When that overlay ships, these two expectations flip.
+    expect(skin({ shell: 20 }, 'steamed')).toBe('shell');
+    expect(skin({ land: 20 })).toBe('hairy');
+    // ...but a land eater who cooks wet still shows the METHOD, because 毛
+    // sits below the method skins in the chain.
+    expect(skin({ land: 20 }, 'steamed')).toBe('soft');
+  });
+
+  it('no domain and no method preference is bare — nothing is invented', () => {
+    expect(skin(THIN)).toBe('none');
   });
 });
 

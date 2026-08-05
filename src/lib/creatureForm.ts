@@ -132,7 +132,7 @@ export function hairMetrics(size: number, R: number): { w: number; gap: number; 
    static posture (edge sharpness, lean, centre of mass), so temperament
    survives a screenshot. Preferences gate on evidence like everything else. */
 const METHOD_DIMS = ['fried', 'grilled', 'braised', 'steamed', 'raw', 'baked'] as const;
-type MethodShares = Record<(typeof METHOD_DIMS)[number], number>;
+export type MethodShares = Record<(typeof METHOD_DIMS)[number], number>;
 
 function methodShares(inputs: FormInputs): MethodShares {
   const o = {} as MethodShares;
@@ -163,6 +163,71 @@ export function temperOf(inputs: FormInputs): Temperament {
     bounce: Math.min(1, pref('sweet')),
     sharp: Math.max(0, energy - calm * 0.7),
   };
+}
+
+/** Normalised domain shares — each domain's fraction of all domain evidence. */
+export type DomainShares = {
+  s: number; l: number; a: number; c: number; f: number; fg: number; ag: number;
+};
+
+export function domainShares(domains: DomainEvidence): DomainShares {
+  const ev = (k: (typeof DOMAIN_KEYS)[number]) => Math.max(0, domains[k] ?? 0);
+  const tot = Math.max(1e-6, DOMAIN_KEYS.reduce((sum, k) => sum + ev(k), 0));
+  return {
+    s: ev('sea') / tot, l: ev('land') / tot, a: ev('air') / tot,
+    c: ev('shell') / tot, f: ev('field') / tot, ag: ev('algae') / tot,
+    fg: ev('fungus') / tot,
+  };
+}
+
+export type SkinType = 'shell' | 'soft' | 'smooth' | 'rough' | 'hairy' | 'none';
+
+/**
+ * Which surface the being wears. EXTRACTED from the render loop so it can be
+ * unit-tested: this decision drifted once already — 軟 silently changed from
+ * the framework's 燜 braised to a 田+菌 domain read, and nothing caught it
+ * because the NAME still matched on both sides. A pure function with a test
+ * is the only thing that makes that class of drift loud.
+ *
+ * 膚 IS BECOMING METHOD-ONLY (owner, 2026-08-05): one skin per cooking method,
+ * with 甲/毛 leaving for 骨 because a carapace and a pelt are body parts an
+ * animal GREW, not treatments applied to a surface. Full decision and the
+ * cleared board: docs/rnd/mokling-framework.md, "The rearrangement".
+ *
+ * WHERE THAT SEQUENCE STANDS. Landed: 軟 re-pointed from 田+菌 onto 蒸, and 滑
+ * left to 生 alone. Still pending: 甲 and 毛 remain in this chain on purpose —
+ * pulling them before their 骨 overlay replacement exists would strip shell
+ * and land eaters of their identity with nothing put back. So 甲's precedence
+ * over method is still in force and still wrong (a steamed crab reads
+ * armoured, not soft). Sequenced, not forgotten.
+ *
+ * The three method skins cannot collide, structurally rather than luckily:
+ * m.steamed/m.raw/m.fried are shares of one normalised total, so at most one
+ * clears 0.5. The ordering below does real work only against 甲 and 毛.
+ *
+ * KNOWN GAP, deliberately not closed here: method skins gate on SHARE with no
+ * absolute evidence floor, so a single steamed dish with no other method
+ * evidence normalises to m.steamed = 1 and draws a full skin. Pre-existing for
+ * 滑 and 糙; 軟 inherits the pattern rather than becoming the lone stricter
+ * sibling. Fix all three together, with the owner — not piecemeal.
+ */
+export function skinOf(domains: DomainEvidence, sh: DomainShares, m: MethodShares): SkinType {
+  const ev = (k: (typeof DOMAIN_KEYS)[number]) => Math.max(0, domains[k] ?? 0);
+  const absF = (evd: number, min = 5, span = 7) => smooth01((evd - min) / span);
+
+  if (sh.c > 0.3 && absF(ev('shell'), 3, 5) > 0.4) return 'shell';
+  // 軟 SOFT ← 蒸. Overrides the old spec row (軟 ← 燜) by owner decision; 燜
+  // now needs a skin of its own. Written down so it is never re-read as drift.
+  if (m.steamed > 0.5) return 'soft';
+  // 滑 SMOOTH ← 生 alone. The old `steamed + raw*0.8` blend served both wet
+  // methods with one skin; with 蒸 owning 軟 that blend would hand 蒸 a second.
+  if (m.raw > 0.5) return 'smooth';
+  // 糙 ← 炸. The old comment claimed an "agreed map" keyed this to 根/榖 — no
+  // such map exists; the framework's only 膚 row says 烤/炸, and 榖 is an open
+  // question. Whether 烤 shares 糙 or earns its own is still to design.
+  if (m.fried > 0.5) return 'rough';
+  if (sh.l + sh.a > 0.45 && absF(ev('land') + ev('air'), 6, 9) > 0.4) return 'hairy';
+  return 'none';
 }
 
 /* ── 膚 skin palettes — three flat tones each, cut-paper ink, NO gradients
@@ -401,22 +466,16 @@ export function drawCreatureFrame(
   const GATE = 0.22;
   const absF = (evd: number, min = 5, span = 7) => smooth01((evd - min) / span);
 
-  // ── skin type decision (owner: the universal highlight is GONE; surface is
-  // decided by skin type). Precedence notes are the lab's, flagged not hidden:
-  // 甲 shell puts DOMAIN over METHOD (a steamed crab is still armoured), while
-  // 毛 hairy puts method over domain (a steamed mammal reads smooth) — one of
-  // the two rules should eventually change; carried as-is.
-  const isShell = c > 0.3 && absF(ev('shell'), 3, 5) > 0.4;
-  const isSoft = !isShell && (f + fg) > 0.45 && absF(ev('field') + ev('fungus'), 5, 7) > 0.4;
-  const smoothF = Math.min(1, m.steamed + m.raw * 0.8);
-  const isSmooth = !isShell && !isSoft && smoothF > 0.5;
+  // ── skin type: ONE source of truth, `skinOf` above, which carries the
+  // rearrangement's rationale and is unit-tested. Never re-derive the
+  // conditions here — a second copy is exactly how 軟 drifted last time.
+  const skin = skinOf(domains, { s, l, a, c, f, fg, ag }, m);
+  const isShell = skin === 'shell';
+  const isSoft = skin === 'soft';
+  const isSmooth = skin === 'smooth';
+  const isRough = skin === 'rough';
+  const isHairy = skin === 'hairy';
   const SKIN = (s + c + ag) >= (l + a + f + fg) ? SKIN_SMOOTH_SEA : SKIN_SMOOTH_LAND;
-  const furShare = l + a;
-  // 糙 rough detector is PROVISIONAL — keyed to 根/榖 in the agreed map, which
-  // has no domain yet, so it rides 炸 purely to stay reviewable.
-  const isRough = !isShell && !isSoft && !isSmooth && m.fried > 0.5;
-  const isHairy = !isSmooth && !isShell && !isSoft && !isRough && furShare > 0.45 &&
-    absF(ev('land') + ev('air'), 6, 9) > 0.4;
 
   // 軟 SOFT goes down first — halo, membrane, core all behind every appendage,
   // so nothing the creature grows is occluded by its own skin. Z-order is the
