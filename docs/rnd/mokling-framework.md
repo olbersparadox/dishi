@@ -85,7 +85,7 @@ All five SKIN TYPES shipped. The gap is in the method-surface list beside them:
 
 | treatment | fed by | status |
 |---|---|---|
-| 毛 hairy · 滑 smooth · 糙 rough · 甲 plated · 軟 sagging | domain + method (**split ownership, no stated rule** — see "膚 has two owners" below) | **SHIPPED** (all five, but 軟 ships a DIFFERENT detector than the spec and 糙 ships only half of its) |
+| 毛 hairy · 滑 smooth · 糙 rough · 甲 plated · 軟 sagging | **being rearranged to METHOD-ONLY** (owner, 2026-08-05 — 甲/毛 move to 骨, 軟 re-points to 蒸; see "The rearrangement" below) | **SHIPPED as 5 skins**, but the rearrangement leaves 燜 · 焗 · 烤 with no skin — three to design, one at a time |
 | 炸 crusted rim | fried | **SHIPPED** |
 | 蒸 wet sheen | steamed | **SHIPPED** |
 | 生 translucent wash | raw | **SHIPPED** |
@@ -163,6 +163,64 @@ sidesteps the two-owner problem entirely instead of arguing about who wins.
 Whichever is chosen, **軟's register divergence is the more urgent item**: 烤
 is a missing feature, but 軟 is a feature that silently means something other
 than what the framework says it means.
+
+### The rearrangement — 膚 becomes method-only (owner, 2026-08-05)
+
+The owner's resolution to the two-owner problem, and it dissolves the 烤
+question rather than arbitrating it:
+
+1. **膚 belongs to METHOD, exclusively. One skin per cooking method, all six.**
+2. **甲 shell and 毛 hairy LEAVE 膚.** They are body parts — a carapace and a
+   pelt are things an animal grew, not treatments applied to a surface — so
+   they belong to 骨 and stop competing for the skin slot.
+3. **軟 re-points from 田+菌 to 蒸.** This deliberately overrides the old spec
+   row (which said 軟 ← 燜) and it is recorded here as a DECISION precisely so
+   it is never mistaken for a second silent divergence like the one above.
+   燜 loses its claim on 軟 and needs its own skin.
+4. **Sequence: clear all six method skins FIRST, verify, then re-add 甲/毛 as
+   domain overlays.** Additive, one element at a time, owner verifies before
+   the next — the standing working method for anatomy.
+
+Why this is the right shape and not just tidier: it converts a winner-take-all
+slot into independent layers. Today a crab eater's cooking method is invisible
+because 甲 overrides it, and a land eater who eats steamed shows smooth with no
+trace of fur — both lose real information. Once the registers separate, they
+compose: steamed AND armoured, soft AND furred. Roughly 6 method skins × fur
+on/off × shell on/off ≈ 24 legible states, up from 5 mutually exclusive ones,
+with each axis independently readable.
+
+**The cleared board** (rendered on `/dev-methods`, every cell on domain
+evidence too thin to grow anything, so only method can mark the body —
+verified numerically: each gap cell emits exactly 2 SVG paths, the body and
+its fog wash, nothing else):
+
+| method | skin | state |
+|---|---|---|
+| 生 raw | 滑 smooth · wet | **dedicated** — becomes 生's alone once 蒸 moves out |
+| 炸 fried | 糙 rough · seared | **dedicated** |
+| 蒸 steamed | 軟 soft · sagging | **rewire only** — 軟 already exists, re-point it off 田+菌 |
+| 燜 braised | — none — | **GAP** — has a body sag, no surface |
+| 焗 baked | — none — | **GAP** — has a risen dome, no surface |
+| 烤 grilled | — none — | **GAP** — the most silent: no skin, no shape, only an energy term shared with 炸 |
+
+So: two already done, one rewire, **three skins to design** — 燜, 焗, 烤.
+Work them ONE AT A TIME, owner verifies each before the next.
+
+**The constraint that will decide them.** The six split into wet (生 · 蒸 · 燜)
+and dry (炸 · 焗 · 烤), and the collision risk is inside those groups, not
+across them: 蒸-soft vs 燜 are both wet-collapsed, and 炸 vs 焗 vs 烤 are three
+variations on "cooked dry surface." All six must stay distinct at **72px**,
+the feed thumbnail size — this framework's own rule is that anatomy which only
+reads at 280px is decoration. On the cleared board today the three gap bodies
+are indistinguishable at 72px, which is exactly the baseline each new skin has
+to beat.
+
+Proposed starting points, owner to accept or replace: 燜 → 潤 lacquered (dark
+sticky braise glaze), 焗 → 酥 dry-crisp (pale matte, fine surface cracks),
+烤 → 焦 scorched (dry matte with dark char at the high points). 烤's is the
+one to design LAST despite being the original question — it is the hardest,
+because it has to differ from both 炸's crust and 焗's dry surface, and
+because the owner has already killed one attempt at it (stripes).
 
 `糙 rough` ships but its detector is **PROVISIONAL**: the agreed map keys it to
 根/榖, which has no domain, so it rides 炸 to stay reviewable. Flagged in the
@@ -875,15 +933,9 @@ See BACKLOG "Data audit" item — the audit runs before any phase-1 code.
   changed eating visibly transforms, but one week of travel food does not).
 - Does the creature ever appear to OTHER users outside an explicit share
   (e.g. beside a 貼文)? Default no until decided.
-- **Does 膚 belong to domain or to method?** Today it is three domain-driven
-  skins and two method-driven ones with no stated rule, which is the root
-  cause of both items below. Settling this settles them.
-- **軟 means something different in production than in this document** —
-  spec says 燜 braised (method), production ships 田+菌 (domain). Which is
-  correct? Whichever wins, one of the two has to change. See "膚 has two
-  owners" in the Ledger.
-- Where does 烤 live visually, if anywhere? Sear marks were killed in the lab
-  ("a skin of its own, not an overlay on someone else's") and 烤 feeds
-  temperament only today. Four options recorded in the Ledger's 膚 section;
-  (d) — giving 烤 a SHAPE channel rather than a skin — is the one that avoids
-  the two-owner problem instead of arguing it. No code until called.
+- ~~Does 膚 belong to domain or to method?~~ ~~軟's register divergence?~~
+  ~~Where does 烤 live?~~ **ALL THREE ANSWERED (owner, 2026-08-05): 膚 is
+  method-only, 甲/毛 move to 骨, 軟 re-points to 蒸, and 烤 gets a skin like
+  every other method.** See "The rearrangement" in the Ledger. What remains
+  is execution: three skins to design (燜 · 焗 · 烤), one at a time, each
+  verified at 72px before the next.
