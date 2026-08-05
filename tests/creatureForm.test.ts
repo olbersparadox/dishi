@@ -161,10 +161,14 @@ describe('skinOf — 膚 is METHOD-driven (the rearrangement, owner 2026-08-05)'
     expect(skin(THIN, 'fried')).toBe('rough');
   });
 
+  it('釉 GLAZE belongs to 燜 braised', () => {
+    expect(skin(THIN, 'braised')).toBe('glazed');
+  });
+
   it('the methods without a skin render none — the open work', () => {
-    // 燜 · 焗 · 烤 have no skin. Pinning them as 'none' means the day one is
+    // 焗 · 烤 have no skin. Pinning them as 'none' means the day one is
     // designed, this test FAILS and forces the ledger to be updated with it.
-    for (const dim of ['braised', 'baked', 'grilled']) {
+    for (const dim of ['baked', 'grilled']) {
       expect(skin(THIN, dim)).toBe('none');
     }
   });

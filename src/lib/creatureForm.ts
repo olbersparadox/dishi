@@ -180,7 +180,7 @@ export function domainShares(domains: DomainEvidence): DomainShares {
   };
 }
 
-export type SkinType = 'shell' | 'soft' | 'smooth' | 'rough' | 'hairy' | 'none';
+export type SkinType = 'shell' | 'soft' | 'smooth' | 'rough' | 'glazed' | 'hairy' | 'none';
 
 /**
  * Which surface the being wears. EXTRACTED from the render loop so it can be
@@ -218,6 +218,7 @@ export function skinOf(domains: DomainEvidence, sh: DomainShares, m: MethodShare
   if (m.steamed > 0.5) return 'soft';       // 軟 ← 蒸
   if (m.raw > 0.5) return 'smooth';         // 滑 ← 生
   if (m.fried > 0.5) return 'rough';        // 糙 ← 炸
+  if (m.braised > 0.5) return 'glazed';     // 釉 ← 燜
   if (sh.l + sh.a > 0.45 && absF(ev('land') + ev('air'), 6, 9) > 0.4) return 'hairy';
   return 'none';
 }
@@ -236,6 +237,12 @@ const SKIN_SOFT = { halo: '#dad7cf', layer: '#3b3733', core: '#221f1a' };
 // 糙 rough: one dot = a grey circle overlapping a black one. Both must read
 // against the body's own gradient (L29–55): black sits below it, grey above.
 const SKIN_ROUGH = { black: '#0a0908', grey: '#5a544c' };
+/* 釉 glaze (燜 braised): a lacquered pool, read off the owner's reference —
+   the rim is the DARKEST thing (thick sauce banking up at the edge), a warmer
+   mass sits inside it, and two bright speculars catch the wet surface. That
+   inversion is the whole signature: every other skin is lighter at the rim or
+   flat, so 釉 cannot be mistaken for them at a glance. */
+const SKIN_GLAZE = { deep: '#0d0c0b', pool: '#2b2723', shine: '#d5d2ca' };
 
 const INK = ['#3a3733', '#211d18', '#2e2a24'] as const;
 const HILITE = '250,247,241';
@@ -497,6 +504,7 @@ export function drawCreatureFrame(
   const isSoft = skin === 'soft';
   const isSmooth = skin === 'smooth';
   const isRough = skin === 'rough';
+  const isGlazed = skin === 'glazed';
   const isHairy = skin === 'hairy';
   const SKIN = (s + c + ag) >= (l + a + f + fg) ? SKIN_SMOOTH_SEA : SKIN_SMOOTH_LAND;
 
@@ -711,7 +719,8 @@ export function drawCreatureFrame(
   // (measured in the lab: washing it inverted the three tones)
   if (!isSoft) {
     ctx.save(); ctx.globalAlpha = isSmooth ? 1 : rawA;
-    ctx.fillStyle = isSmooth ? SKIN.base : inkFill(ctx, c0, size);
+    ctx.fillStyle = isGlazed ? SKIN_GLAZE.deep
+      : isSmooth ? SKIN.base : inkFill(ctx, c0, size);
     ctx.fill();
     ctx.restore();
   }
@@ -774,6 +783,41 @@ export function drawCreatureFrame(
     ctx.quadraticCurveTo(SX(-rs * 0.612), SY(-rs * 0.841), SX(-rs * 0.208), SY(-rs * 0.978));
     ctx.stroke();
     ctx.restore();
+    ctx.restore();
+  }
+  /* 釉 GLAZE — 燜 braised. Three layers, all anchored to the DRAWN body:
+     the near-black base is already down (body fill), then a warmer pool
+     inset from the rim so a dark band survives all the way round, then two
+     speculars. The speculars are the read at thumbnail size — the pool alone
+     is just a slightly lighter blob — so they are placed near the rim where
+     a curved wet surface would actually catch light, one long down the left
+     flank and one short hook at the upper right. Clipped to the body, so a
+     lobed silhouette trims them rather than letting them float. */
+  if (isGlazed) {
+    const gb = bodyBox(pts);
+    ctx.save();
+    ctx.beginPath(); closedPath(ctx, pts); ctx.clip();
+    // the pool: offset down-right, leaving the thickest dark band up-left
+    ctx.fillStyle = SKIN_GLAZE.pool;
+    ctx.beginPath();
+    ctx.ellipse(gb.cx + gb.hr * 0.07, gb.cy + gb.vr * 0.11,
+      gb.hr * 0.70, gb.vr * 0.68, -0.18, 0, TAU);
+    ctx.fill();
+    // speculars
+    ctx.strokeStyle = SKIN_GLAZE.shine;
+    ctx.lineCap = 'round';
+    ctx.lineWidth = Math.max(1.5, gb.hr * 0.10);
+    ctx.beginPath();                                   // long, left flank
+    ctx.moveTo(gb.cx - gb.hr * 0.64, gb.cy - gb.vr * 0.24);
+    ctx.quadraticCurveTo(gb.cx - gb.hr * 0.80, gb.cy + gb.vr * 0.10,
+      gb.cx - gb.hr * 0.58, gb.cy + gb.vr * 0.44);
+    ctx.stroke();
+    ctx.lineWidth = Math.max(1.5, gb.hr * 0.12);
+    ctx.beginPath();                                   // short hook, upper right
+    ctx.moveTo(gb.cx + gb.hr * 0.38, gb.cy - gb.vr * 0.64);
+    ctx.quadraticCurveTo(gb.cx + gb.hr * 0.72, gb.cy - gb.vr * 0.50,
+      gb.cx + gb.hr * 0.60, gb.cy - gb.vr * 0.18);
+    ctx.stroke();
     ctx.restore();
   }
   // 甲 SHELL — stacked "M" plates, each a LIGHT edge over a DARK gap line; the

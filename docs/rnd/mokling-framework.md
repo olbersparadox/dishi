@@ -92,11 +92,11 @@ armoured, soft AND furred.
 | 生 raw | 滑 smooth·wet + translucent wash + wet rim | **SHIPPED** — 生's alone |
 | 蒸 steamed | 軟 soft (pale halo behind, dark core) | **SHIPPED** — pinned by `skinOf()` + tests |
 | 炸 fried | 糙 rough — **owner's spec: one dot = a grey circle overlapping a black circle; 4 dots upper-right, 3 lower-left, none touching the rim** — plus crust nubs on the rim | **SHIPPED** |
-| 燜 braised | — none — (has body SHAPE: sag) | **TO DESIGN** |
+| 燜 braised | 釉 glaze — **near-black rim, warmer pool inset from it, two speculars (long left flank, short hook upper-right)** — plus its body sag | **SHIPPED** |
 | 焗 baked | — none — (has body SHAPE: dome) | **TO DESIGN** |
 | 烤 grilled | — none — (energy term only) | **TO DESIGN** |
 
-Binding rules: design the three gaps ONE at a time, owner verifies each at
+Binding rules: design the two gaps ONE at a time, owner verifies each at
 200px AND 72px before the next; all six must stay distinct at 72px; the
 collision risk is inside the wet family (生·蒸·燜) and the dry family
 (炸·焗·烤), not across them. Known gap to fix once, not per-skin: the
