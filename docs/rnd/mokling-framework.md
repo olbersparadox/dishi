@@ -198,7 +198,7 @@ recorded per user.
 | time-of-day | no — dishes carry timestamps, nothing reads the hour | 罪角, the framework's one genuinely new data source |
 | 榖 base | **UNDECIDED** — skin texture or anatomy? | 田's base ingredients |
 
-### Two structural risks, named so they stop being invisible
+### Three structural risks, named so they stop being invisible
 
 1. ~~The v7 drawing code exists only in the external artifact.~~ **RESCUED
    2026-08-05** → `docs/rnd/mokling-lab-v7-vocabulary.js`. Extracted by exact
@@ -229,6 +229,31 @@ recorded per user.
    invariant by hand and none carries the bug, so their owner-tuned geometry
    was left untouched rather than refactored with no visible benefit. It
    exists for whatever ports next from `mokling-lab-v7-vocabulary.js`.
+3. ~~Snapshots on one page share `<defs>`, so one creature paints with
+   another's gradient.~~ **CLOSED 2026-08-06** → every id `canvasToSvg` mints
+   is now prefixed with a hash of that snapshot's own finished markup, in
+   `toInnerSvg()`. Measured before the fix on `/dev-methods`: **14 of 16**
+   creatures referenced a paint server owned by a different `<svg>`, most often
+   the fog wash, whose def is byte-identical for every snapshot of the same
+   size. Nothing looked wrong, because the borrowed def was identical and
+   `url(#id)` resolves document-wide to the first match — it breaks only when
+   the OWNING svg unmounts or is hidden, and then the borrowers lose that paint
+   while their markup still reads as perfect in the DOM. This is the SECOND
+   bug of its family: the content-hashed ids introduced earlier fixed
+   collisions between DIFFERENT defs and created this coupling between
+   IDENTICAL ones. Hashing the finished markup keeps determinism (server and
+   client stay byte-identical, so hydration is quiet) while making each
+   fragment self-contained — identical twins may still share a token, but each
+   carries its own copy of the def, so neither depends on the other surviving.
+   Pinned by `tests/creatureSnapshot.test.ts` ("every snapshot is
+   self-contained"), which fails if any `url(#…)` resolves outside its own
+   fragment, and separately if two different beings at the same size share any
+   id at all.
+
+   Left deliberately unfixed alongside it: `paintRef` pushes a fresh `<defs>`
+   entry every call, so a furry creature emits ~100 byte-identical gradient
+   defs. Pure markup weight, no correctness effect, and deduping would change
+   every snapshot's bytes — a separate round, not a rider on this one.
 
 ## The one law
 

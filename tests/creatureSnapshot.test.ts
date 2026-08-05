@@ -84,6 +84,51 @@ describe('the snapshot is deterministic — same profile, same being, forever', 
   });
 });
 
+// Found live on the 膚 board (2026-08-06): 14 of 16 creatures on one page were
+// painting with a gradient defined inside a DIFFERENT creature's <svg>. Nothing
+// looked wrong — `url(#id)` resolves document-wide to the first match, and the
+// borrowed def was byte-identical. It only breaks when the owning svg unmounts
+// or is hidden, at which point the borrowers lose that paint while their own
+// markup still reads as perfect. Two properties keep it closed.
+describe('every snapshot is self-contained — no creature paints with a neighbour\'s def', () => {
+  const all = (svg: string, re: RegExp) => {
+    const out: string[] = [];
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(svg)) !== null) out.push(m[1]);
+    return out;
+  };
+  const idsIn = (svg: string) => all(svg, /id="([^"]+)"/g);
+  const refsIn = (svg: string) => all(svg, /url\(#([^)]+)\)/g);
+
+  it('resolves every url(#…) against a def in its own markup', () => {
+    for (const [name, domains] of Object.entries(LIVES)) {
+      const svg = creatureSnapshotSvg(INPUTS, domains, 190, '鮮');
+      const defined = idsIn(svg);
+      refsIn(svg).forEach(ref => {
+        expect(defined.indexOf(ref) >= 0, `${name} references #${ref}, which it does not define`).toBe(true);
+      });
+    }
+  });
+
+  // The real-world shape of the bug: different beings, same page, same size —
+  // which is exactly when their fog washes were byte-identical and shared.
+  it('gives two different beings at the same size disjoint id sets', () => {
+    const crab = idsIn(creatureSnapshotSvg(INPUTS, LIVES.crab, 190, '鮮'));
+    const garden = idsIn(creatureSnapshotSvg(INPUTS, LIVES.garden, 190, '鮮'));
+    expect(crab.length).toBeGreaterThan(0);
+    const shared = crab.filter(id => garden.indexOf(id) >= 0);
+    expect(shared, 'ids shared across two beings couple their fates on one page').toEqual([]);
+  });
+
+  // Identical twins MAY share ids — they carry identical defs, so a borrower
+  // survives the lender unmounting. That is why the prefix is hashed from the
+  // markup rather than made unique per instance, and why determinism holds.
+  it('keeps identical beings byte-identical, prefix included', () => {
+    expect(creatureSnapshotSvg(INPUTS, LIVES.crab, 190, '鮮'))
+      .toBe(creatureSnapshotSvg(INPUTS, LIVES.crab, 190, '鮮'));
+  });
+});
+
 describe('TasteFormSnapshot mounts the recording itself — a lookalike fails here', () => {
   it('with domains, the component\'s markup IS creatureSnapshotSvg\'s output', () => {
     const html = renderToStaticMarkup(

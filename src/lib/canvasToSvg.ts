@@ -61,14 +61,30 @@ function ellipsePoint(cx: number, cy: number, rx: number, ry: number, rot: numbe
  * paint — one def is correct and smaller). It is also deterministic, so
  * server and client render byte-identical markup and hydration stays quiet —
  * which a global counter would not guarantee.
+ *
+ * BUT sharing across SEPARATE <svg> elements is a second bug, found 2026-08-06
+ * on the 膚 board: 14 of 16 creatures there referenced a paint server owned by
+ * a different creature's <svg> (most often the fog wash, whose def is
+ * byte-identical for every snapshot of the same size, so every 200px creature
+ * on the page deferred to the first one). It renders correctly right up until
+ * the OWNING svg unmounts or is hidden — then every borrower silently loses
+ * that paint, with markup that still looks perfect in the DOM. Conditional
+ * rendering and list virtualisation make that a matter of when, not if.
+ *
+ * The prefix applied in toInnerSvg() closes it: see there for why hashing the
+ * finished markup is what makes each snapshot self-contained.
  */
-function defId(kind: 'g' | 'c', content: string): string {
+function fnv(content: string): number {
   let h = 0x811c9dc5;
   for (let i = 0; i < content.length; i++) {
     h ^= content.charCodeAt(i);
     h = Math.imul(h, 0x01000193) >>> 0;
   }
-  return kind + h.toString(36);
+  return h;
+}
+
+function defId(kind: 'g' | 'c', content: string): string {
+  return kind + fnv(content).toString(36);
 }
 
 export class SvgContext {
@@ -85,6 +101,10 @@ export class SvgContext {
   private d = '';                       // current path
   private body: string[] = [];          // emitted elements, in paint order
   private defs: string[] = [];
+  /** Every id this recorder minted — the exact token set toInnerSvg() prefixes.
+   *  Rewriting only these (never a blind regex over the markup) keeps glyph
+   *  text and colour strings out of the substitution's reach. */
+  private mintedIds = new Set<string>();
   /** Open <g clip-path> nesting. save() marks depth; restore() closes back. */
   private groupDepth = 0;
   private saveStack: { groupDepth: number; alpha: number }[] = [];
@@ -151,6 +171,7 @@ export class SvgContext {
     }
     const tag = style.kind === 'linear' ? 'linearGradient' : 'radialGradient';
     const id = defId('g', `${tag}|${attrs}|${stops}`);
+    this.mintedIds.add(id);
     this.defs.push(`<${tag} id="${id}" ${attrs}>${stops}</${tag}>`);
     return `url(#${id})`;
   }
@@ -175,6 +196,7 @@ export class SvgContext {
    *  restore() closes — nesting composes exactly like the canvas clip stack. */
   clip() {
     const id = defId('c', this.d);
+    this.mintedIds.add(id);
     this.defs.push(`<clipPath id="${id}"><path d="${this.d}"/></clipPath>`);
     this.body.push(`<g clip-path="url(#${id})">`);
     this.groupDepth++;
@@ -201,12 +223,34 @@ export class SvgContext {
     this.body.push(`<text x="${fmt(x)}" y="${fmt(y)}" text-anchor="${anchor}" style="font:${esc(this.font)}" fill="${esc(this.paintRef(this.fillStyle))}"${this.alphaAttr()}>${esc(text)}</text>`);
   }
 
-  /** Inner SVG markup (defs + elements) — the caller owns the <svg> wrapper. */
+  /** Inner SVG markup (defs + elements) — the caller owns the <svg> wrapper.
+   *
+   *  Every minted id gets a prefix hashed from this snapshot's OWN finished
+   *  markup, which is what makes the fragment self-contained: an id can only
+   *  be borrowed from a neighbour if two snapshots mint the same token, and
+   *  two snapshots can only do that if their whole markup matches — in which
+   *  case the borrower carries an identical def of its own and survives the
+   *  lender unmounting. Hashing the finished markup rather than seeding from
+   *  a counter keeps the property the content-hash was introduced for: server
+   *  and client produce byte-identical output, so hydration stays quiet.
+   *
+   *  The substitution is driven by mintedIds, not by a regex over the markup,
+   *  so a colour string or a 銘 glyph that happens to contain `url(#` can
+   *  never be rewritten. */
   toInnerSvg(): string {
     let tail = '';
     for (let i = 0; i < this.groupDepth; i++) tail += '</g>';
     const defs = this.defs.length ? `<defs>${this.defs.join('')}</defs>` : '';
-    return defs + this.body.join('') + tail;
+    let inner = defs + this.body.join('') + tail;
+    if (!this.mintedIds.size) return inner;
+    // leading 's' because a base36 hash can start with a digit, and an XML id
+    // may not — browsers tolerate it, CSS selectors do not
+    const prefix = 's' + fnv(inner).toString(36) + '-';
+    this.mintedIds.forEach(id => {
+      inner = inner.split(`id="${id}"`).join(`id="${prefix}${id}"`)
+        .split(`url(#${id})`).join(`url(#${prefix}${id})`);
+    });
+    return inner;
   }
 }
 
