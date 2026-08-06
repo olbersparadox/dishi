@@ -648,10 +648,13 @@ describe('clawSeats — one pair per coexisting variant', () => {
   it('prawn eating supports the prime claw — its gesture is unbuilt, not its evidence', () => {
     // the owner's real profile: prawn-dominant with a little lobster. Sizing on
     // lobster's 1.23 alone would draw a stub and throw away 5.64 of real eating.
+    // Ceiling is CLAW_MAX (0.85, not 1.0 — see clawSeats) since 2026-08-07: this
+    // exact fixture was the one that clipped off the canvas edge on the owner's
+    // own live page before that cap existed.
     const s = clawSeats(M({ prawn: 5.64, lobster: 1.23 }), 'metabolism', 0.9);
     expect(s).toHaveLength(1);
     expect(s[0].species).toBe('lobster');
-    expect(s[0].sizeF).toBeGreaterThan(0.9);
+    expect(s[0].sizeF).toBeCloseTo(0.85, 6); // saturated at the ceiling, not 1.0
   });
 
   it('undifferentiated shell evidence still draws the parent gesture', () => {
@@ -742,5 +745,41 @@ describe('clawMotion — two pairs take turns (owner, 2026-08-06)', () => {
 
   it('a lone pair is unaffected — seat 0 is the default', () => {
     for (const t of TS) expect(clawMotion(t, 1).grip).toBe(clawMotion(t, 1, 0).grip);
+  });
+});
+
+/* ── the CLAW_MAX ceiling — a regression guard, not just a code comment ───────
+   Owner, 2026-08-07: "cropped by an invisible square" — confirmed by reading
+   actual canvas pixels on the live page (see clawSeats' own comment for why
+   parsing the SVG path text was not a safe way to check this). sizeF must
+   never exceed the calibrated ceiling, on ANY evidence shape — not just the
+   one fixture that happened to clip. */
+describe('CLAW_MAX — sizeF never exceeds the calibrated safe ceiling', () => {
+  it('sweeps a wide range of evidence and shares; nothing ever tops 0.85', () => {
+    for (const prime of [1.5, 3, 6, 12, 30, 100]) {
+      for (const other of [0, 1, 3, 6, 20]) {
+        for (const unallocated of [0, 2, 8, 40]) {
+          const bag = { crab: prime, lobster: other, prawn: unallocated };
+          const seats = clawSeats({ sub: { shell: bag } } as any, 'metabolism', 0.9);
+          for (const seat of seats) expect(seat.sizeF).toBeLessThanOrEqual(0.85 + 1e-9);
+        }
+      }
+    }
+  });
+
+  it('the exact profile that clipped in production stays pinned at the ceiling', () => {
+    // owner's real live shell mix — prawn-dominant, folded into a 龍蝦 prime
+    // seat. This fixture ran claw ink onto canvas column 0 before CLAW_MAX
+    // existed; confirmed on /jerry by scanning rendered ImageData, not by
+    // parsing path text.
+    const s = clawSeats(
+      { sub: { shell: { prawn: 5.64, lobster: 1.23 } } } as any, 'metabolism', 0.9);
+    expect(s[0].sizeF).toBeCloseTo(0.85, 6);
+  });
+
+  it('legacy is untouched — sizeF can still reach a genuine 1.0', () => {
+    const s = clawSeats(
+      { sub: { shell: { prawn: 5.64, lobster: 1.23 } } } as any, 'legacy', 1.0);
+    expect(s[0].sizeF).toBeCloseTo(1.0, 6);
   });
 });

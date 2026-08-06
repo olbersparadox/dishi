@@ -686,8 +686,29 @@ export function clawSeats(
   if (mode !== 'metabolism') return single;
 
   const evOf = (k: ClawSpecies) => Math.max(0, bag?.[k] ?? 0);
+  // Ceiling capped at 0.85, not 1.0 (owner, 2026-08-07: "cropped by an
+  // invisible square"). This ramp reaches its top on absolute evidence ALONE,
+  // with no share requirement — legacy's clawF needs both a share near 0.34
+  // AND heavy evidence to approach 1.0, so it stayed inboard of the calibrated
+  // WRIST_BURIAL by construction. This ramp does not, and reached 1.0 on the
+  // owner's own real profile (prawn-heavy, folded into a 龍蝦 prime seat).
+  // Confirmed by reading actual rendered PIXELS on the live page, not path
+  // math: at sizeF=1.0, scanning the canvas's own ImageData found claw-ink
+  // pixels sitting directly on column 0 — genuinely clipped, on production,
+  // on the owner's account. (SVG path text is not a safe proxy for this: a
+  // curve's control point can sit outside the canvas while the curve itself
+  // never goes there, and canvasToSvg's own rect() shorthand — M x yhwvhZ —
+  // reads as nonsense to a parser that only knows M/L/C/Q/A. Two different
+  // path-string parsers each produced a confident, wrong bounds reading this
+  // round before the pixel scan settled it; asserting XY bounds from `d=`
+  // text is a trap worth naming so it isn't reached for again.) At sizeF=0.85
+  // the same scan found zero clipped pixels, nearest ink 6 backing-store
+  // pixels from the edge. Burial is the wrong lever for this: pulling
+  // WRIST_BURIAL down far enough to close the gap sacrifices the calibrated
+  // reach for every profile below the ceiling, not just the one hitting it.
+  const CLAW_MAX = 0.85;
   const ramp = (evd: number) =>
-    CLAW_MIN + (1 - CLAW_MIN) * smooth01((evd - SUB_BUD) / (SUB_FORM - SUB_BUD));
+    CLAW_MIN + (CLAW_MAX - CLAW_MIN) * smooth01((evd - SUB_BUD) / (SUB_FORM - SUB_BUD));
   // shellfish eaten that no shipped gesture represents — folded into the prime
   // seat so a prawn-heavy palate keeps a full-sized claw rather than a stub
   const unallocated = Math.max(0, bag?.prawn ?? 0);
