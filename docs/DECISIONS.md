@@ -5257,3 +5257,30 @@ row: chicken now visibly carries more strokes and more presence than the
 generic middle cell; goose unchanged.
 
 9 new/updated tests. tsc clean; full suite 1384/1384.
+
+## G4 round 2, owner correction: thickness + curvature only — *(Sonnet)* — ✅ SHIPPED 2026-08-07
+Owner, on the wing bench, superseding the earlier mass-boost round (which was
+reverted the same session): "same length, width, and stroke count. just the
+stroke thickness increase, and more curved." A course correction, not an
+addition — the mass boost's length/count scaling is fully removed, not
+stacked under.
+
+雞 now gets exactly two one-sided dials, both +40% (curvature had no stated
+number; matched to the thickness dial the owner had just given, and named as
+an easy pair to retune independently next round): `thicknessMul` on widthMul
+only, `curveMul` on humpMul only (the actual quadratic-curve control-point
+offset — confirmed by reading the draw site, not assumed). Length, fan
+spread ("width" in the owner's vocabulary — the code's `spreadMul`, distinct
+from the `widthMul` field that is actually stroke thickness) and stroke
+count are back to the PLAIN species blend with zero chicken-specific
+scaling — countMul is now a flat 1 for every mix.
+
+Same one-sided chickenBoost ramp as both prior dials, so the same guarantee
+holds and is reconfirmed: goose endpoint, no-data neutral, and legacy each
+pinned by exact-equality tests; 11-fixture byte-identity sweep shows only
+the owner's render moved. Visual check on /dev-wings: chicken now reads
+visibly THICKER and more CURVED than the generic fan while staying the
+SAME short length — the three attributes move independently for the first
+time this round.
+
+11 tests replaced/added. tsc clean; full suite 1385/1385.

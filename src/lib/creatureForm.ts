@@ -784,27 +784,28 @@ export function wingShape(
   const tot = ck0 + dg0;
   if (tot <= 0) return NEUTRAL;
   const k = (ck0 / tot) * 2 - 1; // +1 pure 雞 … −1 pure 鴨鵝
-  // 雞 gets a SEPARATE +30% mass boost on top of the shape blend (owner,
-  // 2026-08-07, on the wing bench: "for chicken, try increase strokes and
-  // overall size by 30%"). The lab's own fidelity trace called chicken
-  // wings "SUBSTANTIAL ruffle-fans — stubby arms, not feather slivers"; the
-  // vocab-derived blend alone (len 0.65 at pure 雞) kept the short/wide
-  // SHAPE right but read thin rather than substantial. `chickenBoost` ramps
-  // 0→1 only across k∈[0,1] (neutral through pure 雞) and is exactly 0 for
-  // any 鴨鵝-leaning mix (k<0) — a one-sided boost, so the goose endpoint,
-  // the no-data neutral cell, and legacy are all UNTOUCHED by this round,
-  // each already pinned by its own test. Applied multiplicatively on top of
-  // the existing len/width blend (not a replacement), so the short-vs-long
-  // species distinction from round 2 survives underneath the extra mass. */
+  // 雞 gets TWO one-sided dials on top of the shape blend — thickness and
+  // curvature only (owner, 2026-08-07, on the wing bench, superseding the
+  // earlier mass-boost attempt: "same length, width, and stroke count. just
+  // the stroke thickness increase, and more curved"). Length, fan spread
+  // (spreadMul, the owner's "width") and stroke count now match the plain
+  // species blend exactly — no chicken bonus — which is why countMul is a
+  // flat 1 below rather than a computed value. `chickenBoost` ramps 0→1 only
+  // across k∈[0,1] (neutral through pure 雞) and is exactly 0 for any
+  // 鴨鵝-leaning mix — one-sided, so the goose endpoint, the no-data neutral
+  // cell, and legacy stay untouched, each pinned by its own test. 40% picked
+  // for both dials (no number was given for curvature) — an easy pair of
+  // knobs to retune independently on the next round if either reads wrong. */
   const chickenBoost = Math.max(0, k);
-  const massMul = 1 + 0.3 * chickenBoost;
+  const thicknessMul = 1 + 0.4 * chickenBoost; // stroke thickness only
+  const curveMul = 1 + 0.4 * chickenBoost;     // extra bow on top of the blend's own hump
   return {
-    lenMul: (1 - 0.35 * k) * massMul,  // 雞 0.65→0.845 with the boost · 鵝-side 1.35 untouched
-    widthMul: (1 + 0.3 * k) * massMul, // 雞 1.3→1.69 · 鴨鵝 thinner, untouched
-    spreadMul: 1 + 0.5 * k,            // 雞 fans wide (flutter), 鴨鵝 sweeps tight
-    baseAng: -0.32 - 0.28 * k,         // 雞 raised toward flutter, 鴨鵝 flat glide
-    humpMul: 1 + 0.3 * k,              // 雞 rounder arc, 鴨鵝 straighter stroke
-    countMul: massMul,                 // 雞 up to +30% more strokes · 鴨鵝 untouched
+    lenMul: 1 - 0.35 * k,                   // UNCHANGED — same length as the plain blend
+    widthMul: (1 + 0.3 * k) * thicknessMul, // 雞 1.3→1.82 · 鴨鵝 thinner, untouched
+    spreadMul: 1 + 0.5 * k,                 // fan width — untouched, always was
+    baseAng: -0.32 - 0.28 * k,              // 雞 raised toward flutter, 鴨鵝 flat glide
+    humpMul: (1 + 0.3 * k) * curveMul,      // 雞 rounder arc AND more curved · 鴨鵝 untouched
+    countMul: 1,                            // UNCHANGED — same stroke count as the plain blend
   };
 }
 
