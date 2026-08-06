@@ -425,3 +425,61 @@ describe('糙 rough — the owner\'s spec, through the real renderer', () => {
     }
   });
 });
+
+/* ── limbStrengths — the two-mode gate layer (G2, growth program) ─────────────
+   docs/rnd/mokling-growth-rnd.md Decisions 1–2. Legacy must be the shipped
+   arithmetic exactly (the extraction was ALSO proven by byte-diffing all eight
+   scenario lives' snapshots before/after); metabolism must deliver the three
+   headline behaviors the redesign exists for: wings at the owner's real 7.3%
+   air share, buds from a first loved dish, and share as a dial, not a door. */
+import { limbStrengths } from '../src/lib/creatureForm';
+
+describe('limbStrengths — legacy mode is the shipped gate arithmetic', () => {
+  it('keeps the wings door: air under 0.22 share grows nothing, whatever the evidence', () => {
+    // the owner's own measured profile shape: air ~7.3% of a lived, varied diet
+    const S = limbStrengths({ sea: 19, land: 13.4, shell: 12.2, field: 5.8, air: 4.4, algae: 2.6, fungus: 2.6 }, 'legacy');
+    expect(S.wings.on).toBe(false);
+  });
+
+  it('passes a dominant node exactly as before', () => {
+    const S = limbStrengths({ air: 30, land: 8 }, 'legacy');
+    expect(S.wings.on).toBe(true);
+    expect(S.wings.evF).toBeGreaterThan(0.9);
+  });
+});
+
+describe('limbStrengths — metabolism mode (fed by DECAYED evidence)', () => {
+  it('grows wings on the owner-shaped diet the legacy door forbade', () => {
+    const S = limbStrengths({ sea: 19, land: 13.4, shell: 12.2, field: 5.8, air: 4.4, algae: 2.6, fungus: 2.6 }, 'metabolism');
+    expect(S.wings.on).toBe(true);
+    expect(S.wings.evF).toBeGreaterThan(0.2); // a real (young-formed) wing, not a ghost
+  });
+
+  it('one loved first dish buds a visible nub; one neutral dish does not', () => {
+    expect(limbStrengths({ shell: 1.5 }, 'metabolism').claws).toBeGreaterThan(0.05);
+    expect(limbStrengths({ shell: 0.5 }, 'metabolism').claws).toBe(0);
+  });
+
+  it('share scales but never denies: minority nodes render at >=60% of the dominant treatment', () => {
+    const S = limbStrengths({ sea: 30, land: 12 }, 'metabolism');
+    expect(S.legs).toBeGreaterThan(0);
+    // same evidence as sole node → prom = 1; as minority → prom >= 0.6
+    const solo = limbStrengths({ land: 12 }, 'metabolism');
+    expect(S.legs / solo.legs).toBeGreaterThanOrEqual(0.6 - 1e-9);
+  });
+
+  it('a bud is a nub: full-bud size stays well under half the formed limb', () => {
+    const bud = limbStrengths({ field: 2.2 }, 'metabolism').fronds;
+    const formed = limbStrengths({ field: 14 }, 'metabolism').fronds;
+    expect(bud).toBeGreaterThan(0.2);
+    expect(bud).toBeLessThan(0.5 * formed);
+  });
+
+  it('boneOverlay drops the share door but keeps the FORM-tier floor', () => {
+    const lived = { shell: 9, sea: 40 }; // heavy sea diet — shell share only ~18%
+    expect(boneOverlay(lived, domainShares(lived), 'legacy').shell).toBe(false);
+    expect(boneOverlay(lived, domainShares(lived), 'metabolism').shell).toBe(true);
+    const thin = { shell: 2, sea: 40 }; // two dishes of shell — no carapace
+    expect(boneOverlay(thin, domainShares(thin), 'metabolism').shell).toBe(false);
+  });
+});

@@ -8,7 +8,7 @@
 // can never show a different being than the numbers say.
 import { useEffect, useRef, useState } from 'react';
 import { sampleForm, formToSvgPath, fogExtent, type FormInputs } from '@/lib/blobForm';
-import { drawCreatureFrame, hasAnatomy, creatureSnapshotSvg, type DomainEvidence } from '@/lib/creatureForm';
+import { drawCreatureFrame, hasAnatomy, creatureSnapshotSvg, type DomainEvidence, type GrowthMode } from '@/lib/creatureForm';
 import TasteRadar from './TasteRadar';
 
 const PAPER_INK = ['#3a3733', '#211d18', '#2e2a24'] as const;
@@ -16,8 +16,8 @@ const PAPER_WASH = '217,210,194';
 const PAPER_HIGHLIGHT = '250,247,241';
 
 export function TasteFormSnapshot({
-  inputs, size = 200, glyph, domains,
-}: { inputs: FormInputs; size?: number; glyph?: string; domains?: DomainEvidence }) {
+  inputs, size = 200, glyph, domains, growthMode,
+}: { inputs: FormInputs; size?: number; glyph?: string; domains?: DomainEvidence; growthMode?: GrowthMode }) {
   // The creature door, mirroring TasteFormLive's exactly: lived domain evidence
   // renders the being; none renders the blob below, untouched. The markup is
   // the canvasToSvg REPLAY of drawCreatureFrame — the same strokes the live
@@ -28,7 +28,7 @@ export function TasteFormSnapshot({
     return (
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} role="img"
         aria-label="Taste form"
-        dangerouslySetInnerHTML={{ __html: creatureSnapshotSvg(inputs, domains, size, glyph) }} />
+        dangerouslySetInnerHTML={{ __html: creatureSnapshotSvg(inputs, domains, size, glyph, growthMode) }} />
     );
   }
   const path = formToSvgPath(sampleForm(inputs, 96), size);
@@ -84,8 +84,8 @@ export function TasteFormSnapshot({
  * exists and what does not". Do not infer a feature's absence from this file.
  */
 export function TasteFormLive({
-  inputs, size = 280, glyph, domains,
-}: { inputs: FormInputs; size?: number; glyph?: string; domains?: DomainEvidence }) {
+  inputs, size = 280, glyph, domains, growthMode,
+}: { inputs: FormInputs; size?: number; glyph?: string; domains?: DomainEvidence; growthMode?: GrowthMode }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef = useRef<number | null>(null);
   const visibleRef = useRef(true);
@@ -118,7 +118,7 @@ export function TasteFormLive({
       if (!visibleRef.current) { rafRef.current = requestAnimationFrame(frame); return; }
 
       if (creature) {
-        drawCreatureFrame(ctx!, size, inputs, domains, t, glyph);
+        drawCreatureFrame(ctx!, size, inputs, domains, t, glyph, growthMode);
         rafRef.current = requestAnimationFrame(frame);
         return;
       }
@@ -177,7 +177,7 @@ export function TasteFormLive({
       io.disconnect();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [inputs.seed, size, domains && JSON.stringify(domains)]);
+  }, [inputs.seed, size, domains && JSON.stringify(domains), growthMode]);
 
   return <canvas ref={canvasRef} style={{ width: size, height: size }} aria-label="Your taste form, live" role="img" />;
 }

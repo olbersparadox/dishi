@@ -238,12 +238,104 @@ export function skinOf(m: MethodShares): SkinType {
  */
 export type BoneOverlay = { shell: boolean; fur: boolean };
 
-export function boneOverlay(domains: DomainEvidence, sh: DomainShares): BoneOverlay {
+export function boneOverlay(
+  domains: DomainEvidence, sh: DomainShares, mode: GrowthMode = 'legacy',
+): BoneOverlay {
   const ev = (k: (typeof DOMAIN_KEYS)[number]) => Math.max(0, domains[k] ?? 0);
   const absF = (evd: number, min = 5, span = 7) => smooth01((evd - min) / span);
+  if (mode === 'metabolism') {
+    // Share doors retired (growth R&D, Decision 1): an overlay is earned by
+    // absolutely LIVING the node, and decayed evidence now sinks on its own
+    // when the eating stops — the honesty the share door used to buy. The
+    // floors stay: a carapace is a loud, whole-body statement, so it keeps
+    // the FORM-tier bar rather than budding off one loved dish.
+    return {
+      shell: absF(ev('shell'), 3, 5) > 0.4,
+      fur: absF(ev('land') + ev('air'), 6, 9) > 0.4,
+    };
+  }
   return {
     shell: sh.c > 0.3 && absF(ev('shell'), 3, 5) > 0.4,
     fur: sh.l + sh.a > 0.45 && absF(ev('land') + ev('air'), 6, 9) > 0.4,
+  };
+}
+
+/* ── the GROWTH GATES — one layer, two modes ──────────────────────────────────
+   Every appendage's existence/size factor computes HERE, nowhere else. The
+   seven blocks in drawCreatureFrame used to each carry their own gate
+   arithmetic; centralizing is what lets the metabolism redesign (growth R&D,
+   docs/rnd/mokling-growth-rnd.md, Decisions 1–2) exist as a MODE beside the
+   shipped behavior instead of a rewrite of it.
+
+   'legacy' — the shipped gates, expression-for-expression. Production runs
+   this until the owner approves the metabolism on the time-travel harness;
+   byte-identity across the extraction was proven by dumping all eight
+   scenario lives before and after and diffing.
+
+   'metabolism' — existence by absolute lived evidence, prominence by share:
+
+     stage(ev) = 0.35·smooth01((ev−1.2)/0.8) + 0.65·smooth01((ev−5)/7)
+     prom     = 0.6 + 0.4 · share/maxShare
+     F        = stage · prom
+
+   The 0.22 share DOOR is retired — share only scales, never denies. A first
+   loved dish (ev 1.5) buds a visible nub; a formed limb needs the same ~5
+   evidence the legacy floor wanted; depth to ~12 fills it out. Fed by DECAYED
+   evidence (domainsAsOf), low floors are safe: a stray dish's nub reabsorbs
+   in weeks. The constants are the G2 harness tuning surface — change them
+   against the slider, not in the abstract. */
+export type GrowthMode = 'legacy' | 'metabolism';
+
+const BUD_FLOOR = 1.2, BUD_SPAN = 0.8, FORM_FLOOR = 5, FORM_SPAN = 7;
+const BUD_SIZE = 0.35; // a full bud renders at 35% — visibly a nub, not a limb
+
+export type LimbStrengths = {
+  wings: { on: boolean; evF: number; shareF: number };
+  tendrils: { on: boolean; evF: number };
+  fronds: number; algae: number; claws: number; legs: number; caps: number;
+};
+
+export function limbStrengths(domains: DomainEvidence, mode: GrowthMode): LimbStrengths {
+  const ev = (k: (typeof DOMAIN_KEYS)[number]) => Math.max(0, domains[k] ?? 0);
+  const sh = domainShares(domains);
+  const absF = (evd: number, min = 5, span = 7) => smooth01((evd - min) / span);
+
+  if (mode === 'metabolism') {
+    const stage = (evd: number) =>
+      BUD_SIZE * smooth01((evd - BUD_FLOOR) / BUD_SPAN)
+      + (1 - BUD_SIZE) * smooth01((evd - FORM_FLOOR) / FORM_SPAN);
+    const maxShare = Math.max(sh.s, sh.l, sh.a, sh.c, sh.f, sh.fg, sh.ag, 1e-6);
+    const prom = (share: number) => 0.6 + 0.4 * (share / maxShare);
+    const F = (evd: number, share: number) => stage(evd) * prom(share);
+    const wingsF = stage(ev('air'));
+    const tendF = F(ev('sea'), sh.s);
+    return {
+      // span already carries share through shareF, so evF stays pure stage —
+      // prominence must not be paid twice on the one limb that splits the terms
+      wings: { on: wingsF > 0, evF: wingsF, shareF: sh.a / maxShare },
+      tendrils: { on: tendF > 0, evF: tendF },
+      fronds: F(ev('field'), sh.f),
+      algae: F(ev('algae'), sh.ag),
+      claws: F(ev('shell'), sh.c),
+      legs: F(ev('land'), sh.l),
+      caps: F(ev('fungus'), sh.fg),
+    };
+  }
+
+  // legacy — the shipped expressions, moved not changed
+  const GATE = 0.22;
+  return {
+    wings: {
+      on: sh.a > GATE && absF(ev('air')) > 0,
+      evF: absF(ev('air')),
+      shareF: Math.min(1, (sh.a - GATE) * 2.2),
+    },
+    tendrils: { on: sh.s > GATE && absF(ev('sea')) > 0, evF: absF(ev('sea')) },
+    fronds: smooth01((sh.f - 0.08) / 0.3) * absF(ev('field')),
+    algae: smooth01((sh.ag - 0.07) / 0.25) * absF(ev('algae')),
+    claws: smooth01((sh.c - 0.06) / 0.28) * absF(ev('shell'), 3, 5),
+    legs: smooth01((sh.l - GATE) / 0.3) * absF(ev('land')),
+    caps: smooth01((sh.fg - 0.07) / 0.25) * absF(ev('fungus')),
   };
 }
 
@@ -505,6 +597,7 @@ export function drawCreatureFrame(
   domains: DomainEvidence,
   t: number,
   glyph?: string,
+  mode: GrowthMode = 'legacy',
 ) {
   ctx.clearRect(0, 0, size, size);
   const c0 = size / 2;
@@ -597,8 +690,9 @@ export function drawCreatureFrame(
     pts[(Math.round((((side > 0 ? h : TAU - h)) / TAU) * P) + P) % P];
 
   ctx.lineCap = 'round';
-  const GATE = 0.22;
-  const absF = (evd: number, min = 5, span = 7) => smooth01((evd - min) / span);
+  // ONE gate layer for every appendage — limbStrengths carries both modes and
+  // the whole rationale; no block below re-derives a gate.
+  const S = limbStrengths(domains, mode);
 
   // ── skin type: ONE source of truth, `skinOf` above, which carries the
   // rearrangement's rationale and is unit-tested. Never re-derive the
@@ -607,7 +701,7 @@ export function drawCreatureFrame(
   // what was eaten. skinOf cannot even see `domains` any more, which is what
   // stops 膚 quietly re-acquiring a domain dependency the way 軟 once did.
   const skin = skinOf(m);
-  const bone = boneOverlay(domains, { s, l, a, c, f, fg, ag });
+  const bone = boneOverlay(domains, { s, l, a, c, f, fg, ag }, mode);
   const isShell = bone.shell;
   const isSoft = skin === 'soft';
   const isSmooth = skin === 'smooth';
@@ -657,8 +751,8 @@ export function drawCreatureFrame(
 
   // ── appendages BEHIND the body ────────────────────────────────────────────
   // wings — lateral fans from the shoulder, angled out
-  if (a > GATE && absF(ev('air')) > 0) {
-    const span = R * (0.55 + 0.75 * Math.min(1, (a - GATE) * 2.2)) * absF(ev('air'));
+  if (S.wings.on) {
+    const span = R * (0.55 + 0.75 * S.wings.shareF) * S.wings.evF;
     const flap = t ? 0.13 * Math.sin(t * 0.0013) * (0.3 + a) : 0;
     for (const side of [-1, 1]) {
       const base = flank(side, 0.8);
@@ -678,7 +772,7 @@ export function drawCreatureFrame(
     }
   }
   // fronds — rising leaf curves with a blade at the tip
-  const frondF = smooth01((f - 0.08) / 0.3) * absF(ev('field'));
+  const frondF = S.fronds;
   if (frondF > 0) {
     const nF = 2 + Math.round(4 * frondF);
     for (let i = 0; i < nF; i++) {
@@ -707,7 +801,7 @@ export function drawCreatureFrame(
     }
   }
   // 藻 ribbons
-  const agF = smooth01((ag - 0.07) / 0.25) * absF(ev('algae'));
+  const agF = S.algae;
   if (agF > 0) {
     const nB = 2 + Math.round(2 * agF);
     for (let i = 0; i < nB; i++) {
@@ -729,9 +823,9 @@ export function drawCreatureFrame(
     }
   }
   // tendrils
-  if (s > GATE && absF(ev('sea')) > 0) {
+  if (S.tendrils.on) {
     const nT = 2 + Math.min(4, Math.floor(ev('sea') / 14));
-    const L = R * (0.8 + 0.6 * s) * absF(ev('sea'));
+    const L = R * (0.8 + 0.6 * s) * S.tendrils.evF;
     for (let i = 0; i < nT; i++) {
       const fr = (i - (nT - 1) / 2) / Math.max(1, (nT - 1) / 2);
       const b = bottom(fr * 0.8);
@@ -752,7 +846,7 @@ export function drawCreatureFrame(
   // fill covers the join (z-order, never alpha). One big one small is the whole
   // 龍蝦 read; 蟹 is 1:1. Prawn's fine pincers wait in the gesture pool — its
   // share picks the nearer of the two shipped gestures for now.
-  const clawF = smooth01((c - 0.06) / 0.28) * absF(ev('shell'), 3, 5);
+  const clawF = S.claws;
   // GATE and SIZE are separate jobs, and conflating them cost the claw its
   // legibility. I first set size = clawF outright, reasoning that a floor would
   // "defeat both gates — one crab dish rendering half-grown claws". That was
@@ -815,7 +909,7 @@ export function drawCreatureFrame(
     }
   }
   // 足 legs
-  const legF = smooth01((l - GATE) / 0.3) * absF(ev('land'));
+  const legF = S.legs;
   if (legF > 0) {
     const mix = subMix(domains.sub?.land, ['beef', 'pork', 'chicken']);
     const nL = ev('land') > 30 ? 4 : 2;
@@ -1221,7 +1315,7 @@ export function drawCreatureFrame(
     }
   }
   // 菌 caps
-  const fgF = smooth01((fg - 0.07) / 0.25) * absF(ev('fungus'));
+  const fgF = S.caps;
   if (fgF > 0) {
     const nC = 1 + Math.round(3 * fgF);
     for (let i = 0; i < nC; i++) {
@@ -1267,8 +1361,9 @@ export const CREATURE_STILL_T = 0;
  */
 export function creatureSnapshotSvg(
   inputs: FormInputs, domains: DomainEvidence, size: number, glyph?: string,
+  mode: GrowthMode = 'legacy',
 ): string {
   const { ctx, svg } = svgContext(size, size);
-  drawCreatureFrame(ctx, size, inputs, domains, CREATURE_STILL_T, glyph);
+  drawCreatureFrame(ctx, size, inputs, domains, CREATURE_STILL_T, glyph, mode);
   return svg();
 }
