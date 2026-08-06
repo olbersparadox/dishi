@@ -138,6 +138,21 @@ type CallOpts = {
    * "LIVE OUTAGE"). Verified: the endpoint consumes exactly the budget given
    * and then answers (finish: stop) — thinking bounded by US, not by them. */
   reasoning?: 'off' | 'low' | { max_tokens: number };
+  /** Sampling temperature. OMITTED by default, which means the provider's own
+   * default (1.0 on OpenAI-compatible APIs) — i.e. every call this app has ever
+   * made has sampled at maximum randomness, nobody having chosen that.
+   *
+   * It shows up as the same dish reading differently on different days: 油雞髀腩仔飯
+   * logged three times came back braised/steamed/braised with three different
+   * ingredient lists. Some of that spread was a moving codebase, but the
+   * cooking-method flip is plain sampling noise.
+   *
+   * Deliberately opt-IN rather than a global default. Pinning it app-wide would
+   * silently change the menu-scan pipeline, which is separately tuned and has its
+   * own latency program and canary; a quality change smuggled in as a
+   * determinism fix is how that tuning gets invalidated without anyone noticing.
+   * Identification callers ask for it explicitly instead. */
+  temperature?: number;
 };
 
 export async function callClaude(
@@ -230,6 +245,9 @@ async function callClaudeOnce(
           : opts.reasoning === 'low' ? { effort: 'low' }
           : opts.reasoning,
       } : {}),
+      // Absent unless asked for, so every existing call site keeps the exact
+      // body it sent before (see CallOpts.temperature).
+      ...(opts.temperature === undefined ? {} : { temperature: opts.temperature }),
       messages: [
         { role: 'system', content: system },
         { role: 'user', content: userContent },

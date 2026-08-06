@@ -3,8 +3,16 @@ import { callClaude, imagePart, textPart, parseJsonResponse } from './openrouter
 import {
   sanitizeDietFlags, sanitizeCookingMethod, sanitizeHeaviness,
   DIET_FLAG_LIST, DIET_PROMPT_GUIDANCE, HK_MENU_SHORTHAND_GUIDANCE,
+  dietSuspicion, DIET_RECHECK_LINE,
   type DietFlag, type CookingMethod, type Heaviness,
 } from './menuScan';
+
+/** Identification is extraction, not composition: the same plate should read the
+ * same way twice. Left unset, these calls sampled at the provider default (1.0)
+ * — which is how 油雞髀腩仔飯 came back "braised" one day and "steamed" the next
+ * off near-identical photos. Opt-in per call site; see CallOpts.temperature for
+ * why this is NOT pinned app-wide. */
+const IDENTIFY_TEMPERATURE = 0;
 
 export type VisionResult = {
   name: string;
@@ -132,10 +140,12 @@ export async function inferDish(base64: string, mediaType: string, ctx?: VisionC
   // than falling through to the fallback below — which matters here more than
   // anywhere, because that fallback's is_dish:true silently skips the
   // not-a-dish confirmation the moment a flaky response slips past.
+  const userText = visionUserText(ctx);
+  const startedAt = Date.now();
   const text = await callClaude(SYSTEM, [
     imagePart(base64, mediaType),
-    textPart(visionUserText(ctx)),
-  ], { maxTokens: 500, expectJson: true });
+    textPart(userText),
+  ], { maxTokens: 500, expectJson: true, temperature: IDENTIFY_TEMPERATURE });
 
   const parsed = parseJsonResponse(text);
   // Call failed with a real key (timeout/model error): keep the log flow alive with
@@ -144,7 +154,42 @@ export async function inferDish(base64: string, mediaType: string, ctx?: VisionC
   if (!parsed) {
     return { name: 'Unknown dish', name_zh: null, cuisine: 'unknown', attributes: {}, confidence: 0.1, is_dish: true, diet: [], cooking_method: null, heaviness: null, ingredients: [], vision_failed: true };
   }
-  return sanitize(parsed);
+  const first = sanitize(parsed);
+
+  // The diet tripwire, finally running on the path that logs most dishes.
+  //
+  // It has guarded menu-scan enrichment since it was written, but nothing ever
+  // wired it to photo logging — so the route that produced 油雞髀腩仔飯 had no
+  // safety net at all. That dish is the case in point: 腩仔 is pork belly, it is
+  // in the name the model itself returned, and two of three logs shipped with no
+  // `pork` flag. Someone avoiding pork was told the dish was fine.
+  //
+  // Same contract as enrichOneDish: a tripwire is never authority. It cannot edit
+  // a field — that would be the string-authoring bug the spec forbids — it only
+  // earns ONE re-ask, and the re-ask is final even if the tripwire would still
+  // fire (菠蘿包 gets to keep its no-pineapple answer). The retry is adopted
+  // WHOLE rather than merged field-by-field: one model answer is internally
+  // coherent, whereas pass-1's name spliced onto pass-2's flags can describe two
+  // different dishes.
+  //
+  // Only DIET, not carbSuspicion, though both guard enrichment. carb_suspect
+  // exists to trigger an honest vector re-score downstream, and the photo path
+  // has no such follow-up to trigger; shipping the flag with nothing reading it
+  // would be a corpse. Worth adding once that path exists.
+  //
+  // Elapsed gate: this is a second VISION call inside a route capped at 60s. It
+  // is skipped when the first call was slow, so a degraded-provider window
+  // degrades to today's single-call behaviour instead of timing the route out —
+  // the same trade callClaude's own retry gate makes.
+  const suspicious = dietSuspicion(first.name, first.name_zh, first.diet, first.ingredients);
+  if (suspicious && Date.now() - startedAt < 15_000) {
+    const retry = parseJsonResponse(await callClaude(SYSTEM, [
+      imagePart(base64, mediaType),
+      textPart(`${userText}\n${DIET_RECHECK_LINE}`),
+    ], { maxTokens: 500, expectJson: true, timeoutMs: 10_000, temperature: IDENTIFY_TEMPERATURE }));
+    if (retry) return sanitize(retry);
+  }
+  return first;
 }
 
 function sanitize(raw: any): VisionResult {
@@ -222,7 +267,7 @@ export async function reanalyzeAnchored(
   const text = await callClaude(ANCHORED_SYSTEM, [
     imagePart(base64, mediaType),
     textPart(`The eater says this dish is: ${name}`),
-  ], { maxTokens: 400, expectJson: true });
+  ], { maxTokens: 400, expectJson: true, temperature: IDENTIFY_TEMPERATURE });
   const parsed = parseJsonResponse<any>(text);
   if (!parsed) return null;
   const s = sanitize({ ...parsed, name });

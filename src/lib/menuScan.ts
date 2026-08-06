@@ -524,7 +524,16 @@ const SEAFOOD_INGREDIENT_KEYS = [
 const PROTEIN_TRIPWIRE: { morphemes: string[]; flag: DietFlag; ingredientKeys: string[] }[] = [
   { morphemes: ['\u96de', 'chicken'], flag: 'chicken', ingredientKeys: ['chicken'] },
   { morphemes: ['\u725b', 'beef'], flag: 'beef', ingredientKeys: ['beef'] },
-  { morphemes: ['\u8c6c', 'pork'], flag: 'pork', ingredientKeys: ['pork'] },
+  // \u8169\u4ed4/\u4e94\u82b1\u8169/\u71d2\u8169 are pork belly in HK \u71d2\u5473 usage, and none of them contains \u8c6c \u2014
+  // which is why \u6cb9\u96de\u9ac0\u8169\u4ed4\u98ef sailed past this tripwire twice and shipped with no
+  // pork flag at all (the dish names the cut and the flags denied it).
+  // \u8169 ALONE is deliberately excluded: \u725b\u8169 is beef brisket, so the bare character
+  // would fire pork on half the beef menu. The \u4ed4/\u4e94\u82b1/\u71d2 compounds are the
+  // unambiguous ones \u2014 same "full compounds only" rule the tree-nut entry below
+  // uses to keep \u674f\u4ec1 clear of \u8766\u4ec1. English 'belly' rides along because vision
+  // writes the name too, and it rendered this dish "\u2026Thigh and Belly Rice" while
+  // omitting pork; 'pork belly' was already covered by 'pork'.
+  { morphemes: ['\u8c6c', 'pork', '\u8169\u4ed4', '\u4e94\u82b1\u8169', '\u71d2\u8169', 'belly'], flag: 'pork', ingredientKeys: ['pork'] },
   { morphemes: ['\u9d28', 'duck'], flag: 'duck_goose', ingredientKeys: ['duck'] },
   { morphemes: ['\u9d5d', 'goose'], flag: 'duck_goose', ingredientKeys: ['goose'] },
   { morphemes: ['\u7f8a', 'lamb', 'mutton'], flag: 'lamb', ingredientKeys: ['lamb', 'mutton'] },

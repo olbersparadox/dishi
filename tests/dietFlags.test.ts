@@ -145,6 +145,42 @@ describe('dietSuspicion — soy axis, structural-only (2026-07-23)', () => {
   });
 });
 
+// 油雞髀腩仔飯 shipped TWICE with no pork flag while 腩仔 (pork belly) sat in the
+// name the model itself wrote. Someone avoiding pork was told the dish was fine.
+// The cut-name vocabulary was the gap: none of HK's pork-belly words contains 豬.
+describe('dietSuspicion — pork belly by cut name (2026-08-06)', () => {
+  const N = 'Soy-Poached Chicken Thigh and Belly Rice', Z = '油雞髀腩仔飯';
+
+  it('FIRES on the real 08-04 row — 腩仔 in the name, no pork flag, no pork ingredient', () => {
+    expect(dietSuspicion(N, Z, ['chicken'], ['chicken', 'rice', 'ginger'])).toBe(true);
+  });
+
+  it('does NOT fire once pork is honestly flagged', () => {
+    expect(dietSuspicion(N, Z, ['pork', 'chicken'], ['chicken', 'pork belly', 'rice'])).toBe(false);
+  });
+
+  it('does NOT fire when the ingredients carry the pork the flags missed', () => {
+    // Rule 1 needs BOTH absent; an ingredient list naming pork is support enough.
+    expect(dietSuspicion(N, Z, ['chicken'], ['chicken', 'pork', 'rice'])).toBe(false);
+  });
+
+  // The reason bare 腩 is not a morpheme. 牛腩 is beef brisket, and half a
+  // Cantonese menu would demand pork if the character alone counted.
+  it('leaves 牛腩 alone — beef brisket is not pork', () => {
+    expect(dietSuspicion('Beef brisket noodles', '牛腩河', ['beef'], ['beef brisket', 'rice noodle'])).toBe(false);
+    expect(dietSuspicion('Tomato brisket rice', '蕃茄牛腩飯', ['beef'], ['beef brisket', 'tomato', 'rice'])).toBe(false);
+  });
+
+  it('catches the other unambiguous belly compounds', () => {
+    expect(dietSuspicion('Roast pork belly rice', '燒腩仔飯', ['chicken'], ['rice'])).toBe(true);
+    expect(dietSuspicion('Pork belly', '五花腩', [], ['rice'])).toBe(true);
+  });
+
+  it('fires off the ENGLISH name too — vision authors that half as well', () => {
+    expect(dietSuspicion(N, null, ['chicken'], ['chicken', 'rice'])).toBe(true);
+  });
+});
+
 describe('dietSuspicion — broad seafood beyond 魚/蝦 (2026-07-24)', () => {
   // The tripwire's seafood/shellfish vocabulary was Cantonese-tuned (fish + shrimp)
   // and blind to the mollusc/crustacean/echinoderm repertoire a Japanese menu is
