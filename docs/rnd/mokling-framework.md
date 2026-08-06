@@ -140,12 +140,12 @@ Only the first half exists:
 
 | stage | status |
 |---|---|
-| 萌 bud · 成 formed | **SHIPPED** (the share + floor gates) |
+| 萌 bud · 成 formed | **SHIPPED** — and RE-GATED 2026-08-06 (G2 flip): existence by decayed absolute evidence (bud ~1.2, pops in at ≥35%), prominence by share as a dial. The 0.22 share DOOR is retired in production |
 | 精 articulated | **PARTIAL** — claws have their own idle gesture; no general articulation stage |
-| 萎 atrophy | **MECHANISM BUILT, NOT YET VISIBLE** — G1 (2026-08-06) ships the timed record (`accumulateDomainsT` + `taste_profiles.domain_evidence_t`) and the `domainsAsOf` read adapter; the renderer still reads the PLAIN record until G2, so nothing on screen decays yet. The plain aggregate stays decay-free by design |
+| 萎 atrophy | **SHIPPED 2026-08-06** (G2 flip) — all three production surfaces (Taste tab, dossier, growth screen) now read `domainsAsOf(domain_evidence_t, now)` in metabolism mode, computed SERVER-side so SSR and client can never disagree. One-off replay backfill ran first (both live profiles). The plain lifetime aggregate keeps being written, decay-free, as the biographical record |
 | 蛻 shed | **NOT BUILT** (G2 crossing detection) |
 | 圖鑑 molt archive | **NOT BUILT** — this is what makes the being a biography rather than a snapshot |
-| evidence half-life | **SET, PENDING TUNE** — `DOMAIN_HALF_LIFE_MS` = 120 days (G1); the owner tunes it on G2's time-travel harness |
+| evidence half-life | **SET & OWNER-APPROVED** — 120 days, reviewed on the G2 time-travel bench 2026-08-06 |
 
 This is the largest conceptual gap in the whole framework. "Nothing is set in
 stone" is the owner's central metabolism direction, and today the body can only

@@ -191,11 +191,12 @@ export function TasteFormLive({
  * back. No new data, just a second way to read the same profile.
  */
 export function TasteFormReveal({
-  inputs, size = 190, glyph, labelFor, domains,
+  inputs, size = 190, glyph, labelFor, domains, growthMode,
 }: {
   inputs: FormInputs; size?: number; glyph?: string;
   labelFor: (dim: string) => string;
   domains?: DomainEvidence;
+  growthMode?: GrowthMode;
 }) {
   // The 銘 reads from the SAME `inputs` the creature grows from — vector,
   // evidence and seed — rather than taking its own copy of the vector. Both
@@ -228,7 +229,7 @@ export function TasteFormReveal({
         transition: 'opacity 220ms ease, transform 220ms ease',
         pointerEvents: 'none',
       }}>
-        <TasteFormLive inputs={inputs} size={size} glyph={glyph} domains={domains} />
+        <TasteFormLive inputs={inputs} size={size} glyph={glyph} domains={domains} growthMode={growthMode} />
       </div>
       <div style={{
         position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',

@@ -392,6 +392,7 @@ export default function TasteFormCard({ vector, affinity, count, dishes, userId,
           inputs={formInputs} size={190}
           labelFor={(dim) => t(`dim.${dim}`)}
           domains={state.domain_evidence}
+          growthMode="metabolism"
         />
       </div>
 

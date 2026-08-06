@@ -1354,13 +1354,8 @@ discounting was proposed and REJECTED (owner, 2026-08-06); do not re-propose.
 
 (G1 shipped 2026-08-06 — see DECISIONS.md, same batch heading.)
 
-## G2. Gate redesign: bud / form / articulate, prominence dial — *(Fable)*
-Existence by decayed absolute evidence (BUD_FLOOR ~1.2), size by
-share/maxShare (0.22 share door retired), paling by staleness, shed with
-hysteresis. Owner reviews on /dev-creature with an as-of time slider BEFORE
-ship. Go/no-go gate for the metabolism. LANDING STEP: existing users'
-domain_evidence_t is '{}' until a write triggers replay — G2 must open with
-a one-off replay backfill for all real profiles, or bodies would blob out.
+(G2 shipped 2026-08-06 — see DECISIONS.md, same batch heading. G4 is
+now UNBLOCKED: ports render under gates real users see.)
 
 (G3 shipped 2026-08-06 — see DECISIONS.md, same batch heading.)
 

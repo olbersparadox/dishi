@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseServer, supabaseAdmin } from '@/lib/supabase/server';
 import { emptyTaste, contentScore } from '@/lib/taste';
+import { domainsAsOf, type DomainEvidenceT } from '@/lib/domainEvidence';
 import {
   engineConfidence, buddyElements, growthHint, exploredDims, UNLOCK_CONFIDENCE,
 } from '@/lib/buddy';
@@ -128,11 +129,14 @@ export async function GET() {
       vector: inputs.vector,
       evidence: profile?.evidence ?? {},
       profile_version: profile?.profile_version ?? 1,
-      // 骨 domain evidence (domainEvidence.ts) — what the creature grows from.
-      // Empty {} for every profile until this rating's replay rebuilds it;
-      // TasteFormLive/Snapshot read that as "render the blob", so this is
-      // additive and fails closed exactly like every other 墨靈 phase-2 piece.
-      domain_evidence: profile?.domain_evidence ?? {},
+      // 骨 domain evidence — DECAYED to this moment (G2 flip, 2026-08-06).
+      // The field name stays for the client, but the numbers are now
+      // domainsAsOf(timed record): what the palate lives on TODAY, not a
+      // lifetime sum. Computed server-side on purpose — a Date.now() inside a
+      // component would let server and client render different markup.
+      // A missing/legacy timed record yields {} → the blob, same door as ever.
+      domain_evidence: domainsAsOf(
+        (profile?.domain_evidence_t ?? {}) as DomainEvidenceT, Date.now()),
     },
   });
 }

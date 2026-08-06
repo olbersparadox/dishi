@@ -5129,3 +5129,36 @@ metabolism mode only; legacy returns exactly one pair at exactly today's size.
 Byte-identity re-proven across nine lives including the owner's real live
 profile — all nine IDENTICAL. 8 new tests; full suite 1344/1344, tsc clean.
 Also cleared the dead `mix` variable in the claw block, orphaned by G9.
+
+## G2. Gate redesign: bud / form / articulate, prominence dial — *(Fable)*
+Existence by decayed absolute evidence (BUD_FLOOR ~1.2), size by
+share/maxShare (0.22 share door retired), paling by staleness, shed with
+hysteresis. Owner reviews on /dev-creature with an as-of time slider BEFORE
+ship. Go/no-go gate for the metabolism. LANDING STEP: existing users'
+domain_evidence_t is '{}' until a write triggers replay — G2 must open with
+a one-off replay backfill for all real profiles, or bodies would blob out. — ✅ SHIPPED 2026-08-06
+
+Owner reviewed the whole metabolism on the /dev-metabolism time-travel bench
+(600 synthetic days through the real engine — buds, coexisting claw pairs,
+starves, seat swaps, the duel toggle) and approved: "G2 good to go."
+
+Shipped in order, the order being the point:
+1. BACKFILL FIRST — one-off script ran the real replayProfile for every
+   profile and persisted domain_evidence_t, so no profile was empty when the
+   read switched (the tester's was: 1 rating, timed record still '{}' — their
+   creature would have silently blobbed out between deploy and backfill).
+2. THE FLIP — both server assembly points (/api/buddy for the Taste tab and
+   growth screen; dossierResolve for the public dossier) now serve
+   domainsAsOf(domain_evidence_t, Date.now()) under the unchanged field name,
+   computed server-side so SSR and client can never render different markup
+   from two different "now"s. The three mounts pass growthMode="metabolism"
+   (TasteFormReveal grew a pass-through prop — one chassis, two surfaces).
+3. VERIFIED ON REAL DATA — the owner's live dossier (localhost against the
+   real DB): their creature renders with WINGS for the first time. Their air
+   share is 7.3%; the legacy 0.22 share door made wings permanently
+   impossible on their own profile — the measured diagnosis that opened the
+   growth program, now fixed on the being it was measured on. Fur, shell
+   band, claws, legs, tendrils all present; the varied diet finally shows.
+
+Legacy mode stays in the renderer as the byte-identical control the whole
+program was verified against; nothing passes it in production any more.

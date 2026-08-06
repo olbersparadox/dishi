@@ -361,7 +361,7 @@ export default function TasteGrowth({ live, engine, blobInputs, blobDomains, onE
             {/* key on seed: TasteFormLive samples its shape once per mount (deps
                 [inputs.seed, size]), so remount when the real profile arrives —
                 otherwise the loading-fallback circle would stick for the session. */}
-            <TasteFormLive key={effectiveBlobInputs.seed} inputs={effectiveBlobInputs} size={150} domains={blobDomains} />
+            <TasteFormLive key={effectiveBlobInputs.seed} inputs={effectiveBlobInputs} size={150} domains={blobDomains} growthMode="metabolism" />
           </div>
         </div>
         <h2 className="grow2-title">{t('grow.build.title')}</h2>
