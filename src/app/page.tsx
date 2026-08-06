@@ -81,12 +81,26 @@ function Journal() {
   // tabs never touched the URL, so there was no history entry to return to
   // and router.back() just landed on the bare "/" default.
   const [tab, setTab] = useState<'mine' | 'feed'>(searchParams.get('tab') === 'feed' ? 'feed' : 'mine');
+  // Once 大家食 has been visited, FeedList stays MOUNTED (hidden via CSS, not
+  // unmounted) so its already-fetched items survive further tab switches —
+  // before this, the mine/feed ternary below tore FeedList down on every
+  // switch away, so every return to 大家食 refetched from scratch. Bumping
+  // feedRefreshKey is the one deliberate exception: right after publishing,
+  // the cached list is known-stale (it can't contain the post that doesn't
+  // exist yet), so that path forces one fresh fetch.
+  const [feedVisited, setFeedVisited] = useState(tab === 'feed');
+  const [feedRefreshKey, setFeedRefreshKey] = useState(0);
 
   const selectTab = (key: 'mine' | 'feed') => {
     setTab(key);
+    if (key === 'feed') setFeedVisited(true);
     // replace, not push — clicking between tabs shouldn't pile up back-stack
     // entries; only leaving the page (e.g. to a dossier) does that.
     router.replace(key === 'feed' ? '/?tab=feed' : '/', { scroll: false });
+  };
+  const onPublished = () => {
+    setFeedRefreshKey(k => k + 1);
+    selectTab('feed');
   };
 
   const touchStart = useRef<{ x: number; y: number } | null>(null);
@@ -136,7 +150,12 @@ function Journal() {
           browsing surface, and a calibration ask interrupting browse would be
           the old feed's mistake again. */}
       {tab === 'mine' && <DailyInteractions />}
-      {tab === 'mine' ? <MyDishes t={t} lang={lang} onPublished={() => selectTab('feed')} /> : <FeedList />}
+      {tab === 'mine' && <MyDishes t={t} lang={lang} onPublished={onPublished} />}
+      {feedVisited && (
+        <div style={{ display: tab === 'feed' ? 'block' : 'none' }}>
+          <FeedList refreshKey={feedRefreshKey} />
+        </div>
+      )}
     </div>
   );
 }

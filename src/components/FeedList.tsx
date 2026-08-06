@@ -48,12 +48,17 @@ export function FeedSkeleton() {
   );
 }
 
-export default function FeedList() {
+export default function FeedList({ refreshKey }: { refreshKey?: number } = {}) {
   const { t, lang } = useLang();
   const [state, setState] = useState<State>({ kind: 'loading' });
 
   useEffect(() => {
     let live = true;
+    // refreshKey isn't read here — it's a dependency only, bumped by the
+    // caller (page.tsx) right after a publish to force this one refetch. The
+    // caller now keeps FeedList mounted across ordinary tab switches instead
+    // of remounting it, so this effect no longer reruns on its own for those.
+    setState({ kind: 'loading' });
     fetch(`/api/feed?lang=${lang}`)
       .then(r => r.json())
       .then(j => {
@@ -66,7 +71,7 @@ export default function FeedList() {
       })
       .catch(() => { if (live) setState({ kind: 'failed' }); });
     return () => { live = false; };
-  }, [lang]);
+  }, [lang, refreshKey]);
 
   if (state.kind === 'loading') return <FeedSkeleton />;
   if (state.kind === 'failed') return <p className="card-meta">{t('feed.failed')}</p>;
