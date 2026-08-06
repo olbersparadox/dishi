@@ -42,7 +42,7 @@ import { DIMS } from './taste';
 import {
   drawLobsterClaw, drawCrabClaw, clawMotion, CLAW_AXIS, type ClawSpecies,
 } from './creatureGestures';
-import { svgContext } from './canvasToSvg';
+import { svgContext, type InkBounds, type InkRecord } from './canvasToSvg';
 
 const TAU = Math.PI * 2;
 
@@ -1581,4 +1581,22 @@ export function creatureSnapshotSvg(
   const { ctx, svg } = svgContext(size, size);
   drawCreatureFrame(ctx, size, inputs, domains, CREATURE_STILL_T, glyph, mode);
   return svg();
+}
+
+/**
+ * The creature's rendered ink extents, measured by the recorder itself — THE
+ * way to answer any geometric question about a render in a test ("does it
+ * clip the canvas?", "which element is leftmost?", "how far does a limb
+ * reach?"). Never parse the snapshot's path text for geometry: four ad-hoc
+ * parsers produced four different wrong answers in one day (2026-08-07)
+ * before this existed — see the ink-measurement block in canvasToSvg.ts for
+ * the full autopsy and the conservative-direction guarantees.
+ */
+export function creatureInkBounds(
+  inputs: FormInputs, domains: DomainEvidence, size: number, glyph?: string,
+  mode: GrowthMode = 'legacy',
+): { bounds: InkBounds | null; records: readonly InkRecord[] } {
+  const { ctx, inkBounds, inkRecords } = svgContext(size, size);
+  drawCreatureFrame(ctx, size, inputs, domains, CREATURE_STILL_T, glyph, mode);
+  return { bounds: inkBounds(), records: inkRecords() };
 }

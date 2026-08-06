@@ -87,6 +87,42 @@ function defId(kind: 'g' | 'c', content: string): string {
   return kind + fnv(content).toString(36);
 }
 
+/* ── ink measurement ───────────────────────────────────────────────────────────
+   The recorder is the ONLY place that ever holds the creature's geometry in
+   exact form — arc centres and sweeps, curve control points, stroke widths,
+   clip regions. It used to flatten all of that into path text immediately,
+   and every measurement question ("does it clip the canvas?", "how far does
+   the claw reach?") then tried to RECONSTRUCT geometry by parsing the text
+   back. That reconstruction is a trap that cost four broken ad-hoc parsers in
+   one day (2026-08-07): arc flags misread as coordinates, curve endpoints
+   skipped, rect()'s relative h/v choking an absolute-only parser, and control
+   points counted as rendered ink when a curve never passes through its own
+   control point. Each throwaway instrument was less tested than the renderer
+   it was measuring, so every conclusion drawn through one was suspect.
+
+   So the recorder now measures AT THE EMITTER, where nothing needs parsing.
+   Curves and arcs are densely SAMPLED rather than solved in closed form — at
+   the step sizes used the sampling error is under 0.05px, beyond the 2dp
+   output precision, and sampling cannot have the algebra bugs that
+   closed-form rotated-ellipse extrema invite. Bounds err conservative by
+   design where exactness is expensive: strokes inflate by lineWidth/2 in all
+   directions (slight overestimate at butt caps), clip is applied as the clip
+   path's BOUNDING BOX (superset of the true region), and text uses an
+   em-box. Conservative means "may flag near-misses", never "misses a real
+   crop" — the right direction for every question this exists to answer.
+
+   Ask via inkBounds()/inkRecords(); never parse `d=` text for geometry. */
+export type InkBounds = { minX: number; minY: number; maxX: number; maxY: number };
+export type InkRecord = InkBounds & { kind: 'fill' | 'stroke' | 'text'; style: string };
+
+const emptyBounds = (): InkBounds =>
+  ({ minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity });
+const boundsValid = (b: InkBounds) => b.minX <= b.maxX && b.minY <= b.maxY;
+const intersect = (a: InkBounds, b: InkBounds): InkBounds => ({
+  minX: Math.max(a.minX, b.minX), minY: Math.max(a.minY, b.minY),
+  maxX: Math.min(a.maxX, b.maxX), maxY: Math.min(a.maxY, b.maxY),
+});
+
 export class SvgContext {
   // ── the state drawCreatureFrame actually sets ──────────────────────────────
   fillStyle: string | SvgGradient = '#000';
@@ -101,6 +137,12 @@ export class SvgContext {
   private d = '';                       // current path
   private body: string[] = [];          // emitted elements, in paint order
   private defs: string[] = [];
+  // ── ink measurement state (see block comment above) ────────────────────────
+  private pb = emptyBounds();           // current path's bounds, reset by beginPath
+  private px = 0; private py = 0;       // numeric current point, for curve sampling
+  private clipStack: InkBounds[] = [];  // active clip bboxes; restore() truncates
+  private records: InkRecord[] = [];
+  private total = emptyBounds();
   /** Every id this recorder minted — the exact token set toInnerSvg() prefixes.
    *  Rewriting only these (never a blind regex over the markup) keeps glyph
    *  text and colour strings out of the substitution's reach.
@@ -115,23 +157,54 @@ export class SvgContext {
   private mintedIds = new Set<string>();
   /** Open <g clip-path> nesting. save() marks depth; restore() closes back. */
   private groupDepth = 0;
-  private saveStack: { groupDepth: number; alpha: number }[] = [];
+  private saveStack: { groupDepth: number; alpha: number; clipDepth: number }[] = [];
 
   constructor(private width: number, private height: number) {}
 
   // ── path building ──────────────────────────────────────────────────────────
-  beginPath() { this.d = ''; }
-  moveTo(x: number, y: number) { this.d += `M${fmt(x)} ${fmt(y)}`; }
-  lineTo(x: number, y: number) { this.d += `L${fmt(x)} ${fmt(y)}`; }
+  private addPt(x: number, y: number) {
+    if (x < this.pb.minX) this.pb.minX = x;
+    if (y < this.pb.minY) this.pb.minY = y;
+    if (x > this.pb.maxX) this.pb.maxX = x;
+    if (y > this.pb.maxY) this.pb.maxY = y;
+  }
+  beginPath() { this.d = ''; this.pb = emptyBounds(); }
+  moveTo(x: number, y: number) {
+    this.d += `M${fmt(x)} ${fmt(y)}`;
+    this.addPt(x, y); this.px = x; this.py = y;
+  }
+  lineTo(x: number, y: number) {
+    this.d += `L${fmt(x)} ${fmt(y)}`;
+    this.addPt(x, y); this.px = x; this.py = y;
+  }
   bezierCurveTo(c1x: number, c1y: number, c2x: number, c2y: number, x: number, y: number) {
     this.d += `C${fmt(c1x)} ${fmt(c1y)} ${fmt(c2x)} ${fmt(c2y)} ${fmt(x)} ${fmt(y)}`;
+    // sample the CURVE, never the control points — a curve does not pass
+    // through its controls, and counting them as ink is exactly the parser
+    // mistake this measurement layer exists to retire
+    const x0 = this.px, y0 = this.py;
+    for (let i = 1; i <= 48; i++) {
+      const t = i / 48, u = 1 - t;
+      this.addPt(
+        u*u*u*x0 + 3*u*u*t*c1x + 3*u*t*t*c2x + t*t*t*x,
+        u*u*u*y0 + 3*u*u*t*c1y + 3*u*t*t*c2y + t*t*t*y);
+    }
+    this.px = x; this.py = y;
   }
   quadraticCurveTo(cx: number, cy: number, x: number, y: number) {
     this.d += `Q${fmt(cx)} ${fmt(cy)} ${fmt(x)} ${fmt(y)}`;
+    const x0 = this.px, y0 = this.py;
+    for (let i = 1; i <= 32; i++) {
+      const t = i / 32, u = 1 - t;
+      this.addPt(u*u*x0 + 2*u*t*cx + t*t*x, u*u*y0 + 2*u*t*cy + t*t*y);
+    }
+    this.px = x; this.py = y;
   }
   closePath() { if (this.d) this.d += 'Z'; }
   rect(x: number, y: number, w: number, h: number) {
     this.d += `M${fmt(x)} ${fmt(y)}h${fmt(w)}v${fmt(h)}h${fmt(-w)}Z`;
+    this.addPt(x, y); this.addPt(x + w, y + h);
+    this.px = x; this.py = y;
   }
   arc(x: number, y: number, r: number, a0: number, a1: number, ccw = false) {
     this.ellipse(x, y, r, r, 0, a0, a1, ccw);
@@ -160,6 +233,15 @@ export class SvgContext {
     } else {
       seg(a0, a0 + dir * sweep);
     }
+    // measurement: sample the swept arc densely (~2° steps → <0.05px error at
+    // creature scale, beyond the 2dp output precision anyway)
+    const steps = Math.max(8, Math.ceil(Math.abs(sweep) / 0.035));
+    for (let i = 0; i <= steps; i++) {
+      const p = ellipsePoint(cx, cy, rx, ry, rot, a0 + dir * sweep * (i / steps));
+      this.addPt(p.x, p.y);
+    }
+    const pEnd = ellipsePoint(cx, cy, rx, ry, rot, a0 + dir * sweep);
+    this.px = pEnd.x; this.py = pEnd.y;
   }
 
   // ── painting ───────────────────────────────────────────────────────────────
@@ -190,15 +272,36 @@ export class SvgContext {
     return this.globalAlpha < 1 ? ` opacity="${fmt(this.globalAlpha)}"` : '';
   }
 
+  /** Merge a finished element's bounds into the measurement, clipped by the
+   *  active clip stack (as bboxes — conservative superset of the true clip). */
+  private commitInk(b: InkBounds, kind: InkRecord['kind'], style: string | SvgGradient) {
+    if (!boundsValid(b)) return;
+    let eff = b;
+    for (const c of this.clipStack) eff = intersect(eff, c);
+    if (!boundsValid(eff)) return; // fully clipped away — no ink reaches the page
+    const styleStr = typeof style === 'string' ? style : `gradient:${style.kind}`;
+    this.records.push({ ...eff, kind, style: styleStr });
+    if (eff.minX < this.total.minX) this.total.minX = eff.minX;
+    if (eff.minY < this.total.minY) this.total.minY = eff.minY;
+    if (eff.maxX > this.total.maxX) this.total.maxX = eff.maxX;
+    if (eff.maxY > this.total.maxY) this.total.maxY = eff.maxY;
+  }
+
   fill() {
     if (!this.d) return;
     this.body.push(`<path d="${this.d}" fill="${esc(this.paintRef(this.fillStyle))}"${this.alphaAttr()}/>`);
+    this.commitInk(this.pb, 'fill', this.fillStyle);
   }
   stroke() {
     if (!this.d) return;
     const caps = this.lineCap !== 'butt' ? ` stroke-linecap="${this.lineCap}"` : '';
     const join = this.lineJoin !== 'miter' ? ` stroke-linejoin="${this.lineJoin}"` : '';
     this.body.push(`<path d="${this.d}" fill="none" stroke="${esc(this.paintRef(this.strokeStyle))}" stroke-width="${fmt(this.lineWidth)}"${caps}${join}${this.alphaAttr()}/>`);
+    const half = this.lineWidth / 2;
+    this.commitInk({
+      minX: this.pb.minX - half, minY: this.pb.minY - half,
+      maxX: this.pb.maxX + half, maxY: this.pb.maxY + half,
+    }, 'stroke', this.strokeStyle);
   }
 
   /** Canvas clip(): everything painted until the matching restore() is bounded
@@ -215,14 +318,21 @@ export class SvgContext {
     // 糙 and 甲 do on a shelled body)
     this.body.push(`<g clip-path="url(#${id})">`);
     this.groupDepth++;
+    this.clipStack.push({ ...this.pb });
   }
 
-  save() { this.saveStack.push({ groupDepth: this.groupDepth, alpha: this.globalAlpha }); }
+  save() {
+    this.saveStack.push({
+      groupDepth: this.groupDepth, alpha: this.globalAlpha,
+      clipDepth: this.clipStack.length,
+    });
+  }
   restore() {
     const s = this.saveStack.pop();
     if (!s) return;
     while (this.groupDepth > s.groupDepth) { this.body.push('</g>'); this.groupDepth--; }
     this.globalAlpha = s.alpha;
+    this.clipStack.length = s.clipDepth;
   }
 
   createLinearGradient(x0: number, y0: number, x1: number, y1: number) {
@@ -236,7 +346,25 @@ export class SvgContext {
     const anchor = this.textAlign === 'center' ? 'middle'
       : this.textAlign === 'right' || this.textAlign === 'end' ? 'end' : 'start';
     this.body.push(`<text x="${fmt(x)}" y="${fmt(y)}" text-anchor="${anchor}" style="font:${esc(this.font)}" fill="${esc(this.paintRef(this.fillStyle))}"${this.alphaAttr()}>${esc(text)}</text>`);
+    // measurement: em-box approximation (CJK ≈ 1em/char — an overestimate for
+    // latin, which is the safe direction). Baseline metrics: ~0.8em ascent,
+    // ~0.25em descent.
+    const size = parseFloat(this.font.match(/(\d+(?:\.\d+)?)px/)?.[1] ?? '10');
+    const w = size * Array.from(text).length;
+    const x0 = anchor === 'middle' ? x - w / 2 : anchor === 'end' ? x - w : x;
+    this.commitInk(
+      { minX: x0, minY: y - size * 0.8, maxX: x0 + w, maxY: y + size * 0.25 },
+      'text', this.fillStyle);
   }
+
+  /** Union bounds of every element that reached the page, or null if nothing
+   *  painted. See the ink-measurement block comment for guarantees. */
+  inkBounds(): InkBounds | null {
+    return boundsValid(this.total) ? { ...this.total } : null;
+  }
+  /** Per-element bounds in paint order, for finer questions (which element
+   *  sits leftmost, how much do two features overlap, …). */
+  inkRecords(): readonly InkRecord[] { return this.records; }
 
   /** Inner SVG markup (defs + elements) — the caller owns the <svg> wrapper.
    *
@@ -277,6 +405,7 @@ export class SvgContext {
  */
 export function svgContext(width: number, height: number): {
   ctx: CanvasRenderingContext2D; svg: () => string;
+  inkBounds: () => InkBounds | null; inkRecords: () => readonly InkRecord[];
 } {
   const real = new SvgContext(width, height);
   const proxy = new Proxy(real, {
@@ -288,5 +417,10 @@ export function svgContext(width: number, height: number): {
       );
     },
   });
-  return { ctx: proxy as unknown as CanvasRenderingContext2D, svg: () => real.toInnerSvg() };
+  return {
+    ctx: proxy as unknown as CanvasRenderingContext2D,
+    svg: () => real.toInnerSvg(),
+    inkBounds: () => real.inkBounds(),
+    inkRecords: () => real.inkRecords(),
+  };
 }

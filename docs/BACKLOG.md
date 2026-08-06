@@ -1458,6 +1458,17 @@ pairs — they run cross-domain (seafood vs beef, savoury vs dessert). So the
 read side alone would seldom fire; the ask-side nudge is what makes the
 mechanism reliable, and founder covers the gap until a duel is fought.
 
+## G11. Garden frond tips crop at the canvas top — first catch of the ink-bounds net — *(visual round with owner)*
+Found 2026-08-07, minutes after `creatureInkBounds` existed: a field-heavy
+life (the `garden` scenario fixture) inks ~6% of the canvas ABOVE the top
+edge — both modes identically, every size proportionally, so it predates the
+metabolism and shipped inside legacy. Edge-owner is the frond ink
+(`rgba(33,29,24,~0.5)` fills). No real profile is field-heavy enough to hit
+it today, and frond geometry changes rewrite shipped bodies, so it is
+GRANDFATHERED in tests/inkBounds.test.ts (`KNOWN_TOP_OVERFLOW`, garden 0.062)
+rather than fixed blind. The fix round shrinks that allowance to zero with
+the owner's eyes on the fronds.
+
 ## G7. Share image · version cards · export header — *(Fable; order-independent)*
 Carried from the old table's item 6. The SVG snapshot renderer already
 exists, parity-verified, with no production consumer (framework Ledger,
