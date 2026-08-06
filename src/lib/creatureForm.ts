@@ -659,7 +659,15 @@ export function pickVariant<K extends string>(
 const SUB_BUD = 1.2;    // one loved dish — the same bar a domain buds at
 const SUB_FORM = 6;     // a real habit in that variant specifically
 const CLAW_MIN = 0.28;  // a newborn pair reads as a small pincer, not a speck
-const CLAW_SEATS = [1.95, 1.52] as const; // prime, then higher up the flank
+/* Prime seat, then the second pair higher up the flank. Raised 1.52 → 1.25
+   (owner, 2026-08-06: "move up a bit so the two won't overlap too much").
+   Measured on a two-full-pair body at 300px: claw ink spans ~57px vertically
+   and the seat moves it ~11px per 0.2rad, so the pairs overlapped 44% at 1.52
+   and 23% at 1.25. Zero overlap would want ~0.91, which collides with the
+   wing seat at 0.80 — two limb families sharing an anchor is the one thing
+   the composition rules forbid outright, so some overlap is the correct
+   trade and 1.25 keeps 0.45rad of clearance above. */
+const CLAW_SEATS = [1.95, 1.25] as const;
 
 export type ClawSeat = { species: ClawSpecies; sizeF: number; seat: number };
 
