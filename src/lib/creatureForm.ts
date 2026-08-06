@@ -64,6 +64,10 @@ export type DomainEvidence = {
     sea?: { fish?: number; cephalopod?: number };
     field?: { leaf?: number; root?: number; soy?: number };
   };
+  /** 對決 verdicts, `"family:x|y" -> net` (positive = x leads). G9: when eating
+      leaves two variants tied, the duel the person actually answered decides
+      which one the limb shows. Never decayed — see domainEvidence.ts. */
+  duels?: Record<string, number>;
 };
 
 const DOMAIN_KEYS = ['sea', 'land', 'air', 'shell', 'field', 'algae', 'fungus'] as const;
@@ -568,6 +572,77 @@ function subMix<K extends string>(
 const domOf = <K extends string>(m: Record<K, number>): K =>
   (Object.keys(m) as K[]).reduce((a, b) => (m[b] > m[a] ? b : a));
 
+/* ── which variant a limb SHOWS when the mix is close (G9) ────────────────────
+   Found on the metabolism bench: a perfectly alternating crab/lobster diet
+   flipped the claw species on 16 of 17 meals, because `mix.crab >= mix.lobster`
+   is a knife edge — whichever was eaten most recently edged ahead by a few
+   percent and took the whole gesture. Same knife edge sat under the leg's foot
+   detail via domOf, where near-tied beef/pork is ordinary eating.
+
+   The framework's blend rule ("terminal detail takes the dominant sub-node") is
+   right; it just never said what happens when dominance is CONTESTED. This is
+   that missing rule, as a ladder:
+
+     1. CLEAR DOMINANCE — a lead of DEAD_ZONE or more wins outright. Eating far
+        more of one thing is itself an answer.
+     2. CONTESTED, and they have been DUELLED — the person answered this exact
+        question; the duel winner takes the slot (owner, 2026-08-06).
+     3. CONTESTED, never duelled — hold the lexicographically-first variant.
+        Deliberately arbitrary AND deliberately STABLE: for a genuinely 50/50
+        eater there is no true answer, and a steady limb is honest where a
+        flickering one is just a bug. The first duel replaces it with the real
+        answer, and (next round) the duel engine can ASK when it sees this.
+
+   Rung 3 must not depend on ARGUMENT ORDER — that mistake survived one round
+   here: returning "the caller's first key" reads as stable until domOfStable
+   passes the pair in mix order, which is itself the value that flickers. The
+   tiebreak has to be a property of the PAIR, never of how it was handed over. */
+const DEAD_ZONE = 0.1;  // 55/45 — below this, the SHARE has decided nothing
+/** ...and a lead smaller than roughly one meal is not a lead at all, however
+ *  lopsided it looks as a ratio. Two lobster against one crab is 67/33 — a
+ *  landslide by share, three meals by life. Without this, a thin young record
+ *  swung the species on every single meal (measured: 9 flips across the bench's
+ *  first 9 shellfish meals, all of them "dominance" that was really small
+ *  numbers). Same principle as the absolute-evidence floors the gates already
+ *  use: a large slice of almost nothing is not evidence. */
+const MIN_LEAD = 1.5; // ≈ one loved meal
+
+/** Reads the RAW bag, never subMix's output. subMix defaults a missing variant
+ *  to 1 ("absent → equal mix", the lab default) which is right for BLENDING
+ *  geometry and wrong for CHOOSING: it would put a never-eaten crab in a
+ *  near-tie against a genuinely eaten lobster, and hand rung 3 a species the
+ *  person has never touched. Absent must mean zero when the question is
+ *  "which one are you". */
+export function pickVariant<K extends string>(
+  bag: Partial<Record<K, number>> | undefined, a: K, b: K,
+  family: string, duels: Record<string, number> | undefined,
+): K {
+  const va = Math.max(0, bag?.[a] ?? 0), vb = Math.max(0, bag?.[b] ?? 0);
+  const tot = va + vb, gap = Math.abs(va - vb);
+  // never-eaten loses outright, at any gap — one side having NO evidence is not
+  // a close call, and this must outrank MIN_LEAD or a single first meal would
+  // fall through to the stable hold and show a species never eaten.
+  if (va === 0 || vb === 0) { if (tot > 0) return va > vb ? a : b; }
+  else if (gap / tot >= DEAD_ZONE && gap >= MIN_LEAD) return va > vb ? a : b;
+  const lo = a < b ? a : b, hi = a < b ? b : a;
+  const net = duels?.[`${family}:${lo}|${hi}`] ?? 0;
+  if (net !== 0) return net > 0 ? lo : hi;
+  return lo; // stable hold — a property of the pair, never of argument order
+}
+
+/** domOf through the same ladder: only the top TWO can be contested, so the
+ *  three-way foot choice reduces to one pickVariant between them. Ordering the
+ *  pair by mix (then by key, so an exact tie is still deterministic) is what
+ *  makes rung 3's "hold the first key" mean "hold the incumbent". */
+export function domOfStable<K extends string>(
+  bag: Partial<Record<K, number>> | undefined, keys: K[],
+  family: string, duels: Record<string, number> | undefined,
+): K {
+  const v = (k: K) => Math.max(0, bag?.[k] ?? 0);
+  const ranked = [...keys].sort((x, y) => (v(y) - v(x)) || (x < y ? -1 : 1));
+  return ranked.length < 2 ? ranked[0] : pickVariant(bag, ranked[0], ranked[1], family, duels);
+}
+
 /* 腿 · leg. cow = thick pillar on a cleft hoof; pig = shorter, softer, small
    trotter; chicken = thin, backward knee, three splayed toes. (lab v5) */
 /** LENGTH still scales with the growth factor; GIRTH gets its own, passed in.
@@ -579,6 +654,7 @@ function drawLeg(
   bx: number, by: number, R: number, f: number,
   mix: Record<'beef' | 'pork' | 'chicken', number>, lean: number,
   widthF: number = f,
+  footType: 'beef' | 'pork' | 'chicken' = domOf(mix),
 ) {
   const bf = mix.beef, pk = mix.pork, ck = mix.chicken;
   const len = R * (0.42 * bf + 0.3 * pk + 0.5 * ck) * f;
@@ -590,7 +666,7 @@ function drawLeg(
   ctx.fillStyle = 'rgba(33,29,24,.94)';
   taperQuad(ctx, bx, by, kneeX, kneeY, w * 1.1, w * (0.95 - 0.25 * ck));
   taperQuad(ctx, kneeX, kneeY, footX, footY, w * (0.95 - 0.25 * ck), w * (0.85 - 0.35 * ck));
-  const type = domOf(mix);
+  const type = footType;
   if (type === 'beef') { // cleft hoof
     const hw = w * 1.25, hh = w * 0.62;
     ctx.beginPath(); ctx.moveTo(footX - hw, footY - hh * 0.2);
@@ -888,7 +964,7 @@ export function drawCreatureFrame(
   // share for full size), so mid-share eaters sat invisible for a long time.
   if (clawF > 0.12) {
     const mix = subMix(domains.sub?.shell, ['lobster', 'crab', 'prawn']);
-    const species: ClawSpecies = mix.crab >= mix.lobster ? 'crab' : 'lobster';
+    const species: ClawSpecies = pickVariant(domains.sub?.shell, 'crab', 'lobster', 'shell', domains.duels);
     /* One ink for every body. The old `isSmooth ? SKIN.base : ...` existed
        because 滑's body was lighter back then and a dark claw looked stuck on
        — but that was tuned against ONE skin and never revisited as five more
@@ -948,7 +1024,9 @@ export function drawCreatureFrame(
       const fr = (i - (nL - 1) / 2) / Math.max(1, (nL - 1) / 2);
       const b = bottom(fr * 0.55);
       const step = t ? Math.sin(t * 0.0009 + i * 2.1) * 0.35 * l : 0;
-      drawLeg(ctx, b.x, b.y - R * 0.04, R, legF, mix, fr + step, legW);
+      drawLeg(ctx, b.x, b.y - R * 0.04, R, legF, mix, fr + step, legW,
+        domOfStable<'beef' | 'pork' | 'chicken'>(
+          domains.sub?.land, ['beef', 'pork', 'chicken'], 'land', domains.duels));
     }
   }
 

@@ -427,3 +427,68 @@ describe('accumulateDomainsT — the timed siblings agree with the plain ones', 
     expect(readFar.sub?.land?.lamb ?? 0).toBeLessThan(1e-4);
   });
 });
+
+/* ── G9: the duel breaks a contested tie ───────────────────────────────────────
+   Owner, 2026-08-06. Eating says HOW MUCH; a duel says WHICH — the only honest
+   instrument for a 50/50 palate. These pin the verdict arithmetic; the
+   renderer-side ladder is pinned in creatureForm.test.ts. */
+import { accumulateDuel, emptyDuelVerdicts, duelKey } from '../src/lib/domainEvidence';
+
+const crabDish = dish({ diet: ['seafood', 'shellfish'], name_zh: '蟹' });
+const lobsterDish = dish({ diet: ['seafood', 'shellfish'], name_zh: '龍蝦' });
+
+describe('accumulateDuel — a duel records WHICH variant the person picked', () => {
+  it('crab beating lobster leaves crab ahead in that pair', () => {
+    const v = accumulateDuel(emptyDuelVerdicts(), crabDish, lobsterDish, false);
+    expect(v[duelKey('shell', 'crab', 'lobster')]).toBe(1);
+  });
+
+  it('the sign is per-pair, not per-call-order — lobster winning flips it', () => {
+    const v = accumulateDuel(emptyDuelVerdicts(), lobsterDish, crabDish, false);
+    expect(v[duelKey('shell', 'crab', 'lobster')]).toBe(-1);
+  });
+
+  it('repeated duels accumulate, and a reversal genuinely cancels', () => {
+    let v = accumulateDuel(emptyDuelVerdicts(), crabDish, lobsterDish, false);
+    v = accumulateDuel(v, crabDish, lobsterDish, false);
+    expect(v[duelKey('shell', 'crab', 'lobster')]).toBe(2);
+    v = accumulateDuel(v, lobsterDish, crabDish, false);
+    expect(v[duelKey('shell', 'crab', 'lobster')]).toBe(1);
+  });
+
+  it('a 揀唔落 TIE records NOTHING — declining to choose is not a verdict', () => {
+    const v = accumulateDuel(emptyDuelVerdicts(), crabDish, lobsterDish, true);
+    expect(v).toEqual({});
+  });
+
+  it('an AMBIGUOUS side records nothing — a muddy side makes a muddy verdict', () => {
+    // 龍蝦蝦餃 resolves to lobster AND prawn; there is no single variant that won
+    const mixed = dish({ diet: ['seafood', 'shellfish'], name_zh: '龍蝦蝦餃' });
+    expect(accumulateDuel(emptyDuelVerdicts(), mixed, crabDish, false)).toEqual({});
+  });
+
+  it('two dishes of the SAME variant record nothing — no contest to settle', () => {
+    const otherCrab = dish({ diet: ['seafood', 'shellfish'], name_zh: '膏蟹' });
+    expect(accumulateDuel(emptyDuelVerdicts(), crabDish, otherCrab, false)).toEqual({});
+  });
+
+  it('a cross-family duel (seafood vs beef) records nothing for either family', () => {
+    const beefDish = dish({ diet: ['beef'], name_zh: '牛' });
+    expect(accumulateDuel(emptyDuelVerdicts(), crabDish, beefDish, false)).toEqual({});
+  });
+
+  it('one duel can settle TWO families at once when both sides are single-variant', () => {
+    // pork+chicken dish vs beef+chicken dish would be ambiguous on land; use
+    // clean single-variant sides in two different families instead
+    const porkChicken = dish({ diet: ['pork'], name_zh: '豬' });
+    const beefOnly = dish({ diet: ['beef'], name_zh: '牛' });
+    const v = accumulateDuel(emptyDuelVerdicts(), porkChicken, beefOnly, false);
+    expect(v[duelKey('land', 'beef', 'pork')]).toBe(-1); // pork won, beef is first key
+  });
+
+  it('is pure — the input map is never mutated', () => {
+    const before = emptyDuelVerdicts();
+    accumulateDuel(before, crabDish, lobsterDish, false);
+    expect(before).toEqual({});
+  });
+});

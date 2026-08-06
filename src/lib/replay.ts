@@ -9,6 +9,7 @@ import {
 import {
   accumulateDomains, emptyDomainEvidence,
   accumulateDomainsT, emptyDomainEvidenceT, type DomainEvidenceT,
+  accumulateDuel, emptyDuelVerdicts, type DuelVerdicts,
 } from './domainEvidence';
 import type { DomainEvidence } from './creatureForm';
 
@@ -63,6 +64,9 @@ export async function replayProfile(
    *  domainsAsOf. Rebuilt in the same walk — the two records can only disagree
    *  about how much of the evidence time has kept, never about what was eaten. */
   domain_evidence_t: DomainEvidenceT;
+  /** 對決 verdicts (G9): which variant won when two sub-nodes of one family
+   *  were compared head to head. Breaks a contested tie the eating cannot. */
+  duel_verdicts: DuelVerdicts;
   replayed: number;
   /** Per dish_id, the neutral point that dish's rating was scored against. */
   centers: Record<string, number>;
@@ -80,7 +84,9 @@ export async function replayProfile(
       .order('created_at', { ascending: true }),
     supabaseAdmin()
       .from('dish_duels')
-      .select('winner, tied_at, answered_at, a:dishes!dish_a(id, attributes), b:dishes!dish_b(id, attributes)')
+      // diet/ingredients/names ride along so a duel can say WHICH sub-nodes
+      // fought — the same widening the ratings select above already carries.
+      .select('winner, tied_at, answered_at, a:dishes!dish_a(id, attributes, diet, ingredients, name, name_zh), b:dishes!dish_b(id, attributes, diet, ingredients, name, name_zh)')
       .eq('user_id', userId)
       .not('answered_at', 'is', null),
   ]);
@@ -96,7 +102,7 @@ export async function replayProfile(
   type Event =
     | { t: number; kind: 'rating'; dishId: string; attrs: Record<string, number>; cuisine: string | null; score: number; voice: Record<string, number> | null; domain: DomainSource }
     | { t: number; kind: 'exposure'; dishId: string; domain: DomainSource }
-    | { t: number; kind: 'duel'; winner: Record<string, number>; loser: Record<string, number> }
+    | { t: number; kind: 'duel'; winner: Record<string, number>; loser: Record<string, number>; winnerDomain: DomainSource; loserDomain: DomainSource }
     | { t: number; kind: 'tie'; a: Record<string, number>; b: Record<string, number> };
 
   const events: Event[] = [];
@@ -160,7 +166,10 @@ export async function replayProfile(
       const winnerDish = d.a.id === d.winner ? d.a : d.b.id === d.winner ? d.b : null;
       const loserDish = winnerDish === d.a ? d.b : d.a;
       if (!winnerDish || !loserDish) continue;
-      events.push({ t, kind: 'duel', winner: winnerDish.attributes ?? {}, loser: loserDish.attributes ?? {} });
+      const dom = (d: any): DomainSource =>
+        ({ diet: d.diet ?? null, ingredients: d.ingredients ?? null, name: d.name ?? null, name_zh: d.name_zh ?? null });
+      events.push({ t, kind: 'duel', winner: winnerDish.attributes ?? {}, loser: loserDish.attributes ?? {},
+        winnerDomain: dom(winnerDish), loserDomain: dom(loserDish) });
     }
   }
 
@@ -171,6 +180,7 @@ export async function replayProfile(
   let affinity: Record<string, number> = {};
   let domains: DomainEvidence = emptyDomainEvidence();
   let domainsT: DomainEvidenceT = emptyDomainEvidenceT();
+  let verdicts: DuelVerdicts = emptyDuelVerdicts();
   let replayed = 0; // ratings only — preserves rating_count-mirroring semantics
   const priorScores: number[] = []; // raw scores of ratings already applied
   // The centre each dish's rating actually learned from, so a caller can report
@@ -198,6 +208,7 @@ export async function replayProfile(
     } else if (e.kind === 'duel') {
       vector = updateTasteFromDuel(vector, evidence, e.winner, e.loser);
       evidence = bumpEvidenceFromDuel(evidence, e.winner, e.loser);
+      verdicts = accumulateDuel(verdicts, e.winnerDomain, e.loserDomain, false);
     } else {
       vector = updateTasteFromDuelTie(vector, evidence, e.a, e.b);
       evidence = bumpEvidenceFromDuel(evidence, e.a, e.b);
@@ -208,5 +219,5 @@ export async function replayProfile(
   // the learning rate. Execution-confounded ones are added back: the person did
   // rate the dish, so gates built on rating_count (the seal gate, export
   // confidence) must still see it — only the palate ignores it.
-  return { vector, evidence, cuisine_affinity: affinity, domain_evidence: domains, domain_evidence_t: domainsT, replayed: replayed + confounded, centers, confounded };
+  return { vector, evidence, cuisine_affinity: affinity, domain_evidence: { ...domains, duels: verdicts }, domain_evidence_t: { ...domainsT, duels: verdicts }, duel_verdicts: verdicts, replayed: replayed + confounded, centers, confounded };
 }

@@ -1395,6 +1395,22 @@ for." Parked deliberately; when picked up it lands on the framework's
 existing ceremonial-metamorphosis surface (Fibonacci stage gates, witnessed
 full-screen, prior form archived in the 圖鑑) rather than a new system.
 
+(G9 read side shipped 2026-08-06 — see DECISIONS.md. The ASK side, nudging
+selectDuelPair toward a contested pair, remains open as G9b.)
+
+## G9b. Duel ASK-side nudge — let the engine ask the contested question — *(Fable)*
+`selectDuelPair` already ranks by sealed-bet uncertainty; a contested sub-node
+is the same uncertainty, so favouring pairs that would resolve one is a
+scoring nudge, not a new mechanism. Measured 2026-08-06: of 18 real answered
+duels, ZERO were same-sub-node, so without this the read side rarely fires.
+
+## Later: 蛻變 "Evolved" — a drastic form change to strive for *(owner, 2026-08-06 — parked)*
+"We may introduce a more drastic change in shape for the feeling of
+'Evolved' at a later stage. Something aspirational for users to strive
+for." Parked deliberately; when picked up it lands on the framework's
+existing ceremonial-metamorphosis surface (Fibonacci stage gates, witnessed
+full-screen, prior form archived in the 圖鑑) rather than a new system.
+
 ## G9. Sub-node species FLICKER — contested dominance has no stickiness — *(needs an owner call, then Fable)*
 Found by the owner on the G2 bench, 2026-08-06, and confirmed: a perfectly
 alternating crab/lobster diet flipped the claw species on 16 of 17 meals.

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseServer, supabaseAdmin } from '@/lib/supabase/server';
+import { accumulateDuel } from '@/lib/domainEvidence';
+import type { DomainEvidence } from '@/lib/creatureForm';
 import {
   updateTasteFromDuel, updateTasteFromDuelTie, bumpEvidenceFromDuel, emptyTaste, DIMS, type TasteVector,
 } from '@/lib/taste';
@@ -45,10 +47,13 @@ export async function POST(req: NextRequest) {
   }
 
   const [{ data: dishRows }, { data: profile }] = await Promise.all([
-    supabase.from('dishes').select('id, attributes').in('id', [duel.dish_a, duel.dish_b]),
-    supabase.from('taste_profiles').select('vector, evidence').eq('user_id', user.id).maybeSingle(),
+    // diet/ingredients/names ride along so the duel can record WHICH sub-nodes
+    // fought (G9) — the same widening replay's duel select carries.
+    supabase.from('dishes').select('id, attributes, diet, ingredients, name, name_zh').in('id', [duel.dish_a, duel.dish_b]),
+    supabase.from('taste_profiles').select('vector, evidence, domain_evidence').eq('user_id', user.id).maybeSingle(),
   ]);
   const attrOf = (id: string) => (dishRows ?? []).find((d: any) => d.id === id)?.attributes ?? {};
+  const rowOf = (id: string) => (dishRows ?? []).find((d: any) => d.id === id) ?? {};
 
   const currentVector: TasteVector = profile?.vector ?? emptyTaste();
   const evidence = profile?.evidence ?? {};
@@ -65,9 +70,20 @@ export async function POST(req: NextRequest) {
   }
   // Evidence bump uses the contrast, which is order-independent for the bump.
   const nextEvidence = bumpEvidenceFromDuel(evidence, attrOf(duel.dish_a), attrOf(duel.dish_b));
+  // 對決 verdict (G9): a duel between two variants of ONE sub-node family is the
+  // person answering "which of these is you", which eating alone cannot settle.
+  // A tie records nothing — accumulateDuel enforces that, so the call is honest
+  // on both branches. Incremental here, rebuilt identically by replay.
+  const prevDomains = (profile?.domain_evidence ?? {}) as DomainEvidence;
+  const nextDomains: DomainEvidence = isTie ? prevDomains : {
+    ...prevDomains,
+    duels: accumulateDuel(
+      prevDomains.duels ?? {},
+      rowOf(winnerId!), rowOf(winnerId === duel.dish_a ? duel.dish_b : duel.dish_a), false),
+  };
   const { error: tasteErr } = await supabase
     .from('taste_profiles')
-    .update({ vector: nextVector, evidence: nextEvidence, updated_at: new Date().toISOString() })
+    .update({ vector: nextVector, evidence: nextEvidence, domain_evidence: nextDomains, updated_at: new Date().toISOString() })
     .eq('user_id', user.id);
   if (tasteErr) return NextResponse.json({ error: tasteErr.message }, { status: 500 });
 

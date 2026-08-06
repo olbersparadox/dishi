@@ -5017,3 +5017,31 @@ wrong about its own vocabulary (fixed the test, not the code). Full suite
 1298/1298, tsc clean. Nothing reads these bags yet — that is G4, one
 gesture port per round, prawn pincers first (detector already live from
 before this batch).
+
+## G9. Sub-node species FLICKER — the duel decides — *(Opus)* — ✅ READ SIDE SHIPPED 2026-08-06
+
+Shipped as: `accumulateDuel` + `DuelVerdicts` in domainEvidence.ts (pairwise,
+direct, never decayed, ties record nothing); `pickVariant`/`domOfStable` in
+creatureForm.ts carrying the ladder; duel selects widened in replay.ts AND
+/api/duels/answer to carry diet/ingredients/names.
+
+Three things the build corrected, none of them in the original plan:
+- Rung 3's "stable hold" first returned the CALLER'S first argument, which
+  reads as stable until domOfStable passes the pair in mix order — itself the
+  value that flickers. The tiebreak must be a property of the PAIR (now
+  lexicographic), never of how it was handed over. Caught by its own test.
+- The variant CHOICE was reading subMix's output, which defaults an absent
+  variant to 1 ("absent → equal mix", right for blending geometry). That put a
+  never-eaten crab in a near-tie against the owner's real lobster 1.23, a hair
+  outside the dead zone. The choice now reads the RAW bag, where absent is 0.
+- A dead zone alone left 9 flips across the bench's first nine shellfish meals:
+  two lobster against one crab is a 67/33 landslide by share and three meals by
+  life. MIN_LEAD (1.5, about one loved meal) closes it — the same
+  large-slice-of-almost-nothing principle the evidence floors already use.
+
+Measured end to end on the bench's alternating 50/50 diet: **16 flips → 1**,
+and that one is the honest transition from "only lobster eaten" to "both eaten
+equally". Byte-identity re-proven across nine lives INCLUDING the owner's real
+live profile — only the exact-tie fixture (pork 8 = chicken 8) changes, which
+is the contested case itself, and where the old answer was arbitrary
+(Object.keys order) rather than chosen.

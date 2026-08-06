@@ -498,3 +498,106 @@ describe('limbStrengths — metabolism mode (fed by DECAYED evidence)', () => {
     expect(boneOverlay(thin, domainShares(thin), 'metabolism').shell).toBe(false);
   });
 });
+
+/* ── G9: contested dominance is settled by the duel, never by a knife edge ─────
+   The bug these pin, found by the owner on the metabolism bench: an alternating
+   crab/lobster diet flipped the claw on 16 of 17 meals, because the species was
+   a bare `>=` comparison. */
+import { pickVariant, domOfStable } from '../src/lib/creatureForm';
+
+describe('pickVariant — the contested-dominance ladder', () => {
+  const K = 'shell:crab|lobster';
+
+  it('rung 1 — a CLEAR lead wins outright, duels notwithstanding', () => {
+    const mix = { crab: 8, lobster: 2 };
+    expect(pickVariant(mix, 'crab', 'lobster', 'shell', { [K]: -5 })).toBe('crab');
+  });
+
+  it('rung 2 — inside the dead zone, the DUEL decides', () => {
+    const mix = { crab: 5.2, lobster: 4.8 };              // eating says nothing
+    expect(pickVariant(mix, 'crab', 'lobster', 'shell', { [K]: -1 })).toBe('lobster');
+    expect(pickVariant(mix, 'crab', 'lobster', 'shell', { [K]: 1 })).toBe('crab');
+  });
+
+  it('rung 3 — contested and never duelled holds STEADY, whoever ate last', () => {
+    // the flicker case: the lead alternates by a few percent, meal to meal
+    const a = pickVariant({ crab: 5.2, lobster: 4.8 }, 'crab', 'lobster', 'shell', undefined);
+    const b = pickVariant({ crab: 4.8, lobster: 5.2 }, 'crab', 'lobster', 'shell', undefined);
+    expect(a).toBe(b); // <- the whole point: no flip
+  });
+
+  it('THE REGRESSION: an alternating 50/50 diet no longer flips the claw', () => {
+    // reproduces the bench exactly — crab and lobster trading a ~8% lead
+    const seen = new Set<string>();
+    for (let i = 0; i < 12; i++) {
+      const mix = i % 2 ? { crab: 5.4, lobster: 4.6 } : { crab: 4.6, lobster: 5.4 };
+      seen.add(pickVariant(mix, 'crab', 'lobster', 'shell', undefined));
+    }
+    expect(seen.size).toBe(1); // one species for the whole run, not twelve flips
+  });
+
+  it('a duel verdict is OVERRIDDEN once eating genuinely decides', () => {
+    // the verdict only speaks while eating is silent — present tense wins
+    expect(pickVariant({ crab: 9, lobster: 1 }, 'crab', 'lobster', 'shell', { [K]: -3 }))
+      .toBe('crab');
+  });
+});
+
+describe('domOfStable — the same ladder for the three-way foot', () => {
+  it('a clear beef eater still gets a hoof', () => {
+    expect(domOfStable({ beef: 7, pork: 2, chicken: 1 }, ['beef', 'pork', 'chicken'], 'land', undefined)).toBe('beef');
+  });
+
+  it('near-tied beef/pork — ordinary HK eating — does not flicker', () => {
+    const a = domOfStable({ beef: 4.6, pork: 4.4, chicken: 1 }, ['beef', 'pork', 'chicken'], 'land', undefined);
+    const b = domOfStable({ beef: 4.4, pork: 4.6, chicken: 1 }, ['beef', 'pork', 'chicken'], 'land', undefined);
+    expect(a).toBe(b);
+  });
+
+  it('and a beef-vs-pork duel settles it', () => {
+    const mix = { beef: 4.5, pork: 4.5, chicken: 1 };
+    expect(domOfStable(mix, ['beef', 'pork', 'chicken'], 'land', { 'land:beef|pork': -2 })).toBe('pork');
+    expect(domOfStable(mix, ['beef', 'pork', 'chicken'], 'land', { 'land:beef|pork': 2 })).toBe('beef');
+  });
+});
+
+describe('pickVariant reads REAL evidence, not subMix\'s blending default', () => {
+  it('a never-eaten variant loses outright to a lightly-eaten one', () => {
+    // subMix defaults an absent key to 1 (right for blending geometry, wrong
+    // for choosing). Measured on the owner's live profile: lobster 1.23 and
+    // crab never eaten — under the blend default those sit 0.103 apart, a hair
+    // outside the dead zone, so a nudge either way would have handed the claw
+    // to a species they have never had.
+    expect(pickVariant({ lobster: 1.23 }, 'crab', 'lobster', 'shell', undefined)).toBe('lobster');
+  });
+
+  it('no evidence at all for either — hold stable rather than invent a winner', () => {
+    expect(pickVariant({}, 'crab', 'lobster', 'shell', undefined)).toBe('crab');
+    expect(pickVariant(undefined, 'crab', 'lobster', 'shell', undefined)).toBe('crab');
+  });
+
+  it('the owner\'s real land mix still reads pork — no live creature moves', () => {
+    const real = { beef: 2.802794119468894, pork: 5.69031428745255, chicken: 3.483171746745267 };
+    expect(domOfStable(real, ['beef', 'pork', 'chicken'], 'land', undefined)).toBe('pork');
+  });
+});
+
+describe('MIN_LEAD — a lead smaller than one meal is not a lead', () => {
+  it('two lobster against one crab does NOT flip the claw, landslide share or not', () => {
+    // 67/33 by share, three meals by life. This is the shape that produced 9
+    // flips across the bench's first nine shellfish meals before MIN_LEAD.
+    expect(pickVariant({ crab: 1.1, lobster: 2.2 }, 'crab', 'lobster', 'shell', undefined))
+      .toBe(pickVariant({ crab: 2.2, lobster: 1.1 }, 'crab', 'lobster', 'shell', undefined));
+  });
+
+  it('but a real habit still wins — five clear meals ahead is a lead', () => {
+    expect(pickVariant({ crab: 8, lobster: 2 }, 'crab', 'lobster', 'shell', undefined)).toBe('crab');
+    expect(pickVariant({ crab: 2, lobster: 8 }, 'crab', 'lobster', 'shell', undefined)).toBe('lobster');
+  });
+
+  it('a first-ever meal still shows what was eaten, MIN_LEAD notwithstanding', () => {
+    // zero-evidence guard must outrank MIN_LEAD, or one lobster dish would fall
+    // through to the stable hold and draw a crab claw
+    expect(pickVariant({ lobster: 1.1 }, 'crab', 'lobster', 'shell', undefined)).toBe('lobster');
+  });
+});

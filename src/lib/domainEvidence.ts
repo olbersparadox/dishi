@@ -321,6 +321,10 @@ export function emptyDomainEvidence(): DomainEvidence {
  *  is where the owner tunes it — change it there, not casually here. */
 export const DOMAIN_HALF_LIFE_MS = 120 * 24 * 60 * 60 * 1000;
 
+/** 對決 verdicts: `"family:x|y" -> net`, positive = x leads. See the 對決
+ *  section below for why these are pairwise, direct, and never decayed. */
+export type DuelVerdicts = Record<string, number>;
+
 export type TimedNode = { v: number; at: number };
 export type DomainEvidenceT = {
   nodes?: Partial<Record<Domain, TimedNode>>;
@@ -331,6 +335,10 @@ export type DomainEvidenceT = {
     sea?: Partial<Record<'cephalopod' | 'fish', TimedNode>>;
     field?: Partial<Record<'leaf' | 'root' | 'soy', TimedNode>>;
   };
+  /** 對決 verdicts ride along UNDECAYED — a verdict is a statement, not an
+   *  exposure, so it carries no {v, at}. Kept on this record too (not only the
+   *  plain one) so `domainsAsOf` can hand the renderer everything it needs. */
+  duels?: DuelVerdicts;
 };
 
 const decayV = (v: number, dtMs: number): number =>
@@ -409,6 +417,7 @@ export function domainsAsOf(t: DomainEvidenceT | null | undefined, nowMs: number
     }
     return any ? o : undefined;
   };
+  if (t.duels && Object.keys(t.duels).length) out.duels = t.duels;
   const shell = readBag(t.sub?.shell);
   const land = readBag(t.sub?.land);
   const air = readBag(t.sub?.air);
@@ -424,5 +433,75 @@ export function domainsAsOf(t: DomainEvidenceT | null | undefined, nowMs: number
 }
 
 export function emptyDomainEvidenceT(): DomainEvidenceT {
+  return {};
+}
+
+/* ── 對決 verdicts — G9: the duel breaks a contested tie ───────────────────────
+   Owner, 2026-08-06: "if a crab dish and a lobster dish is being compared and
+   user chooses crab, then the crab claw wins."
+
+   Eating tells us HOW MUCH of each variant; it cannot tell us which one a
+   person would pick when they eat both equally. A duel asks exactly that
+   question and gets an explicit answer, so it is the honest instrument for a
+   contested sub-node — and it is already replayed history, so the body stays a
+   pure function of what the person did.
+
+   Stored as a flat map, `"family:x|y" -> net`, x<y lexicographically, positive
+   meaning x leads. Deliberately PAIRWISE and DIRECT — no transitive inference
+   (crab beating prawn says nothing about crab vs lobster; taste is not
+   transitive, and guessing here would invent a verdict the person never gave).
+
+   NOT decayed, unlike evidence. A verdict is a statement, not an exposure, and
+   it only ever applies INSIDE the dead zone — when eating genuinely shifts, the
+   share leaves the dead zone and dominance overrides the verdict anyway. So an
+   old answer can never outvote present-tense eating; it only speaks when eating
+   is silent. */
+
+/** Every family whose variants a gesture can choose between. */
+const DUEL_FAMILIES = ['shell', 'land', 'air', 'sea', 'field'] as const;
+
+export const duelKey = (family: string, x: string, y: string): string =>
+  x < y ? `${family}:${x}|${y}` : `${family}:${y}|${x}`;
+
+/** The variants a dish resolves to, per family. */
+function familyVariants(d: DishDomains): Record<string, string[]> {
+  return {
+    shell: d.shellSub, land: d.landSub, air: d.airSub,
+    sea: d.seaSub, field: d.fieldSub,
+  };
+}
+
+/**
+ * Fold ONE answered duel into the verdict map. Pure.
+ *
+ * A side only counts when it resolves to EXACTLY ONE variant in that family:
+ * a 龍蝦蝦餃 is both lobster and prawn, and a muddy side makes a muddy verdict.
+ * A 揀唔落 TIE records nothing at all — the person said they could not choose,
+ * and manufacturing a winner out of that would be a lie.
+ */
+export function accumulateDuel(
+  prev: DuelVerdicts,
+  winnerDish: Parameters<typeof classifyDish>[0],
+  loserDish: Parameters<typeof classifyDish>[0],
+  isTie: boolean,
+): DuelVerdicts {
+  if (isTie) return prev;
+  const w = familyVariants(classifyDish(winnerDish));
+  const l = familyVariants(classifyDish(loserDish));
+  let next = prev;
+  for (const fam of DUEL_FAMILIES) {
+    const wv = w[fam], lv = l[fam];
+    if (wv.length !== 1 || lv.length !== 1) continue;  // ambiguous side
+    if (wv[0] === lv[0]) continue;                     // same variant, no contest
+    const key = duelKey(fam, wv[0], lv[0]);
+    // positive means the lexicographically-first variant leads
+    const delta = wv[0] < lv[0] ? 1 : -1;
+    if (next === prev) next = { ...prev };
+    next[key] = (next[key] ?? 0) + delta;
+  }
+  return next;
+}
+
+export function emptyDuelVerdicts(): DuelVerdicts {
   return {};
 }
