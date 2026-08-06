@@ -1409,32 +1409,41 @@ Measured gap at the flip points: 7.8%-13%. The framework's blend rule
 ("terminal detail takes the dominant sub-node") is right but incomplete —
 it never said what happens when dominance is CONTESTED.
 
-The fix is TWO pieces, and only the second is an owner call:
+**RESOLVED BY THE OWNER, 2026-08-06: the DUEL decides.** "If a crab dish
+and a lobster dish is being compared and user chooses crab, then the crab
+claw wins." This beats every option previously drafted here (founder /
+hybrid / stored incumbent — all superseded) because a duel is the user
+DIRECTLY answering the contested question, in the product's own core
+instrument, and duels are already replayed history, so it stays a pure
+function of eating. It also gives 對決 a visible morphological consequence
+rather than a vector nudge nobody can see.
 
-**(i) A dead zone (~55/45), mandatory.** A lead of a few percent must not
-switch anything. This alone does not finish the job: a genuine 50/50 eater
-sits INSIDE the dead zone forever, so something must still decide what to
-draw while dominance is contested.
+The resolution ladder, contested case last:
+  1. **Clear dominance** (outside a ~55/45 dead zone) → that variant wins.
+     Eating a lot more of one thing is itself an answer.
+  2. **Contested + a head-to-head duel exists** → the duel winner takes the
+     slot. Net tally across all crab-vs-lobster duels; most recent breaks a
+     tied tally. A 揀唔落 TIE resolves nothing on purpose — the user said
+     they could not choose, and inventing a winner from that would be a lie.
+  3. **Contested + never duelled** → founder (first variant earned) holds
+     the slot, and see the ask-side below.
 
-**(ii) What to show while contested.** The real decision:
-  - **founder** — the first variant ever earned keeps the slot until another
-    genuinely dominates. Stable by construction, and already a framework
-    principle ("Founder effect stays. Early loves claim territory"). Costs a
-    `since` (first-fed) field on TimedNode. RECOMMENDED.
-  - **hybrid gesture** — draw a true in-between claw, so an equal eater gets
-    a visibly mixed limb rather than an arbitrary pick. Most honest to the
-    data; most expensive (new calibrated art), and the framework warns that
-    blended terminal detail turns to mud at thumbnail size.
-  - **stored incumbent** — remember what was last drawn. Behaves perfectly,
-    but the body stops being a pure function of history (replay could
-    disagree with the live path). Breaks a core contract; not recommended.
+Two build parts:
+  **(read)** widen the duel select in `replay.ts` — it currently pulls only
+  `id, attributes`, and needs `diet/ingredients/name/name_zh` to know which
+  sub-nodes fought, exactly as the ratings select was widened for the domain
+  aggregate. Then tally head-to-head per family and use it as the tiebreak.
+  **(ask, optional but strong)** `selectDuelPair` already ranks by SEALED-BET
+  UNCERTAINTY — it serves the pair the engine is least able to call. A
+  contested sub-node IS that same uncertainty wearing different clothes, so
+  favouring pairs that would resolve one is a scoring nudge, not a new
+  system. The app would then ASK "crab or lobster?" precisely when the
+  creature cannot decide, and the answer visibly settles the claw.
 
-NOTE — an earlier draft of this entry proposed "lifetime record as the slow
-variable" (species from undecayed evidence, size from decayed). That does
-NOT fix it and was withdrawn: a perfect alternator stays near-tied on
-lifetime totals too, so the flip just moves to a different number. Any
-comparison of "who is bigger" oscillates for a tied eater; the fix has to be
-a dead zone plus a tiebreak that does not ask who is bigger.
+Measured on real duel history (18 answered, 1 tie): ZERO were same-sub-node
+pairs — they run cross-domain (seafood vs beef, savoury vs dessert). So the
+read side alone would seldom fire; the ask-side nudge is what makes the
+mechanism reliable, and founder covers the gap until a duel is fought.
 
 ## G7. Share image · version cards · export header — *(Fable; order-independent)*
 Carried from the old table's item 6. The SVG snapshot renderer already
