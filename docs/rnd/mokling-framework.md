@@ -560,19 +560,27 @@ gesture, because they are what makes the set look like one species of drawing:
    ellipse at readable alpha reads as a grey ball sitting inside the creature —
    it must be a soft radial fade, strong only where the skin justifies it.
 3. **Hair is a dense fine fringe around the ENTIRE outline**, not sparse spikes.
-4. **Shell is graphic nested bands — and the bands FOLLOW THE BODY** (refined
-   2026-08-06). Every band originally ran the same `R * widen`, so all four were
-   the same length and the stack read as wires laid across a blob, the square
-   clip at each flat end giving it away. Each band's half-width now comes from
-   the DRAWN silhouette measured at that band's own height, so the plates narrow
-   toward the crown and the belly and the set reads as a dome. Measured on the
-   蒸+甲 board at 200px: 86 → 102 → 102 → 84. The vertical extent is anchored to
-   `BB.vr` too, centred on the drawn body at ±0.67 of it, because the old
-   `R`-based span sat low and left the crown bare — an armoured creature wearing
-   a belt. Same nominal-vs-drawn distinction as everywhere else in the renderer,
-   and it matters most on a sparse palate, whose body is nowhere near an R-wide
-   ellipse. Count (4), tread shape and the light-edge/dark-gap pair are
-   untouched — this round changed curvature only.
+4. **Shell is graphic nested bands — and the bands FOLLOW THE BODY.** Each
+   band's half-width comes from the DRAWN silhouette measured at that band's
+   own height (not a fixed `R * widen`), so the plates narrow toward the crown
+   and belly and the set reads as a dome rather than wires laid across a blob.
+   The vertical extent is anchored to `BB.vr`, centred on the drawn body at
+   ±0.67 of it — an `R`-based span sat low and left the crown bare. Same
+   nominal-vs-drawn distinction as everywhere else in the renderer, and it
+   matters most on a sparse palate, whose body is nowhere near an R-wide
+   ellipse.
+
+   **Current geometry (settled 2026-08-06):** only 2 of the 4 grid slots draw
+   (the top two are cut — 4 evenly-repeated bands read as tyre tread, not
+   carapace). Each band's tread is one continuous diagonal from the rim to a
+   shallow valley floor (0.22h deep, with a flat notch at centre), not a flat
+   plateau with a kink — a fully flat outer run read as a shelf rather than an
+   M stroke. The upper of the two bands sits 5px (0.21h at the 280px review
+   size) below its grid slot, purely for visual separation from the lower
+   band. Max drop stays at 0.22h so the gap to the next band's top line is
+   0.78h (0.57h for the offset upper band) — well clear of 0.38h, the point
+   past which two bands start reading as a 3rd implied line. Light-edge/
+   dark-gap pair unchanged.
 5. **Translucent things are pale grey** — tentacles, fins, antennae. Not black.
 6. **Eyes are small and close together.** Anything else reads as a cartoon.
 7. **Never centre a line down a round body** — it reads as a seam splitting the
@@ -881,8 +889,9 @@ See BACKLOG "Data audit" item — the audit runs before any phase-1 code.
 - Does the creature ever appear to OTHER users outside an explicit share
   (e.g. beside a 貼文)? Default no until decided.
 - ~~Does 膚 belong to domain or to method?~~ ~~軟's register divergence?~~
-  ~~Where does 烤 live?~~ **ALL ANSWERED (owner, 2026-08-05/06): 膚 is
-  method-only; 甲/毛 move to 骨; 軟 re-points to 蒸; 糙/釉/金/烙 designed one
-  at a time for 炸/燜/焗/烤.** All six method skins are shipped — see the
-  "膚" section in the Ledger. Open: re-adding 甲/毛 as 骨 overlays now that
-  the six are settled.
+  ~~Where does 烤 live?~~ ~~Re-adding 甲/毛 as 骨 overlays?~~ **ALL ANSWERED
+  (owner, 2026-08-05/06): 膚 is method-only; 甲/毛 moved to 骨 as independent
+  overlays (`boneOverlay()`); 軟 re-points to 蒸; 糙/釉/金/烙 designed one at
+  a time for 炸/燜/焗/烤.** All six method skins are shipped, 甲/毛 overlays
+  are shipped and (2026-08-06) had a full tuning pass on 甲's band geometry —
+  see the "膚" section and rule 4 above.
