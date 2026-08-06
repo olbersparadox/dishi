@@ -1287,6 +1287,24 @@ is ordinary ongoing work now, not a backlog gate.
 
 # Batch: 墨靈 growth program (2026-08-06, owner brief → Fable design)
 
+**THE one open 墨靈 list.** It supersedes the older in-chat task table
+(Stream 7 era). Mapping so nothing is lost: old items 1–3 (v7 rescue,
+out() helper, 烤 sear marks) were DONE/RESOLVED before this batch; old
+item 4 (羽 wing variants) = G3+G4 here; old item 5 (魚 fins/tails) =
+G3+G4 here; old item 7 (metabolism — "needs a design session first") got
+its design session 2026-08-06 → the doc + G1/G2/G6 here; old item 6
+(share surfaces) is carried as G7 below. If any other 墨靈 list surfaces,
+THIS batch wins.
+
+**Build order is G1 → G2 → G3 → G4 → G5 → G6, one item per session.**
+This deliberately REORDERS the old table: wings/fins were "ready" there,
+but the growth design showed why they must wait — under the live 0.22
+share gate, wings would render for almost nobody (the owner's own air
+share is 7.3%), so porting gestures before the G2 gate redesign ships
+invisible work. Metabolism first is what makes items 4/5 actually appear.
+G7 is order-independent (its renderer already exists) and can slot in
+anywhere as a between-reviews filler.
+
 Design doc: `docs/rnd/mokling-growth-rnd.md` — read it before touching any
 item; each step below is additive and fails closed to today's behavior.
 Owner's brief: sub-nodes so lab gestures go live; growth with coexisting
@@ -1307,7 +1325,7 @@ share/maxShare (0.22 share door retired), paling by staleness, shed with
 hysteresis. Owner reviews on /dev-creature with an as-of time slider BEFORE
 ship. Go/no-go gate for the metabolism.
 
-## G3. Sub-node detectors: air (free), lamb, sea fish/cephalopod, field, PARTS — *(Sonnet, spec in doc)*
+## G3. Sub-node detectors: air (free), lamb, sea fish/cephalopod, field — *(Sonnet, spec in doc)*
 domainEvidence.ts patterns; 魚香 tripwire; cephalopod-before-fish ordering;
 guard the latent 田雞-matches-雞 misread in LAND_SUB; unit tests per
 family. Invisible (fills bags nothing reads yet). (Part morphemes were cut:
@@ -1327,3 +1345,11 @@ is the possibility multiplier.
 「蟹爪 大咗少少」 naturalist copy, never numbers. Feeds the later absorb beat.
 
 ## G6. 圖鑑 molt archive: replay-derived molt_log, archive surface, shed ceremony — *(Fable)*
+
+## G7. Share image · version cards · export header — *(Fable; order-independent)*
+Carried from the old table's item 6. The SVG snapshot renderer already
+exists, parity-verified, with no production consumer (framework Ledger,
+"Surfaces and ceremonies") — these three surfaces need a consumer, not a
+renderer. Creature + 銘 side by side for messenger sharing and 貼文
+(公開, never "friends"; no numbers, no rank). Can run any time — a good
+filler while a G-step waits on owner review.
