@@ -152,6 +152,11 @@ stone" is the owner's central metabolism direction, and today the body can only
 grow — it never atrophies or sheds. A being that only accumulates is not the
 present-tense body the design calls for.
 
+**R&D plan exists (2026-08-06): `docs/rnd/mokling-growth-rnd.md`** — the
+timed-EMA metabolism (eaten-date recency), the bud/prominence gate redesign
+that lets limbs coexist, the sub-node build plan, and both reward loops.
+Proposal only; statuses here do not change until its steps ship.
+
 ### Surfaces and ceremonies
 
 Every **NOT BUILT** row below was verified by grep against `src/` on

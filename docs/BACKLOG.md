@@ -1284,3 +1284,37 @@ SIGNED OFF as a living surface".
 Anatomy refinement continues under the recorded working method (one element per
 round, owner verifies before the next, sketch after two missed rounds) — that
 is ordinary ongoing work now, not a backlog gate.
+
+# Batch: 墨靈 growth program (2026-08-06, owner brief → Fable design)
+
+Design doc: `docs/rnd/mokling-growth-rnd.md` — read it before touching any
+item; each step below is additive and fails closed to today's behavior.
+Owner's brief: sub-nodes so lab gestures go live; growth with coexisting
+limbs (claws AND wings) and atrophy/shed from absence or negatives; both
+reward loops (long-term grooming + instant bud-on-rating); 「You are what
+you eat」 — recency via eaten-date, never a source multiplier (equal-weight
+logging holds).
+
+## G1. Timed metabolism (accumulator v2 + domainsAsOf adapter) — *(Fable)*
+Continuous-time EMA over eaten_at (HALF_LIFE ~120d), replay domain-walk
+re-sorted on eaten-date, eaten-date PATCH triggers rebuild. Invisible until
+G2 reads it. Renderer contract unchanged.
+
+## G2. Gate redesign: bud / form / articulate, prominence dial — *(Fable)*
+Existence by decayed absolute evidence (BUD_FLOOR ~1.2), size by
+share/maxShare (0.22 share door retired), paling by staleness, shed with
+hysteresis. Owner reviews on /dev-creature with an as-of time slider BEFORE
+ship. Go/no-go gate for the metabolism.
+
+## G3. Sub-node detectors: air (free), lamb, sea fish/cephalopod, field — *(Sonnet, spec in doc)*
+domainEvidence.ts patterns; 魚香 tripwire; cephalopod-before-fish ordering;
+unit tests per family. Invisible (fills bags nothing reads yet).
+
+## G4. Gesture ports, one per round, owner sign-off each — *(Fable first pass each)*
+Prawn pincers FIRST (detector already live today). Then 翼 雞/鴨鵝 variants,
+尾 tails, 鰭 fins, 耳/角. Port checklist in mokling-lab-v7-vocabulary.js.
+
+## G5. Instant-reward surface: growth delta in rating response → TasteGrowth line — *(Sonnet)*
+「蟹爪 大咗少少」 naturalist copy, never numbers. Feeds the later absorb beat.
+
+## G6. 圖鑑 molt archive: replay-derived molt_log, archive surface, shed ceremony — *(Fable)*
