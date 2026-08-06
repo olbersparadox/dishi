@@ -1291,14 +1291,15 @@ Design doc: `docs/rnd/mokling-growth-rnd.md` — read it before touching any
 item; each step below is additive and fails closed to today's behavior.
 Owner's brief: sub-nodes so lab gestures go live; growth with coexisting
 limbs (claws AND wings) and atrophy/shed from absence or negatives; both
-reward loops (long-term grooming + instant bud-on-rating); 「You are what
-you eat」 — recency via eaten-date, never a source multiplier (equal-weight
-logging holds).
+reward loops (long-term grooming + instant gratification of rating
+something NEW — breadth over depth, like the taste engine); 「You are what
+you eat」 = you feed it by rating. Old photos count IN FULL — eaten-date
+discounting was proposed and REJECTED (owner, 2026-08-06); do not re-propose.
 
 ## G1. Timed metabolism (accumulator v2 + domainsAsOf adapter) — *(Fable)*
-Continuous-time EMA over eaten_at (HALF_LIFE ~120d), replay domain-walk
-re-sorted on eaten-date, eaten-date PATCH triggers rebuild. Invisible until
-G2 reads it. Renderer contract unchanged.
+Continuous-time EMA on the FEEDING clock — rating created_at, the order the
+replay walk already runs in (HALF_LIFE ~120d; no re-sort, no eaten-date
+plumbing). Invisible until G2 reads it. Renderer contract unchanged.
 
 ## G2. Gate redesign: bud / form / articulate, prominence dial — *(Fable)*
 Existence by decayed absolute evidence (BUD_FLOOR ~1.2), size by

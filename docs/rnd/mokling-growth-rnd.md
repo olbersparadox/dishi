@@ -17,8 +17,13 @@ the design; the framework doc stays the authority on what exists.*
    attachment through effort) and instant gratification (ate crab → rated →
    claw appears). The owner will fund extra visual build to deliver both.
 5. Product angle: **「You are what you eat」 — dishi.username IS what you
-   feed it.** Freshly-eaten dishes should shape the body more than old
-   backfilled photos, because current eating reflects the current you.
+   feed it.** Encourage rating, full stop: every rating is a feeding, old
+   photos count in full. The balance to strike is long-term grooming AND
+   the instant gratification of rating something *new* — the same
+   breadth-over-depth shape the taste engine already learns by. (A first
+   draft read this as recency-weighting old photos down; **rejected by the
+   owner 2026-08-06** — see Decision 3. Do not re-propose eaten-date
+   discounting.)
 
 Most of the *concept* already exists in `mokling-framework.md` — the owner
 specified 萌→成→精→萎→蛻, "negatives carve, absence fades", and the 圖鑑 molt
@@ -118,7 +123,7 @@ Why the lab's failure modes stay dead:
 **Decay is what makes low floors safe.** These two decisions only work as a
 pair — that is the core insight of this design.
 
-## Decision 2 — time IS the metabolism: a continuous-time EMA over eaten-dates
+## Decision 2 — time IS the metabolism: a continuous-time EMA on the feeding clock
 
 Today `domain_evidence` is a lifetime sum — deliberately pure, replayable,
 no wall-clock decay (the accumulator's own comment: "absence fades belongs
@@ -131,10 +136,12 @@ on event(t): v = decay(v, t − at) + weight ; at = t
 at read(now): ev = decay(v, now − at)
 ```
 
-- **The event clock is `eaten_at ?? created_at`** — when the dish was
-  *eaten*, falling back to when it was logged. The domain walk in `replay.ts`
-  sorts by this clock (the palate walk keeps its own rating order — the
-  palate learns in the order you *judged*; the body lives on when you *ate*).
+- **The event clock is FEEDING time — the rating's `created_at`.** The
+  creature is fed by the act of rating; a 2023 photo rated tonight feeds at
+  full strength tonight. This is also the simpler build: the replay walk
+  already runs in rating order, so no re-sort, no second walk, no
+  eaten-date plumbing. (First draft keyed this to `eaten_at`, which
+  pre-decayed album backfills; rejected — see Decision 3.)
 - **Weights are unchanged**: `0.5 + calibrated score`, split across the
   domains a dish hits; negatives still subtract, floored at zero; sub-bags
   still positive-only. So "**negatives carve** (immediately, at event time),
@@ -149,41 +156,51 @@ at read(now): ev = decay(v, now − at)
   not change**; snapshot parity and every creature test are untouched. A
   legacy record passes through undecayed — fails closed to today's behavior.
 - Sub-bags decay on the same clock, so "which crustacean is your
-  crustacean" stays present-tense: a lobster year followed by a crab year
-  migrates the claw.
-- Implementation notes: the replay dish select needs `eaten_at`; the
-  eaten-date PATCH route must trigger the same profile rebuild a rename
-  does (backdating now moves the body).
+  crustacean" stays present-tense: a lobster year of feeding followed by a
+  crab year migrates the claw.
+- Atrophy therefore means exactly what the owner specified: **the creature
+  hasn't been FED that node lately** — no ratings carrying it, whatever the
+  meals' vintage. Keep rating anything and nothing starves.
 
-### Why this delivers 「You are what you eat」 without breaking equal-weight logging
+## Decision 3 — instant gratification is NOVELTY, not recency (owner correction, 2026-08-06)
 
-CLAUDE.md's hard principle: restaurant, home, and album logging all count
-the same — don't privilege the restaurant path. The owner's ask — fresh
-dishes should out-grow old camera-roll backfills — sounds like a conflict.
-It isn't, once the weight hangs on **when it was eaten, not where it came
-from**:
+The first draft of this section weighted evidence by eaten-date, so old
+album photos arrived pre-decayed. **The owner rejected that** — old photos
+must count in full; the product's goal is to encourage rating, and a
+backfilled photo rated today is a real feeding. Recorded here so no future
+session re-proposes eaten-date discounting.
 
-- An album photo of a 2023 dinner enters at its 2023 eaten-date and arrives
-  **already decayed**: it still writes biography (founder effect at
-  onboarding, 圖鑑, the lifetime record) but barely moves the present body.
-  Which is true: it reflects who you were.
-- A menu-scan dish rated tonight — or a **home-cooked dish eaten tonight** —
-  lands at full strength. Home cooking is not disadvantaged; *old eating* is.
-- **Source never appears in the formula.** No grow-factor multiplier by
-  path, ever — the principle survives because time does all the work the
-  owner wanted a source-multiplier for.
+What the owner actually pointed at is the taste engine's own learning
+shape: **breadth beats depth**. Applied to the body:
 
-Scanning and rating fresh meals becomes the only way to feed the
-present-tense body — the engagement pull the owner wants — while the app
-never has to say (or code) that one logging path is worth more.
+- **The creature is fed by ratings.** Full weight per feeding, no source
+  multiplier, no vintage multiplier. Equal-weight logging holds trivially —
+  neither source nor eaten-date ever enters the formula.
+- **New information is loud; repetition is quiet — by saturation, not by
+  bonus.** The stage ramps are saturating curves, so the *first* evidence
+  of a node buds visibly that day (your first 鵝 dish: a wing nub tonight),
+  while the 20th crab dish barely moves an already-formed claw. This is the
+  same evidence-saturation shape the engine already uses everywhere (absF,
+  the 銘's stroke tiers). No novelty multiplier is needed — **saturation IS
+  the novelty bonus**, and it cannot be farmed, because only genuinely new
+  nodes have steep ramp left.
+- **Breadth is structurally enforced**, not just encouraged: one dish holds
+  one rating (unique per user+dish — re-rates revise history and replay
+  rebuilds, never double-feed), and a mixed dish splits its weight across
+  the domains it hits. The only way to grow MORE body is to eat and rate
+  more *kinds* of things — which is the palate the engine most wants to
+  learn from anyway. Creature incentives and engine incentives point the
+  same direction.
+- **Album onboarding becomes a growth spurt, deliberately.** Backfilling
+  fifty old photos is fifty full-strength feedings — the founder-effect
+  body forms fast, which is exactly the "look what it already knows about
+  me" moment onboarding needs.
+- The engagement pull survives without any discounting: atrophy runs on
+  the feeding clock, so a body stays vivid only while its owner keeps
+  rating — anything, from anywhere. 「You feed it」 is literally the
+  mechanic.
 
-Open sub-question (existing open thread): a backfilled album dish with *no*
-EXIF date currently gets `created_at` = full present weight. Acceptable
-default (the user can backdate via the existing eaten-date control, which
-then honestly ages it); revisit if backfill-heavy onboarding distorts young
-bodies.
-
-## Decision 3 — the sub-node build plan (what unblocks the lab gestures)
+## Decision 4 — the sub-node build plan (what unblocks the lab gestures)
 
 Extends `domainEvidence.ts` exactly along its existing patterns (flags
 first; morphemes only ever *split* a domain the flags established; most
@@ -212,7 +229,7 @@ Gesture ports then follow the standing one-element-per-round method, each
 using the four-step checklist already written into
 `mokling-lab-v7-vocabulary.js`, owner sign-off between rounds.
 
-## Decision 4 — composing the many-limbed body
+## Decision 5 — composing the many-limbed body
 
 Coexistence is already structural (independent per-family blocks in the
 renderer); what needs rules is *crowding*, since Decision 1 lets more
@@ -233,7 +250,7 @@ families pass:
 4. **精 is rationed by rank** (top-2 share), so articulation — the loudest
    visual register — cannot appear on five limbs at once.
 
-## Decision 5 — the two reward loops, and the bridge between them
+## Decision 6 — the two reward loops, and the bridge between them
 
 **Instant (the same event, three beats):**
 1. *Bud-on-first-love* — Decision 1 makes a first loved crab dish grow a
@@ -274,7 +291,7 @@ streaks, never death.)
 
 | # | step | visible? | risk notes | est. success |
 |---|---|---|---|---|
-| G1 | Timed accumulator v2 + `domainsAsOf` adapter + replay domain-walk on eaten-date; eaten-date PATCH triggers rebuild | invisible (adapter passes legacy through) | pure-function arithmetic on a well-tested pipeline; harness gets an as-of time-travel slider | ~80% |
+| G1 | Timed accumulator v2 + `domainsAsOf` adapter, on the existing rating-order replay walk (feeding clock — no re-sort, no eaten-date plumbing) | invisible (adapter passes legacy through) | pure-function arithmetic on a well-tested pipeline; harness gets an as-of time-travel slider | ~85% |
 | G2 | Gate redesign in the renderer (bud/form/articulate ramps, prominence dial, paling) | YES — owner reviews on /dev-creature with time-travel before it ships | the "does decay FEEL right" unknown lives here; tune HALF_LIFE + floors on the harness | ~75% |
 | G3 | Sub-node detectors (air, lamb, sea fish/cephalopod with the 魚香 tripwire, field splits) + unit tests | invisible (fills bags nothing reads yet) | vocabulary quality; misfiring family stays off | ~85% |
 | G4 | Gesture ports, one per round, owner sign-off each: **prawn pincers first** (detector already live), then 翼 variants (detector from G3-air), then 尾 tails, 鰭 fins, 耳/角… | YES, one element at a time | the standing working method; port checklist exists | ~70–85% per round |
@@ -292,10 +309,8 @@ share gate until G2 lands).
    seasons"). Tuned live on the G2 harness slider. (before G2 ships)
 2. **BUD_FLOOR 1.2 / SHED_FLOOR 0.7** — i.e. one *loved* dish buds, one
    neutral one doesn't; shed only after having formed. (G2)
-3. **No-EXIF album backfills = full present weight** — accept default, or
-   prompt for a rough date at album onboarding? (G1, low stakes)
-4. **罪角 / time-of-day** — the one new data source; explicitly deferred
+3. **罪角 / time-of-day** — the one new data source; explicitly deferred
    until called. (G3+)
-5. **Crowding review** — after G2+first ports, a harness pass on a
-   deliberately maximal body (all七 domains lived) to confirm the prominence
+4. **Crowding review** — after G2+first ports, a harness pass on a
+   deliberately maximal body (all 7 domains lived) to confirm the prominence
    budget reads as character, not chaos. (during G4)
