@@ -1088,16 +1088,44 @@ export function drawCreatureFrame(
         if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y);
       });
     };
-    for (let b = 0; b < nB; b++) {
+    // Top two bands CUT (owner, 2026-08-06). The remaining two keep their exact
+    // positions — the grid is unchanged, the first two are simply not drawn —
+    // so this is a subtraction and not a re-space. Four evenly-repeated treads
+    // read as tyre tread rather than carapace, and their four identical centre
+    // notches stacked into a column down the middle, which is drawing rule 7's
+    // seam arriving by a side door.
+    const bFrom = 2;
+    // 200px and below, the pair washes out — the lit edge worst, since .24 is
+    // calibrated for a large render and a thin light line on a dark body loses
+    // most of its contrast to antialiasing as it shrinks. Both alphas ramp up
+    // as the creature gets smaller, and the lit edge also gains a little width,
+    // so the plates survive down to the feed thumbnail. `sm` is 0 at 200px and
+    // 1 at 72px, so ABOVE 200 nothing changes at all — the large render keeps
+    // exactly the values it was tuned at. Contrast only: positions, spans,
+    // tread and taper are untouched.
+    const sm = smooth01((200 - size) / 128);
+    // Second, opposing ramp below 120px (owner, 2026-08-06). The first ramp
+    // overshoots at the very small end — by the thumbnail the lit edge had gone
+    // bright enough to read as a highlight painted ON the shell rather than the
+    // shell's own lit rim. `dk` is 0 at 120px and 1 at 72px, and pulls the lit
+    // edge back down while the gap keeps darkening, so the band settles darker
+    // without losing the legibility the first ramp bought. The two ramps are
+    // kept as separate terms on purpose: 120–200 and 120–72 were tuned in
+    // different rounds against different complaints, and collapsing them into
+    // one curve would make either one impossible to re-tune alone.
+    const dk = smooth01((120 - size) / 48);
+    const gapA = (0.62 + 0.16 * sm + 0.05 * dk).toFixed(3);
+    const litA = (0.24 + 0.30 * sm - 0.10 * dk).toFixed(3);
+    for (let b = bFrom; b < nB; b++) {
       const yTop = y0 + b * h;
       // measured at the band's own ink centre, and overshot by a hair so the
       // ends still clip flush against the rim instead of leaving a sliver
       const span = spanAt(yTop + 0.31 * h) * 1.04;
-      ctx.strokeStyle = 'rgba(8,7,6,.62)'; // the gap the next plate slides into
-    const bFrom = 2;
+      ctx.strokeStyle = `rgba(8,7,6,${gapA})`; // the gap the next plate slides into
+      ctx.lineWidth = Math.max(1.8, R * 0.085);
       trace(yTop + R * 0.05, span); ctx.stroke();
-      ctx.strokeStyle = `rgba(${HILITE},.24)`; // lit top edge, drawn over it
-      ctx.lineWidth = Math.max(1.4, R * 0.05);
+      ctx.strokeStyle = `rgba(${HILITE},${litA})`; // lit top edge, drawn over it
+      ctx.lineWidth = Math.max(1.4 + 0.7 * sm, R * 0.05);
       trace(yTop, span); ctx.stroke();
     }
     ctx.restore();
