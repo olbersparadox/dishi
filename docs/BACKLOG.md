@@ -1395,6 +1395,35 @@ for." Parked deliberately; when picked up it lands on the framework's
 existing ceremonial-metamorphosis surface (Fibonacci stage gates, witnessed
 full-screen, prior form archived in the 圖鑑) rather than a new system.
 
+## G9. Sub-node species FLICKER — contested dominance has no stickiness — *(needs an owner call, then Fable)*
+Found by the owner on the G2 bench, 2026-08-06, and confirmed: a perfectly
+alternating crab/lobster diet flipped the claw species on 16 of 17 meals.
+Not a bench artifact — the bench merely made a 50/50 eater, which is a
+legitimate palate. Two sites pick a variant by bare comparison, with no
+margin and no memory:
+  - `creatureForm.ts` claw: `mix.crab >= mix.lobster ? 'crab' : 'lobster'`
+  - `creatureForm.ts` leg terminal detail: `domOf(mix)` (hoof / trotter /
+    toes) — MORE exposed in practice, since near-tied beef/pork is ordinary
+    HK eating in a way near-tied crab/lobster is not.
+Measured gap at the flip points: 7.8%-13%. The framework's blend rule
+("terminal detail takes the dominant sub-node") is right but incomplete —
+it never said what happens when dominance is CONTESTED.
+
+Fix needs an owner decision because hysteresis needs a reference point and
+each option means something different:
+  (a) **lifetime record as the slow variable** — species from the undecayed
+      `domain_evidence`, size from the decayed one. Needs no new data (both
+      records are already written), and says: "which crustacean you are" is
+      biographical, "how big the claw is" is present tense. RECOMMENDED.
+  (b) **founder effect** — new `since` (first-fed) on TimedNode; inside a
+      dead zone the earlier-earned variant holds the slot. Most aligned with
+      the framework's own founder-effect rule; costs a record-shape change.
+  (c) **stored incumbent** — simplest to reason about, but breaks replay
+      purity (the body would stop being a pure function of history). Listed
+      for completeness; not recommended.
+Whatever wins also wants a dead zone (~55/45) so the switch, when it does
+happen, reads as a real change of habit rather than a coin landing.
+
 ## G7. Share image · version cards · export header — *(Fable; order-independent)*
 Carried from the old table's item 6. The SVG snapshot renderer already
 exists, parity-verified, with no production consumer (framework Ledger,
