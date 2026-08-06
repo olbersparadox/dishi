@@ -797,14 +797,21 @@ export function wingShape(
   // the existing len/width blend (not a replacement), so the short-vs-long
   // species distinction from round 2 survives underneath the extra mass. */
   const chickenBoost = Math.max(0, k);
-  const massMul = 1 + 0.3 * chickenBoost;
+  const massMul = 1 + 0.3 * chickenBoost;      // length + stroke count
+  // Thickness got its OWN dial the very next message (owner, same session:
+  // "try increase stroke thickness by 40%") — a bigger number than the mass
+  // boost's 30%, so it cannot stay coupled to massMul without either
+  // over-inflating length/count to match or under-serving the thickness ask.
+  // Same one-sided chickenBoost ramp, so it inherits the identical
+  // untouched-goose / untouched-neutral / untouched-legacy guarantee.
+  const thicknessMul = 1 + 0.4 * chickenBoost; // width/thickness only
   return {
-    lenMul: (1 - 0.35 * k) * massMul,  // 雞 0.65→0.845 with the boost · 鵝-side 1.35 untouched
-    widthMul: (1 + 0.3 * k) * massMul, // 雞 1.3→1.69 · 鴨鵝 thinner, untouched
-    spreadMul: 1 + 0.5 * k,            // 雞 fans wide (flutter), 鴨鵝 sweeps tight
-    baseAng: -0.32 - 0.28 * k,         // 雞 raised toward flutter, 鴨鵝 flat glide
-    humpMul: 1 + 0.3 * k,              // 雞 rounder arc, 鴨鵝 straighter stroke
-    countMul: massMul,                 // 雞 up to +30% more strokes · 鴨鵝 untouched
+    lenMul: (1 - 0.35 * k) * massMul,       // 雞 0.65→0.845 with the boost · 鵝-side 1.35 untouched
+    widthMul: (1 + 0.3 * k) * thicknessMul, // 雞 1.3→1.82 · 鴨鵝 thinner, untouched
+    spreadMul: 1 + 0.5 * k,                 // 雞 fans wide (flutter), 鴨鵝 sweeps tight
+    baseAng: -0.32 - 0.28 * k,              // 雞 raised toward flutter, 鴨鵝 flat glide
+    humpMul: 1 + 0.3 * k,                   // 雞 rounder arc, 鴨鵝 straighter stroke
+    countMul: massMul,                      // 雞 up to +30% more strokes · 鴨鵝 untouched
   };
 }
 
