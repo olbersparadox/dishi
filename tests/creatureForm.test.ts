@@ -860,10 +860,11 @@ describe('wingShape — the 雞/鴨鵝 blend', () => {
   });
 
   describe('the +30% chicken mass boost (owner, 2026-08-07, on the wing bench)', () => {
-    it('pure 雞 gets exactly +30% on length and stroke count', () => {
+    it('pure 雞 gets exactly +30% on length, width and stroke count', () => {
       const w = wingShape({ chicken: 10 }, 'metabolism');
-      // pre-boost blend at k=1: lenMul .65 — mass boost multiplies by 1.3
+      // pre-boost blend at k=1: lenMul .65, widthMul 1.3 — boost multiplies by 1.3
       expect(w.lenMul).toBeCloseTo(0.65 * 1.3, 6);
+      expect(w.widthMul).toBeCloseTo(1.3 * 1.3, 6);
       expect(w.countMul).toBeCloseTo(1.3, 6);
     });
 
@@ -887,34 +888,6 @@ describe('wingShape — the 雞/鴨鵝 blend', () => {
       expect(w.spreadMul).toBeCloseTo(before.spreadMul, 6);
       expect(w.baseAng).toBeCloseTo(before.baseAng, 6);
       expect(w.humpMul).toBeCloseTo(before.humpMul, 6);
-    });
-  });
-
-  describe('the +40% thickness dial (owner, same session: "increase stroke thickness by 40%")', () => {
-    it('pure 雞 width gets its OWN 1.4x, decoupled from the 1.3x mass boost', () => {
-      const w = wingShape({ chicken: 10 }, 'metabolism');
-      // pre-boost blend at k=1: widthMul 1.3 — thickness dial multiplies by 1.4
-      expect(w.widthMul).toBeCloseTo(1.3 * 1.4, 6);
-      // length and count keep the ORIGINAL 30% — asking for thicker strokes
-      // must not quietly make the wing 40% longer too
-      expect(w.lenMul).toBeCloseTo(0.65 * 1.3, 6);
-      expect(w.countMul).toBeCloseTo(1.3, 6);
-    });
-
-    it('is ONE-SIDED exactly like the mass boost: any 鴨鵝-leaning mix is untouched', () => {
-      for (const mix of [{ duck_goose: 1 }, { chicken: 1, duck_goose: 3 }, { duck_goose: 100 }]) {
-        const w = wingShape(mix, 'metabolism');
-        const k = (mix.chicken ?? 0) / ((mix.chicken ?? 0) + mix.duck_goose) * 2 - 1;
-        expect(w.widthMul).toBeCloseTo(1 + 0.3 * k, 6); // no 1.4x anywhere on this side
-      }
-    });
-
-    it("the owner's real chicken-leaning mix gets a PARTIAL thickness boost, continuously", () => {
-      const w = wingShape({ chicken: 4.68, duck_goose: 1.10 }, 'metabolism');
-      const k = (4.68 / (4.68 + 1.10)) * 2 - 1;
-      const baseWidth = 1 + 0.3 * k;
-      expect(w.widthMul).toBeGreaterThan(baseWidth);          // some boost applied
-      expect(w.widthMul).toBeLessThan(baseWidth * 1.4);       // but not the full pure-雞 dial
     });
   });
 });

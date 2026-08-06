@@ -5257,20 +5257,3 @@ row: chicken now visibly carries more strokes and more presence than the
 generic middle cell; goose unchanged.
 
 9 new/updated tests. tsc clean; full suite 1384/1384.
-
-## G4 round 2 tune 2: 雞 thickness gets its own +40% dial — *(Sonnet)* — ✅ SHIPPED 2026-08-07
-Owner, same session, next message: "try increase stroke thickness by 40%."
-
-Decoupled rather than stacked onto the existing +30% mass boost: a single
-shared multiplier can't serve two different owner-given numbers (30% for
-mass, 40% for thickness) without either over-inflating length/count to
-match the bigger ask or under-serving thickness. `thicknessMul = 1 + 0.4 *
-chickenBoost` is now its own dial, applied to widthMul only — length and
-stroke count keep the original 30%. Same one-sided chickenBoost ramp as the
-mass boost, so it inherits the identical guarantee: goose endpoint, the
-no-data neutral cell, and legacy are each pinned by exact-equality tests
-and confirmed via an 11-fixture byte-identity sweep (only the owner's
-chicken-leaning render moved; all ten others — including goose and
-goose-lean — identical in both modes).
-
-7 tests updated/added. tsc clean; full suite 1387/1387.
