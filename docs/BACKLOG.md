@@ -1409,20 +1409,32 @@ Measured gap at the flip points: 7.8%-13%. The framework's blend rule
 ("terminal detail takes the dominant sub-node") is right but incomplete —
 it never said what happens when dominance is CONTESTED.
 
-Fix needs an owner decision because hysteresis needs a reference point and
-each option means something different:
-  (a) **lifetime record as the slow variable** — species from the undecayed
-      `domain_evidence`, size from the decayed one. Needs no new data (both
-      records are already written), and says: "which crustacean you are" is
-      biographical, "how big the claw is" is present tense. RECOMMENDED.
-  (b) **founder effect** — new `since` (first-fed) on TimedNode; inside a
-      dead zone the earlier-earned variant holds the slot. Most aligned with
-      the framework's own founder-effect rule; costs a record-shape change.
-  (c) **stored incumbent** — simplest to reason about, but breaks replay
-      purity (the body would stop being a pure function of history). Listed
-      for completeness; not recommended.
-Whatever wins also wants a dead zone (~55/45) so the switch, when it does
-happen, reads as a real change of habit rather than a coin landing.
+The fix is TWO pieces, and only the second is an owner call:
+
+**(i) A dead zone (~55/45), mandatory.** A lead of a few percent must not
+switch anything. This alone does not finish the job: a genuine 50/50 eater
+sits INSIDE the dead zone forever, so something must still decide what to
+draw while dominance is contested.
+
+**(ii) What to show while contested.** The real decision:
+  - **founder** — the first variant ever earned keeps the slot until another
+    genuinely dominates. Stable by construction, and already a framework
+    principle ("Founder effect stays. Early loves claim territory"). Costs a
+    `since` (first-fed) field on TimedNode. RECOMMENDED.
+  - **hybrid gesture** — draw a true in-between claw, so an equal eater gets
+    a visibly mixed limb rather than an arbitrary pick. Most honest to the
+    data; most expensive (new calibrated art), and the framework warns that
+    blended terminal detail turns to mud at thumbnail size.
+  - **stored incumbent** — remember what was last drawn. Behaves perfectly,
+    but the body stops being a pure function of history (replay could
+    disagree with the live path). Breaks a core contract; not recommended.
+
+NOTE — an earlier draft of this entry proposed "lifetime record as the slow
+variable" (species from undecayed evidence, size from decayed). That does
+NOT fix it and was withdrawn: a perfect alternator stays near-tied on
+lifetime totals too, so the flip just moves to a different number. Any
+comparison of "who is bigger" oscillates for a tied eater; the fix has to be
+a dead zone plus a tiebreak that does not ask who is bigger.
 
 ## G7. Share image · version cards · export header — *(Fable; order-independent)*
 Carried from the old table's item 6. The SVG snapshot renderer already
