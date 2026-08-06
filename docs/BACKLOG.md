@@ -1309,15 +1309,16 @@ ship. Go/no-go gate for the metabolism.
 
 ## G3. Sub-node detectors: air (free), lamb, sea fish/cephalopod, field, PARTS — *(Sonnet, spec in doc)*
 domainEvidence.ts patterns; 魚香 tripwire; cephalopod-before-fish ordering;
-part morphemes (雞翼/鳳爪/豬手/牛尾/豬耳/鵝掌 — no 翅; Decision 6); guard
-the latent 田雞-matches-雞 misread in LAND_SUB; unit tests per family.
-Invisible (fills bags nothing reads yet).
+guard the latent 田雞-matches-雞 misread in LAND_SUB; unit tests per
+family. Invisible (fills bags nothing reads yet). (Part morphemes were cut:
+plate-names-the-part REJECTED by owner — parts represent the animal, never
+the cut eaten.)
 
 ## G4. Gesture ports, one per round, owner sign-off each — *(Fable first pass each)*
 Prawn pincers FIRST (detector already live today). Then 翼 雞/鴨鵝 variants,
 尾 tails, 鰭 fins, 耳/角. Port checklist in mokling-lab-v7-vocabulary.js.
 Each port wires the Decision 6 expression ladder: one node = a POOL of parts
-(cow → legs/tail/ears/horns), chosen by part-pull → slot vacancy → fixed
+(cow → legs/tail/ears/horns), chosen by slot vacancy → fixed
 priority, never rolled — a seafood body wearing a fish tail grows cow LEGS
 from steak; a pork-legged body grows a cow TAIL. Path-dependent morphology
 is the possibility multiplier.
