@@ -819,7 +819,7 @@ describe('蝦 prawn as a first-class claw species (G4 round 1)', () => {
 import { wingShape } from '../src/lib/creatureForm';
 
 describe('wingShape — the 雞/鴨鵝 blend', () => {
-  const NEUTRAL = { lenMul: 1, widthMul: 1, spreadMul: 1, baseAng: -0.32, humpMul: 1 };
+  const NEUTRAL = { lenMul: 1, widthMul: 1, spreadMul: 1, baseAng: -0.32, humpMul: 1, countMul: 1 };
 
   it('legacy is neutral REGARDLESS of the bag — the frozen control grows no variants', () => {
     expect(wingShape({ chicken: 30 }, 'legacy')).toEqual(NEUTRAL);
@@ -832,27 +832,62 @@ describe('wingShape — the 雞/鴨鵝 blend', () => {
     expect(wingShape({ chicken: 5, duck_goose: 5 }, 'metabolism')).toEqual(NEUTRAL);
   });
 
-  it('pure 雞: short, stubby, wide flutter, raised — the lab ratios', () => {
+  it('pure 雞: short-vs-long SHAPE still holds under the mass boost, wide flutter, raised', () => {
     const w = wingShape({ chicken: 10 }, 'metabolism');
-    expect(w.lenMul).toBeCloseTo(0.65, 6);
-    expect(w.spreadMul).toBeCloseTo(1.5, 6);
-    expect(w.baseAng).toBeLessThan(-0.55);
-    // lab ratio survives: chicken length ≈ half the glide length
     const g = wingShape({ duck_goose: 10 }, 'metabolism');
-    expect(w.lenMul / g.lenMul).toBeCloseTo(0.48, 1);
+    // still visibly shorter than the glide side, even after the boost —
+    // the boost adds mass, it does not erase the species distinction
+    expect(w.lenMul).toBeLessThan(g.lenMul);
+    expect(w.spreadMul).toBeCloseTo(1.5, 6); // spread/angle carry no mass boost
+    expect(w.baseAng).toBeLessThan(-0.55);
   });
 
-  it('pure 鴨鵝: long, thin, tight sweep, flattened toward glide', () => {
+  it('pure 鴨鵝: long, thin, tight sweep, flattened toward glide — UNCHANGED by the chicken boost', () => {
+    // the goose endpoint must read exactly the pre-boost blend: massMul is
+    // clamped to k>=0 only, so chickenBoost=0 here by construction
     const w = wingShape({ duck_goose: 10 }, 'metabolism');
     expect(w.lenMul).toBeCloseTo(1.35, 6);
+    expect(w.widthMul).toBeCloseTo(0.7, 6);
     expect(w.spreadMul).toBeCloseTo(0.5, 6);
     expect(w.baseAng).toBeGreaterThan(-0.1);
+    expect(w.countMul).toBeCloseTo(1, 6);
   });
 
-  it("the owner's real bag reads chicken-side, continuously", () => {
+  it("the owner's real bag reads chicken-side, continuously, WITH the boost applied", () => {
     const w = wingShape({ chicken: 4.68, duck_goose: 1.10 }, 'metabolism');
-    expect(w.lenMul).toBeLessThan(1);      // shorter than generic
-    expect(w.lenMul).toBeGreaterThan(0.65); // but not the pure-雞 endpoint
-    expect(w.spreadMul).toBeGreaterThan(1);
+    expect(w.lenMul).toBeLessThan(1);       // still shorter than generic
+    expect(w.countMul).toBeGreaterThan(1);  // and the boost is live on their mix
+  });
+
+  describe('the +30% chicken mass boost (owner, 2026-08-07, on the wing bench)', () => {
+    it('pure 雞 gets exactly +30% on length, width and stroke count', () => {
+      const w = wingShape({ chicken: 10 }, 'metabolism');
+      // pre-boost blend at k=1: lenMul .65, widthMul 1.3 — boost multiplies by 1.3
+      expect(w.lenMul).toBeCloseTo(0.65 * 1.3, 6);
+      expect(w.widthMul).toBeCloseTo(1.3 * 1.3, 6);
+      expect(w.countMul).toBeCloseTo(1.3, 6);
+    });
+
+    it('is ONE-SIDED: any 鴨鵝-leaning mix gets exactly zero boost', () => {
+      for (const mix of [{ duck_goose: 1 }, { chicken: 1, duck_goose: 3 }, { duck_goose: 100 }]) {
+        expect(wingShape(mix, 'metabolism').countMul).toBeCloseTo(1, 6);
+      }
+    });
+
+    it('ramps continuously from the neutral middle, never jumps', () => {
+      const shares = [0.5, 0.6, 0.7, 0.8, 0.9, 1.0].map(ck =>
+        wingShape({ chicken: ck, duck_goose: 1 - ck }, 'metabolism').countMul);
+      for (let i = 1; i < shares.length; i++) expect(shares[i]).toBeGreaterThan(shares[i - 1]);
+      expect(shares[0]).toBeCloseTo(1, 6);   // 50/50 = neutral = k≈0 = no boost
+      expect(shares[shares.length - 1]).toBeCloseTo(1.3, 6); // pure 雞 = full boost
+    });
+
+    it('spread, angle and hump are UNAFFECTED — only mass (len/width/count) moves', () => {
+      const before = { spreadMul: 1.5, baseAng: -0.6, humpMul: 1.3 }; // pure-雞 pre-boost values
+      const w = wingShape({ chicken: 10 }, 'metabolism');
+      expect(w.spreadMul).toBeCloseTo(before.spreadMul, 6);
+      expect(w.baseAng).toBeCloseTo(before.baseAng, 6);
+      expect(w.humpMul).toBeCloseTo(before.humpMul, 6);
+    });
   });
 });

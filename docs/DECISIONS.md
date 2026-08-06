@@ -5227,3 +5227,33 @@ canvas edges. Byte-identity: all nine legacy renders IDENTICAL; only the
 owner's metabolism render changed (theirs is the only fixture with lived
 sub.air — chicken-dominant 4.68/1.10 → visibly shorter, wider-fanned,
 raised flutter wings). 7 new tests; full suite 1380/1380; tsc clean.
+
+## G4 round 2 tune: 雞 +30% mass boost — *(Sonnet)* — ✅ SHIPPED 2026-08-07
+Owner, on the wing bench (`/dev-wings`): "for chicken, try increase strokes
+and overall size by 30%." Sonnet-tier call: a numeric tune on an already-
+shipped, already-verified gesture with a live reference on screen — not a
+new surface.
+
+The lab's own fidelity trace called chicken wings "SUBSTANTIAL ruffle-fans —
+stubby arms, not feather slivers"; the vocab-derived blend alone (lenMul .65
+at pure 雞) kept the short/wide SHAPE right but read thin rather than
+substantial once seen at real size on the bench.
+
+`chickenBoost = max(0, k)` — ramps 0→1 only across the neutral-to-pure-雞
+half of the blend, exactly 0 for any 鴨鵝-leaning mix. `massMul = 1 + 0.3 *
+chickenBoost` multiplies lenMul, widthMul and a new countMul (stroke count,
+wired into the draw loop's `nS`) on top of the existing blend — spread,
+angle and hump carry no boost, so only mass moves, not silhouette shape.
+One-sided by construction: the goose endpoint, the no-lived-data neutral
+cell, and legacy are each pinned by their own exact-equality test and
+confirmed via byte-identical dumps (goose and goose-lean fixtures added to
+the guard specifically because they're the cases most likely to leak a
+one-sided formula's sign error).
+
+Verified: 11-fixture byte-identity sweep — all 10 non-owner renders (legacy
+AND metabolism) IDENTICAL to pre-tune; only the owner's metabolism render
+(chicken-leaning) changed. Visual confirmation on `/dev-wings`'s endpoint
+row: chicken now visibly carries more strokes and more presence than the
+generic middle cell; goose unchanged.
+
+9 new/updated tests. tsc clean; full suite 1384/1384.
