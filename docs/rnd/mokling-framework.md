@@ -70,7 +70,7 @@ the distinction that matters is what it would take to finish:
 | 角 horns | 牛 · 脂 · 罪 | **LAB-ONLY** | 牛 READY (`LAND_SUB`), 脂 READY (`heaviness`), 罪 needs a time-of-day read |
 | 耳 ears | 豬 · 牛 · 羊 | **LAB-ONLY** | 豬/牛 READY (`LAND_SUB`); 羊 needs `lamb` added to the land sub bag |
 | 尾 tails | 魚 · 甲殼 · 牛 · 豬 · 禽 | **LAB-ONLY** | 甲殼/牛/豬 READY; 魚 and 禽 need their sub-nodes |
-| 翼 wings | 雞 · 鴨 · 鵝 | **LAB-ONLY** | 羽 sub-node — **the diet flags already distinguish `duck_goose` from `chicken`** |
+| 翼 wings | 雞 · 鴨鵝 | **SHIPPED** 2026-08-07 (G4 round 2, `wingShape`) — TWO-way blend matching the shipped detector (`sub.air`); 雞 short flutter vs 鴨鵝 long glide, equal mix = the generic fan byte-for-byte, legacy pinned neutral. The 鴨/鵝 split stays LAB-ONLY until a finer detector exists | — |
 | 足 webbed | 鴨 | **LAB-ONLY** | same 羽 sub-node |
 | 鰭 fins | 尖 · 圓 · 帶 | **LAB-ONLY** | 魚 sub-node × method |
 | 觸 tentacles | 八爪 · 魷 · 水母 | **LAB-ONLY** | 軟體 sub-node (ingredient words — the pattern 藻 already uses) |

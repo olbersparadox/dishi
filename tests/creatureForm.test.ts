@@ -811,3 +811,48 @@ describe('蝦 prawn as a first-class claw species (G4 round 1)', () => {
     expect(s[0].sizeF).toBeCloseTo(0.5 + 0.5 * 0.9, 6);
   });
 });
+
+/* ── 翼 wing variants (G4 round 2): 雞 flutter vs 鴨鵝 glide ──────────────────
+   Ported from the lab v7 endpoints; detector is G3's sub.air. The load-bearing
+   property: EQUAL MIX IS EXACTLY NEUTRAL — undifferentiated air renders the
+   generic fan byte-for-byte, and legacy is pinned neutral whatever the data. */
+import { wingShape } from '../src/lib/creatureForm';
+
+describe('wingShape — the 雞/鴨鵝 blend', () => {
+  const NEUTRAL = { lenMul: 1, widthMul: 1, spreadMul: 1, baseAng: -0.32, humpMul: 1 };
+
+  it('legacy is neutral REGARDLESS of the bag — the frozen control grows no variants', () => {
+    expect(wingShape({ chicken: 30 }, 'legacy')).toEqual(NEUTRAL);
+    expect(wingShape({ duck_goose: 30 }, 'legacy')).toEqual(NEUTRAL);
+  });
+
+  it('no lived sub.air is neutral in metabolism too — fail closed to the generic fan', () => {
+    expect(wingShape(undefined, 'metabolism')).toEqual(NEUTRAL);
+    expect(wingShape({}, 'metabolism')).toEqual(NEUTRAL);
+    expect(wingShape({ chicken: 5, duck_goose: 5 }, 'metabolism')).toEqual(NEUTRAL);
+  });
+
+  it('pure 雞: short, stubby, wide flutter, raised — the lab ratios', () => {
+    const w = wingShape({ chicken: 10 }, 'metabolism');
+    expect(w.lenMul).toBeCloseTo(0.65, 6);
+    expect(w.spreadMul).toBeCloseTo(1.5, 6);
+    expect(w.baseAng).toBeLessThan(-0.55);
+    // lab ratio survives: chicken length ≈ half the glide length
+    const g = wingShape({ duck_goose: 10 }, 'metabolism');
+    expect(w.lenMul / g.lenMul).toBeCloseTo(0.48, 1);
+  });
+
+  it('pure 鴨鵝: long, thin, tight sweep, flattened toward glide', () => {
+    const w = wingShape({ duck_goose: 10 }, 'metabolism');
+    expect(w.lenMul).toBeCloseTo(1.35, 6);
+    expect(w.spreadMul).toBeCloseTo(0.5, 6);
+    expect(w.baseAng).toBeGreaterThan(-0.1);
+  });
+
+  it("the owner's real bag reads chicken-side, continuously", () => {
+    const w = wingShape({ chicken: 4.68, duck_goose: 1.10 }, 'metabolism');
+    expect(w.lenMul).toBeLessThan(1);      // shorter than generic
+    expect(w.lenMul).toBeGreaterThan(0.65); // but not the pure-雞 endpoint
+    expect(w.spreadMul).toBeGreaterThan(1);
+  });
+});

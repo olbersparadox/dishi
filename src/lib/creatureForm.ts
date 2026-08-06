@@ -746,6 +746,50 @@ export function domOfStable<K extends string>(
   return ranked.length < 2 ? ranked[0] : pickVariant(bag, ranked[0], ranked[1], family, duels);
 }
 
+/* ── 翼 wing variants (G4 round 2, 2026-08-07) — 雞 vs 鴨鵝, ported from the
+   lab v7 vocabulary. The lab built three (雞 short round · 鴨 pointed swift ·
+   鵝 long broad); the shipped DETECTOR is two-way (`sub.air` = chicken vs
+   duck_goose, from the diet flags), so the port is the framework's own 肢
+   table pairing: 雞 short flutter fans vs 鴨鵝 long glide strokes — the 鴨/鵝
+   split waits on a finer detector, per "no detector, no feature".
+
+   Blend rule (lab v5): GEOMETRY blends continuously with the sub-node mix.
+   Wings are strokes with no discrete terminal detail, so blend-only is the
+   whole rule here. The multipliers are calibrated so the lab's endpoint
+   RATIOS survive (chicken ≈ half the glide length, ~2× the fan spread,
+   raised toward flutter; measured off 雞翼/鴨翼/鵝翼 in
+   mokling-lab-v7-vocabulary.js) while the EQUAL MIX is exactly 1.0 —
+   undifferentiated air renders today's generic fan byte-for-byte, which is
+   both the fail-closed default and what keeps every no-sub-air being
+   unchanged. Legacy mode is pinned neutral regardless of data: the frozen
+   control never grows variants. */
+export type WingShape = {
+  lenMul: number; widthMul: number; spreadMul: number; baseAng: number; humpMul: number;
+};
+export function wingShape(
+  airBag: { chicken?: number; duck_goose?: number } | undefined,
+  mode: GrowthMode,
+): WingShape {
+  const NEUTRAL: WingShape = { lenMul: 1, widthMul: 1, spreadMul: 1, baseAng: -0.32, humpMul: 1 };
+  if (mode !== 'metabolism') return NEUTRAL;
+  // NOT subMix: its absent→1 default is right for the legs' calibrated
+  // blending but wrong for a lived bag here — it would dilute a pure chicken
+  // eater with a phantom equal-mix goose (the same absent-means-zero lesson
+  // pickVariant already carries from G9). Empty bag → neutral, by the total.
+  const ck0 = Math.max(0, airBag?.chicken ?? 0);
+  const dg0 = Math.max(0, airBag?.duck_goose ?? 0);
+  const tot = ck0 + dg0;
+  if (tot <= 0) return NEUTRAL;
+  const k = (ck0 / tot) * 2 - 1; // +1 pure 雞 … −1 pure 鴨鵝
+  return {
+    lenMul: 1 - 0.35 * k,        // 雞 0.65 · 鵝-side 1.35 (lab ratio ≈ .48 kept)
+    widthMul: 1 + 0.3 * k,       // 雞 stubbier strokes, glide thinner
+    spreadMul: 1 + 0.5 * k,      // 雞 fans wide (flutter), 鴨鵝 sweeps tight
+    baseAng: -0.32 - 0.28 * k,   // 雞 raised toward flutter, 鴨鵝 flat glide
+    humpMul: 1 + 0.3 * k,        // 雞 rounder arc, 鴨鵝 straighter stroke
+  };
+}
+
 /* 腿 · leg. cow = thick pillar on a cleft hoof; pig = shorter, softer, small
    trotter; chicken = thin, backward knee, three splayed toes. (lab v5) */
 /** LENGTH still scales with the growth factor; GIRTH gets its own, passed in.
@@ -959,20 +1003,26 @@ export function drawCreatureFrame(
   // ── appendages BEHIND the body ────────────────────────────────────────────
   // wings — lateral fans from the shoulder, angled out
   if (S.wings.on) {
-    const span = R * (0.55 + 0.75 * S.wings.shareF) * S.wings.evF;
+    // 雞/鴨鵝 variant blend (wingShape) — at equal mix every multiplier is 1.0
+    // and baseAng is the original −0.32, so this line is a no-op for any being
+    // without lived sub.air, and always a no-op in legacy mode.
+    const WS = wingShape(domains.sub?.air, mode);
+    const span = R * (0.55 + 0.75 * S.wings.shareF) * S.wings.evF * WS.lenMul;
     const flap = t ? 0.13 * Math.sin(t * 0.0013) * (0.3 + a) : 0;
     for (const side of [-1, 1]) {
       const base = flank(side, 0.8);
       const nS = 4 + Math.min(3, Math.floor(ev('air') / 25));
       for (let w = 0; w < nS; w++) {
-        const ang = side > 0 ? (-0.32 + 0.14 * w + flap) : (Math.PI + 0.32 - 0.14 * w - flap);
+        const ang = side > 0
+          ? (WS.baseAng + 0.14 * WS.spreadMul * w + flap)
+          : (Math.PI - WS.baseAng - 0.14 * WS.spreadMul * w - flap);
         const L = span * (1 - 0.12 * w);
         ctx.strokeStyle = `rgba(33,29,24,${0.55 - 0.06 * w})`;
-        ctx.lineWidth = Math.max(1, R * 0.05 * (1 - 0.12 * w));
+        ctx.lineWidth = Math.max(1, R * 0.05 * WS.widthMul * (1 - 0.12 * w));
         ctx.beginPath();
         ctx.moveTo(base.x, base.y);
         ctx.quadraticCurveTo(
-          base.x + Math.cos(ang) * L * 0.5, base.y + Math.sin(ang) * L * 0.5 - R * 0.3,
+          base.x + Math.cos(ang) * L * 0.5, base.y + Math.sin(ang) * L * 0.5 - R * 0.3 * WS.humpMul,
           base.x + Math.cos(ang) * L, base.y + Math.sin(ang) * L - R * 0.15);
         ctx.stroke();
       }

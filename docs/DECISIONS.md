@@ -5198,3 +5198,32 @@ creature now wears its actual dominant crustacean: prime prawn pincers
 (~0.84) + baby lobster second pair (1.23 ev, just over the bud floor).
 
 5 tests updated/added. tsc clean; full suite 1375/1375.
+
+## G4 round 2: 翼 wing variants 雞/鴨鵝 — *(Fable)* — ✅ SHIPPED 2026-08-07
+A true lab port (unlike round 1): endpoints measured off 雞翼/鴨翼/鵝翼 in
+mokling-lab-v7-vocabulary.js — 雞 short round (len .16, spread .22/stroke),
+鴨 pointed swift (.30/.13), 鵝 long broad (.36/.10). The shipped detector is
+two-way (sub.air: chicken vs duck_goose), so the port pairs 鴨鵝 as the 肢
+table always did: 雞 short flutter fans vs 鴨鵝 long glide strokes. The 鴨/鵝
+split stays LAB-ONLY until a finer detector exists — no detector, no feature.
+
+wingShape(airBag, mode): a pure blend whose EQUAL MIX is exactly neutral —
+every multiplier 1.0, base angle the original −0.32 — so undifferentiated air
+renders the generic fan byte-for-byte (fail closed), and legacy is pinned
+neutral regardless of data (the frozen control grows no variants). Endpoint
+ratios keep the lab's: chicken ≈ half the glide length, ~2× the fan spread,
+raised toward flutter; 鴨鵝 flattened toward glide, thinner, tight sweep.
+
+One trap re-caught by its own tests before ship: the first cut read the mix
+through subMix, whose absent→1 default (right for the legs' calibrated
+blending) diluted a pure chicken eater with a phantom equal-mix goose — the
+same absent-means-zero lesson pickVariant carries from G9. wingShape computes
+its own mix with absent = 0, neutral only when the whole bag is unlived.
+
+Verification: ink-bounds net extended with goose-heavy and rooster-heavy
+fixtures (the longest wing the blend can produce, lenMul 1.35, is now a
+standing crop case); live pixel scan on /jerry: zero dark pixels on all
+canvas edges. Byte-identity: all nine legacy renders IDENTICAL; only the
+owner's metabolism render changed (theirs is the only fixture with lived
+sub.air — chicken-dominant 4.68/1.10 → visibly shorter, wider-fanned,
+raised flutter wings). 7 new tests; full suite 1380/1380; tsc clean.

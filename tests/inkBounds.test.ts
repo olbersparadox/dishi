@@ -167,6 +167,10 @@ const SCENARIO_LIVES: Record<string, DomainEvidence> = {
   fire: { land: 22, air: 14, sub: { land: { beef: 6, pork: 8, chicken: 8 } } },
   garden: { field: 26, fungus: 12, algae: 5 },
   air: { air: 30, land: 8 },
+  // 鵝-heavy: the LONGEST wing the blend can produce (lenMul 1.35) — the
+  // variant most likely to leave the canvas, so the net must exercise it
+  goose: { air: 30, land: 8, sub: { air: { duck_goose: 24 } } },
+  rooster: { air: 30, land: 8, sub: { air: { chicken: 24 } } },
   bake: { field: 3, land: 3 },
 };
 
