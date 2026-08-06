@@ -223,6 +223,34 @@ to conserve calls) would firm up the 30% figure before either path ships.
 Suppression (the reason nothing wrong has shipped yet) should stay in place
 until that decision is made.
 
+> **2026-08-06 — that sentence was wrong, and the cost was a wrong name in the
+> DB.** There was no suppression. No flag, no guard, nothing gated auto-adoption
+> at any point. What looked like suppression was `table_sessions` carrying no
+> `scan_lat` until the 08-03 wiring, so the lookup returned empty every time.
+> Three sessions got coords on 08-04 and the feature armed itself:
+>
+> ```
+> 07-30..08-03:  36 sessions,  0 with coords   <- read as "suppressed"
+> 08-04:          3 sessions,  3 with coords   <- armed
+> ```
+>
+> On 08-06 the owner photographed 壽司 at 和斗壽司外賣專門店 and it was named
+> `刺身盛合定食（雞味噌汁附）`, verbatim off NEIGHBOUR De Protein Box's menu
+> (session **CCQHK** — the very session named as a contaminator in finding 2
+> above). First real adoption in production, 1 for 1 wrong.
+>
+> **Auto-adoption is now OFF in code** (`6635738`): `inferDish` is called
+> context-blind, byte-identical to the pre-3b request. Note the smaller change
+> would not have worked — dropping only the `findAdoptedName` write leaves the
+> name unchanged, because adoption is exact-modulo-cosmetic and therefore only
+> ever re-spells a name vision had already produced. The forced match lives in
+> the prompt. A source-level test in `tests/nameShortlist.test.ts` now enforces
+> what this paragraph merely assumed.
+>
+> **The transferable lesson:** "it isn't firing in production" is a measurement
+> of today's data, not a control. If a decision depends on something staying
+> off, turn it off in code — an R&D doc cannot suppress anything.
+
 ## Two further findings, 2026-08-05 (`scripts/probe-picker-viability.ts`)
 
 Re-running production's REAL lookup over the same 10 shortlisted eval cases —

@@ -1067,6 +1067,11 @@ Kill criterion: if the match layer ever adopts a WRONG identity in field use
 (worse than a wrong free-text guess, because it looks authoritative), gate
 adoption behind the item-5 two-name pick instead of auto-adopting.
 
+- **AUTO-ADOPTION TURNED OFF IN CODE, 2026-08-06 (`6635738`)** — see the entry
+  at the end of this item. The line below ("no code changed, nothing shipped")
+  described the intent of the 08-05 parking; it was not true of the running
+  system, and on 08-06 a wrong name reached the database.
+
 - **FIELD PASS FAILED, GO WITHDRAWN, 2026-08-04/05** — the kill criterion above
   fired on the first real dish. Full readout in
   `docs/rnd/vision-naming-context.md`; replay harness
@@ -1160,6 +1165,39 @@ adoption behind the item-5 two-name pick instead of auto-adopting.
   any model via `OPENROUTER_MODEL` and Anthropic models are on OpenRouter, so
   it is an env-var change, not an integration — but the local key is $5-capped
   with ~$0.24 left and 403s on Anthropic models, so it needs a top-up first.
+
+- **DECISION, 2026-08-06 (owner): contain now, then build option (C).**
+  Triggered by the first real production adoption, which was wrong — 壽司 at
+  和斗壽司外賣專門店 named `刺身盛合定食（雞味噌汁附）` off NEIGHBOUR De Protein
+  Box's session CCQHK, the exact contaminator finding 3 above had already
+  named. The "parked, nothing shipped" state was never real (there was no
+  suppression; the lookup was merely returning empty for want of `scan_lat`
+  until 08-04), so parking is no longer an available state for this item —
+  either it is off in code or it is live.
+  - **Done:** auto-adoption OFF (`6635738`), `inferDish` context-blind again,
+    pinned by a source-level test. Owner's dish corrected to 壽司拼盤 as a
+    machine fix (`name_edited_at` left null — a machine must not claim human
+    authority) and re-resolved to canonical `sushi-platter`, which returned it
+    to the 6-dish group and restored the same-venue execution comparison the
+    wrong name had cost it. Zero `name_from_menu_at` rows remain.
+  - **Next: option (C), the growth-card menu picker.** Explicitly (C) and NOT
+    (D) — the two look alike and must not be conflated in a later session. (D)
+    picks its candidate PRE-vision and therefore inherits the GPS soup;
+    (C) renders after `restaurant_id` is known, so it joins the correct
+    restaurant's own menu exactly, dissolves the 1.5s-budget bug by loading
+    after the card, and fails safe because an ignored suggestion changes
+    nothing. Never auto-substitutes: a tap is the only thing that renames.
+  - **Authority question to settle when building (C)** — do NOT decide it in a
+    commit message: what authority does a TAPPED menu name carry? It is not
+    VISION (a human chose it) and not plain HUMAN (they picked from a list
+    rather than typing). Candidate: set `name_edited_at` (the human did author
+    the choice) AND stamp `name_from_menu_at` for provenance. The stamp column
+    already exists and is now unused, so it costs nothing to keep for this.
+  - **Unresolved prerequisite, carried forward unchanged:** the open question
+    above — how often is the dish actually ON the nearby menu — still gates
+    whether (C) fires often enough to be worth building, and the owner's own
+    logs remain an invalid sample for it. Build (C) knowing this is unmeasured,
+    or measure first; that sequencing is still an owner call.
 
 ## 4. Dishes-first, attribution backfilled *(Fable; design depends on item 2's result)*
 
