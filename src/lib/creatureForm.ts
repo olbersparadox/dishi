@@ -1055,8 +1055,17 @@ export function drawCreatureFrame(
     ctx.save();
     ctx.beginPath(); closedPath(ctx, pts); ctx.clip();
     ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-    const M: [number, number][] = [[-1.3, 0], [-0.62, 0], [-0.48, 0.62], [-0.27, 0.62], [-0.13, 0.1],
-      [0.13, 0.1], [0.27, 0.62], [0.48, 0.62], [0.62, 0], [1.3, 0]];
+    // Tread profile (owner, 2026-08-06). Every point from the rim (u=±1.3) to
+    // the valley floor (v=0.22) sits on ONE continuous diagonal — no flat
+    // plateau, no separate elbow kink — so the outer leg reads as a proper M
+    // stroke. The valley floor itself stays flat across the centre notch
+    // (v=0.22 → 0.04 → 0.22) before the diagonal rises back to the rim on the
+    // other side. Max drop is 0.22h, which leaves 0.78h of clearance to the
+    // next band's top line — comfortably past the 0.38h point where two bands
+    // start reading as a 3rd implied line (the failure mode this whole profile
+    // is shaped to avoid).
+    const M: [number, number][] = [[-1.3, 0], [-0.62, 0.22], [-0.48, 0.22], [-0.27, 0.22], [-0.13, 0.04],
+      [0.13, 0.04], [0.27, 0.22], [0.48, 0.22], [0.62, 0.22], [1.3, 0]];
     // Half-width of the DRAWN silhouette at a given height. Every band used to
     // run the same `R * widen`, so all four were the same length and the stack
     // read as wires laid across a blob rather than plates wrapping a shell —
@@ -1075,9 +1084,13 @@ export function drawCreatureFrame(
       }
       return hi > lo ? (hi - lo) / 2 : 0;
     };
-    // Vertical extent anchored to the drawn box, not to R: the ink (3 gaps plus
-    // the M's own 0.62 drop) is centred on the body and covers ±0.67 of it, so
-    // the crown and belly are armoured too instead of wearing a belt.
+    // Vertical extent anchored to the drawn box, not to R: sizes the GRID for
+    // all 4 nominal band slots (3 gaps + a fixed drop allowance) so it covers
+    // ±0.67 of the body, crown to belly. This "+0.62" is a fixed grid constant,
+    // not read from M — GRID and INK are deliberately decoupled since the
+    // 2026-08-06 band cut (only 2 of 4 slots drawn, bFrom below) and the same
+    // day's tread flatten (M's own drop is now 0.22, not 0.62). Re-tuning
+    // either one must never silently move the other.
     const nB = 4, h = (1.34 * BB.vr) / (nB - 1 + 0.62), y0 = BB.cy - 0.67 * BB.vr;
     const trace = (yTop: number, span: number) => {
       ctx.beginPath();
@@ -1116,8 +1129,14 @@ export function drawCreatureFrame(
     const dk = smooth01((120 - size) / 48);
     const gapA = (0.62 + 0.16 * sm + 0.05 * dk).toFixed(3);
     const litA = (0.24 + 0.30 * sm - 0.10 * dk).toFixed(3);
+    // Upper band sits 5px below its grid slot at the 280px review size (owner,
+    // 2026-08-06): 5 / h(280≈23.8px) = 0.210h, expressed as a fraction of h so
+    // it scales with the creature the same way h itself does. Leaves ~0.57h
+    // clear of the lower band's top — comfortably past the 0.38h point where
+    // two bands start reading as a 3rd implied line.
+    const upperNudge = 0.210;
     for (let b = bFrom; b < nB; b++) {
-      const yTop = y0 + b * h;
+      const yTop = y0 + b * h + (b === bFrom ? upperNudge * h : 0);
       // measured at the band's own ink centre, and overshot by a hair so the
       // ends still clip flush against the rim instead of leaving a sliver
       const span = spanAt(yTop + 0.31 * h) * 1.04;
