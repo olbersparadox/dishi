@@ -5162,3 +5162,39 @@ Shipped in order, the order being the point:
 
 Legacy mode stays in the renderer as the byte-identical control the whole
 program was verified against; nothing passes it in production any more.
+
+## G4 round 1: 蝦 prawn pincers — *(Fable)* — ✅ SHIPPED 2026-08-07
+Model call stated per the tier rules: Fable — a new visible gesture on a live
+production being is the calibration-class surface where claws burned six
+rounds; BACKLOG tags G4 "(Fable first pass each)"; new-surface rule applies
+regardless of spec completeness. Confirmed mid-round: NOT a lab port — the
+framework's variants table specified "蝦 fine thin pincers" but no lab version
+ever built them, so this is a fresh first pass under the standing working
+method (owner verifies; sketch after two missed rounds).
+
+The design: identity is the INVERSE of the other two claws. 蟹/龍蝦 are MASS;
+蝦 is DELICACY — a long thin bowed arm (len .95, longer than 龍蝦's .84),
+two fine opposed prongs with a narrow visible gape, near-symmetric pair. What
+keeps thinness a pincer rather than a whisker is the gape topology: one prong
+rigid with the arm, the other hinged at the hand taking m.pinch — the same
+one-hinge lesson as the 龍蝦 dactyl. Same frame/motion contract; prawn joins
+the pair-stagger and unison-snap behavior for free.
+
+clawSeats: 蝦 is FIRST-CLASS in metabolism — the fold-into-prime compensation
+is deleted (it existed only because the gesture was unbuilt, and it is what
+saturated a 龍蝦 claw to the crop bug). Three-way ranking: prime by the G9
+ladder, strongest other above the bud floor takes the second seat. Burial:
+prawn wrists sit at crab depth (.84) — the long arm IS the species' reach,
+burial must not double it. LEGACY untouched: frozen crab/lobster pair, prawn
+still folded, pinned by test.
+
+Verification, all through the new instrument layer: ink-bounds net validated
+the fresh gesture automatically (owner's real profile, every size, both
+modes, no crop — the instrument's first day earning its keep); live-canvas
+pixel scan on /jerry: zero dark pixels on column 0, nearest ink col 11.
+Byte-identity: all nine legacy renders IDENTICAL, eight of nine metabolism
+identical — ONLY the owner's (prawn-lived) render changed. The owner's
+creature now wears its actual dominant crustacean: prime prawn pincers
+(~0.84) + baby lobster second pair (1.23 ev, just over the bud floor).
+
+5 tests updated/added. tsc clean; full suite 1375/1375.

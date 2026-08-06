@@ -16,7 +16,7 @@
 type Pt = { x: number; y: number };
 
 export type ClawMotion = { pinch: number; grip: number; sway: number };
-export type ClawSpecies = 'lobster' | 'crab';
+export type ClawSpecies = 'lobster' | 'crab' | 'prawn';
 
 /** Per-corner rounding. It has to be per corner: the achievable radius at a
     corner is t·tan(θ/2), so one number buys a fifth of the rounding at a 25°
@@ -159,6 +159,77 @@ export function drawCrabClaw(
   // movable finger — the only part that swings
   curvedTaper(ctx, P(Lp * 0.92, Wp * 0.34), P(Lp + Lf * 0.40, Wp * (0.16 + 0.34 * g)),
     P(Lp + Lf * 0.80, Wp * (-0.16 + 0.42 * g)), Wp * 0.38, Wp * 0.08);
+}
+
+/* 蝦 prawn pincers — G4 round 1, 2026-08-07. NOT a lab port: the framework's
+   variants table specified "蝦 fine thin pincers" but no lab version ever
+   built them, so this is a first pass in the calibrated idiom above, subject
+   to the standing working method (owner verifies; ask for a sketch after two
+   missed rounds — the same path 蟹/龍蝦 took).
+
+   The identity is the INVERSE of the other two. 蟹 and 龍蝦 are MASS — a
+   broad mitten, an oversized fist — and the claw rules even warn "a thin
+   leaf reads as a feather" while calibrating them. 蝦 is DELICACY: a long
+   thin arm ending in two fine short prongs with a narrow gape, and the pair
+   near-symmetric. Thinness here is the species read, not a failure of mass —
+   what keeps it a PINCER rather than a whisker is the gape: two opposed
+   prongs with a visible slot, one of them hinged, exactly the pinch topology
+   the rules demand. (Antennae live at the crown as tendrils, so a thin
+   forward-low limb with a gape has no reading to collide with.)
+
+   Same unit frame as LOB/CRAB: u along the axis from the wrist, v across,
+   + is the lower side; lengths in fractions of L = R · len · scale. */
+const PRN = {
+  len: 0.95,        // longer than 龍蝦's .84 — the long arm IS the species
+  handU: 0.58,      // where the arm ends and the prongs begin
+  armBow: 0.09,     // gentle downward bow so the arm reads jointed, not stiff
+  armW0: 0.085, armW1: 0.055,
+  prongLen: 0.36, prongW0: 0.048, prongW1: 0.013,
+  gape: 0.055,      // half-slot between prong roots — fine, but visibly open
+};
+
+/** 蝦 · prawn pincer: long thin arm, two fine opposed prongs, narrow gape.
+    The lower prong hinges at the hand and takes m.pinch, the same one-hinge
+    topology as the 龍蝦 dactyl — both halves fanning is a leaf, not a claw. */
+export function drawPrawnClaw(
+  ctx: CanvasRenderingContext2D,
+  bx: number, by: number, ang: number,
+  R: number, scale: number, m: ClawMotion, ink: string,
+) {
+  const L = R * PRN.len * scale;
+  const P = frame(bx, by, ang);
+  ctx.fillStyle = ink;
+
+  // the arm: one thin bowed taper from the wrist to the hand
+  const hU = PRN.handU;
+  curvedTaper(ctx,
+    P(0, 0), P(L * hU * 0.5, L * PRN.armBow), P(L * hU, 0),
+    L * PRN.armW0, L * PRN.armW1);
+
+  // fixed upper prong — rigid with the arm, no motion term
+  curvedTaper(ctx,
+    P(L * (hU - 0.02), -L * PRN.gape),
+    P(L * (hU + PRN.prongLen * 0.55), -L * (PRN.gape + 0.045)),
+    P(L * (hU + PRN.prongLen), -L * (PRN.gape * 0.4)),
+    L * PRN.prongW0, L * PRN.prongW1);
+
+  // movable lower prong — hinged at the hand, swings by m.pinch. Rotating
+  // about the hinge keeps the root buried in the arm at every angle, so the
+  // pincer cannot come apart mid-snap (the LOB dactyl lesson).
+  const hinge = { u: hU - 0.02, v: PRN.gape };
+  const phi = m.pinch;
+  const rot = (u: number, v: number): Pt => {
+    const du = u - hinge.u, dv = v - hinge.v;
+    return P(
+      L * (hinge.u + du * Math.cos(phi) - dv * Math.sin(phi)),
+      L * (hinge.v + du * Math.sin(phi) + dv * Math.cos(phi)),
+    );
+  };
+  curvedTaper(ctx,
+    rot(hinge.u, hinge.v),
+    rot(hU + PRN.prongLen * 0.55, PRN.gape + 0.05),
+    rot(hU + PRN.prongLen * 0.97, PRN.gape * 0.45),
+    L * PRN.prongW0, L * PRN.prongW1);
 }
 
 const REST_OPEN = 0.17;   // radians the dactyl rests open at

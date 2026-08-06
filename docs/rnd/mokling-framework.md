@@ -66,7 +66,7 @@ the distinction that matters is what it would take to finish:
 | 葉 fronds | generic | **SHIPPED** | — |
 | 藻 ribbons | generic | **SHIPPED** | — |
 | 菌 caps | generic | **SHIPPED** | — |
-| 螯 pincers | 蝦 prawn | **READY** | detector exists (`SHELL_SUB.prawn`); only the gesture is missing |
+| 螯 pincers | 蝦 prawn | **SHIPPED** 2026-08-07 (G4 round 1, `drawPrawnClaw`) — NOT a lab port; the variants table specified it but no lab built it, so it is a first pass under the standing working method. Metabolism mode only; legacy keeps the frozen crab/lobster pair | — |
 | 角 horns | 牛 · 脂 · 罪 | **LAB-ONLY** | 牛 READY (`LAND_SUB`), 脂 READY (`heaviness`), 罪 needs a time-of-day read |
 | 耳 ears | 豬 · 牛 · 羊 | **LAB-ONLY** | 豬/牛 READY (`LAND_SUB`); 羊 needs `lamb` added to the land sub bag |
 | 尾 tails | 魚 · 甲殼 · 牛 · 豬 · 禽 | **LAB-ONLY** | 甲殼/牛/豬 READY; 魚 and 禽 need their sub-nodes |

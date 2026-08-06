@@ -645,16 +645,19 @@ describe('clawSeats — one pair per coexisting variant', () => {
     expect(s[0].seat).not.toBe(s[1].seat);
   });
 
-  it('prawn eating supports the prime claw — its gesture is unbuilt, not its evidence', () => {
-    // the owner's real profile: prawn-dominant with a little lobster. Sizing on
-    // lobster's 1.23 alone would draw a stub and throw away 5.64 of real eating.
-    // Ceiling is CLAW_MAX (0.85, not 1.0 — see clawSeats) since 2026-08-07: this
-    // exact fixture was the one that clipped off the canvas edge on the owner's
-    // own live page before that cap existed.
+  it('a prawn-dominant palate wears PRAWN pincers — its own species, since G4', () => {
+    // The owner's real profile. Before the 蝦 gesture existed (G4 round 1,
+    // 2026-08-07) this evidence was folded into a 龍蝦 prime seat it never
+    // earned — the very fold that saturated sizeF to the crop bug. Now prawn
+    // is first-class: prime pincers sized by prawn's OWN evidence, and the
+    // barely-lived lobster (1.23, a hair over the bud floor) takes the
+    // second seat as a baby claw.
     const s = clawSeats(M({ prawn: 5.64, lobster: 1.23 }), 'metabolism', 0.9);
-    expect(s).toHaveLength(1);
-    expect(s[0].species).toBe('lobster');
-    expect(s[0].sizeF).toBeCloseTo(0.85, 6); // saturated at the ceiling, not 1.0
+    expect(s).toHaveLength(2);
+    expect(s[0].species).toBe('prawn');
+    expect(s[0].sizeF).toBeGreaterThan(0.8);
+    expect(s[1].species).toBe('lobster');
+    expect(s[1].sizeF).toBeLessThan(0.4);
   });
 
   it('undifferentiated shell evidence still draws the parent gesture', () => {
@@ -767,19 +770,44 @@ describe('CLAW_MAX — sizeF never exceeds the calibrated safe ceiling', () => {
     }
   });
 
-  it('the exact profile that clipped in production stays pinned at the ceiling', () => {
-    // owner's real live shell mix — prawn-dominant, folded into a 龍蝦 prime
-    // seat. This fixture ran claw ink onto canvas column 0 before CLAW_MAX
-    // existed; confirmed on /jerry by scanning rendered ImageData, not by
-    // parsing path text.
+  it('the exact profile that clipped in production stays under the ceiling', () => {
+    // owner's real live shell mix. Pre-G4 it folded into a 龍蝦 seat and ran
+    // claw ink onto canvas column 0 (confirmed on /jerry by scanning rendered
+    // ImageData, not by parsing path text); the ceiling closed that. Since G4
+    // it wears its own prawn pincers — still bounded by the same ceiling.
     const s = clawSeats(
       { sub: { shell: { prawn: 5.64, lobster: 1.23 } } } as any, 'metabolism', 0.9);
-    expect(s[0].sizeF).toBeCloseTo(0.85, 6);
+    for (const seat of s) expect(seat.sizeF).toBeLessThanOrEqual(0.85 + 1e-9);
   });
 
   it('legacy is untouched — sizeF can still reach a genuine 1.0', () => {
     const s = clawSeats(
       { sub: { shell: { prawn: 5.64, lobster: 1.23 } } } as any, 'legacy', 1.0);
     expect(s[0].sizeF).toBeCloseTo(1.0, 6);
+  });
+});
+
+describe('蝦 prawn as a first-class claw species (G4 round 1)', () => {
+  const M2 = (shell: Record<string, number>): DomainEvidence => ({ sub: { shell } as any });
+
+  it('three-way ranking: the strongest OTHER takes the second seat', () => {
+    const s = clawSeats(M2({ prawn: 8, crab: 5, lobster: 2 }), 'metabolism', 0.9);
+    expect(s.map(x => x.species)).toEqual(['prawn', 'crab']); // lobster waits
+  });
+
+  it('prawn no longer inflates a claw it did not earn — the fold is gone', () => {
+    // heavy prawn + barely-lived crab: crab's seat is sized by crab's OWN 1.5,
+    // not by 20 of someone else's eating
+    const s = clawSeats(M2({ crab: 1.5, prawn: 20 }), 'metabolism', 0.9);
+    expect(s[0].species).toBe('prawn');
+    expect(s[1].species).toBe('crab');
+    expect(s[1].sizeF).toBeLessThan(0.35);
+  });
+
+  it('LEGACY never draws prawn — the frozen control keeps the crab/lobster pair', () => {
+    const s = clawSeats(M2({ prawn: 20, lobster: 1 }), 'legacy', 0.9);
+    expect(s).toHaveLength(1);
+    expect(s[0].species).not.toBe('prawn');
+    expect(s[0].sizeF).toBeCloseTo(0.5 + 0.5 * 0.9, 6);
   });
 });

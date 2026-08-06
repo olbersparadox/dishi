@@ -40,7 +40,7 @@ import {
 } from './blobForm';
 import { DIMS } from './taste';
 import {
-  drawLobsterClaw, drawCrabClaw, clawMotion, CLAW_AXIS, type ClawSpecies,
+  drawLobsterClaw, drawCrabClaw, drawPrawnClaw, clawMotion, CLAW_AXIS, type ClawSpecies,
 } from './creatureGestures';
 import { svgContext, type InkBounds, type InkRecord } from './canvasToSvg';
 
@@ -709,17 +709,26 @@ export function clawSeats(
   const CLAW_MAX = 0.85;
   const ramp = (evd: number) =>
     CLAW_MIN + (CLAW_MAX - CLAW_MIN) * smooth01((evd - SUB_BUD) / (SUB_FORM - SUB_BUD));
-  // shellfish eaten that no shipped gesture represents — folded into the prime
-  // seat so a prawn-heavy palate keeps a full-sized claw rather than a stub
-  const unallocated = Math.max(0, bag?.prawn ?? 0);
-  const other: ClawSpecies = prime === 'crab' ? 'lobster' : 'crab';
-  if (evOf(prime) + unallocated <= SUB_BUD && evOf(other) <= SUB_BUD) return single;
-
+  // 蝦 is a first-class species since G4 round 1 (2026-08-07) — the old
+  // "fold prawn into the prime seat" compensation existed only because its
+  // gesture was unbuilt, and folding is exactly what let a prawn-heavy palate
+  // saturate a 龍蝦 claw it never earned (the sizeF=1.0 crop above). Ranked
+  // three ways now: prime by the G9 ladder (dominance → duel → stable hold),
+  // the strongest OTHER variant above the bud floor takes the second seat.
+  const SPECIES: ClawSpecies[] = ['crab', 'lobster', 'prawn'];
+  const metaPrime = domOfStable(bag, SPECIES, 'shell', domains.duels);
+  const others = SPECIES.filter(k => k !== metaPrime)
+    .sort((x, y) => (evOf(y) - evOf(x)) || (x < y ? -1 : 1));
+  if (evOf(metaPrime) <= SUB_BUD && evOf(others[0]) <= SUB_BUD) {
+    // nothing individually lived — undifferentiated shell falls back to the
+    // parent gesture at the parent's size, same as always
+    return [{ species: metaPrime, sizeF: 0.5 + 0.5 * clawF, seat: CLAW_SEATS[0] }];
+  }
   const seats: ClawSeat[] = [
-    { species: prime, sizeF: ramp(evOf(prime) + unallocated), seat: CLAW_SEATS[0] },
+    { species: metaPrime, sizeF: ramp(evOf(metaPrime)), seat: CLAW_SEATS[0] },
   ];
-  if (evOf(other) > SUB_BUD) {
-    seats.push({ species: other, sizeF: ramp(evOf(other)), seat: CLAW_SEATS[1] });
+  if (evOf(others[0]) > SUB_BUD) {
+    seats.push({ species: others[0], sizeF: ramp(evOf(others[0])), seat: CLAW_SEATS[1] });
   }
   return seats;
 }
@@ -1073,6 +1082,8 @@ export function drawCreatureFrame(
     // 0→1, so the youngest claw the gates allow is still half-size and visibly
     // a pincer, and growth after that is legible rather than a slow fade-in
     // from nothing. The bud stage (萌) lives in the GATES now, where it belongs.
+    // 龍蝦 alone is asymmetric — one big one small IS the lobster read.
+    // 蟹 and 蝦 are 1:1 pairs (fine symmetric pincers are the prawn read).
     const [sL, sR] = species === 'lobster' ? [1.22, 0.82] : [1, 1];
     // the calibrated gesture holds its proportions against a body of half-width
     // 0.62·R_claw with the wrist at 0.48·R_claw from centre; here the wrist
@@ -1106,14 +1117,19 @@ export function drawCreatureFrame(
     // it loses 83→68), which is why lobster-on-top reads fine as it is. So the
     // compensation is 蟹-at-second only; both calibrated prime values stand.
     const secondSeat = seat !== CLAW_SEATS[0];
+    // 蝦's long thin arm carries its own reach, so its wrist sits at the crab
+    // depth rather than riding the silhouette edge like 龍蝦's — the arm
+    // length is the species' reach, burial shouldn't double it.
     const WRIST_BURIAL = species === 'lobster' ? 0.96
+      : species === 'prawn' ? (secondSeat ? CRAB_SECOND_BURIAL : 0.84)
       : secondSeat ? CRAB_SECOND_BURIAL : 0.82;
     for (const side of [-1, 1] as const) {
       const p = flank(side, seat);
       const bx = BB.cx + (p.x - BB.cx) * WRIST_BURIAL, by = BB.cy + (p.y - BB.cy) * WRIST_BURIAL;
       const mo = clawMotion(t, side, seatIndex);
       const ang = side > 0 ? CLAW_AXIS + mo.sway : Math.PI - CLAW_AXIS + mo.sway;
-      const drawFn = species === 'lobster' ? drawLobsterClaw : drawCrabClaw;
+      const drawFn = species === 'lobster' ? drawLobsterClaw
+        : species === 'prawn' ? drawPrawnClaw : drawCrabClaw;
       drawFn(ctx, bx, by, ang, Rclaw, sizeF * (side < 0 ? sL : sR), mo, clawInk);
       }
     }
