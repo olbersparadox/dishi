@@ -1345,6 +1345,23 @@ is the possibility multiplier.
 
 ## G6. 圖鑑 molt archive: replay-derived molt_log, archive surface, shed ceremony — *(Fable)*
 
+## G8. 膚 skins: representation for mixed-method diets + recency — *(design session with owner FIRST)*
+Surfaced by the G2 bench, 2026-08-06. Two connected gaps: (1) skinOf demands
+a >0.5 method MAJORITY, so a genuinely mixed-method diet wears no skin at
+all — needs a representation rule (plurality with floor + hysteresis is the
+starting proposal); (2) the vector's evidence-damped learning makes a mature
+palate's methods sticky, so 膚 barely turns while 骨 now turns fully — the
+skins may deserve their own timed record (the same G1 mechanism, fed by
+method instead of domain). skinOf's own KNOWN-GAP comment already says: fix
+the skins together, with the owner — not piecemeal.
+
+## Later: 蛻變 "Evolved" — a drastic form change to strive for *(owner, 2026-08-06 — parked)*
+"We may introduce a more drastic change in shape for the feeling of
+'Evolved' at a later stage. Something aspirational for users to strive
+for." Parked deliberately; when picked up it lands on the framework's
+existing ceremonial-metamorphosis surface (Fibonacci stage gates, witnessed
+full-screen, prior form archived in the 圖鑑) rather than a new system.
+
 ## G7. Share image · version cards · export header — *(Fable; order-independent)*
 Carried from the old table's item 6. The SVG snapshot renderer already
 exists, parity-verified, with no production consumer (framework Ledger,

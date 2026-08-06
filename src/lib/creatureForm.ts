@@ -288,6 +288,12 @@ export type GrowthMode = 'legacy' | 'metabolism';
 
 const BUD_FLOOR = 1.2, BUD_SPAN = 0.8, FORM_FLOOR = 5, FORM_SPAN = 7;
 const BUD_SIZE = 0.35; // a full bud renders at 35% — visibly a nub, not a limb
+// The moment evidence crosses the bud floor, the limb POPS IN at this fraction
+// of full treatment instead of fading up from nothing (owner, 2026-08-06: "the
+// baby leg is too small to be noticed by anyone. it could be short but need to
+// be more obvious"). A bud is short — but it is unmistakably THERE, which is
+// the whole instant-gratification beat: rate the dish, see the stub.
+const BUD_MIN = 0.35;
 
 export type LimbStrengths = {
   wings: { on: boolean; evF: number; shareF: number };
@@ -306,8 +312,12 @@ export function limbStrengths(domains: DomainEvidence, mode: GrowthMode): LimbSt
       + (1 - BUD_SIZE) * smooth01((evd - FORM_FLOOR) / FORM_SPAN);
     const maxShare = Math.max(sh.s, sh.l, sh.a, sh.c, sh.f, sh.fg, sh.ag, 1e-6);
     const prom = (share: number) => 0.6 + 0.4 * (share / maxShare);
-    const F = (evd: number, share: number) => stage(evd) * prom(share);
-    const wingsF = stage(ev('air'));
+    // BUD_MIN applied to the FINAL strength, after prominence: a bud on a
+    // minority node must still pop in visibly, or the floor is fiction.
+    const F = (evd: number, share: number) =>
+      stage(evd) > 0 ? Math.max(BUD_MIN, stage(evd) * prom(share)) : 0;
+    const rawWingsF = stage(ev('air'));
+    const wingsF = rawWingsF > 0 ? Math.max(BUD_MIN, rawWingsF) : 0;
     const tendF = F(ev('sea'), sh.s);
     return {
       // span already carries share through shareF, so evF stays pure stage —

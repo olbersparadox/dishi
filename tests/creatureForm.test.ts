@@ -456,7 +456,11 @@ describe('limbStrengths — metabolism mode (fed by DECAYED evidence)', () => {
   });
 
   it('one loved first dish buds a visible nub; one neutral dish does not', () => {
-    expect(limbStrengths({ shell: 1.5 }, 'metabolism').claws).toBeGreaterThan(0.05);
+    // BUD_MIN: the limb POPS IN at >=35% treatment the moment the floor is
+    // crossed (owner: "could be short but need to be more obvious") — never a
+    // hairline fading up from nothing.
+    expect(limbStrengths({ shell: 1.5 }, 'metabolism').claws).toBeGreaterThanOrEqual(0.35);
+    expect(limbStrengths({ shell: 1.5 }, 'metabolism').legs).toBe(0); // nothing un-lived pops
     expect(limbStrengths({ shell: 0.5 }, 'metabolism').claws).toBe(0);
   });
 
