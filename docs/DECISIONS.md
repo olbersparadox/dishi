@@ -5163,7 +5163,7 @@ Shipped in order, the order being the point:
 Legacy mode stays in the renderer as the byte-identical control the whole
 program was verified against; nothing passes it in production any more.
 
-## G4 round 1: 蝦 prawn pincers — *(Fable)* — ✅ SHIPPED 2026-08-07
+## G4 round 1: 蝦 prawn pincers — *(Fable)* — ✅ SHIPPED 2026-08-07 · OWNER SIGNED OFF same day
 Model call stated per the tier rules: Fable — a new visible gesture on a live
 production being is the calibration-class surface where claws burned six
 rounds; BACKLOG tags G4 "(Fable first pass each)"; new-surface rule applies
