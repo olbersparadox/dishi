@@ -3,8 +3,6 @@ import { supabaseServer } from '@/lib/supabase/server';
 import { inferDish } from '@/lib/vision';
 import { resolveOrCreateRestaurant } from '@/lib/restaurant';
 import { districtI18n } from '@/lib/geocode';
-import { fetchNameShortlist } from '@/lib/nameShortlistFetch';
-import { findAdoptedName } from '@/lib/nameShortlist';
 
 export const maxDuration = 60;
 
@@ -85,48 +83,53 @@ export async function POST(req: NextRequest) {
   const mediaType = safeMediaType(photo.type);
   const path = `${user.id}/${Date.now()}-${(photo.name || 'photo.jpg').replace(/[^\w.\-]/g, '_')}`;
 
-  // Item 3b: what do the menus scanned around here call their dishes? Vision is
-  // context-blind otherwise, which is how a photo taken beside a scanned menu got
-  // named 豚骨拉麵 while 和風牛肉烏龍麵 sat in the database 100m away
-  // (docs/rnd/vision-naming-context.md). This is the one lookup that cannot run
-  // in parallel with vision — vision has to be TOLD the shortlist — so it is
-  // time-boxed and fails to an empty result, which sends the exact request this
-  // route sent before context existed.
-  const ctx = await fetchNameShortlist(supabase, dLat, dLng, eatenAt ?? Date.now());
+  // ── Item 3b auto-adoption is OFF (owner call, 2026-08-06) ──────────────────
+  // Vision is called context-blind again: no shortlist, no locale line. This is
+  // the request this route sent before 3b existed.
+  //
+  // WHY, precisely — because the obvious containment would not have worked.
+  // 3b showed vision the verbatim names off menus scanned within 250m/7d and
+  // invited it to match. Its GO was already withdrawn on 2026-08-04 (0c673eb)
+  // when the model-parity fix revealed the eval had measured qwen3.7-plus and
+  // not production; re-run on the real model, 3/5 adoptions were WRONG.
+  // docs/rnd/vision-naming-context.md ends "suppression should stay in place" —
+  // but there was never any suppression. Nothing gated it. The feature only
+  // looked inert because table_sessions carried no scan_lat until the 08-03
+  // wiring, so the lookup always returned empty. Three sessions got coords on
+  // 08-04; the first photo taken near one of them (08-06) produced the first
+  // real adoption in production and it was wrong: 壽司 photographed at
+  // 和斗壽司外賣專門店 came back named 刺身盛合定食（雞味噌汁附）, verbatim off
+  // NEIGHBOUR De Protein Box's menu (session CCQHK, 2 days earlier) — a shop the
+  // R&D doc had already named as a contaminator in its own GPS analysis.
+  //
+  // Note what is NOT the fix: dropping only the findAdoptedName write. Adoption
+  // is exact-modulo-cosmetic, so it fires only when vision ALREADY returned that
+  // name — it re-spelled a wrong answer, it did not invent one. The forced match
+  // happens in the PROMPT, which is why the whole context goes and not just the
+  // write. Prompt-tuning cannot fix it either: the refusal clause was already
+  // there and already measured (the doc's own read: contamination is fixable by
+  // scoping, forced-matching is not fixable by prompt).
+  //
+  // Dropping the lookup also takes its up-to-1.5s budget out of every photo
+  // log's wait, since it ran BEFORE vision by necessity.
+  //
+  // nameShortlist.ts / nameShortlistFetch.ts stay: the replacement (item 5's
+  // two-name pick — offer the menu match as a one-tap alternative, never
+  // auto-substitute) needs that vocabulary, and gets it restaurant-SCOPED via
+  // restaurant_id, which resolves client-side after this route has already run.
+  // That is the one join GPS cannot approximate. Nothing calls them until then,
+  // so nothing wrong can ship from them in the meantime.
 
   // Storage upload and vision inference only need the bytes — run them in PARALLEL.
   // They were sequential before, which added the full storage round-trip to every
   // log's wait time for no reason.
   const [{ error: upErr }, vision, district] = await Promise.all([
     supabase.storage.from('dish-photos').upload(path, bytes, { contentType: mediaType }),
-    inferDish(bytes.toString('base64'), mediaType, ctx),
+    inferDish(bytes.toString('base64'), mediaType),
     wantDistrict ? districtI18n(dLat, dLng).catch(() => null) : Promise.resolve(null),
   ]);
   if (upErr) return NextResponse.json({ error: upErr.message }, { status: 500 });
   const { data: pub } = supabase.storage.from('dish-photos').getPublicUrl(path);
-
-  // Vision answered with one of those menu items: take the menu's spelling, not
-  // the model's echo of it. Only the CHINESE is adopted — it is the menu's
-  // verbatim truth, while a menu's stored English is itself scan-model-authored
-  // and was measurably wrong on this very dish (the same menu printed "Pork
-  // Belly Noodles" against 和風牛肉烏龍麵). Vision's English is a fresh
-  // rendering anchored on the now-correct dish, which is the better of the two —
-  // the same reasoning canReauthorEnName() records for scan rows.
-  //
-  // What this deliberately does NOT do:
-  //  - touch name_edited_at. That means a HUMAN typed the name (AUTHORITY_HUMAN).
-  //    A machine adopting printed words must never claim it.
-  //  - link dish_identity_id. Identity merges permanently fuse two dishes'
-  //    rating histories, and dishIdentity.ts is explicit that the human is the
-  //    only merge author in the system (gate 3). Adopting the NAME delivers what
-  //    the field miss asked for — nobody retypes anything — and leaves the merge
-  //    to the existing confirm flow. A wrong name costs one tap; a wrong merge
-  //    costs a dish's history.
-  const adopted = findAdoptedName(vision.name_zh, ctx.shortlist);
-  // One structured line per photo log, matching the scan-telemetry convention:
-  // the kill criterion for this feature can only be judged on field evidence of
-  // what got adopted and how often.
-  console.log(`naming-shortlist candidates=${ctx.shortlist.length} district=${ctx.district?.en ?? 'none'} adopted=${adopted ? JSON.stringify(adopted) : 'no'}`);
 
   const { data: dish, error: dishErr } = await supabase
     .from('dishes')
@@ -134,11 +137,11 @@ export async function POST(req: NextRequest) {
       user_id: user.id,
       restaurant_id: restaurantId,
       name: vision.name,
-      name_zh: adopted ?? vision.name_zh,
-      // Stamped only on adoption, read by no code today: it is what makes a
-      // wrong adoption findable in field use, which is what the item's
-      // pre-agreed kill criterion has to be judged on.
-      name_from_menu_at: adopted ? new Date().toISOString() : null,
+      name_zh: vision.name_zh,
+      // Left null while auto-adoption is off (see the note above). The column
+      // stays: it is how the one wrong adoption that did ship was found, and
+      // item 5's picker will want the same audit trail for a TAPPED match.
+      name_from_menu_at: null,
       cuisine: vision.cuisine,
       photo_url: pub.publicUrl,
       attributes: vision.attributes,

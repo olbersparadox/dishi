@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
 import {
   buildShortlist, findAdoptedName,
   SHORTLIST_RADIUS_M, SHORTLIST_RECENCY_DAYS, SHORTLIST_CAP,
@@ -129,5 +130,43 @@ describe('visionUserText — additive-only, mechanically', () => {
     // The refusal clause carried 8 of 10 off-list cases in the measured run;
     // losing it turns a shortlist into a forced choice.
     expect(text).toContain('do not force a match');
+  });
+});
+
+// Source-level guard, same mechanism the SCAN_PROMPTS embedding test uses to stop
+// HK_MENU_SHORTHAND_GUIDANCE silently dropping out of a prompt site. The functions
+// above are still correct and still tested — they are kept for item 5's picker —
+// so nothing about THEM can tell you whether auto-adoption is wired up. Only the
+// call site can, and the call site is what shipped a wrong name.
+//
+// 2026-08-06: auto-adoption is OFF by owner decision after the first real
+// adoption in production was wrong (壽司 named 刺身盛合定食（雞味噌汁附） off a
+// NEIGHBOUR's menu). It had already lost its GO on 2026-08-04 when the
+// model-parity fix showed 3/5 adoptions wrong on the model production actually
+// runs; what let it ship anyway was that nothing enforced the "suppression" the
+// R&D doc assumed — the lookup was merely returning empty for want of scan_lat.
+// This test is that missing enforcement. Re-enabling must be a deliberate act
+// that also updates this test, not a quiet re-import.
+describe('/api/dishes — auto-adoption stays off until the picker replaces it', () => {
+  const route = readFileSync(
+    new URL('../src/app/api/dishes/route.ts', import.meta.url), 'utf8',
+  );
+  // Comments legitimately discuss both by name; only real code counts.
+  const code = route.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+
+  it('does not import the shortlist lookup or the adoption matcher', () => {
+    expect(code).not.toMatch(/import[\s\S]*?fetchNameShortlist/);
+    expect(code).not.toMatch(/import[\s\S]*?findAdoptedName/);
+  });
+
+  it('calls inferDish with no context argument', () => {
+    // The whole call line, so a third argument cannot hide past a nested ")".
+    const call = code.split('\n').find(l => l.includes('inferDish('));
+    expect(call).toBeDefined();
+    expect(call!.trim()).toBe("inferDish(bytes.toString('base64'), mediaType),");
+  });
+
+  it('never writes a name_from_menu_at stamp while adoption is off', () => {
+    expect(code).toMatch(/name_from_menu_at:\s*null/);
   });
 });
