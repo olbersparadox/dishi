@@ -1094,7 +1094,7 @@ export function drawCreatureFrame(
       // ends still clip flush against the rim instead of leaving a sliver
       const span = spanAt(yTop + 0.31 * h) * 1.04;
       ctx.strokeStyle = 'rgba(8,7,6,.62)'; // the gap the next plate slides into
-      ctx.lineWidth = Math.max(1.8, R * 0.085);
+    const bFrom = 2;
       trace(yTop + R * 0.05, span); ctx.stroke();
       ctx.strokeStyle = `rgba(${HILITE},.24)`; // lit top edge, drawn over it
       ctx.lineWidth = Math.max(1.4, R * 0.05);
