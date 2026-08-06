@@ -601,3 +601,72 @@ describe('MIN_LEAD — a lead smaller than one meal is not a lead', () => {
     expect(pickVariant({ lobster: 1.1 }, 'crab', 'lobster', 'shell', undefined)).toBe('lobster');
   });
 });
+
+/* ── G10: sub-node variants COEXIST — the takeover as a watchable process ─────
+   Owner, 2026-08-06: crab claws stay while "2 baby lobster claws" appear, grow
+   with the lobster habit, and only take over once crab stops. */
+import { clawSeats } from '../src/lib/creatureForm';
+
+describe('clawSeats — one pair per coexisting variant', () => {
+  const M = (shell: Record<string, number>): DomainEvidence => ({ sub: { shell } as any });
+
+  it('a first loved lobster appears IMMEDIATELY, without unseating the crab', () => {
+    const before = clawSeats(M({ crab: 4.5 }), 'metabolism', 0.9);
+    const after = clawSeats(M({ crab: 4.5, lobster: 1.5 }), 'metabolism', 0.9);
+    expect(before).toHaveLength(1);
+    expect(after).toHaveLength(2);                     // something happened, same day
+    expect(after[0].species).toBe('crab');             // crab still owns the prime seat
+    expect(after[0].sizeF).toBeCloseTo(before[0].sizeF, 6); // and is untouched by it
+    expect(after[1].species).toBe('lobster');
+    expect(after[1].sizeF).toBeLessThan(0.4);          // a BABY pair
+  });
+
+  it('the newcomer grows with its own habit, not the parent domain\'s', () => {
+    const young = clawSeats(M({ crab: 4.5, lobster: 1.5 }), 'metabolism', 0.9)[1].sizeF;
+    const older = clawSeats(M({ crab: 4.5, lobster: 4.0 }), 'metabolism', 0.9)[1].sizeF;
+    expect(older).toBeGreaterThan(young * 2);
+  });
+
+  it('the takeover is a SEAT SWAP, not an appearance — both pairs persist', () => {
+    const s = clawSeats(M({ crab: 2.2, lobster: 7.0 }), 'metabolism', 0.9);
+    expect(s[0].species).toBe('lobster');   // lobster now prime
+    expect(s[1].species).toBe('crab');      // crab demoted, still there
+    expect(s[1].sizeF).toBeLessThan(s[0].sizeF);
+  });
+
+  it('and the old variant leaves only when its own evidence sheds', () => {
+    const s = clawSeats(M({ crab: 0.4, lobster: 9.0 }), 'metabolism', 0.9);
+    expect(s).toHaveLength(1);
+    expect(s[0].species).toBe('lobster');
+  });
+
+  it('the two pairs never share a seat', () => {
+    const s = clawSeats(M({ crab: 4.5, lobster: 4.0 }), 'metabolism', 0.9);
+    expect(s[0].seat).not.toBe(s[1].seat);
+  });
+
+  it('prawn eating supports the prime claw — its gesture is unbuilt, not its evidence', () => {
+    // the owner's real profile: prawn-dominant with a little lobster. Sizing on
+    // lobster's 1.23 alone would draw a stub and throw away 5.64 of real eating.
+    const s = clawSeats(M({ prawn: 5.64, lobster: 1.23 }), 'metabolism', 0.9);
+    expect(s).toHaveLength(1);
+    expect(s[0].species).toBe('lobster');
+    expect(s[0].sizeF).toBeGreaterThan(0.9);
+  });
+
+  it('undifferentiated shell evidence still draws the parent gesture', () => {
+    const s = clawSeats(M({}), 'metabolism', 0.9);
+    expect(s).toHaveLength(1);
+    expect(s[0].sizeF).toBeCloseTo(0.5 + 0.5 * 0.9, 6); // exactly the legacy size
+  });
+
+  it('LEGACY is one pair at exactly today\'s size, whatever the sub-mix', () => {
+    const cases: Record<string, number>[] = [{ crab: 4.5, lobster: 4.0 }, { crab: 4.5 }, {}];
+    for (const shell of cases) {
+      const s = clawSeats(M(shell), 'legacy', 0.9);
+      expect(s).toHaveLength(1);
+      expect(s[0].seat).toBe(1.95);
+      expect(s[0].sizeF).toBeCloseTo(0.5 + 0.5 * 0.9, 6);
+    }
+  });
+});

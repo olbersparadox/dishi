@@ -630,6 +630,66 @@ export function pickVariant<K extends string>(
   return lo; // stable hold — a property of the pair, never of argument order
 }
 
+/* ── 螯 SEATS — sub-node variants COEXIST, they do not replace each other ─────
+   Owner, 2026-08-06: "a creature doesn't need to be limited to 2 hands. The
+   crab claws could stay, with 2 baby lobster claws sticking out from the body.
+   In time, if the user eats more and more lobster the 2 lobster claws grow
+   bigger, and if they stop eating crab, eventually the lobster claws take
+   over." Same principle one level down from G2's domain coexistence (claws AND
+   wings), and the owner's own reason for it: a bird eater grows wings while
+   keeping claws, a sea eater carries tentacles and legs at once — co-occurrence
+   is the common case in real eating, not the exception.
+
+   This REPLACES winner-take-all for claws, and in doing so dissolves the
+   flicker G9 was built to manage rather than merely damping it: there is no
+   species to pick, so there is nothing to flip. G9's ladder survives where it
+   is still needed — deciding which variant takes the PRIME seat here, and the
+   genuinely single-slot features (a leg has one foot; you cannot wear a hoof
+   and a trotter on the same ankle).
+
+   Sizing, per seat, from that variant's OWN evidence — which is what makes the
+   takeover a PROCESS the owner can watch instead of a jump cut:
+     - the prime seat also carries every shellfish event that has no gesture of
+       its own (prawn, and un-named dishes). Prawn pincers are unbuilt, so that
+       eating must still support the claw it is nearest to rather than vanish —
+       the framework's "an undifferentiated node falls back to its parent's
+       gesture" applied to size instead of shape.
+     - a second variant earns its own pair the moment it crosses SUB_BUD (one
+       loved dish), starting deliberately small: the owner's "baby claws". */
+const SUB_BUD = 1.2;    // one loved dish — the same bar a domain buds at
+const SUB_FORM = 6;     // a real habit in that variant specifically
+const CLAW_MIN = 0.28;  // a newborn pair reads as a small pincer, not a speck
+const CLAW_SEATS = [1.95, 1.52] as const; // prime, then higher up the flank
+
+export type ClawSeat = { species: ClawSpecies; sizeF: number; seat: number };
+
+export function clawSeats(
+  domains: DomainEvidence, mode: GrowthMode, clawF: number,
+): ClawSeat[] {
+  const bag = domains.sub?.shell;
+  const prime = pickVariant(bag, 'crab', 'lobster', 'shell', domains.duels);
+  // legacy is production and stays exactly one pair, exactly today's size
+  const single: ClawSeat[] = [{ species: prime, sizeF: 0.5 + 0.5 * clawF, seat: CLAW_SEATS[0] }];
+  if (mode !== 'metabolism') return single;
+
+  const evOf = (k: ClawSpecies) => Math.max(0, bag?.[k] ?? 0);
+  const ramp = (evd: number) =>
+    CLAW_MIN + (1 - CLAW_MIN) * smooth01((evd - SUB_BUD) / (SUB_FORM - SUB_BUD));
+  // shellfish eaten that no shipped gesture represents — folded into the prime
+  // seat so a prawn-heavy palate keeps a full-sized claw rather than a stub
+  const unallocated = Math.max(0, bag?.prawn ?? 0);
+  const other: ClawSpecies = prime === 'crab' ? 'lobster' : 'crab';
+  if (evOf(prime) + unallocated <= SUB_BUD && evOf(other) <= SUB_BUD) return single;
+
+  const seats: ClawSeat[] = [
+    { species: prime, sizeF: ramp(evOf(prime) + unallocated), seat: CLAW_SEATS[0] },
+  ];
+  if (evOf(other) > SUB_BUD) {
+    seats.push({ species: other, sizeF: ramp(evOf(other)), seat: CLAW_SEATS[1] });
+  }
+  return seats;
+}
+
 /** domOf through the same ladder: only the top TWO can be contested, so the
  *  three-way foot choice reduces to one pickVariant between them. Ordering the
  *  pair by mix (then by key, so an exact tie is still deterministic) is what
@@ -963,8 +1023,9 @@ export function drawCreatureFrame(
   // you could not read as a claw. The share gate is the slow one (it wants ~34%
   // share for full size), so mid-share eaters sat invisible for a long time.
   if (clawF > 0.12) {
-    const mix = subMix(domains.sub?.shell, ['lobster', 'crab', 'prawn']);
-    const species: ClawSpecies = pickVariant(domains.sub?.shell, 'crab', 'lobster', 'shell', domains.duels);
+    // one pair PER coexisting sub-node variant — see clawSeats. Legacy returns
+    // exactly one seat at exactly today's size, so production cannot move.
+    const seats = clawSeats(domains, mode, clawF);
     /* One ink for every body. The old `isSmooth ? SKIN.base : ...` existed
        because 滑's body was lighter back then and a dark claw looked stuck on
        — but that was tuned against ONE skin and never revisited as five more
@@ -972,11 +1033,11 @@ export function drawCreatureFrame(
        at the owner's call: 骨 parts wear neutral ink and never chase 膚's
        colour. One rule beats six special cases. */
     const clawInk = 'rgba(33,29,24,.93)';
+    for (const { species, sizeF, seat } of seats) {
     // Once earned, a claw reads as a claw: the ramp spans 0.5→1.0 rather than
     // 0→1, so the youngest claw the gates allow is still half-size and visibly
     // a pincer, and growth after that is legible rather than a slow fade-in
     // from nothing. The bud stage (萌) lives in the GATES now, where it belongs.
-    const sizeF = 0.5 + 0.5 * clawF;
     const [sL, sR] = species === 'lobster' ? [1.22, 0.82] : [1, 1];
     // the calibrated gesture holds its proportions against a body of half-width
     // 0.62·R_claw with the wrist at 0.48·R_claw from centre; here the wrist
@@ -1004,12 +1065,13 @@ export function drawCreatureFrame(
     // tradeoff the owner corrected this round for being un-asked-for.
     const WRIST_BURIAL = species === 'lobster' ? 0.96 : 0.82;
     for (const side of [-1, 1] as const) {
-      const p = flank(side, 1.95);
+      const p = flank(side, seat);
       const bx = BB.cx + (p.x - BB.cx) * WRIST_BURIAL, by = BB.cy + (p.y - BB.cy) * WRIST_BURIAL;
       const mo = clawMotion(t, side);
       const ang = side > 0 ? CLAW_AXIS + mo.sway : Math.PI - CLAW_AXIS + mo.sway;
       const drawFn = species === 'lobster' ? drawLobsterClaw : drawCrabClaw;
       drawFn(ctx, bx, by, ang, Rclaw, sizeF * (side < 0 ? sL : sR), mo, clawInk);
+      }
     }
   }
   // 足 legs

@@ -5045,3 +5045,87 @@ equally". Byte-identity re-proven across nine lives INCLUDING the owner's real
 live profile — only the exact-tie fixture (pork 8 = chicken 8) changes, which
 is the contested case itself, and where the old answer was arbitrary
 (Object.keys order) rather than chosen.
+
+## G10. Sub-nodes need a VISIBLE BIRTH — the takeover as a process — *(Opus)* — ✅ SHIPPED 2026-08-06
+Owner, watching the metabolism timeline: "the user ate 3 crabs (already have
+the crab claw), then ate a lobster on day 123, loved it — and nothing would
+happen? We may not need the lobster claw to take over the crab right away, but
+it should show SOMETHING. How do we visualise this as a PROCESS — that's what
+the metabolism timeline is for."
+
+The gap, exactly: 萌→成→精 applies to DOMAIN nodes (shell, land, air), so a
+first loved shellfish dish visibly buds a claw. It does NOT apply to SUB-nodes
+(crab vs lobster), which are resolved by a winner-take-all switch. A minority
+sub-node is therefore INVISIBLE until the moment it wins, and then the whole
+gesture changes at once — a jump cut where the design promises a process.
+
+The framework already mandates the fix and one limb already obeys it. The
+blend rule (lab v5): "limb GEOMETRY blends continuously with the sub-node mix;
+the TERMINAL DETAIL takes the dominant sub-node, because a blended foot at
+thumbnail size is mud." Measured 2026-08-06:
+  - LEGS obey it — `len` and `w` in drawLeg are continuous functions of the
+    beef/pork/chicken mix; only hoof/trotter/toes switches.
+  - CLAWS do not — the whole gesture switches on `species`, and `mix` is
+    computed and then never read. (It became fully dead when G9 re-pointed the
+    species pick at the raw bag; either give it this job or delete it.)
+
+Proposal — blend the claw's OUTER geometry, keep the pincer as terminal detail:
+  - `sL/sR` asymmetry: 蟹 1.00/1.00 ↔ 龍蝦 1.22/0.82, interpolated by the mix
+  - `WRIST_BURIAL` (reach): 蟹 0.82 ↔ 龍蝦 0.96, interpolated
+  - `drawFn` (the pincer itself) still SWITCHES at dominance — the culmination
+Both endpoints are owner-calibrated and are preserved exactly at a pure mix, so
+no existing single-species being moves; only genuinely mixed palates change.
+Cheap, and it touches no gesture interior.
+
+The timeline that produces, on the owner's own scenario:
+  day 0-120  3 crabs          → crab claws, symmetric, tucked
+  day 123    first lobster, loved → arms visibly reach out and asymmetry
+                                    APPEARS, pincers still crab. Something
+                                    happened, the same day, without lying
+                                    about who is dominant.
+  day 200+   more lobster     → the lean deepens continuously
+  day ~300   lobster overtakes → the pincer flips. The takeover now READS as
+                                 the end of a process the person watched.
+Pairs with G5, which would NAME the moment on the growth screen (「龍蝦 · 第一次」).
+
+General principle to apply to every family, not just claws: a sub-node's first
+evidence must produce a visible change, even while another variant still owns
+the terminal detail.
+
+
+**The owner then made it better than the recorded proposal.** Rather than
+BLENDING one pair's geometry toward the newcomer, variants COEXIST: "the crab
+claws could stay, with 2 baby lobster claws sticking out from the body. In
+time, if the user eats more lobster the lobster claws grow bigger, and if they
+stop eating crab, eventually the lobster claws take over." Their reason
+generalises the principle: a bird eater keeps claws AND grows wings, a sea
+eater carries tentacles AND legs — co-occurrence is the common case in real
+eating. G2 established that for domains; this is the same rule one level down.
+
+Shipped as `clawSeats()` in creatureForm.ts: one pair per qualifying variant,
+each on its own flank seat (prime 1.95, second 1.52), each sized by its OWN
+sub-node evidence through its own bud→form ramp. Shellfish with no shipped
+gesture (prawn, un-named dishes) folds into the PRIME seat's size, so a
+prawn-dominant palate keeps a full-size claw instead of a stub — the
+framework's "an undifferentiated node falls back to its parent's gesture",
+applied to size rather than shape.
+
+**This dissolves the G9 flicker for claws rather than damping it** — with
+coexistence there is no species to pick, so there is nothing to flip. G9's
+ladder survives where it is still load-bearing: choosing which variant takes
+the PRIME seat, and the genuinely single-slot features (a leg has one foot;
+you cannot wear a hoof and a trotter on one ankle).
+
+Verified as a timeline, which is the point:
+  3 crabs                → crab@prime 0.83
+  + first loved lobster  → crab@prime 0.83  +  lobster@second 0.29   (same day)
+  lobster habit forming  → crab@prime 0.83  +  lobster@second 0.73
+  crab stops             → lobster@prime 1.00 + crab@second 0.36     (seat swap)
+  crab shed              → lobster@prime 1.00
+The prime pair's size is untouched by the newcomer's arrival, so nothing is
+taken away to pay for the new thing.
+
+metabolism mode only; legacy returns exactly one pair at exactly today's size.
+Byte-identity re-proven across nine lives including the owner's real live
+profile — all nine IDENTICAL. 8 new tests; full suite 1344/1344, tsc clean.
+Also cleared the dead `mix` variable in the claw block, orphaned by G9.
