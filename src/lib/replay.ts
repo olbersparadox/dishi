@@ -6,7 +6,10 @@ import {
   calibratedScore, isExecutionConfounded, isExecutionSibling,
   type TasteVector, type EvidenceMap, type ExecutionSiblingKey,
 } from './taste';
-import { accumulateDomains, emptyDomainEvidence } from './domainEvidence';
+import {
+  accumulateDomains, emptyDomainEvidence,
+  accumulateDomainsT, emptyDomainEvidenceT, type DomainEvidenceT,
+} from './domainEvidence';
 import type { DomainEvidence } from './creatureForm';
 
 /**
@@ -55,6 +58,11 @@ export async function replayProfile(
    *  same anatomy out, at any time. Deliberately carries NO wall-clock decay for
    *  that reason — "absence fades" belongs at read time, against updated_at. */
   domain_evidence: DomainEvidence;
+  /** The TIMED sibling (G1, growth program): same events, same weights, plus a
+   *  {v, at} clock per node so the metabolism can decay it at read time via
+   *  domainsAsOf. Rebuilt in the same walk — the two records can only disagree
+   *  about how much of the evidence time has kept, never about what was eaten. */
+  domain_evidence_t: DomainEvidenceT;
   replayed: number;
   /** Per dish_id, the neutral point that dish's rating was scored against. */
   centers: Record<string, number>;
@@ -162,6 +170,7 @@ export async function replayProfile(
   let evidence: EvidenceMap = {};
   let affinity: Record<string, number> = {};
   let domains: DomainEvidence = emptyDomainEvidence();
+  let domainsT: DomainEvidenceT = emptyDomainEvidenceT();
   let replayed = 0; // ratings only — preserves rating_count-mirroring semantics
   const priorScores: number[] = []; // raw scores of ratings already applied
   // The centre each dish's rating actually learned from, so a caller can report
@@ -178,12 +187,14 @@ export async function replayProfile(
       // Domains learn from the CALIBRATED score, like the vector: a person whose
       // flicks run cold must not read as disliking everything they eat.
       domains = accumulateDomains(domains, e.domain, learned);
+      domainsT = accumulateDomainsT(domainsT, e.domain, learned, e.t);
       priorScores.push(e.score);
       replayed++;
     } else if (e.kind === 'exposure') {
       // Ate it; the flick told us nothing (see above). Neutral weight — passing
       // the score that makes DOMAIN_EXPOSURE the whole contribution.
       domains = accumulateDomains(domains, e.domain, 0);
+      domainsT = accumulateDomainsT(domainsT, e.domain, 0, e.t);
     } else if (e.kind === 'duel') {
       vector = updateTasteFromDuel(vector, evidence, e.winner, e.loser);
       evidence = bumpEvidenceFromDuel(evidence, e.winner, e.loser);
@@ -197,5 +208,5 @@ export async function replayProfile(
   // the learning rate. Execution-confounded ones are added back: the person did
   // rate the dish, so gates built on rating_count (the seal gate, export
   // confidence) must still see it — only the palate ignores it.
-  return { vector, evidence, cuisine_affinity: affinity, domain_evidence: domains, replayed: replayed + confounded, centers, confounded };
+  return { vector, evidence, cuisine_affinity: affinity, domain_evidence: domains, domain_evidence_t: domainsT, replayed: replayed + confounded, centers, confounded };
 }

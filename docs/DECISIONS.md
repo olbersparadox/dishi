@@ -4973,3 +4973,20 @@ for the anatomy to be finished, because it never will be.
 **Immediate consequence:** onboarding is now free to be designed around the
 creature (Claude Design brief), since the being it stars is live rather than
 pending.
+
+
+# Batch: 墨靈 growth program (2026-08-06, owner brief → Fable design)
+
+## G1. Timed metabolism (accumulator v2 + domainsAsOf adapter) — *(Fable)* — ✅ SHIPPED 2026-08-06
+Continuous-time EMA on the FEEDING clock — rating created_at, the order the
+replay walk already runs in (HALF_LIFE ~120d; no re-sort, no eaten-date
+plumbing). Invisible until G2 reads it. Renderer contract unchanged.
+
+Shipped as: `DOMAIN_HALF_LIFE_MS` + `accumulateDomainsT` + `domainsAsOf` in
+`src/lib/domainEvidence.ts`; threaded through the replay walk (same events,
+same weights — pinned by a same-instant equivalence test against the plain
+record); persisted to `taste_profiles.domain_evidence_t` (migration recorded
+in supabase/applied/) from all five write sites (ratings both branches,
+execution, my/dishes ×2, enrich). 11 new tests. Nothing reads the record in
+production yet — that door opens at G2, which must begin with a one-off
+replay backfill (existing rows hold '{}' until any write triggers replay).

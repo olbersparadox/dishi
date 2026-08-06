@@ -142,10 +142,10 @@ Only the first half exists:
 |---|---|
 | 萌 bud · 成 formed | **SHIPPED** (the share + floor gates) |
 | 精 articulated | **PARTIAL** — claws have their own idle gesture; no general articulation stage |
-| 萎 atrophy | **NOT BUILT** — `domainEvidence.ts` is deliberately a pure function of history with NO wall-clock decay |
-| 蛻 shed | **NOT BUILT** |
+| 萎 atrophy | **MECHANISM BUILT, NOT YET VISIBLE** — G1 (2026-08-06) ships the timed record (`accumulateDomainsT` + `taste_profiles.domain_evidence_t`) and the `domainsAsOf` read adapter; the renderer still reads the PLAIN record until G2, so nothing on screen decays yet. The plain aggregate stays decay-free by design |
+| 蛻 shed | **NOT BUILT** (G2 crossing detection) |
 | 圖鑑 molt archive | **NOT BUILT** — this is what makes the being a biography rather than a snapshot |
-| evidence half-life | **UNTUNED** — open question; proposal ~3–4 months |
+| evidence half-life | **SET, PENDING TUNE** — `DOMAIN_HALF_LIFE_MS` = 120 days (G1); the owner tunes it on G2's time-travel harness |
 
 This is the largest conceptual gap in the whole framework. "Nothing is set in
 stone" is the owner's central metabolism direction, and today the body can only

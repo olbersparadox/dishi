@@ -177,3 +177,107 @@ describe('classifyDish — substring collisions in the sub-node vocabulary', () 
       .toEqual(['chicken']);
   });
 });
+
+/* ── the TIMED record (G1, growth program) ────────────────────────────────────
+   docs/rnd/mokling-growth-rnd.md Decision 2. The metabolism tests are honesty
+   tests too: the two records may never disagree about WHAT was eaten (pinned
+   by the same-instant equivalence), decay follows the half-life exactly,
+   negatives carve immediately while absence only fades, and the read adapter
+   fails closed to the blob on anything legacy or empty. */
+import {
+  accumulateDomainsT, domainsAsOf, emptyDomainEvidenceT, DOMAIN_HALF_LIFE_MS,
+} from '../src/lib/domainEvidence';
+
+const DAY = 24 * 60 * 60 * 1000;
+const T0 = 1_700_000_000_000; // fixed epoch — determinism is part of the contract
+
+describe('accumulateDomainsT — the feeding clock', () => {
+  it('same-instant events reproduce the plain record exactly (weights are unchanged)', () => {
+    const meals = [
+      dish({ diet: ['seafood', 'shellfish'], name_zh: '蟹' }),
+      dish({ diet: ['pork'] }),
+      dish({ diet: ['chicken'] }),
+      dish({ diet: ['veg'], ingredients: ['shiitake'] }),
+    ];
+    const scores = [0.8, -0.6, 0, 0.3];
+    let plain = emptyDomainEvidence();
+    let timed = emptyDomainEvidenceT();
+    meals.forEach((m, i) => {
+      plain = accumulateDomains(plain, m, scores[i]);
+      timed = accumulateDomainsT(timed, m, scores[i], T0); // all at one instant → no decay
+    });
+    const read = domainsAsOf(timed, T0);
+    for (const k of ['sea', 'shell', 'land', 'air', 'field', 'fungus'] as const) {
+      expect(read[k] ?? 0).toBeCloseTo(plain[k] ?? 0, 10);
+    }
+    expect(read.sub?.shell?.crab ?? 0).toBeCloseTo(plain.sub?.shell?.crab ?? 0, 10);
+  });
+
+  it('halves in exactly one half-life, quarters in two', () => {
+    const t = accumulateDomainsT(emptyDomainEvidenceT(), dish({ diet: ['seafood'] }), 0.5, T0);
+    expect(domainsAsOf(t, T0).sea).toBeCloseTo(1.0, 10); // 0.5 exposure + 0.5 score
+    expect(domainsAsOf(t, T0 + DOMAIN_HALF_LIFE_MS).sea).toBeCloseTo(0.5, 10);
+    expect(domainsAsOf(t, T0 + 2 * DOMAIN_HALF_LIFE_MS).sea).toBeCloseTo(0.25, 10);
+  });
+
+  it('decays between events, then adds — order and spacing both matter', () => {
+    let t = accumulateDomainsT(emptyDomainEvidenceT(), dish({ diet: ['seafood'] }), 0.5, T0);
+    t = accumulateDomainsT(t, dish({ diet: ['seafood'] }), 0.5, T0 + DOMAIN_HALF_LIFE_MS);
+    // 1.0 halved to 0.5, plus the new 1.0
+    expect(domainsAsOf(t, T0 + DOMAIN_HALF_LIFE_MS).sea).toBeCloseTo(1.5, 10);
+  });
+
+  it('negatives carve immediately; the floor is zero, never debt', () => {
+    let t = accumulateDomainsT(emptyDomainEvidenceT(), dish({ diet: ['pork'] }), 0.5, T0);
+    t = accumulateDomainsT(t, dish({ diet: ['pork'] }), -1, T0); // weight −0.5
+    expect(domainsAsOf(t, T0).land).toBeCloseTo(0.5, 10);
+    t = accumulateDomainsT(t, dish({ diet: ['pork'] }), -1, T0);
+    t = accumulateDomainsT(t, dish({ diet: ['pork'] }), -1, T0);
+    expect(domainsAsOf(t, T0).land ?? 0).toBe(0); // carved to nothing, not below
+  });
+
+  it('sub-bags stay positive-only and ride the same clock', () => {
+    let t = accumulateDomainsT(
+      emptyDomainEvidenceT(), dish({ diet: ['seafood', 'shellfish'], name_zh: '龍蝦' }), 0.5, T0);
+    // a dislike neither grows nor re-answers "which crustacean"
+    t = accumulateDomainsT(
+      t, dish({ diet: ['seafood', 'shellfish'], name_zh: '龍蝦' }), -1, T0);
+    expect(domainsAsOf(t, T0).sub?.shell?.lobster).toBeCloseTo(1.0, 10);
+    expect(domainsAsOf(t, T0 + DOMAIN_HALF_LIFE_MS).sub?.shell?.lobster).toBeCloseTo(0.5, 10);
+  });
+
+  it('a dish that says nothing about domain leaves the record untouched', () => {
+    const t = accumulateDomainsT(emptyDomainEvidenceT(), dish({ diet: ['egg'] }), 1, T0);
+    expect(t).toEqual(emptyDomainEvidenceT());
+  });
+
+  it('clock skew cannot grow evidence: an out-of-order event decays nothing', () => {
+    let t = accumulateDomainsT(emptyDomainEvidenceT(), dish({ diet: ['seafood'] }), 0.5, T0);
+    t = accumulateDomainsT(t, dish({ diet: ['seafood'] }), 0.5, T0 - DAY); // Δt clamped to 0
+    expect(domainsAsOf(t, T0).sea).toBeCloseTo(2.0, 10);
+  });
+});
+
+describe('domainsAsOf — the read adapter fails closed', () => {
+  it('legacy / missing / empty records all read as the blob', () => {
+    expect(domainsAsOf(undefined, T0)).toEqual({});
+    expect(domainsAsOf(null, T0)).toEqual({});
+    expect(domainsAsOf({}, T0)).toEqual({});
+    expect(hasAnatomy(domainsAsOf({}, T0))).toBe(false);
+  });
+
+  it('emits the renderer shape — hasAnatomy accepts a lived record', () => {
+    const t = accumulateDomainsT(emptyDomainEvidenceT(), dish({ diet: ['seafood'] }), 0.5, T0);
+    expect(hasAnatomy(domainsAsOf(t, T0))).toBe(true);
+  });
+
+  it('is deterministic: same history and asOf, byte-identical output', () => {
+    const build = () => {
+      let t = emptyDomainEvidenceT();
+      t = accumulateDomainsT(t, dish({ diet: ['seafood', 'shellfish'], name_zh: '蟹' }), 0.7, T0);
+      t = accumulateDomainsT(t, dish({ diet: ['pork'] }), -0.2, T0 + 30 * DAY);
+      return domainsAsOf(t, T0 + 90 * DAY);
+    };
+    expect(JSON.stringify(build())).toBe(JSON.stringify(build()));
+  });
+});

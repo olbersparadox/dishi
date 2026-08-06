@@ -157,7 +157,8 @@ export async function POST(req: NextRequest) {
         user_id: user.id,
         vector: rebuilt.vector,
         cuisine_affinity: rebuilt.cuisine_affinity,
-          domain_evidence: rebuilt.domain_evidence,
+        domain_evidence: rebuilt.domain_evidence,
+        domain_evidence_t: rebuilt.domain_evidence_t,
         evidence: rebuilt.evidence,
         updated_at: new Date().toISOString(),
       });

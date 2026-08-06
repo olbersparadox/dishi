@@ -214,3 +214,109 @@ export function accumulateDomains(
 export function emptyDomainEvidence(): DomainEvidence {
   return {};
 }
+
+/* ── the TIMED record — G1 of the growth program ──────────────────────────────
+   docs/rnd/mokling-growth-rnd.md, Decision 2. The metabolism (萎 atrophy,
+   蛻 shed) needs evidence that FADES, and the plain record above cannot say
+   when anything happened. This record carries {v, at} per node — evidence v as
+   of feeding-time `at` — and decays it as a continuous-time EMA:
+
+     decay(v, Δt) = v · 2^(−Δt / HALF_LIFE)
+
+   The clock is FEEDING time (the rating's created_at): the creature is fed by
+   the act of rating, so a 2023 photo rated tonight feeds at full strength
+   tonight. Eaten-date discounting was proposed and REJECTED by the owner
+   (2026-08-06) — old photos never count less; do not re-key this to eaten_at.
+
+   Still a pure function — of (history, asOf) — so replay rebuilds it and a
+   re-rate heals the body exactly as it heals the palate. Written ALONGSIDE the
+   plain record; nothing in production reads it until G2 switches the renderer
+   to `domainsAsOf`. Both accumulators run from the same classifyDish/weight
+   arithmetic, so with all events at one instant the two records agree exactly
+   — pinned by test. */
+
+/** ~120 days: stable day-to-day, transforms over seasons. G2's harness slider
+ *  is where the owner tunes it — change it there, not casually here. */
+export const DOMAIN_HALF_LIFE_MS = 120 * 24 * 60 * 60 * 1000;
+
+export type TimedNode = { v: number; at: number };
+export type DomainEvidenceT = {
+  nodes?: Partial<Record<Domain, TimedNode>>;
+  sub?: {
+    shell?: Partial<Record<'lobster' | 'crab' | 'prawn', TimedNode>>;
+    land?: Partial<Record<'beef' | 'pork' | 'chicken', TimedNode>>;
+  };
+};
+
+const decayV = (v: number, dtMs: number): number =>
+  v * Math.pow(2, -Math.max(0, dtMs) / DOMAIN_HALF_LIFE_MS);
+
+/** Decay-then-add against one node. `at` may only move forward — replay walks
+ *  events in feeding order, and a clamped Δt keeps clock skew harmless. */
+function feedNode(prev: TimedNode | undefined, atMs: number, weight: number): TimedNode {
+  const decayed = prev ? decayV(prev.v, atMs - prev.at) : 0;
+  return { v: Math.max(0, decayed + weight), at: prev ? Math.max(prev.at, atMs) : atMs };
+}
+
+/** Fold one rated dish into the timed record. Same classify, same weight
+ *  arithmetic as accumulateDomains — the records may never disagree about
+ *  WHAT was eaten, only about how much of it time has kept. */
+export function accumulateDomainsT(
+  prev: DomainEvidenceT,
+  dish: Parameters<typeof classifyDish>[0],
+  score: number,
+  atMs: number,
+): DomainEvidenceT {
+  const { domains, shellSub, landSub } = classifyDish(dish);
+  if (domains.length === 0) return prev;
+
+  const weight = (DOMAIN_EXPOSURE + score) / domains.length;
+  const nodes = { ...(prev.nodes ?? {}) };
+  for (const d of domains) nodes[d] = feedNode(nodes[d], atMs, weight);
+  const next: DomainEvidenceT = { ...prev, nodes };
+
+  const subWeight = Math.max(0, DOMAIN_EXPOSURE + score);
+  if (shellSub.length && subWeight > 0) {
+    const bag = { ...(next.sub?.shell ?? {}) };
+    for (const k of shellSub) bag[k] = feedNode(bag[k], atMs, subWeight / shellSub.length);
+    next.sub = { ...next.sub, shell: bag };
+  }
+  if (landSub.length && subWeight > 0) {
+    const bag = { ...(next.sub?.land ?? {}) };
+    for (const k of landSub) bag[k] = feedNode(bag[k], atMs, subWeight / landSub.length);
+    next.sub = { ...next.sub, land: bag };
+  }
+  return next;
+}
+
+/** The read adapter: decay every node to `nowMs` and emit the plain
+ *  DomainEvidence shape the renderer has always eaten. G2's consumers call
+ *  this; the renderer contract itself never changes. A missing / legacy /
+ *  empty record yields {} — hasAnatomy reads that as "render the blob", so
+ *  the door fails closed exactly as it always has. */
+export function domainsAsOf(t: DomainEvidenceT | null | undefined, nowMs: number): DomainEvidence {
+  if (!t?.nodes) return {};
+  const out: DomainEvidence = {};
+  for (const d of DOMAINS) {
+    const n = t.nodes[d];
+    if (n && n.v > 0) out[d] = decayV(n.v, nowMs - n.at);
+  }
+  const readBag = <K extends string>(bag: Partial<Record<K, TimedNode>> | undefined) => {
+    if (!bag) return undefined;
+    const o: Partial<Record<K, number>> = {};
+    let any = false;
+    for (const k of Object.keys(bag) as K[]) {
+      const n = bag[k];
+      if (n && n.v > 0) { o[k] = decayV(n.v, nowMs - n.at); any = true; }
+    }
+    return any ? o : undefined;
+  };
+  const shell = readBag(t.sub?.shell);
+  const land = readBag(t.sub?.land);
+  if (shell || land) out.sub = { ...(shell && { shell }), ...(land && { land }) };
+  return out;
+}
+
+export function emptyDomainEvidenceT(): DomainEvidenceT {
+  return {};
+}

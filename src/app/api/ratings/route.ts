@@ -3,7 +3,7 @@ import { supabaseServer, supabaseAdmin } from '@/lib/supabase/server';
 import { extractVoiceSignal } from '@/lib/voice';
 import { updateTaste, updateCuisineAffinity, bumpEvidence, emptyTaste, taughtDims, calibratedScore, executionRangeFor, type TasteVector } from '@/lib/taste';
 import { replayProfile } from '@/lib/replay';
-import { accumulateDomains } from '@/lib/domainEvidence';
+import { accumulateDomains, accumulateDomainsT, type DomainEvidenceT } from '@/lib/domainEvidence';
 import type { DomainEvidence } from '@/lib/creatureForm';
 import { directionOf, outcomeOf } from '@/lib/seal';
 import { fetchRatedRows, findExecutionReference, type ExecRow } from '@/lib/executionOffer';
@@ -73,6 +73,7 @@ export async function POST(req: NextRequest) {
   let nextAffinity: Record<string, number>;
   let nextEvidence = evidence;
   let nextDomains: DomainEvidence;
+  let nextDomainsT: DomainEvidenceT;
   const nextCount = isRerate ? count : count + 1;
   // What this flick actually taught, after centring on the person's own neutral
   // point. Set by whichever branch runs; the "you just taught me" feedback below
@@ -98,6 +99,7 @@ export async function POST(req: NextRequest) {
     nextAffinity = rebuilt.cuisine_affinity;
     nextEvidence = rebuilt.evidence;
     nextDomains = rebuilt.domain_evidence;
+    nextDomainsT = rebuilt.domain_evidence_t;
     // Replay scored this dish against the centre AS IT STOOD at the dish's own
     // position in history — not at the end of it, which is where a re-rate sits
     // in wall-clock time but not in the event stream. Taking the centre replay
@@ -128,6 +130,11 @@ export async function POST(req: NextRequest) {
     // incremental/replay split cuisine affinity already uses.
     nextDomains = accumulateDomains(
       (profile?.domain_evidence ?? {}) as DomainEvidence, dish as any, learnedScore);
+    // The timed sibling feeds at NOW — the feeding clock is the rating moment,
+    // which is exactly when this handler runs. Replay reproduces the same value
+    // from the row's created_at.
+    nextDomainsT = accumulateDomainsT(
+      (profile?.domain_evidence_t ?? {}) as DomainEvidenceT, dish as any, learnedScore, Date.now());
   }
 
   const { error: tasteErr } = await supabase.from('taste_profiles').upsert({
@@ -135,6 +142,7 @@ export async function POST(req: NextRequest) {
     vector: nextVector,
     cuisine_affinity: nextAffinity,
     domain_evidence: nextDomains,
+    domain_evidence_t: nextDomainsT,
     rating_count: nextCount,
     evidence: nextEvidence,
     updated_at: new Date().toISOString(),

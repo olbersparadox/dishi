@@ -498,6 +498,7 @@ export async function PATCH(req: NextRequest) {
           evidence: rebuilt.evidence,
           cuisine_affinity: rebuilt.cuisine_affinity,
           domain_evidence: rebuilt.domain_evidence,
+          domain_evidence_t: rebuilt.domain_evidence_t,
           updated_at: new Date().toISOString(),
         }).eq('user_id', user.id);
         relearned = true;
@@ -553,7 +554,8 @@ export async function DELETE(req: NextRequest) {
         vector: rebuilt.vector,
         evidence: rebuilt.evidence,
         cuisine_affinity: rebuilt.cuisine_affinity,
-          domain_evidence: rebuilt.domain_evidence,
+        domain_evidence: rebuilt.domain_evidence,
+        domain_evidence_t: rebuilt.domain_evidence_t,
         rating_count: rebuilt.replayed,
         updated_at: new Date().toISOString(),
       }).eq('user_id', user.id);
