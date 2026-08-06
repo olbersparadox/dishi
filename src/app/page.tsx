@@ -1,11 +1,26 @@
 'use client';
-import { Fragment, useState } from 'react';
+import { Fragment, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import AuthGate from '@/components/AuthGate';
 import MyDishes, { JournalSkeleton } from '@/components/MyDishes';
 import FeedList from '@/components/FeedList';
 import DailyInteractions from '@/components/DailyInteractions';
 import { useLang } from '@/lib/i18n';
+
+// Swipe between 食自己/大家食 (trial, owner call 2026-08-05 — nice-to-have, easy
+// to revert as a single commit if it doesn't feel right on a real device).
+// Two deliberate guards so this never fights something more important:
+//  - EDGE_GUARD: a swipe starting near the screen edge is left alone entirely,
+//    because that's also the gesture iOS/Android/desktop browsers use for
+//    page-history back/forward — stealing it there would break navigation,
+//    not just the tab switch.
+//  - SWIPE_RATIO: horizontal movement must dominate vertical by this much, so
+//    scrolling the (vertical) journal list never gets misread as a tab swipe.
+// Decided at touchend only, and touchmove is never listened to or
+// preventDefault'd — normal scrolling is untouched either way.
+const EDGE_GUARD = 24;
+const SWIPE_THRESHOLD = 60;
+const SWIPE_RATIO = 2;
 
 /** AuthGate's fallback while the session check is in flight — the SAME
  * skeleton rows MyDishes shows a moment later for its own data fetch (not a
@@ -74,8 +89,25 @@ function Journal() {
     router.replace(key === 'feed' ? '/?tab=feed' : '/', { scroll: false });
   };
 
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
+  const onTouchStart = (e: React.TouchEvent) => {
+    const p = e.touches[0];
+    const nearEdge = p.clientX < EDGE_GUARD || p.clientX > window.innerWidth - EDGE_GUARD;
+    touchStart.current = nearEdge ? null : { x: p.clientX, y: p.clientY };
+  };
+  const onTouchEnd = (e: React.TouchEvent) => {
+    const start = touchStart.current;
+    touchStart.current = null;
+    if (!start) return;
+    const p = e.changedTouches[0];
+    const dx = p.clientX - start.x;
+    const dy = p.clientY - start.y;
+    if (Math.abs(dx) < SWIPE_THRESHOLD || Math.abs(dx) < Math.abs(dy) * SWIPE_RATIO) return;
+    selectTab(dx < 0 ? 'feed' : 'mine');
+  };
+
   return (
-    <div>
+    <div onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
       {/* The two tabs ARE the heading — same display type, the inactive one
           dimmed. No new tab chrome: the page keeps one title-sized line. A
           hairline divider separates them; whichever tab is INACTIVE reads
