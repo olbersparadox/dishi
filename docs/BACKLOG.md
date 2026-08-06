@@ -1324,12 +1324,7 @@ ship. Go/no-go gate for the metabolism. LANDING STEP: existing users'
 domain_evidence_t is '{}' until a write triggers replay — G2 must open with
 a one-off replay backfill for all real profiles, or bodies would blob out.
 
-## G3. Sub-node detectors: air (free), lamb, sea fish/cephalopod, field — *(Sonnet, spec in doc)*
-domainEvidence.ts patterns; 魚香 tripwire; cephalopod-before-fish ordering;
-guard the latent 田雞-matches-雞 misread in LAND_SUB; unit tests per
-family. Invisible (fills bags nothing reads yet). (Part morphemes were cut:
-plate-names-the-part REJECTED by owner — parts represent the animal, never
-the cut eaten.)
+(G3 shipped 2026-08-06 — see DECISIONS.md, same batch heading.)
 
 ## G4. Gesture ports, one per round, owner sign-off each — *(Fable first pass each)*
 Prawn pincers FIRST (detector already live today). Then 翼 雞/鴨鵝 variants,

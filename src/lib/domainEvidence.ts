@@ -76,12 +76,51 @@ const SHELL_SUB: [('lobster' | 'crab' | 'prawn'), string[]][] = [
   ['crab', ['膏蟹', '花蟹', '蟹', 'crab']],
   ['prawn', ['蝦', 'prawn', 'shrimp', '海老']], // 蝦 last: it lives inside 龍蝦
 ];
-const LAND_SUB: [('beef' | 'pork' | 'chicken'), string[]][] = [
+// 田雞 (frog) is struck to NOTHING before any family runs — not mapped to a
+// domain (frog has no taxonomy node today), just removed so the bare 雞
+// morpheme below cannot misread it as chicken. Global, not LAND_SUB-scoped:
+// frog has no other claim in this vocabulary either.
+const VOID_WORDS = ['田雞'];
+const LAND_SUB: [('beef' | 'pork' | 'chicken' | 'lamb'), string[]][] = [
   // no bare 'ham': it fires inside hamburger (a BEEF dish) and hamachi (a fish).
   // 火腿 is the unambiguous Chinese term and carries the real signal here.
   ['pork', ['叉燒', '肉餅', '火腿', '豬', 'pork', 'bacon', 'char siu']],
   ['beef', ['牛', 'beef', 'steak', 'wagyu', 'brisket', 'hamburg']],
-  ['chicken', ['雞髀', '雞', 'chicken']],
+  ['chicken', ['雞髀', '雞', 'chicken']], // 田雞 already struck — see VOID_WORDS
+  ['lamb', ['羊', 'lamb', 'mutton']],
+];
+/* ── G3 additions (growth R&D Decision 4) — air/sea/field sub-nodes ────────────
+   Same discipline as above: split a domain the flags/ingredients already
+   established, never author one. */
+
+// air: FLAG-derived, not morpheme — chicken vs duck_goose is exactly the split
+// FLAG_DOMAINS already makes and discards, so reading dish.diet again is
+// cheaper and more reliable than searching the name for it.
+const AIR_FLAGS: ('chicken' | 'duck_goose')[] = ['chicken', 'duck_goose'];
+
+// sea: fish vs cephalopod (軟體 mollusc). ORDER LOAD-BEARING, same reason as
+// SHELL_SUB — every Chinese cephalopod word CONTAINS 魚 (八爪魚, 章魚, 墨魚),
+// so cephalopod must strike first or its own 魚 gets claimed by the generic
+// fish entry first. 魚香 (fish-fragrant — no fish in the dish) is voided
+// globally for the same reason 田雞 is: it is not a false SEA_SUB hit, it is
+// a false SEA hit waiting to happen the moment fish vocabulary broadens.
+VOID_WORDS.push('魚香');
+const SEA_SUB: [('cephalopod' | 'fish'), string[]][] = [
+  ['cephalopod', ['八爪魚', '章魚', '魷魚', '魷', '墨魚', 'octopus', 'squid', 'calamari']],
+  ['fish', [
+    '魚', 'fish', '三文魚', 'salmon', '吞拿魚', 'tuna', '刺身', 'sashimi',
+    '鰻', '鱔', 'eel', '鱈魚', 'cod', '鯛魚', '鯖魚', 'saba', '油甘', 'hamachi',
+  ]],
+];
+
+// field: leaf/root/soy. soy is FLAG-derived (free — the `soy` diet flag is
+// already an unambiguous positive); leaf/root are morphemes, no ordering
+// conflict between them (disjoint ingredient vocabularies).
+const FIELD_SUB: [('leaf' | 'root'), string[]][] = [
+  ['leaf', ['菠菜', '芥蘭', '生菜', '白菜', '通菜', '西洋菜', '西蘭花',
+    'spinach', 'lettuce', 'kale', 'choy', 'bok choy', 'broccoli']],
+  ['root', ['薯', '蘿蔔', '蓮藕', '芋', '山藥', '番薯',
+    'potato', 'carrot', 'lotus root', 'taro', 'yam', 'sweet potato']],
 ];
 
 /** What one rated dish says about domains. Weight is split across hits below —
@@ -89,7 +128,10 @@ const LAND_SUB: [('beef' | 'pork' | 'chicken'), string[]][] = [
 export type DishDomains = {
   domains: Domain[];
   shellSub: ('lobster' | 'crab' | 'prawn')[];
-  landSub: ('beef' | 'pork' | 'chicken')[];
+  landSub: ('beef' | 'pork' | 'chicken' | 'lamb')[];
+  airSub: ('chicken' | 'duck_goose')[];
+  seaSub: ('cephalopod' | 'fish')[];
+  fieldSub: ('leaf' | 'root' | 'soy')[];
 };
 
 const hasWord = (hay: string, words: string[]) => words.some(w => hay.includes(w));
@@ -122,9 +164,12 @@ export function classifyDish(dish: {
   if (hasWord(ingBlob, ALGAE_WORDS)) domains.add('algae');
 
   // Names are searched for sub-nodes only. Lowercased for the latin half; the
-  // Chinese half is case-invariant anyway.
+  // Chinese half is case-invariant anyway. VOID_WORDS strike FIRST and
+  // globally — they are not a hit for anything, just compounds a later,
+  // broader family would otherwise misread (田雞 as 雞, 魚香 as fish).
   const nameBlob = `${dish.name ?? ''} ${dish.name_zh ?? ''}`.toLowerCase();
-  const searchBlob = `${nameBlob} ${ingBlob}`;
+  let searchBlob = `${nameBlob} ${ingBlob}`;
+  for (const w of VOID_WORDS) searchBlob = searchBlob.split(w).join(' ');
 
   /** Walks the families most-specific-first, striking each match out of the
    *  string so a generic morpheme cannot re-fire inside a compound that already
@@ -141,11 +186,33 @@ export function classifyDish(dish: {
     return hits;
   };
 
-  const shellSub = domains.has('shell') ? matchSubs(SHELL_SUB, searchBlob) : [];
-  const landSub = (domains.has('land') || domains.has('air'))
-    ? matchSubs(LAND_SUB, searchBlob) : [];
+  const dietSet = new Set(dish.diet ?? []);
 
-  return { domains: Array.from(domains), shellSub, landSub };
+  const shellSub = domains.has('shell') ? matchSubs(SHELL_SUB, searchBlob) : [];
+  // lamb differs from beef/pork/chicken in this same table: the doc calls it
+  // out as flag-OR-morpheme, since (unlike the others) `lamb` is already an
+  // unambiguous single-species flag — no need to make it wait for a name.
+  const landSub = (domains.has('land') || domains.has('air'))
+    ? Array.from(new Set([
+      ...matchSubs(LAND_SUB, searchBlob),
+      ...(dietSet.has('lamb') ? ['lamb' as const] : []),
+    ]))
+    : [];
+
+  // air: flag only — no name search. FLAG_DOMAINS already reads chicken vs
+  // duck_goose separately and discards which one fired; this just keeps it.
+  const airSub = domains.has('air') ? AIR_FLAGS.filter(f => dietSet.has(f)) : [];
+
+  // sea: cephalopod/fish by morpheme, only once 海 itself is established.
+  const seaSub = domains.has('sea') ? matchSubs(SEA_SUB, searchBlob) : [];
+
+  // field: soy is the flag (free, unambiguous); leaf/root are morphemes.
+  // Both feed the SAME bag — a dish can be soy AND leafy (豆苗, pea shoots).
+  const fieldSub: ('leaf' | 'root' | 'soy')[] = domains.has('field')
+    ? [...(dietSet.has('soy') ? ['soy' as const] : []), ...matchSubs(FIELD_SUB, searchBlob)]
+    : [];
+
+  return { domains: Array.from(domains), shellSub, landSub, airSub, seaSub, fieldSub };
 }
 
 /* ── the accumulator ──────────────────────────────────────────────────────────
@@ -175,16 +242,29 @@ export const DOMAIN_EXPOSURE = 0.5;
  * — so that a person whose flicks run cold isn't read as disliking everything
  * they eat. Neutral for them is neutral here.
  */
+/** Folds one family's hits into its bag, splitting subWeight evenly — the
+ *  shared body five call sites used to repeat by hand. Returns `bag`
+ *  unchanged (not a copy) when there is nothing to add, so a dish that
+ *  doesn't touch a family never even allocates for it. */
+function foldSub<K extends string>(
+  bag: Partial<Record<K, number>> | undefined, hits: K[], subWeight: number,
+): Partial<Record<K, number>> | undefined {
+  if (!hits.length || subWeight <= 0) return bag;
+  const next: Partial<Record<K, number>> = { ...(bag ?? {}) };
+  for (const k of hits) next[k] = (next[k] ?? 0) + subWeight / hits.length;
+  return next;
+}
+
 export function accumulateDomains(
   prev: DomainEvidence,
   dish: Parameters<typeof classifyDish>[0],
   score: number,
 ): DomainEvidence {
-  const { domains, shellSub, landSub } = classifyDish(dish);
+  const { domains, shellSub, landSub, airSub, seaSub, fieldSub } = classifyDish(dish);
   if (domains.length === 0) return prev; // says nothing about body plan
 
   const weight = (DOMAIN_EXPOSURE + score) / domains.length;
-  const next: DomainEvidence = { ...prev, sub: { ...prev.sub } };
+  const next: DomainEvidence = { ...prev };
 
   for (const d of domains) {
     // Floored at zero: a feature can atrophy to nothing, but negative evidence
@@ -197,15 +277,17 @@ export function accumulateDomains(
   // "which crustacean is this person's crustacean", a question a dislike does
   // not re-answer (disliking one crab dish does not make you a lobster eater).
   const subWeight = Math.max(0, DOMAIN_EXPOSURE + score);
-  if (shellSub.length && subWeight > 0) {
-    const bag = { ...(next.sub?.shell ?? {}) };
-    for (const k of shellSub) bag[k] = (bag[k] ?? 0) + subWeight / shellSub.length;
-    next.sub = { ...next.sub, shell: bag };
-  }
-  if (landSub.length && subWeight > 0) {
-    const bag = { ...(next.sub?.land ?? {}) };
-    for (const k of landSub) bag[k] = (bag[k] ?? 0) + subWeight / landSub.length;
-    next.sub = { ...next.sub, land: bag };
+  const shell = foldSub(prev.sub?.shell, shellSub, subWeight);
+  const land = foldSub(prev.sub?.land, landSub, subWeight);
+  const air = foldSub(prev.sub?.air, airSub, subWeight);
+  const sea = foldSub(prev.sub?.sea, seaSub, subWeight);
+  const field = foldSub(prev.sub?.field, fieldSub, subWeight);
+  if (shell || land || air || sea || field) {
+    next.sub = {
+      ...prev.sub,
+      ...(shell && { shell }), ...(land && { land }), ...(air && { air }),
+      ...(sea && { sea }), ...(field && { field }),
+    };
   }
   return next;
 }
@@ -244,7 +326,10 @@ export type DomainEvidenceT = {
   nodes?: Partial<Record<Domain, TimedNode>>;
   sub?: {
     shell?: Partial<Record<'lobster' | 'crab' | 'prawn', TimedNode>>;
-    land?: Partial<Record<'beef' | 'pork' | 'chicken', TimedNode>>;
+    land?: Partial<Record<'beef' | 'pork' | 'chicken' | 'lamb', TimedNode>>;
+    air?: Partial<Record<'chicken' | 'duck_goose', TimedNode>>;
+    sea?: Partial<Record<'cephalopod' | 'fish', TimedNode>>;
+    field?: Partial<Record<'leaf' | 'root' | 'soy', TimedNode>>;
   };
 };
 
@@ -258,6 +343,17 @@ function feedNode(prev: TimedNode | undefined, atMs: number, weight: number): Ti
   return { v: Math.max(0, decayed + weight), at: prev ? Math.max(prev.at, atMs) : atMs };
 }
 
+/** Timed sibling of foldSub: same even-split-over-hits arithmetic, decayed
+ *  instead of summed. Returns `bag` unchanged when there's nothing to fold. */
+function foldSubT<K extends string>(
+  bag: Partial<Record<K, TimedNode>> | undefined, hits: K[], subWeight: number, atMs: number,
+): Partial<Record<K, TimedNode>> | undefined {
+  if (!hits.length || subWeight <= 0) return bag;
+  const next: Partial<Record<K, TimedNode>> = { ...(bag ?? {}) };
+  for (const k of hits) next[k] = feedNode(next[k], atMs, subWeight / hits.length);
+  return next;
+}
+
 /** Fold one rated dish into the timed record. Same classify, same weight
  *  arithmetic as accumulateDomains — the records may never disagree about
  *  WHAT was eaten, only about how much of it time has kept. */
@@ -267,7 +363,7 @@ export function accumulateDomainsT(
   score: number,
   atMs: number,
 ): DomainEvidenceT {
-  const { domains, shellSub, landSub } = classifyDish(dish);
+  const { domains, shellSub, landSub, airSub, seaSub, fieldSub } = classifyDish(dish);
   if (domains.length === 0) return prev;
 
   const weight = (DOMAIN_EXPOSURE + score) / domains.length;
@@ -276,15 +372,17 @@ export function accumulateDomainsT(
   const next: DomainEvidenceT = { ...prev, nodes };
 
   const subWeight = Math.max(0, DOMAIN_EXPOSURE + score);
-  if (shellSub.length && subWeight > 0) {
-    const bag = { ...(next.sub?.shell ?? {}) };
-    for (const k of shellSub) bag[k] = feedNode(bag[k], atMs, subWeight / shellSub.length);
-    next.sub = { ...next.sub, shell: bag };
-  }
-  if (landSub.length && subWeight > 0) {
-    const bag = { ...(next.sub?.land ?? {}) };
-    for (const k of landSub) bag[k] = feedNode(bag[k], atMs, subWeight / landSub.length);
-    next.sub = { ...next.sub, land: bag };
+  const shell = foldSubT(prev.sub?.shell, shellSub, subWeight, atMs);
+  const land = foldSubT(prev.sub?.land, landSub, subWeight, atMs);
+  const air = foldSubT(prev.sub?.air, airSub, subWeight, atMs);
+  const sea = foldSubT(prev.sub?.sea, seaSub, subWeight, atMs);
+  const field = foldSubT(prev.sub?.field, fieldSub, subWeight, atMs);
+  if (shell || land || air || sea || field) {
+    next.sub = {
+      ...prev.sub,
+      ...(shell && { shell }), ...(land && { land }), ...(air && { air }),
+      ...(sea && { sea }), ...(field && { field }),
+    };
   }
   return next;
 }
@@ -313,7 +411,15 @@ export function domainsAsOf(t: DomainEvidenceT | null | undefined, nowMs: number
   };
   const shell = readBag(t.sub?.shell);
   const land = readBag(t.sub?.land);
-  if (shell || land) out.sub = { ...(shell && { shell }), ...(land && { land }) };
+  const air = readBag(t.sub?.air);
+  const sea = readBag(t.sub?.sea);
+  const field = readBag(t.sub?.field);
+  if (shell || land || air || sea || field) {
+    out.sub = {
+      ...(shell && { shell }), ...(land && { land }), ...(air && { air }),
+      ...(sea && { sea }), ...(field && { field }),
+    };
+  }
   return out;
 }
 

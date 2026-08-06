@@ -54,10 +54,15 @@ export type DomainEvidence = {
   sea?: number; land?: number; air?: number; shell?: number;
   field?: number; algae?: number; fungus?: number;
   /** Sub-node mixes for typed limbs — the detail that makes a being someone's.
-      Absent → equal mix (the lab default). */
+      Absent → equal mix (the lab default). G3 (growth R&D Decision 4) added
+      air/sea/field and lamb; each bag is populated but not yet READ by any
+      gesture — the detectors ship ahead of the ports they unblock. */
   sub?: {
     shell?: { lobster?: number; crab?: number; prawn?: number };
-    land?: { beef?: number; pork?: number; chicken?: number };
+    land?: { beef?: number; pork?: number; chicken?: number; lamb?: number };
+    air?: { chicken?: number; duck_goose?: number };
+    sea?: { fish?: number; cephalopod?: number };
+    field?: { leaf?: number; root?: number; soy?: number };
   };
 };
 

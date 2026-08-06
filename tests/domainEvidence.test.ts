@@ -281,3 +281,149 @@ describe('domainsAsOf — the read adapter fails closed', () => {
     expect(JSON.stringify(build())).toBe(JSON.stringify(build()));
   });
 });
+
+/* ── G3 sub-node detectors (growth R&D Decision 4) ─────────────────────────────
+   air (free from flags), lamb, sea fish/cephalopod, field leaf/root/soy — the
+   detectors that unblock the lab gestures. Fill bags nothing reads yet, so
+   these are honesty tests about the CLASSIFICATION, same spirit as above:
+   the right word claims the right node, and a wrong-shaped word claims none. */
+describe('air sub-node — chicken vs duck_goose, straight from the flags', () => {
+  it('splits by flag, not by name — FLAG_DOMAINS already made this distinction', () => {
+    expect(classifyDish(dish({ diet: ['chicken'] })).airSub).toEqual(['chicken']);
+    expect(classifyDish(dish({ diet: ['duck_goose'] })).airSub).toEqual(['duck_goose']);
+  });
+
+  it('a dish naming duck but flagged chicken trusts the FLAG (name search is not used for air)', () => {
+    // air deliberately skips name morphemes — the flag vocabulary already
+    // carries this split with 100% coverage, so there is nothing to search for.
+    expect(classifyDish(dish({ diet: ['chicken'], name_zh: '鴨' })).airSub).toEqual(['chicken']);
+  });
+
+  it('no air flag, no air sub — even on a land-flagged dish', () => {
+    expect(classifyDish(dish({ diet: ['pork'] })).airSub).toEqual([]);
+  });
+});
+
+describe('land sub-node — lamb added, flag OR morpheme', () => {
+  it('the lamb flag alone earns lamb, with no name at all', () => {
+    expect(classifyDish(dish({ diet: ['lamb'] })).landSub).toEqual(['lamb']);
+  });
+
+  it('田雞 (frog) never fires the bare 雞 morpheme as chicken', () => {
+    // the latent misread this guards: LAND_SUB's chicken entry contains bare 雞,
+    // which is also the last character of 田雞. Struck globally before any
+    // family runs, regardless of what domain (if any) the dish carries.
+    expect(classifyDish(dish({ diet: ['land'] as any, name_zh: '田雞粥' })).landSub).toEqual([]);
+    expect(classifyDish(dish({ diet: ['chicken'], name_zh: '田雞粥' })).landSub).toEqual([]);
+  });
+
+  it('a real chicken dish still fires normally once 田雞 is not in play', () => {
+    expect(classifyDish(dish({ diet: ['chicken'], name_zh: '豉油雞' })).landSub).toEqual(['chicken']);
+  });
+});
+
+describe('sea sub-node — cephalopod before fish, order load-bearing', () => {
+  it('章魚 (octopus) claims cephalopod only — the 魚 inside it must not also fire fish', () => {
+    const d = classifyDish(dish({ diet: ['seafood'], name_zh: '章魚' }));
+    expect(d.seaSub).toEqual(['cephalopod']);
+  });
+
+  it('墨魚 and 魷魚 also resolve to cephalopod alone', () => {
+    expect(classifyDish(dish({ diet: ['seafood'], name_zh: '墨魚' })).seaSub).toEqual(['cephalopod']);
+    expect(classifyDish(dish({ diet: ['seafood'], name_zh: '魷魚' })).seaSub).toEqual(['cephalopod']);
+  });
+
+  it('a plain fish name resolves to fish, not cephalopod', () => {
+    expect(classifyDish(dish({ diet: ['seafood'], name_zh: '三文魚' })).seaSub).toEqual(['fish']);
+  });
+
+  it('魚香 (fish-fragrant — no fish) is voided: no seaSub hit, whatever else is in the name', () => {
+    // 魚香茄子 is an eggplant dish; it would not normally carry the `seafood`
+    // flag, but the void must hold even if it somehow does (defense in depth).
+    expect(classifyDish(dish({ diet: ['seafood'], name_zh: '魚香茄子' })).seaSub).toEqual([]);
+  });
+
+  it('a mixed dish still earns BOTH: 章魚魚香 strikes 魚香 first, then reads 章魚', () => {
+    const d = classifyDish(dish({ diet: ['seafood'], name_zh: '魚香章魚' }));
+    expect(d.seaSub).toEqual(['cephalopod']);
+  });
+
+  it('seaSub is empty without the sea domain, however the name reads', () => {
+    expect(classifyDish(dish({ diet: ['pork'], name_zh: '三文魚' })).seaSub).toEqual([]);
+  });
+});
+
+describe('field sub-node — soy from the flag, leaf/root from morphemes', () => {
+  it('the soy flag alone earns soy, with no name at all', () => {
+    expect(classifyDish(dish({ diet: ['soy'] })).fieldSub).toEqual(['soy']);
+  });
+
+  it('leaf and root morphemes fire independently — disjoint vocabularies', () => {
+    expect(classifyDish(dish({ diet: ['veg'], name_zh: '菠菜' })).fieldSub).toEqual(['leaf']);
+    expect(classifyDish(dish({ diet: ['veg'], name_zh: '蘿蔔' })).fieldSub).toEqual(['root']);
+  });
+
+  it('a soy AND leafy dish earns both in the same bag (soy flag + a real leaf word)', () => {
+    const d = classifyDish(dish({ diet: ['soy', 'veg'], name_zh: '菠菜' }));
+    expect(d.fieldSub.sort()).toEqual(['leaf', 'soy']);
+  });
+
+  it('fieldSub is empty without the field domain', () => {
+    expect(classifyDish(dish({ diet: ['pork'], name_zh: '菠菜' })).fieldSub).toEqual([]);
+  });
+});
+
+describe('accumulateDomains folds all five sub-bags the same honest way', () => {
+  it('a lamb dish grows sub.land.lamb, not beef/pork', () => {
+    const d = accumulateDomains(emptyDomainEvidence(), dish({ diet: ['lamb'] }), 0.5);
+    expect(d.sub?.land?.lamb).toBeCloseTo(DOMAIN_EXPOSURE + 0.5, 10);
+    expect(d.sub?.land?.beef).toBeUndefined();
+  });
+
+  it('a duck dish grows sub.air.duck_goose only', () => {
+    const d = accumulateDomains(emptyDomainEvidence(), dish({ diet: ['duck_goose'] }), 0.3);
+    expect(d.sub?.air?.duck_goose).toBeCloseTo(DOMAIN_EXPOSURE + 0.3, 10);
+    expect(d.sub?.air?.chicken).toBeUndefined();
+  });
+
+  it('a disliked dish still counts exposure but never grows a sub-node negatively', () => {
+    const d = accumulateDomains(emptyDomainEvidence(), dish({ diet: ['seafood'], name_zh: '三文魚' }), -1);
+    // subWeight = max(0, 0.5-1) = 0 → no sub growth at all, same rule as shell/land
+    expect(d.sub?.sea).toBeUndefined();
+  });
+
+  it('one prior fish dish plus one cephalopod dish keeps both alive in sub.sea', () => {
+    let d = accumulateDomains(emptyDomainEvidence(), dish({ diet: ['seafood'], name_zh: '三文魚' }), 0.4);
+    d = accumulateDomains(d, dish({ diet: ['seafood'], name_zh: '八爪魚' }), 0.4);
+    expect(d.sub?.sea?.fish).toBeGreaterThan(0);
+    expect(d.sub?.sea?.cephalopod).toBeGreaterThan(0);
+  });
+});
+
+describe('accumulateDomainsT — the timed siblings agree with the plain ones', () => {
+  it('same-instant lamb/air/sea/field events reproduce the plain record exactly', () => {
+    const meals = [
+      dish({ diet: ['lamb'] }),
+      dish({ diet: ['duck_goose'] }),
+      dish({ diet: ['seafood'], name_zh: '八爪魚' }),
+      dish({ diet: ['soy'] }),
+    ];
+    let plain = emptyDomainEvidence();
+    let timed = emptyDomainEvidenceT();
+    for (const m of meals) {
+      plain = accumulateDomains(plain, m, 0.4);
+      timed = accumulateDomainsT(timed, m, 0.4, T0);
+    }
+    const read = domainsAsOf(timed, T0);
+    expect(read.sub?.land?.lamb ?? 0).toBeCloseTo(plain.sub?.land?.lamb ?? 0, 10);
+    expect(read.sub?.air?.duck_goose ?? 0).toBeCloseTo(plain.sub?.air?.duck_goose ?? 0, 10);
+    expect(read.sub?.sea?.cephalopod ?? 0).toBeCloseTo(plain.sub?.sea?.cephalopod ?? 0, 10);
+    expect(read.sub?.field?.soy ?? 0).toBeCloseTo(plain.sub?.field?.soy ?? 0, 10);
+  });
+
+  it('an untouched sub-bag decays out of the record (domainsAsOf omits it) same as before', () => {
+    const t = accumulateDomainsT(emptyDomainEvidenceT(), dish({ diet: ['lamb'] }), 0.5, T0);
+    const readFar = domainsAsOf(t, T0 + 20 * DOMAIN_HALF_LIFE_MS);
+    expect(readFar.sub?.land?.lamb ?? 0).toBeLessThan(1e-4);
+  });
+});

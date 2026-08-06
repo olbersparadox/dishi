@@ -197,13 +197,20 @@ recorded per user.
 |---|---|---|
 | shell: lobster · crab · prawn | **YES** (`SHELL_SUB`) | claws ✓, prawn pincers, 甲殼 tail |
 | land: beef · pork · chicken | **YES** (`LAND_SUB`) | legs ✓, 牛角, 豬/牛耳, 牛/豬 tails |
-| land: lamb | no — the `lamb` flag exists, there is just no sub bag entry | 羊 ears |
-| air: 雞 vs 鴨鵝 | no — **but `FLAG_DOMAINS` already reads `chicken` and `duck_goose` separately** | wing variants, webbed feet, 禽 tail |
-| sea: 魚 fish | no — `dishStructure.PROTEINS` parses `fish`, but it is ephemeral (merge-veto only, never persisted) | fins, 魚 tail |
-| sea: 軟體 mollusc | no — needs ingredient words, exactly the pattern `ALGAE_WORDS` already established | tentacle variants |
-| field: 葉 · 根 · 豆 · 花 | no — 豆 is free from the `soy` flag; 葉/根 need words | plant-part variants |
+| land: lamb | **YES** (2026-08-06, G3) — flag OR morpheme (羊/lamb/mutton); `LAND_SUB` | 羊 ears |
+| air: 雞 vs 鴨鵝 | **YES** (2026-08-06, G3) — flag only, `AIR_FLAGS` (no name search needed) | wing variants, webbed feet, 禽 tail |
+| sea: 魚 fish vs 軟體 cephalopod | **YES** (2026-08-06, G3) — morphemes, `SEA_SUB`; cephalopod-before-fish ordering (八爪魚/章魚/墨魚 all contain 魚), 魚香 voided globally so fish-fragrant dishes never misfire | fins, 魚 tail, tentacle variants |
+| field: 葉 · 根 · 豆 | **YES** (2026-08-06, G3) — soy free from the flag; 葉/根 by morpheme, `FIELD_SUB` | plant-part variants |
+| 花 herbs/aromatics | no — not in G3's scope, deferred as an earned-rare-trait candidate | blossom flourish |
 | time-of-day | no — dishes carry timestamps, nothing reads the hour | 罪角, the framework's one genuinely new data source |
 | 榖 base | **UNDECIDED** — skin texture or anatomy? | 田's base ingredients |
+
+All four ship with the SAME guard the shell/land tables already proved:
+sub-nodes only ever SPLIT a domain the flags/ingredients already established,
+never author one, and a misreadable compound (田雞 as chicken, 魚香 as fish)
+is voided globally before any family runs — pinned by
+`tests/domainEvidence.test.ts`. Detectors only fill `DomainEvidence.sub` bags;
+no gesture reads them yet (that is G4, one port per round).
 
 ### Three structural risks, named so they stop being invisible
 

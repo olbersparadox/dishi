@@ -4990,3 +4990,30 @@ in supabase/applied/) from all five write sites (ratings both branches,
 execution, my/dishes ×2, enrich). 11 new tests. Nothing reads the record in
 production yet — that door opens at G2, which must begin with a one-off
 replay backfill (existing rows hold '{}' until any write triggers replay).
+
+## G3. Sub-node detectors: air (free), lamb, sea fish/cephalopod, field — *(Sonnet)* — ✅ SHIPPED 2026-08-06
+domainEvidence.ts patterns; 魚香 tripwire; cephalopod-before-fish ordering;
+guard the latent 田雞-matches-雞 misread in LAND_SUB; unit tests per
+family. Invisible (fills bags nothing reads yet). (Part morphemes were cut:
+plate-names-the-part REJECTED by owner — parts represent the animal, never
+the cut eaten.)
+
+Shipped as: `AIR_FLAGS`, `SEA_SUB`, `FIELD_SUB` + lamb added to `LAND_SUB`,
+plus a global `VOID_WORDS` strike (田雞, 魚香) run before any family, in
+`src/lib/domainEvidence.ts`. `air` is flag-only (no name search — the flag
+vocabulary already carries the chicken/duck_goose split with full coverage);
+`lamb` is flag-OR-morpheme, the one exception in `LAND_SUB` (an unambiguous
+single-species flag, unlike beef/pork/chicken which stay name-only); `sea`
+and `field` are morpheme-only, gated on their parent domain already being
+established. `classifyDish`'s five sub-bag computations were folded through
+new `foldSub`/`foldSubT` helpers shared by `accumulateDomains` and
+`accumulateDomainsT`, replacing five hand-written duplicate blocks with one
+each. `DomainEvidence.sub` (creatureForm.ts) and `DomainEvidenceT`
+(domainEvidence.ts) both extended with `air`/`sea`/`field` bags and lamb on
+`land`. 22 new tests, including two that caught real bugs before ship: the
+lamb flag alone did not originally fire without a name morpheme (fixed —
+lamb now merges flag + morpheme hits), and a `豆苗`-based soy+leaf test was
+wrong about its own vocabulary (fixed the test, not the code). Full suite
+1298/1298, tsc clean. Nothing reads these bags yet — that is G4, one
+gesture port per round, prawn pincers first (detector already live from
+before this batch).
