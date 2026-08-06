@@ -299,6 +299,14 @@ const BUD_SIZE = 0.35; // a full bud renders at 35% — visibly a nub, not a lim
 // be more obvious"). A bud is short — but it is unmistakably THERE, which is
 // the whole instant-gratification beat: rate the dish, see the stub.
 const BUD_MIN = 0.35;
+/** Girth exponent for a young limb (owner, 2026-08-06: "thicker baby leg").
+ *  BUD_MIN made buds POP IN, but scaled length and width together, so the
+ *  youngest limb read as a wire rather than a stub. Width now rides
+ *  `f^BUD_GIRTH`: at the bud floor (0.35) that is 0.62 — nearly twice as
+ *  thick — while f=1 stays exactly 1, so a MATURE limb is untouched. Length
+ *  is left alone, which is what keeps a baby leg short AND stubby.
+ *  metabolism mode only: legacy is production and must stay byte-identical. */
+const BUD_GIRTH = 0.45;
 
 export type LimbStrengths = {
   wings: { on: boolean; evF: number; shareF: number };
@@ -562,14 +570,19 @@ const domOf = <K extends string>(m: Record<K, number>): K =>
 
 /* 腿 · leg. cow = thick pillar on a cleft hoof; pig = shorter, softer, small
    trotter; chicken = thin, backward knee, three splayed toes. (lab v5) */
+/** LENGTH still scales with the growth factor; GIRTH gets its own, passed in.
+ *  A limb that scales both linearly comes out of the bud stage as a wire —
+ *  35% long and 35% thin. A young animal's leg is short and CHUNKY, so the
+ *  caller sends a fatter width factor for a young limb (see BUD_GIRTH). */
 function drawLeg(
   ctx: CanvasRenderingContext2D,
   bx: number, by: number, R: number, f: number,
   mix: Record<'beef' | 'pork' | 'chicken', number>, lean: number,
+  widthF: number = f,
 ) {
   const bf = mix.beef, pk = mix.pork, ck = mix.chicken;
   const len = R * (0.42 * bf + 0.3 * pk + 0.5 * ck) * f;
-  const w = R * (0.15 * bf + 0.14 * pk + 0.058 * ck) * f;
+  const w = R * (0.15 * bf + 0.14 * pk + 0.058 * ck) * widthF;
   const kneeX = bx + lean * len * 0.05 - ck * len * 0.2; // chicken bends backward
   const kneeY = by + len * 0.52;
   const footX = bx + lean * len * 0.12 + ck * len * 0.1;
@@ -928,11 +941,14 @@ export function drawCreatureFrame(
   if (legF > 0) {
     const mix = subMix(domains.sub?.land, ['beef', 'pork', 'chicken']);
     const nL = ev('land') > 30 ? 4 : 2;
+    // stubby-young, unchanged-mature — see BUD_GIRTH. Legacy passes nothing,
+    // so its width stays exactly legF and production does not move.
+    const legW = mode === 'metabolism' ? Math.pow(legF, BUD_GIRTH) : legF;
     for (let i = 0; i < nL; i++) {
       const fr = (i - (nL - 1) / 2) / Math.max(1, (nL - 1) / 2);
       const b = bottom(fr * 0.55);
       const step = t ? Math.sin(t * 0.0009 + i * 2.1) * 0.35 * l : 0;
-      drawLeg(ctx, b.x, b.y - R * 0.04, R, legF, mix, fr + step);
+      drawLeg(ctx, b.x, b.y - R * 0.04, R, legF, mix, fr + step, legW);
     }
   }
 

@@ -472,6 +472,17 @@ describe('limbStrengths — metabolism mode (fed by DECAYED evidence)', () => {
     expect(S.legs / solo.legs).toBeGreaterThanOrEqual(0.6 - 1e-9);
   });
 
+  it('a young leg is SHORT but THICK — girth rides its own curve', () => {
+    // owner, 2026-08-06 "thicker baby leg": scaling length and width together
+    // made the bud a wire. Girth is f^BUD_GIRTH, so it outruns length at the
+    // bud and converges at maturity — a mature limb must not move at all.
+    const budF = limbStrengths({ sea: 6.2, land: 2.2 }, 'metabolism').legs;
+    expect(Math.pow(budF, 0.45) / budF).toBeGreaterThan(1.5); // stubby
+    const matureF = limbStrengths({ land: 30 }, 'metabolism').legs;
+    expect(matureF).toBeCloseTo(1, 6);
+    expect(Math.pow(matureF, 0.45) / matureF).toBeCloseTo(1, 6); // untouched
+  });
+
   it('a bud is a nub: full-bud size stays well under half the formed limb', () => {
     const bud = limbStrengths({ field: 2.2 }, 'metabolism').fronds;
     const formed = limbStrengths({ field: 14 }, 'metabolism').fronds;
