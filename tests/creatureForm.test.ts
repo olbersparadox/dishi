@@ -716,3 +716,31 @@ describe('clawMotion — both claws snap at the same time', () => {
     expect(differ.length).toBeGreaterThan(quiet.length * 0.5);
   });
 });
+
+describe('clawMotion — two pairs take turns (owner, 2026-08-06)', () => {
+  const TS = Array.from({ length: 400 }, (_, i) => i * 18);
+  const firing = (seat: number) => TS.filter(t => clawMotion(t, 1, seat).grip < 0.5);
+
+  it('within a pair, still perfectly in unison at BOTH seats', () => {
+    for (const seat of [0, 1]) {
+      for (const t of TS) {
+        expect(clawMotion(t, 1, seat).grip).toBeCloseTo(clawMotion(t, -1, seat).grip, 12);
+      }
+    }
+  });
+
+  it('but the second pair fires LATER — one pair, then the other', () => {
+    const a = firing(0), b = firing(1);
+    expect(a.length).toBe(b.length);          // same gesture, same amount of it
+    expect(Math.min(...b)).toBeGreaterThan(Math.min(...a)); // just later
+  });
+
+  it('the two bursts never overlap — you hear snap-snap, then snap-snap', () => {
+    const a = new Set(firing(0));
+    expect(firing(1).some(t => a.has(t))).toBe(false);
+  });
+
+  it('a lone pair is unaffected — seat 0 is the default', () => {
+    for (const t of TS) expect(clawMotion(t, 1).grip).toBe(clawMotion(t, 1, 0).grip);
+  });
+});

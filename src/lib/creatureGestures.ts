@@ -164,6 +164,7 @@ export function drawCrabClaw(
 const REST_OPEN = 0.17;   // radians the dactyl rests open at
 const SNAP_MS = 235;      // one chop: shut + release
 const CYCLE_MS = 7200;    // mostly quiet
+const PAIR_STAGGER_MS = 700; // > the 470ms a double-snap takes, so pairs never overlap
 
 function snapShut(s: number) {
   return s < 0.18 ? Math.pow(s / 0.18, 0.45)          // shut, fast
@@ -182,13 +183,20 @@ function snapShut(s: number) {
     A simultaneous double-snap reads as one animal deciding something; the
     stagger read as two limbs arguing. `snaps` is the knob if a triple is
     wanted instead.
+
+    But when TWO PAIRS are present they take turns (owner, same session: "one
+    pair snap first then the second pair snap, not both pair snaps together").
+    So the stagger did not disappear, it moved to the level where it belongs —
+    left-and-right is one gesture, and the second pair answers it. `seatIndex`
+    delays each pair by PAIR_STAGGER_MS, comfortably clear of the 470ms a
+    double-snap takes, so the two bursts never run into each other.
     The barely-there idle breath and sway keep their per-side phase on
     purpose — that is resting texture, not the chop, and drifting slightly out
     of step is what stops a synchronised pair looking mechanical. The recoil
     term rides `shut`, so it synchronises with the snap automatically. */
-export function clawMotion(t: number, side: number): ClawMotion {
+export function clawMotion(t: number, side: number, seatIndex = 0): ClawMotion {
   const snaps = 2;
-  const ph = t % CYCLE_MS;
+  const ph = (t + seatIndex * PAIR_STAGGER_MS) % CYCLE_MS;
   const shut = ph < snaps * SNAP_MS ? snapShut((ph % SNAP_MS) / SNAP_MS) : 0;
   const idle = 0.010 * Math.sin(t * 0.0006 + side * 2.1);  // barely-there breath at rest
   return {

@@ -668,6 +668,11 @@ const CLAW_MIN = 0.28;  // a newborn pair reads as a small pincer, not a speck
    the composition rules forbid outright, so some overlap is the correct
    trade and 1.25 keeps 0.45rad of clearance above. */
 const CLAW_SEATS = [1.95, 1.25] as const;
+/** 蟹 at the SECOND seat pushes its wrist out toward the silhouette edge — see
+ *  WRIST_BURIAL. 1.0 is the hard ceiling (the wrist crossing the edge exactly,
+ *  beyond which no body pixels sit behind the join and it floats loose), so
+ *  this keeps a real margin inside it, the same margin 龍蝦's calibrated .96 does. */
+const CRAB_SECOND_BURIAL = 0.94;
 
 export type ClawSeat = { species: ClawSpecies; sizeF: number; seat: number };
 
@@ -1041,7 +1046,8 @@ export function drawCreatureFrame(
        at the owner's call: 骨 parts wear neutral ink and never chase 膚's
        colour. One rule beats six special cases. */
     const clawInk = 'rgba(33,29,24,.93)';
-    for (const { species, sizeF, seat } of seats) {
+    for (let seatIndex = 0; seatIndex < seats.length; seatIndex++) {
+      const { species, sizeF, seat } = seats[seatIndex];
     // Once earned, a claw reads as a claw: the ramp spans 0.5→1.0 rather than
     // 0→1, so the youngest claw the gates allow is still half-size and visibly
     // a pincer, and growth after that is legible rather than a slow fade-in
@@ -1071,11 +1077,20 @@ export function drawCreatureFrame(
     // A hard ceiling around ~30%, short of the requested 35%: getting the rest
     // of the way needs a real size increase on top of this, which is the
     // tradeoff the owner corrected this round for being un-asked-for.
-    const WRIST_BURIAL = species === 'lobster' ? 0.96 : 0.82;
+    // The SECOND seat sits nearer the body's widest point, so the same burial
+    // FRACTION swallows more absolute depth: 蟹 measured 97px of reach beyond
+    // the silhouette at the prime seat and only 64px at the second, and the
+    // owner saw it — "the crab claws need to stick out more because most of it
+    // are in the body". 龍蝦 barely notices (0.96 already rides the edge, and
+    // it loses 83→68), which is why lobster-on-top reads fine as it is. So the
+    // compensation is 蟹-at-second only; both calibrated prime values stand.
+    const secondSeat = seat !== CLAW_SEATS[0];
+    const WRIST_BURIAL = species === 'lobster' ? 0.96
+      : secondSeat ? CRAB_SECOND_BURIAL : 0.82;
     for (const side of [-1, 1] as const) {
       const p = flank(side, seat);
       const bx = BB.cx + (p.x - BB.cx) * WRIST_BURIAL, by = BB.cy + (p.y - BB.cy) * WRIST_BURIAL;
-      const mo = clawMotion(t, side);
+      const mo = clawMotion(t, side, seatIndex);
       const ang = side > 0 ? CLAW_AXIS + mo.sway : Math.PI - CLAW_AXIS + mo.sway;
       const drawFn = species === 'lobster' ? drawLobsterClaw : drawCrabClaw;
       drawFn(ctx, bx, by, ang, Rclaw, sizeF * (side < 0 ? sL : sR), mo, clawInk);
