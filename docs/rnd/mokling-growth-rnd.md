@@ -212,6 +212,7 @@ first; morphemes only ever *split* a domain the flags established; most
 | `sub.land += {lamb}` | `lamb` flag (exists, unmapped) + morphemes 羊/lamb/mutton | trivial | 羊 pointed ears |
 | `sub.sea = {fish, cephalopod}` | morphemes, only when `sea` established. **Order load-bearing**: strike 魚香 (fish-fragrant — no fish!) to nothing first; then cephalopod (八爪魚/章魚/魷/墨魚/octopus/squid/calamari — all contain 魚, so they must consume it); then fish (魚, fish, 三文, salmon, 吞拿, tuna, 刺身, sashimi, 鰻/鱔, eel, 鱈, cod, 鯛, 鯖/saba, 油甘/hamachi) | a careful vocabulary + tests | 鰭 fins, 魚 forked tail; 觸 tentacle variants |
 | `sub.field = {leaf, root, soy}` | soy from the `soy` flag (free); 葉 (菠菜 芥蘭 生菜 白菜 通菜 西洋菜 spinach lettuce kale choy broccoli 西蘭花…), 根 (薯 蘿蔔 蓮藕 芋 山藥 番薯 potato carrot lotus taro yam…) | vocabulary + tests | 葉 plant-part variants, 根 stout base |
+| part morphemes (雞翼 雞髀 鳳爪 豬手 豬耳 牛尾 鵝掌 鴨舌 wing/drumstick/trotter/oxtail…) | name morphemes, firing only inside an already-established node; no 翅 (shark fin is not a growth moment); 田雞-before-雞 tripwire | vocabulary + tests | the expression ladder (Decision 6): the dish's own part grows |
 | time-of-day | `created_at` hour — the one genuinely new data source | deferred | 罪角 (owner's explicit call needed) |
 
 Notes:
@@ -250,7 +251,63 @@ families pass:
 4. **精 is rationed by rank** (top-2 share), so articulation — the loudest
    visual register — cannot appear on five limbs at once.
 
-## Decision 6 — the two reward loops, and the bridge between them
+## Decision 6 — one node, many parts: expression choice (owner, 2026-08-06)
+
+A sub-node is not one gesture — it is a POOL. Cow → legs · tail · horns ·
+ears. Fish → fins · forked tail. Chicken → wings · splayed feet · legs.
+When a node earns expression, something must choose WHICH part grows, and
+that choice is a possibility multiplier — the owner: a seafood eater with
+fins and tentacles has a steak; "either cow legs could grow OR a cow tail…
+creating more possibilities is the goal."
+
+Under the one law the choice may never be rolled — the seed only touches
+micro-texture. Every fork resolves by data, in this order:
+
+1. **The dish names the part → that part grows.** HK eating names parts
+   constantly: 雞翼 wings · 雞髀 drumstick · 鳳爪 feet · 豬手 trotters ·
+   豬耳 ears · 牛尾 oxtail · 鵝掌 webs · 鴨舌 tongue. A part-morpheme
+   detector (the SHELL_SUB strike-out pattern, firing only inside an
+   already-established node) tallies part-level pulls in the node's bag.
+   Eat 牛尾麵 and the cow expresses as a TAIL — 「You are what you eat」at
+   its most literal, and the sharpest instant-gratification beat in the
+   program: the body grows the very part that was on the plate.
+2. **Otherwise the body's own composition chooses — vacancy first.**
+   Expression flows to the family whose anchor slot is least occupied on
+   THIS body at THIS moment. The owner's example resolves exactly here: a
+   seafood body already wearing a fish tail meets steak evidence → the
+   tail slot is taken, so the cow expresses as LEGS. A pork-legged body
+   meeting the same steak grows a cow TAIL instead. The order of a life's
+   eating shapes the body — path-dependent morphology, per-user
+   divergence, zero dice.
+3. **Ties break by fixed per-node priority** (cow: legs > tail > ears >
+   horns — locomotion before ornament), keeping replay deterministic.
+
+Cross-node slot contention keeps the existing rules: one tail slot, the
+dominant claimant wins it (the framework's 尾 row already reads "dominant
+sub-node of the largest animal domain"), and the loser expresses through
+its other parts. If the fish later atrophies and sheds, the slot frees —
+and deep cow evidence may claim it at the next crossing. The body
+rearranges over seasons, never all at once.
+
+Evidence accounting: evidence lives at the NODE; parts are how the node
+SPENDS it. Depth unlocks breadth-of-parts — at 萌/成, one part; at 精, a
+second may bud, so a deeply-lived cow eventually stands on legs AND swings
+a tail. Part-named dishes bias every choice above; on atrophy the
+least-evidenced part sheds first, so the parts most literally eaten are
+the last to go.
+
+Guards:
+- **Replay determinism holds** — every input to the choice (part tallies,
+  body composition at the crossing, the priority order) is itself a pure
+  function of prior history. A re-rate may legitimately re-route an
+  expression; that is replay healing anatomy, as designed.
+- **Vocabulary exclusions are deliberate**: no 翅 morpheme — shark-fin
+  dishes must not become a growth moment. And 田雞 (frog) must strike
+  before the bare 雞 morpheme — LAND_SUB's 雞 already matches it whenever
+  a frog dish arrives flagged land/air, a latent misread to guard against
+  in G3.
+
+## Decision 7 — the two reward loops, and the bridge between them
 
 **Instant (the same event, three beats):**
 1. *Bud-on-first-love* — Decision 1 makes a first loved crab dish grow a
@@ -293,8 +350,8 @@ streaks, never death.)
 |---|---|---|---|---|
 | G1 | Timed accumulator v2 + `domainsAsOf` adapter, on the existing rating-order replay walk (feeding clock — no re-sort, no eaten-date plumbing) | invisible (adapter passes legacy through) | pure-function arithmetic on a well-tested pipeline; harness gets an as-of time-travel slider | ~85% |
 | G2 | Gate redesign in the renderer (bud/form/articulate ramps, prominence dial, paling) | YES — owner reviews on /dev-creature with time-travel before it ships | the "does decay FEEL right" unknown lives here; tune HALF_LIFE + floors on the harness | ~75% |
-| G3 | Sub-node detectors (air, lamb, sea fish/cephalopod with the 魚香 tripwire, field splits) + unit tests | invisible (fills bags nothing reads yet) | vocabulary quality; misfiring family stays off | ~85% |
-| G4 | Gesture ports, one per round, owner sign-off each: **prawn pincers first** (detector already live), then 翼 variants (detector from G3-air), then 尾 tails, 鰭 fins, 耳/角… | YES, one element at a time | the standing working method; port checklist exists | ~70–85% per round |
+| G3 | Sub-node detectors (air, lamb, sea fish/cephalopod with the 魚香 tripwire, field splits) + **part morphemes** (Decision 6) + the 田雞-fires-as-chicken fix + unit tests | invisible (fills bags nothing reads yet) | vocabulary quality; misfiring family stays off | ~85% |
+| G4 | Gesture ports, one per round, owner sign-off each, **with the Decision 6 expression rules** (part-pull → vacancy → priority): **prawn pincers first** (detector already live), then 翼 variants (detector from G3-air), then 尾 tails, 鰭 fins, 耳/角… | YES, one element at a time | the standing working method; port checklist exists | ~70–85% per round |
 | G5 | Reward surfaces: `growth` delta in the rating response + TasteGrowth line; absorb beat later | YES | small plumbing + copy | ~85% |
 | G6 | 圖鑑: molt-log emission from replay, then the archive surface + shed ceremony | YES | new surface design | ~75% |
 

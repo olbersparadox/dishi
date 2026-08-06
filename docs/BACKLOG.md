@@ -1307,13 +1307,20 @@ share/maxShare (0.22 share door retired), paling by staleness, shed with
 hysteresis. Owner reviews on /dev-creature with an as-of time slider BEFORE
 ship. Go/no-go gate for the metabolism.
 
-## G3. Sub-node detectors: air (free), lamb, sea fish/cephalopod, field — *(Sonnet, spec in doc)*
+## G3. Sub-node detectors: air (free), lamb, sea fish/cephalopod, field, PARTS — *(Sonnet, spec in doc)*
 domainEvidence.ts patterns; 魚香 tripwire; cephalopod-before-fish ordering;
-unit tests per family. Invisible (fills bags nothing reads yet).
+part morphemes (雞翼/鳳爪/豬手/牛尾/豬耳/鵝掌 — no 翅; Decision 6); guard
+the latent 田雞-matches-雞 misread in LAND_SUB; unit tests per family.
+Invisible (fills bags nothing reads yet).
 
 ## G4. Gesture ports, one per round, owner sign-off each — *(Fable first pass each)*
 Prawn pincers FIRST (detector already live today). Then 翼 雞/鴨鵝 variants,
 尾 tails, 鰭 fins, 耳/角. Port checklist in mokling-lab-v7-vocabulary.js.
+Each port wires the Decision 6 expression ladder: one node = a POOL of parts
+(cow → legs/tail/ears/horns), chosen by part-pull → slot vacancy → fixed
+priority, never rolled — a seafood body wearing a fish tail grows cow LEGS
+from steak; a pork-legged body grows a cow TAIL. Path-dependent morphology
+is the possibility multiplier.
 
 ## G5. Instant-reward surface: growth delta in rating response → TasteGrowth line — *(Sonnet)*
 「蟹爪 大咗少少」 naturalist copy, never numbers. Feeds the later absorb beat.
