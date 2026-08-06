@@ -170,15 +170,25 @@ function snapShut(s: number) {
                   : Math.pow(1 - (s - 0.18) / 0.82, 1.8);  // release, slower
 }
 
-/** A claw doesn't chop continuously — it sits open, fires two or three fast
-    snaps, and goes quiet (~90% of the cycle is rest). Each snap shuts in its
-    first fifth and releases over the rest; a sine would give closing and
-    opening equal time, which reads as waving. Sides take different snap counts
-    and are offset, so a pair never chops in unison. */
+/** A claw doesn't chop continuously — it sits open, fires two fast snaps, and
+    goes quiet (~90% of the cycle is rest). Each snap shuts in its first fifth
+    and releases over the rest; a sine would give closing and opening equal
+    time, which reads as waving.
+    THE PAIR SNAPS IN UNISON (owner, 2026-08-06: "have the claws snap at the
+    same time, not left then right"). This reverses the original design, which
+    gave the sides different snap COUNTS (3 vs 2) and a half-cycle OFFSET so
+    they deliberately never chopped together — both had to go, since an offset
+    alone still left one side firing an extra snap after the other stopped.
+    A simultaneous double-snap reads as one animal deciding something; the
+    stagger read as two limbs arguing. `snaps` is the knob if a triple is
+    wanted instead.
+    The barely-there idle breath and sway keep their per-side phase on
+    purpose — that is resting texture, not the chop, and drifting slightly out
+    of step is what stops a synchronised pair looking mechanical. The recoil
+    term rides `shut`, so it synchronises with the snap automatically. */
 export function clawMotion(t: number, side: number): ClawMotion {
-  const snaps = side > 0 ? 3 : 2;
-  const offset = side > 0 ? 0 : CYCLE_MS * 0.47;
-  const ph = (t + offset) % CYCLE_MS;
+  const snaps = 2;
+  const ph = t % CYCLE_MS;
   const shut = ph < snaps * SNAP_MS ? snapShut((ph % SNAP_MS) / SNAP_MS) : 0;
   const idle = 0.010 * Math.sin(t * 0.0006 + side * 2.1);  // barely-there breath at rest
   return {

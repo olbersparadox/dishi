@@ -670,3 +670,49 @@ describe('clawSeats — one pair per coexisting variant', () => {
     }
   });
 });
+
+/* ── 螯 motion: the pair chops IN UNISON (owner, 2026-08-06) ──────────────────
+   Tested through the pure function, never by sampling the canvas: rAF is
+   paused whenever the preview pane is hidden, so a pixel diff reports a
+   perfectly still creature whether or not the motion works. */
+import { clawMotion } from '../src/lib/creatureGestures';
+
+describe('clawMotion — both claws snap at the same time', () => {
+  // one full cycle (7200ms) at fine resolution, so no snap can hide between samples
+  const TS = Array.from({ length: 400 }, (_, i) => i * 18);
+
+  it('the snap itself is IDENTICAL on both sides, at every instant', () => {
+    for (const t of TS) {
+      expect(clawMotion(t, 1).grip).toBeCloseTo(clawMotion(t, -1).grip, 12);
+    }
+  });
+
+  it('neither side fires a snap the other does not', () => {
+    // the original bug shape: an offset alone still left one side chopping a
+    // third time after the other had gone quiet
+    const firing = (side: number) => TS.filter(t => clawMotion(t, side).grip < 0.999).length;
+    expect(firing(1)).toBe(firing(-1));
+    expect(firing(1)).toBeGreaterThan(0); // and it really does chop
+  });
+
+  it('still chops — a double snap, then a long quiet', () => {
+    const shut = TS.map(t => clawMotion(t, 1).grip < 0.5);
+    const bursts = shut.filter((v, i) => v && !shut[i - 1]).length;
+    expect(bursts).toBe(2);                                   // two snaps
+    expect(shut.filter(Boolean).length / shut.length).toBeLessThan(0.15); // mostly rest
+  });
+
+  it('the recoil rides the snap, so it synchronises for free', () => {
+    const tSnap = TS.find(t => clawMotion(t, 1).grip < 0.5)!;
+    const a = clawMotion(tSnap, 1), b = clawMotion(tSnap, -1);
+    // sway = shared recoil + a per-side drift; the recoil part must match
+    expect(a.sway - b.sway).toBeCloseTo(
+      0.010 * (Math.sin(tSnap * 0.00041 + 2.6) - Math.sin(tSnap * 0.00041 - 2.6)), 12);
+  });
+
+  it('the resting breath still differs per side — texture, not the chop', () => {
+    const quiet = TS.filter(t => clawMotion(t, 1).grip > 0.999);
+    const differ = quiet.filter(t => Math.abs(clawMotion(t, 1).pinch - clawMotion(t, -1).pinch) > 1e-9);
+    expect(differ.length).toBeGreaterThan(quiet.length * 0.5);
+  });
+});
