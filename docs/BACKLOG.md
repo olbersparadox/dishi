@@ -1398,6 +1398,52 @@ full-screen, prior form archived in the 圖鑑) rather than a new system.
 (G9 read side shipped 2026-08-06 — see DECISIONS.md. The ASK side, nudging
 selectDuelPair toward a contested pair, remains open as G9b.)
 
+## G10. Sub-nodes need a VISIBLE BIRTH — the takeover as a process, not a cut — *(owner, 2026-08-06; Fable)*
+Owner, watching the metabolism timeline: "the user ate 3 crabs (already have
+the crab claw), then ate a lobster on day 123, loved it — and nothing would
+happen? We may not need the lobster claw to take over the crab right away, but
+it should show SOMETHING. How do we visualise this as a PROCESS — that's what
+the metabolism timeline is for."
+
+The gap, exactly: 萌→成→精 applies to DOMAIN nodes (shell, land, air), so a
+first loved shellfish dish visibly buds a claw. It does NOT apply to SUB-nodes
+(crab vs lobster), which are resolved by a winner-take-all switch. A minority
+sub-node is therefore INVISIBLE until the moment it wins, and then the whole
+gesture changes at once — a jump cut where the design promises a process.
+
+The framework already mandates the fix and one limb already obeys it. The
+blend rule (lab v5): "limb GEOMETRY blends continuously with the sub-node mix;
+the TERMINAL DETAIL takes the dominant sub-node, because a blended foot at
+thumbnail size is mud." Measured 2026-08-06:
+  - LEGS obey it — `len` and `w` in drawLeg are continuous functions of the
+    beef/pork/chicken mix; only hoof/trotter/toes switches.
+  - CLAWS do not — the whole gesture switches on `species`, and `mix` is
+    computed and then never read. (It became fully dead when G9 re-pointed the
+    species pick at the raw bag; either give it this job or delete it.)
+
+Proposal — blend the claw's OUTER geometry, keep the pincer as terminal detail:
+  - `sL/sR` asymmetry: 蟹 1.00/1.00 ↔ 龍蝦 1.22/0.82, interpolated by the mix
+  - `WRIST_BURIAL` (reach): 蟹 0.82 ↔ 龍蝦 0.96, interpolated
+  - `drawFn` (the pincer itself) still SWITCHES at dominance — the culmination
+Both endpoints are owner-calibrated and are preserved exactly at a pure mix, so
+no existing single-species being moves; only genuinely mixed palates change.
+Cheap, and it touches no gesture interior.
+
+The timeline that produces, on the owner's own scenario:
+  day 0-120  3 crabs          → crab claws, symmetric, tucked
+  day 123    first lobster, loved → arms visibly reach out and asymmetry
+                                    APPEARS, pincers still crab. Something
+                                    happened, the same day, without lying
+                                    about who is dominant.
+  day 200+   more lobster     → the lean deepens continuously
+  day ~300   lobster overtakes → the pincer flips. The takeover now READS as
+                                 the end of a process the person watched.
+Pairs with G5, which would NAME the moment on the growth screen (「龍蝦 · 第一次」).
+
+General principle to apply to every family, not just claws: a sub-node's first
+evidence must produce a visible change, even while another variant still owns
+the terminal detail.
+
 ## G9b. Duel ASK-side nudge — let the engine ask the contested question — *(Fable)*
 `selectDuelPair` already ranks by sealed-bet uncertainty; a contested sub-node
 is the same uncertainty, so favouring pairs that would resolve one is a
