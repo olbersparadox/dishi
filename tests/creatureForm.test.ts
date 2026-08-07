@@ -819,7 +819,10 @@ describe('蝦 prawn as a first-class claw species (G4 round 1)', () => {
 import { wingShape } from '../src/lib/creatureForm';
 
 describe('wingShape — the 雞/鴨鵝 blend', () => {
-  const NEUTRAL = { lenMul: 1, widthMul: 1, spreadMul: 1, baseAng: -0.32, humpMul: 1, countMul: 1 };
+  const NEUTRAL = {
+    lenMul: 1, widthMul: 1, spreadMul: 1, baseAng: -0.32, humpMul: 1, countMul: 1,
+    flapFreqMul: 1, flapAmpMul: 1,
+  };
 
   it('legacy is neutral REGARDLESS of the bag — the frozen control grows no variants', () => {
     expect(wingShape({ chicken: 30 }, 'legacy')).toEqual(NEUTRAL);
@@ -935,6 +938,42 @@ describe('wingShape — the 雞/鴨鵝 blend', () => {
       for (let i = 1; i < shares.length; i++) expect(shares[i]).toBeLessThan(shares[i - 1]);
       expect(shares[0]).toBeCloseTo(1, 6);                 // 50/50 = neutral = k≈0 = no boost
       expect(shares[shares.length - 1]).toBeCloseTo(0.7 * 1.2, 6); // pure 鴨鵝 = full goose boost
+    });
+  });
+
+  /** Owner, on the wing bench, after the shape/thickness dials: "can we turn
+   *  animation for specific sides?" — clarified as 雞 vs 鴨鵝 (species), not
+   *  left vs right (physical side). Continuous in k, like lenMul/spreadMul/
+   *  baseAng — not a one-sided boost, since flutter-vs-glide is a spectrum
+   *  property of the blend itself. */
+  describe('flap animation dials (雞 flutters, 鴨鵝 glides)', () => {
+    it('neutral (no lived data, or legacy) has no animation dial — exactly 1x', () => {
+      expect(wingShape(undefined, 'metabolism').flapFreqMul).toBeCloseTo(1, 6);
+      expect(wingShape(undefined, 'metabolism').flapAmpMul).toBeCloseTo(1, 6);
+      expect(wingShape({ chicken: 5, duck_goose: 5 }, 'metabolism').flapFreqMul).toBeCloseTo(1, 6);
+      expect(wingShape({ chicken: 30 }, 'legacy').flapFreqMul).toBeCloseTo(1, 6);
+      expect(wingShape({ chicken: 30 }, 'legacy').flapAmpMul).toBeCloseTo(1, 6);
+    });
+
+    it('pure 雞: faster, tighter flutter — freq up, reach down', () => {
+      const w = wingShape({ chicken: 10 }, 'metabolism');
+      expect(w.flapFreqMul).toBeCloseTo(1.6, 6);
+      expect(w.flapAmpMul).toBeCloseTo(0.6, 6);
+    });
+
+    it('pure 鴨鵝: slower, wider glide — freq down, reach up', () => {
+      const w = wingShape({ duck_goose: 10 }, 'metabolism');
+      expect(w.flapFreqMul).toBeCloseTo(0.4, 6);
+      expect(w.flapAmpMul).toBeCloseTo(1.4, 6);
+    });
+
+    it('ramps continuously and oppositely across the whole blend, never jumps', () => {
+      const mixes = [-1, -0.6, -0.2, 0, 0.2, 0.6, 1].map(k =>
+        wingShape({ chicken: (k + 1) / 2, duck_goose: (1 - k) / 2 }, 'metabolism'));
+      for (let i = 1; i < mixes.length; i++) {
+        expect(mixes[i].flapFreqMul).toBeGreaterThan(mixes[i - 1].flapFreqMul);
+        expect(mixes[i].flapAmpMul).toBeLessThan(mixes[i - 1].flapAmpMul);
+      }
     });
   });
 });

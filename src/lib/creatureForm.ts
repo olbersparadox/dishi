@@ -765,7 +765,7 @@ export function domOfStable<K extends string>(
    control never grows variants. */
 export type WingShape = {
   lenMul: number; widthMul: number; spreadMul: number; baseAng: number; humpMul: number;
-  countMul: number;
+  countMul: number; flapFreqMul: number; flapAmpMul: number;
 };
 export function wingShape(
   airBag: { chicken?: number; duck_goose?: number } | undefined,
@@ -773,6 +773,7 @@ export function wingShape(
 ): WingShape {
   const NEUTRAL: WingShape = {
     lenMul: 1, widthMul: 1, spreadMul: 1, baseAng: -0.32, humpMul: 1, countMul: 1,
+    flapFreqMul: 1, flapAmpMul: 1,
   };
   if (mode !== 'metabolism') return NEUTRAL;
   // NOT subMix: its absent→1 default is right for the legs' calibrated
@@ -813,6 +814,19 @@ export function wingShape(
   // is non-1. No curvature dial requested for this side.
   const gooseBoost = Math.max(0, -k);
   const gooseThicknessMul = 1 + 0.2 * gooseBoost; // stroke thickness only
+  // Owner, on the wing bench, after the shape/thickness dials settled: "can
+  // we turn animation for specific sides?" — clarified as 雞 vs 鴨鵝, not
+  // left vs right. Continuous in k like lenMul/spreadMul/baseAng above
+  // (flutter-vs-glide is a spectrum property of the species blend itself,
+  // not an extra one-sided add-on the way the thickness stacks were), so it
+  // needs no separate boost term and is exactly 1 at k=0. 雞 (k=+1) flaps
+  // 1.6x FASTER at 0.6x the reach — quick, small flutter. 鴨鵝 (k=−1) flaps
+  // 0.4x slower at 1.4x the reach — slow, wide glide. Both fall out of the
+  // same early NEUTRAL/legacy returns above, so this has zero effect on any
+  // static snapshot (creatureSnapshotSvg always calls at t=0, where the draw
+  // site's flap term is unconditionally 0) — only the live canvas moves.
+  const flapFreqMul = 1 + 0.6 * k;
+  const flapAmpMul = 1 - 0.4 * k;
   return {
     lenMul: 1 - 0.35 * k,                   // UNCHANGED — same length as the plain blend
     widthMul: (1 + 0.3 * k) * thicknessMul * gooseThicknessMul, // 雞 1.3→2.73 · 鴨鵝 0.7→0.84
@@ -820,6 +834,8 @@ export function wingShape(
     baseAng: -0.32 - 0.28 * k,              // 雞 raised toward flutter, 鴨鵝 flat glide
     humpMul: (1 + 0.3 * k) * curveMul,      // 雞 rounder arc AND more curved · 鴨鵝 untouched
     countMul: 1,                            // UNCHANGED — same stroke count as the plain blend
+    flapFreqMul,                            // 雞 1.6x faster · 鴨鵝 0.6x slower
+    flapAmpMul,                             // 雞 0.6x reach (tight flutter) · 鴨鵝 1.4x reach (wide glide)
   };
 }
 
@@ -1041,7 +1057,7 @@ export function drawCreatureFrame(
     // without lived sub.air, and always a no-op in legacy mode.
     const WS = wingShape(domains.sub?.air, mode);
     const span = R * (0.55 + 0.75 * S.wings.shareF) * S.wings.evF * WS.lenMul;
-    const flap = t ? 0.13 * Math.sin(t * 0.0013) * (0.3 + a) : 0;
+    const flap = t ? 0.13 * WS.flapAmpMul * Math.sin(t * 0.0013 * WS.flapFreqMul) * (0.3 + a) : 0;
     for (const side of [-1, 1]) {
       const base = flank(side, 0.8);
       // countMul is 1.0 for everything except a 雞-leaning mix (see wingShape),

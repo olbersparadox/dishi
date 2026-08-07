@@ -5337,3 +5337,50 @@ stays flat.
 7 tests added/updated (a new nested describe for the goose dial, plus the
 pure-鴨鵝 and one-sided-鴨鵝-mix assertions updated to account for it). tsc
 clean; full suite 1388/1388.
+
+(A follow-up tune 5, stacking the goose thickness dial another +20%, shipped
+and was then reverted the same session — owner: "no visual difference" —
+before this round started. Its net effect on `wingShape` is zero; not
+re-listed here since nothing shipped from it.)
+
+## G4 round 2, animation: 雞 flutters, 鴨鵝 glides — *(Sonnet)* — ✅ SHIPPED 2026-08-07
+Owner, on the wing bench, after settling the shape/thickness dials: "can we
+turn animation for specific sides?" Ambiguous between left/right wing and
+雞/鴨鵝 species — asked, owner confirmed 雞 vs 鴨鵝. Sonnet-tier: a motion
+tune on an already-shipped gesture's existing animation term, not a new
+visible surface.
+
+Two new `WingShape` fields, `flapFreqMul` and `flapAmpMul`, feed the draw
+site's existing per-frame flap term (`flap = t ? 0.13 * WS.flapAmpMul *
+Math.sin(t * 0.0013 * WS.flapFreqMul) * (0.3 + a) : 0`) — previously a
+single shared sine driving both wings identically regardless of diet.
+Unlike the thickness/curvature dials, this is CONTINUOUS in `k` the same way
+`lenMul`/`spreadMul`/`baseAng` already are, not a one-sided boost: flutter-
+vs-glide is a spectrum property of the blend itself (the dev-wings copy
+already describes it that way), not an extra add-on tacked onto one side.
+雞 (k=+1): 1.6x frequency, 0.6x reach — quick, small flutter. 鴨鵝 (k=−1):
+0.4x frequency, 1.4x reach — slow, wide glide. Both fall out of the same
+NEUTRAL/legacy early-returns as every other field, so a being with no lived
+sub.air or in legacy mode keeps the original single-frequency flap exactly.
+
+This has ZERO effect on any snapshot render: `creatureSnapshotSvg` always
+calls at `t = CREATURE_STILL_T = 0`, and the draw site's flap term is
+`t ? ... : 0` — unconditionally zero at t=0 regardless of either new
+multiplier. Confirmed via the same 11-fixture byte-identity sweep as every
+prior round: all 22 legacy/metabolism cells identical, none excepted (the
+first round in this series where NOTHING changes in a snapshot, by
+construction, not just by accident). Only the live canvas (`TasteFormLive`,
+which drives a real animation loop) can show the effect at all.
+
+Attempted an empirical pixel-level check on `/dev-wings` (sampling total
+canvas ink over ~15s and isolating each variant's motion by subtracting the
+shared generic-cell baseline) but the signal was too confounded by other
+t-driven motion (breathing, hair wind bend) sharing the same canvas to
+cleanly isolate wing-only frequency — abandoned rather than reported as
+proof it wasn't. Correctness instead rests on: the pure `wingShape` function
+tested directly at both endpoints and for continuity (new nested describe,
+4 tests), and a straight read of the one-line wiring showing both multipliers
+flow from the same `WS` object already under test into the term both wing
+sides consume.
+
+4 tests added. tsc clean; full suite 1392/1392.
