@@ -5975,3 +5975,32 @@ shell-bearing fixtures — tendrils untouched this round), 28/28 as
 predicted; two-palate side-by-side throwaway bench (not committed)
 confirmed the third band touches both rims on both palates, not just the
 one that happened to read fine before.
+
+## 糙 rough skin: dots no longer touch on oval bodies, darker grey — *(Sonnet)* — ✅ SHIPPED 2026-08-07
+Owner: "for hairy and fried rough skin only (or maybe with the oval shaped
+body), the dots are touching each other, have them smaller so non would
+touch each other" / "tune the color of the dots darker."
+
+Reproduced first, without assuming the cause: built a hairy+rough fixture
+AND a rough-alone (no fur) fixture side by side — both showed the same
+touching dots, which ruled out "hairy" as the actual trigger and confirmed
+the owner's own parenthetical guess instead. The real cause: `R0` (dot
+radius) scaled only off `BB.hr`, while the cluster's vertical spacing
+scales off `BB.vr` (each dot's `v` offset × `BB.vr`). On a wide/oval body
+`BB.vr` shrinks faster than `BB.hr`, so the radius stayed full-size while
+the vertical gaps between dots closed under it — a body-shape bug, not a
+skin-combination one. Fixed by scaling `R0` off `Math.min(BB.hr, BB.vr)`
+instead — identical to the old formula on a roughly round body (hr≈vr, the
+common case), and shrinks correctly whichever axis is actually tight.
+
+Grey darkened `#5a544c` → `#3b3731`, ~35% down in lightness, kept visibly
+distinct from the black dot it overlaps rather than flattened into it.
+
+Verification: tsc clean; 141 creature tests (one existing test's hardcoded
+grey hex updated to match); ink-bounds clean; full suite 1422/1422;
+byte-identity — a genuinely non-rough (steamed) fixture confirmed
+byte-identical in both modes, isolating the change correctly to `isRough`
+bodies only; every rough-skinned fixture in a five-fixture sweep changed as
+expected. /dev-skin-check (throwaway, not committed) confirmed both fixes
+side by side: dots no longer touch in the hairy+rough case AND the
+fur-free comparison, color visibly darker in both.

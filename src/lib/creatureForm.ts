@@ -379,7 +379,10 @@ const SKIN_SMOOTH_LAND = { base: '#332f2a', mid: '#454039', hi: '#847f76', rim: 
 const SKIN_SOFT = { halo: '#dad7cf', layer: '#3b3733', core: '#221f1a' };
 // 糙 rough: one dot = a grey circle overlapping a black one. Both must read
 // against the body's own gradient (L29–55): black sits below it, grey above.
-const SKIN_ROUGH = { black: '#0a0908', grey: '#5a544c' };
+// Grey darkened #5a544c → #3b3731 (owner: "tune the color of the dots
+// darker") — ~35% down in lightness, still a visibly distinct warm grey
+// against the near-black dot it overlaps, not flattened into it.
+const SKIN_ROUGH = { black: '#0a0908', grey: '#3b3731' };
 /* 釉 glaze (燜 braised): a lacquered pool, read off the owner's reference —
    the rim is the DARKEST thing (thick sauce banking up at the edge), a warmer
    mass sits inside it, and two bright speculars catch the wet surface. That
@@ -1834,7 +1837,16 @@ export function drawCreatureFrame(
     if (!(isShell && isRough)) {
       DOTS.push([-0.65, 0.46, 0.68], [-0.48, 0.32, 0.73], [-0.49, 0.60, 0.75]);
     }
-    const R0 = BB.hr * 0.105;
+    // Scaled off the SHORTER radius, not always BB.hr (owner: "the dots are
+    // touching each other" — reproduced without fur too, so this was never
+    // hairy-specific: it's any oval body). Cluster spacing follows u·BB.hr
+    // horizontally and v·BB.vr vertically — on a wide/squashed body BB.vr
+    // shrinks faster than BB.hr, so a radius tied only to BB.hr stays full
+    // size while the vertical gaps between dots close under it. min(hr,vr)
+    // shrinks the dots right along with whichever axis is actually tight,
+    // and is identical to the old formula on a roughly round body (hr≈vr),
+    // so this is a no-op for the common case.
+    const R0 = Math.min(BB.hr, BB.vr) * 0.105;
     ctx.save();
     ctx.beginPath(); closedPath(ctx, pts); ctx.clip();
     for (const [u, v, sc] of DOTS) {

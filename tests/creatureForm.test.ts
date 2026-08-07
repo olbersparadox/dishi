@@ -383,7 +383,7 @@ describe('糙 rough — the owner\'s spec, through the real renderer', () => {
     ), m => m).filter(m => m[6] === fill)
       .map(m => ({ cx: (+m[1] + +m[4]) / 2, cy: (+m[2] + +m[5]) / 2, r: +m[3] }));
 
-  const grey = circles('#5a544c');
+  const grey = circles('#3b3731');
   const black = circles('#0a0908');
 
   /** The drawn body outline. Found by SHAPE — the longest bezier path — not by
