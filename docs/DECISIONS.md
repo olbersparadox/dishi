@@ -5659,3 +5659,30 @@ fork sitting visibly lower and further out, base at the rim rather than the
 flukes themselves growing. tsc clean; full suite 1410/1410 (no test changes
 — burial is exercised by the existing ink-bounds/byte-identity coverage,
 not a new assertion surface).
+
+## G4 round 3 motion: 魚尾 flips like a fish tail — *(Sonnet)* — ✅ SHIPPED 2026-08-07
+Owner, on the tail bench: "maybe a little animation would help. Can you make
+it flip like a fish tail?" Sonnet-tier: motion added to an already-shipped
+gesture with a live reference on screen, same call as the wing flap rounds.
+
+All five tail gestures already shared one generic sway (`0.055 rad @
+0.0008/ms`) meant for a whip/curl/fan's gentle drift. 魚 now gets its own —
+`0.32 rad @ 0.0032/ms`, roughly 6× the amplitude and 4× the frequency —
+continuous rather than the wings' burst-pause, since a swimming tail strokes
+steadily and doesn't rest between bursts the way a bird's wing does. The
+other four gestures are untouched.
+
+The one real risk with a bigger swing on a gesture already anchored near the
+rim (burial 0.98, from the round above) is a live-canvas crop the static
+ink-bounds net cannot see — `creatureInkBounds` always calls at `t=0`, and
+the flip is entirely gated behind `t`, so every existing test (unit and
+byte-identity) is blind to it by construction. Verified with a dedicated
+sweep instead: `drawCreatureFrame` called directly across a full flip
+period (41 samples), at every production size, on both the calibration
+fixture and the owner's real profile — worst overflow measured 0.00px.
+Followed by a live two-frame screenshot on `/dev-tails` confirming visible
+motion between frames. Script was temporary, not committed.
+
+tsc clean; full suite 1410/1410 (no test changes — the crop sweep isn't
+unit-test material, it's a one-time verification the same way a screenshot
+is).

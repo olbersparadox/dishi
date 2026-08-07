@@ -1000,7 +1000,16 @@ function drawTail(
 ) {
   const f = plan.sizeF;
   const ink = 'rgba(33,29,24,.93)'; // 骨 parts wear neutral ink, never 膚's colour
-  const sway = t ? Math.sin(t * 0.0008 + 1.1) * 0.055 : 0;
+  // 魚 gets its own motion — a real swimming flip, not the shared gentle sway
+  // (owner, on the tail bench: "make it flip like a fish tail"). Bigger
+  // amplitude and ~4x the frequency of the other four gestures' sway, so it
+  // reads as a rhythmic beat rather than a drift. Continuous, not the wings'
+  // burst-pause: a swimming tail strokes steadily, it doesn't rest between
+  // bursts the way a bird's wing does.
+  const FISH_FLIP_AMP = 0.32, FISH_FLIP_FREQ = 0.0032;
+  const sway = !t ? 0
+    : plan.variant === 'fish' ? Math.sin(t * FISH_FLIP_FREQ + 1.1) * FISH_FLIP_AMP
+    : Math.sin(t * 0.0008 + 1.1) * 0.055;
   const th = outAng + sway;
   const cosT = Math.cos(th), sinT = Math.sin(th);
   const px = (lx: number, ly: number) => bx + lx * cosT - ly * sinT;
