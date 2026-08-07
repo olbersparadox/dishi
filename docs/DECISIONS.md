@@ -6158,3 +6158,30 @@ beef claim paths at every production size: still 0.00px overflow, since
 the tail's own reach stays well inside the canvas margin even at a 149°
 swing. Snapshot byte-identity re-confirmed (t=0 always short-circuits
 `rotAt` to 0 regardless of `ROT_GAIN`). tsc clean; full suite 1422/1422.
+
+## 牛尾 motion, pacing: slow swing, quick flip — a time-warp on the swat's own phase — *(Sonnet)* — ✅ SHIPPED 2026-08-07
+Owner, after the flip fix landed: "slow it down a bit with it swings, and
+quick when it flips." A pacing note, not a shape note — the swat's motion
+curve (`sin(2πφ)·sin(πφ)` over the 340ms window) was right, it just
+advanced through real time at a constant rate throughout.
+
+Replaced the linear time→phase mapping with a raised-cosine warp,
+`ph = 0.5 − 0.5·cos(π·phLinear)`: zero speed (dφ/dt) at both ends of the
+window and peak speed at the middle. Real time near the START and END of
+the swat (the swing-out and swing-back) now advances the underlying phase
+SLOWLY; real time near the MIDDLE rushes through the phase — including
+φ≈0.5, exactly where the motion crosses zero and reverses direction. Same
+motion shape as before, same 0-at-both-edges guarantee (warp(0)=0,
+warp(1)=1 exactly, so it still never snaps against the wiggle either side),
+only the pacing within the window changed. No other constant touched —
+`COW_LAG`, `ROT_GAIN`, `COW_SWAT_AMP` all as shipped in the flip round.
+
+Verified the pacing itself, not just the shape: sampled `cowSwat` every
+20ms across the swat window and printed the frame-to-frame delta as a
+speed proxy. Confirmed slow→fast→slow: Δ starts at 0.014, climbs to a peak
+magnitude of 0.31 at the window's midpoint, tapers back to 0.01 by the end
+— exactly the intended profile. Re-swept the full cycle (681 samples, both
+beef claim paths, every size): still 0.00px overflow, since the warp only
+redistributes WHEN the same bounded values occur, never how large they
+get. tsc clean; full suite 1422/1422 (unchanged, still entirely behind
+`t`).

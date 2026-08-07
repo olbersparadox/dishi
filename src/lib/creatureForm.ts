@@ -1006,7 +1006,17 @@ function cowSwat(t: number): number {
   const cyc = ((t % COW_PERIOD) + COW_PERIOD) % COW_PERIOD;
   const wiggle = COW_WIGGLE_AMP * Math.sin(TAU * 5 * (cyc / COW_PERIOD));
   if (cyc < COW_SWAT_START || cyc >= COW_SWAT_START + COW_SWAT_LEN) return wiggle;
-  const ph = (cyc - COW_SWAT_START) / COW_SWAT_LEN;
+  const phLinear = (cyc - COW_SWAT_START) / COW_SWAT_LEN;
+  // Time-warped, not linear (owner: "slow it down a bit with it swings,
+  // and quick when it flips") — the raised-cosine warp `0.5 - 0.5·cos(πu)`
+  // has zero speed (d/du) at both u=0 and u=1 and peak speed at u=0.5, so
+  // real time near the START and END of the 340ms window (the swing-out
+  // and swing-back) advances the underlying phase SLOWLY, while real time
+  // near the MIDDLE rushes through the phase — including φ≈0.5, exactly
+  // where the motion crosses zero and reverses. Same shape as before
+  // (sin(2πφ)·sin(πφ)), still tapering to exactly 0 at both ends (warp(0)=0,
+  // warp(1)=1 exactly) — only the PACING within the window changed.
+  const ph = 0.5 - 0.5 * Math.cos(Math.PI * phLinear);
   // sin(2πφ) is the double-sided whip; sin(πφ) tapers it in and out
   return wiggle + COW_SWAT_AMP * Math.sin(TAU * ph) * Math.sin(Math.PI * ph);
 }
