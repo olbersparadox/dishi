@@ -325,6 +325,23 @@ describe('hairWindBend — wind moves each hair, not the whole creature', () => 
     }
     expect(worst).toBeLessThan(0.9); // ≈50°, and only fully broadside at peak gust
   });
+
+  it('no direction sits permanently near-zero (owner: side/bottom hair read as too static)', () => {
+    // a single fixed-direction wind (g, 0.3g) leaves hairs exactly parallel
+    // to it — here, and its antipode — with a cross product of ~0 at EVERY
+    // phase of g, forever: a genuinely dead patch, not a subtle one. Sample
+    // every direction around the body and require each to have its moment
+    // of real motion somewhere across a long time window.
+    for (let a = 0; a < 32; a++) {
+      const ang = (a / 32) * Math.PI * 2;
+      const nx = Math.cos(ang), ny = Math.sin(ang);
+      let peak = 0;
+      for (let t = 0; t < 40000; t += 200) {
+        peak = Math.max(peak, Math.abs(hairWindBend(nx, ny, 0, R, t)));
+      }
+      expect(peak).toBeGreaterThan(0.1);
+    }
+  });
 });
 
 // The small-size correction: below ~170px the coat was burying the legs.

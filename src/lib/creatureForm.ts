@@ -91,6 +91,22 @@ const smooth01 = (x: number) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
  * one rigid mass. A travelling ripple is also far easier to see than uniform
  * jitter, which is what lets the amplitude stay genuinely subtle.
  *
+ * TWO gusts, not one (owner, 2026-08-07: "the movement of hair on the side
+ * and bottom are too static"). A single fixed-direction wind (g, 0.3g) has
+ * hairs EXACTLY parallel to it — near (nx,ny) ≈ (0.96, 0.29) and its
+ * antipode — permanently near-zero cross product, at every phase of `g`,
+ * forever: not a subtle effect, a genuinely dead patch that happened to
+ * land on the lower/side flank. The fix is not more amplitude (that patch
+ * would still be dead at any gain); it's a second gust on the PERPENDICULAR
+ * axis (wind rotated 90°) with a decorrelated frequency/phase, so it peaks
+ * exactly where the first gust goes to zero. Because cross1² + cross2² is
+ * CONSTANT over direction (both are components of the same rotated-wind
+ * pair), every hair gets a comparable total budget across the two terms —
+ * no direction is structurally short-changed the way the single-gust
+ * version left the lower/side flank. Amplitudes are halved per term (from
+ * the original single term's 0.8) so the worst-case SUM stays bounded the
+ * same as before; see the "bounded" test.
+ *
  * Pure and exported so the motion is testable WITHOUT a compositor: rAF is
  * paused whenever the preview pane is hidden, which makes pixel-sampling a live
  * canvas an unreliable way to prove that anything is moving (it reports a
@@ -104,12 +120,15 @@ export function hairWindBend(nx: number, ny: number, offsetX: number, R: number,
   // for seconds at a time, which reads as no animation at all if you happen to
   // look then (owner, 2026-08-04: "don't see animation or too subtle").
   const swell = 0.62 + 0.38 * Math.sin(t * 0.00029); // gusts, never fully still
-  const g = swell * Math.sin(t * 0.0015 - (offsetX / (R * 2.2)) * 4.2);
+  const g1 = swell * Math.sin(t * 0.0015 - (offsetX / (R * 2.2)) * 4.2);
+  const g2 = swell * Math.sin(t * 0.0021 + 2.1 - (offsetX / (R * 2.2)) * 4.2);
   // Amplitude is what a hair can actually SHOW: a strand is only a few px long,
   // so a 20° lean moves its tip by ~2px and vanishes. Real fur lays right over
   // in a gust, so the peak lean is large — but only for hairs fully broadside,
   // only at peak swell, and only where the travelling wave currently is.
-  return 0.8 * g * (0.3 * nx - ny); // cross(hair, wind), wind ≈ (g, .3g)
+  const cross1 = 0.3 * nx - ny;       // cross(hair, wind1), wind1 ≈ (g1, .3·g1)
+  const cross2 = nx + 0.3 * ny;       // cross(hair, wind2), wind2 = wind1 rotated 90°
+  return 0.5 * g1 * cross1 + 0.5 * g2 * cross2;
 }
 
 /**
@@ -1243,7 +1262,15 @@ function drawTail(
 
        PORK_SHRINK = 0.85 (owner: "shrink it by 15%") scales the whole
        stem+coil unit uniformly, including the stroke weight, rather than
-       just the coil radius — a size tune, not a reshape. */
+       just the coil radius — a size tune, not a reshape.
+
+       No per-variant motion here: a tried size-pulsing "bounce" read
+       wrong to the owner ("take out the animation for the pig tail.
+       doesn't look right") and was removed. What stayed instead is the
+       shared gentle sway every non-fish, non-beef tail already gets from
+       the dispatch above (`th = outAng + sway`, ~3° drift) — exactly the
+       "subtly swing a little bit" the owner asked for on the follow-up,
+       so pork needs nothing extra here to get it. */
     const PORK_SHRINK = 0.85;
     const pf = f * PORK_SHRINK;
     ctx.lineWidth = Math.max(1, R * 0.1 * pf);

@@ -6341,3 +6341,51 @@ rather than inventing a new scaling convention.
 Verification: tsc clean (known pre-existing i18n.test.ts error only);
 141/141 creature + ink-bounds tests; screenshot of the live `/dev-tails`
 bench confirmed the smaller tail still reads clearly as a stemmed curl.
+
+## 毛 coat: the side/bottom hair had a permanently dead direction — *(Sonnet)* — ✅ SHIPPED 2026-08-07
+Owner: "the movement of hair on the side and bottom are too static." Not a
+subtlety problem, a structural one, and the distinction decided the fix.
+`hairWindBend` bent each hair by the cross product with ONE gust vector
+`(g, 0.3g)`. Hairs pointing exactly along that vector — `(nx,ny) ≈
+(0.96, 0.29)` and its antipode, which is precisely the lower/side flank —
+have a cross product of ~0 at EVERY phase of `g`, forever. Measured over
+40s of simulated time: peak bend `0.0003` rad for that direction, versus
+~0.5 for a broadside hair. Raising the amplitude could never have fixed
+it (0 × anything is still 0); the dead patch had to be removed, not
+amplified.
+
+Fix: a SECOND gust on the perpendicular axis (the wind vector rotated
+90°, `cross2 = nx + 0.3·ny`) at a decorrelated frequency and phase
+(`0.0021` vs `0.0015`, `+2.1` offset), so it peaks exactly where the
+first goes dead. Since `cross1² + cross2²` is constant over direction —
+they are the two components of one rotated pair — every hair now gets a
+comparable motion budget across the two terms, with no direction
+structurally short-changed. Both terms carry half the original single
+term's gain (`0.5` each vs `0.8`), keeping the worst-case sum inside the
+existing "a gust lays fur over, it does not spin it into a limb" bound.
+
+Verification: the old dead direction's 40s peak goes `0.0003 → 0.52`;
+worst case across all directions/time `0.72`, still under the pinned
+`0.9` ceiling. New test walks 32 directions around the body and requires
+each to exceed `0.1` somewhere in a 40s window — it FAILS against the
+old single-gust formula, which is the point. In-browser ImageData
+sampling of a live hairy render (8 octants, 10s) showed real per-octant
+variation everywhere, including the previously-dead lower-right flank.
+tsc clean; full suite 1423/1423.
+
+## 豬尾 pig tail: bounce animation tried and REMOVED — *(Sonnet)* — ✅ SHIPPED 2026-08-07
+Owner asked for "some animation on the pig tail to make it look bouncy",
+then on seeing it: "take out the animation for the pig tail. doesn't
+look right / just have it subtly swing a little bit is ok."
+
+The tried version pulsed the coil's own SIZE (a slinky flexing along its
+axis, `BOUNCE_AMP = 0.16` on the geometry but not the stroke weight).
+Removed entirely. What satisfies the follow-up needs no new code: pork
+already takes the shared gentle sway every non-fish, non-beef tail gets
+from `drawTail`'s dispatch (`th = outAng + sway`, ~3° drift) — the tail
+swings subtly as a whole, which is what was asked for. Recorded here
+rather than silently reverted so the next round doesn't re-propose a
+size-pulse as a fresh idea.
+
+Verification: tsc clean; full suite 1423/1423; screenshot of the live
+`/dev-tails` bench confirmed the curl holds a stable size.
