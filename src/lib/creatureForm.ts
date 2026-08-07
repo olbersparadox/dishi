@@ -999,8 +999,11 @@ export function tailPlan(domains: DomainEvidence, mode: GrowthMode): TailPlan | 
 // so it rides on top of the wiggle without ever snapping against it.
 const COW_PERIOD = 3400, COW_SWAT_START = 2720, COW_SWAT_LEN = 340;
 const COW_WIGGLE_AMP = 0.07, COW_SWAT_AMP = 0.55;
+// Wraps negative t correctly (JS's % keeps the sign of its left operand) —
+// needed because the bend function below samples this at a per-point time
+// OFFSET, which can go negative near t=0.
 function cowSwat(t: number): number {
-  const cyc = t % COW_PERIOD;
+  const cyc = ((t % COW_PERIOD) + COW_PERIOD) % COW_PERIOD;
   const wiggle = COW_WIGGLE_AMP * Math.sin(TAU * 5 * (cyc / COW_PERIOD));
   if (cyc < COW_SWAT_START || cyc >= COW_SWAT_START + COW_SWAT_LEN) return wiggle;
   const ph = (cyc - COW_SWAT_START) / COW_SWAT_LEN;
@@ -1049,7 +1052,6 @@ function drawTail(
   // Stroke, bending left and right, instead of the whole thing like moving
   // a stiff curved stick") — its motion is applied per-point, below, so it
   // takes NO share of `th`; the base direction stays exactly `outAng`.
-  const cowBend = !t ? 0 : cowSwat(t);
   const sway = !t ? 0
     : plan.variant === 'fish' ? Math.sin(t * FISH_FLIP_FREQ + 1.1) * FISH_FLIP_AMP
     : plan.variant === 'beef' ? 0
@@ -1155,20 +1157,32 @@ function drawTail(
     // gesture reads smaller.
     const BEEF_SHRINK = 0.9;
     const bf = f * BEEF_SHRINK;
-    /* The swat bends the STROKE, not the gesture as a rigid unit (owner:
-       "movement within the Stroke, bending left and right, instead of the
-       whole thing like moving a stiff curved stick"). Each point along the
-       curve gets its OWN lateral offset in local space (the `ly` axis,
-       perpendicular to the base direction), growing with `u^1.6` — u=0 at
-       the body (anchored, never moves — it's attached there) up to u=1 at
-       the tip, and superlinear so the near-body length stays comparatively
-       straight while the outer length whips, the way a flexible rod
-       actually bends rather than a stick pivoting at its base. `bendReach`
-       ties the offset's scale to the tail's own size, same as every other
-       dimension here. The tuft rides the tip's own bend as a matching
-       rotation, since it's rigidly attached there. */
-    const BEND_POW = 1.6, bendReach = R * bf * 0.75;
-    const bendAt = (u: number) => cowBend * bendReach * Math.pow(u, BEND_POW);
+    /* The swat CURVES the stroke — the tip's motion actually LAGS the
+       base's in time, not just a static shape scaled up and down (owner,
+       second correction: "it's still a stiff movement just changed
+       direction... to 'flip' it, is to have the other end 'curved' to
+       another position. The 'curving' itself is the animation process,
+       like a moving string"). A single instantaneous bend value scaled by
+       position — what the first attempt did — draws the SAME curve shape
+       at every instant, just bigger or smaller; a rigid rotation and a
+       "scaled static shape" read identically, because neither one ever
+       changes shape, only size. Real string/whip motion needs different
+       points along the length executing the SAME motion at DIFFERENT
+       times — the animation principle is follow-through/drag: each point
+       samples `cowSwat` at `t` minus a delay proportional to `u` (0 at the
+       anchored body, growing toward the tip), so at any instant the tip is
+       showing what the base felt `COW_LAG`ms ago. During the fast 340ms
+       swat this produces a real S-curve — the base already snapping back
+       while the tip is still near the peak — which IS what curving looks
+       like; during the slow wiggle the lag is barely visible, same as the
+       real animal. `bendReach` ties the offset's scale to the tail's own
+       size; the mild `u^1.3` still keeps the base a touch stiller than a
+       pure delay alone would, without doing the main work itself anymore.
+       The tuft samples the same delayed value as the tip, since it's
+       rigidly attached there. */
+    const BEND_POW = 1.3, bendReach = R * bf * 0.75, COW_LAG = 180;
+    const bendAt = (u: number) => (t ? cowSwat(t - COW_LAG * u) : 0) * bendReach * Math.pow(u, BEND_POW);
+    const tipBend = t ? cowSwat(t - COW_LAG) : 0;
     const c1y = -R * 0.28 * bf + bendAt(0.45);
     const c2y = R * 0.3 * bf + bendAt(0.75);
     const tipY = R * 0.72 * bf + bendAt(1.0);
@@ -1182,7 +1196,7 @@ function drawTail(
     ctx.stroke();
     for (const a of [-0.5, 0, 0.5]) {
       tailBlade(ctx, px(R * 0.55 * bf, tipY), py(R * 0.55 * bf, tipY),
-        R * 0.3 * bf, R * 0.075 * bf, th + Math.PI / 2 + a + cowBend);
+        R * 0.3 * bf, R * 0.075 * bf, th + Math.PI / 2 + a + tipBend);
     }
   } else if (plan.variant === 'pork') {
     // the curl: a short lead-out clear of the body, then a decaying coil

@@ -6088,3 +6088,41 @@ rotation. Re-ran the full crop sweep (121 samples across the 3400ms cycle,
 both beef claim paths, every production size) after the rewrite: worst
 overflow still 0.00px. tsc clean; full suite 1422/1422 (unchanged — the
 whole thing is behind `t`, same guarantee as every prior motion round).
+
+## 牛尾 motion, corrected again: the shape itself curves — a delay, not a scale — *(Sonnet)* — ✅ SHIPPED 2026-08-07
+Owner, immediately after: "it's not right. it's still a stiff movement just
+changed direction... if you could really animate the 'BENDING' of a
+stroke... the 'curving' itself is the animation process, like a moving
+string / stroke / tail." Correct, and the diagnosis names exactly why the
+u^1.6 attempt still read stiff: `bendAt(u) = cowBend(t) * bendReach * u^1.6`
+samples the SAME `cowBend(t)` value at every point, just multiplied by a
+different constant per point. That draws one fixed curve shape and scales
+it up and down — indistinguishable in principle from a rigid rotation,
+since neither one ever changes SHAPE, only size. A rotation and a "scaled
+static curve" are the same bug wearing two different formulas.
+
+The fix is the actual animation principle for flexible-appendage motion —
+follow-through / drag: different points along the length execute the SAME
+motion, offset in TIME, not just in amplitude. `bendAt(u)` now samples
+`cowSwat(t − COW_LAG·u)` — the tip (u=1) is showing what the base felt
+`COW_LAG` (180ms) ago, not what's happening right now. `cowSwat` itself
+needed a real modulo fix first (`((t % P) + P) % P`) since JS's `%` keeps
+the sign of its left operand and this delayed sampling can go negative
+near t=0. `BEND_POW` dropped 1.6→1.3 — the delay now does the main work of
+making the base read stiller than the tip; the position exponent is a
+secondary assist, not the mechanism. The tuft samples the tip's own
+delayed value (`tipBend`) so it stays rigidly attached to wherever the tip
+actually is.
+
+Verified the fix is real, not just re-eyeballed: computed `bendAt(0.45,t)`
+and `bendAt(1.0,t)` across the swat window and plotted their RATIO over
+time. A uniform-scale bug (the previous attempt, and a rigid rotation)
+holds that ratio constant at every t; the corrected version's ratio swings
+from +3.24 to −24.85 and crosses zero repeatedly — the two points are
+frequently pointing in genuinely different directions at the same instant,
+which is only possible with real phase lag, not a shared instantaneous
+value. Re-swept the full cycle at higher resolution (341 samples, both
+beef claim paths, every size) after the rewrite: still 0.00px overflow —
+the delay changes WHEN each point peaks, not the bound on how far any
+single point can reach. tsc clean; full suite 1422/1422 (unchanged, still
+entirely behind `t`).
