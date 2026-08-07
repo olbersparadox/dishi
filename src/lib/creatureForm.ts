@@ -1045,9 +1045,14 @@ function drawTail(
   // burst-pause: a swimming tail strokes steadily, it doesn't rest between
   // bursts the way a bird's wing does.
   const FISH_FLIP_AMP = 0.32, FISH_FLIP_FREQ = 0.0032;
+  // 牛尾 doesn't rotate as one rigid unit (owner: "the movement within the
+  // Stroke, bending left and right, instead of the whole thing like moving
+  // a stiff curved stick") — its motion is applied per-point, below, so it
+  // takes NO share of `th`; the base direction stays exactly `outAng`.
+  const cowBend = !t ? 0 : cowSwat(t);
   const sway = !t ? 0
     : plan.variant === 'fish' ? Math.sin(t * FISH_FLIP_FREQ + 1.1) * FISH_FLIP_AMP
-    : plan.variant === 'beef' ? cowSwat(t)
+    : plan.variant === 'beef' ? 0
     : Math.sin(t * 0.0008 + 1.1) * 0.055;
   const th = outAng + sway;
   const cosT = Math.cos(th), sinT = Math.sin(th);
@@ -1150,17 +1155,34 @@ function drawTail(
     // gesture reads smaller.
     const BEEF_SHRINK = 0.9;
     const bf = f * BEEF_SHRINK;
+    /* The swat bends the STROKE, not the gesture as a rigid unit (owner:
+       "movement within the Stroke, bending left and right, instead of the
+       whole thing like moving a stiff curved stick"). Each point along the
+       curve gets its OWN lateral offset in local space (the `ly` axis,
+       perpendicular to the base direction), growing with `u^1.6` — u=0 at
+       the body (anchored, never moves — it's attached there) up to u=1 at
+       the tip, and superlinear so the near-body length stays comparatively
+       straight while the outer length whips, the way a flexible rod
+       actually bends rather than a stick pivoting at its base. `bendReach`
+       ties the offset's scale to the tail's own size, same as every other
+       dimension here. The tuft rides the tip's own bend as a matching
+       rotation, since it's rigidly attached there. */
+    const BEND_POW = 1.6, bendReach = R * bf * 0.75;
+    const bendAt = (u: number) => cowBend * bendReach * Math.pow(u, BEND_POW);
+    const c1y = -R * 0.28 * bf + bendAt(0.45);
+    const c2y = R * 0.3 * bf + bendAt(0.75);
+    const tipY = R * 0.72 * bf + bendAt(1.0);
     ctx.lineWidth = Math.max(1, R * 0.11 * bf);
     ctx.beginPath();
     ctx.moveTo(px(0, 0), py(0, 0));
     ctx.bezierCurveTo(
-      px(R * 0.5 * bf, -R * 0.28 * bf), py(R * 0.5 * bf, -R * 0.28 * bf),
-      px(R * 0.72 * bf, R * 0.3 * bf), py(R * 0.72 * bf, R * 0.3 * bf),
-      px(R * 0.55 * bf, R * 0.72 * bf), py(R * 0.55 * bf, R * 0.72 * bf));
+      px(R * 0.5 * bf, c1y), py(R * 0.5 * bf, c1y),
+      px(R * 0.72 * bf, c2y), py(R * 0.72 * bf, c2y),
+      px(R * 0.55 * bf, tipY), py(R * 0.55 * bf, tipY));
     ctx.stroke();
     for (const a of [-0.5, 0, 0.5]) {
-      tailBlade(ctx, px(R * 0.55 * bf, R * 0.72 * bf), py(R * 0.55 * bf, R * 0.72 * bf),
-        R * 0.3 * bf, R * 0.075 * bf, th + Math.PI / 2 + a);
+      tailBlade(ctx, px(R * 0.55 * bf, tipY), py(R * 0.55 * bf, tipY),
+        R * 0.3 * bf, R * 0.075 * bf, th + Math.PI / 2 + a + cowBend);
     }
   } else if (plan.variant === 'pork') {
     // the curl: a short lead-out clear of the body, then a decaying coil

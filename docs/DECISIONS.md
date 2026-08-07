@@ -6057,3 +6057,34 @@ single-fixture snapshot byte-identity check confirmed the structural
 guarantee; two live frames a second apart show the wiggle phase moving.
 The swat itself is a 340ms window (10% duty cycle) — verified by math and
 owner's live eye, per the standing motion-round instruction.
+
+## 牛尾 motion, corrected: the STROKE bends, not the whole gesture — *(Sonnet)* — ✅ SHIPPED 2026-08-07
+Owner, immediately after: "actually i mean if we can animate it like the
+movement within the Stroke (tail), bending left and right, instead of the
+whole thing like moving a stiff curved stick." Exactly right — the swat
+round above rotated the ENTIRE gesture as one rigid unit around its base
+(the shared `th = outAng + sway` every other tail variant also uses), which
+reads as a stiff stick pivoting, not a flexible tail whipping.
+
+`cowBend` (the same `cowSwat(t)` waveform, renamed since it's no longer a
+rotation) now takes NO share of `th` — the base direction is pinned to
+`outAng`, full stop. Instead each of the bezier's three downstream points
+(the two control points and the tip) gets its OWN lateral offset in local
+space, `bendAt(u) = cowBend * bendReach * u^1.6`, where `u` is 0 at the
+body and 1 at the tip. The `u^1.6` power is the whole trick: superlinear
+growth means the near-body length of the curve stays comparatively
+straight (bendAt(0.45) is only ~30% of bendAt(1)) while the outer length
+whips — a flexible rod's actual bending profile, not a uniform rotation
+wearing a curve's clothing. The tuft (rigidly attached at the tip) rotates
+by `cowBend` to match the tip's local slope.
+
+Verified with controlled static frames rather than a lucky live-screenshot
+timing (the swat is only 10% of the loop): rendered t=1, 2000 (both
+wiggle-only), 2890 (mid-swat, near peak), and 3059 (swat tail-off) as SVGs
+side by side. Confirms exactly the intended shape: the base attachment
+angle reads the same direction across all four frames, while the tip
+position swings visibly further out at the swat peak — bending, not rigid
+rotation. Re-ran the full crop sweep (121 samples across the 3400ms cycle,
+both beef claim paths, every production size) after the rewrite: worst
+overflow still 0.00px. tsc clean; full suite 1422/1422 (unchanged — the
+whole thing is behind `t`, same guarantee as every prior motion round).
