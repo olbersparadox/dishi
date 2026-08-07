@@ -1708,17 +1708,21 @@ export function drawCreatureFrame(
       }
       return best;
     };
+    // upper-right cluster (4). The first was the only one at full scale;
+    // owner shrank it 20% (1 → 0.80), so the cluster now has no dominant dot.
     const DOTS: [number, number, number][] = [
-      // upper-right cluster (4). The first was the only one at full scale;
-      // owner shrank it 20% (1 → 0.80), so the cluster now has no dominant dot.
       [0.44, -0.58, 0.80], [0.67, -0.42, 0.86],
       [0.42, -0.30, 0.92], [0.68, -0.18, 0.84],
-      // lower-left cluster (3). All three shrunk 15% together (owner) so the
-      // lower half reads lighter than the upper; then its largest took a
-      // further 15% (0.80 → 0.68), leaving no dominant dot in either cluster.
-      [-0.65, 0.46, 0.68], [-0.48, 0.32, 0.73],
-      [-0.49, 0.60, 0.75],
     ];
+    // lower-left cluster (3). All three shrunk 15% together (owner) so the
+    // lower half reads lighter than the upper; then its largest took a
+    // further 15% (0.80 → 0.68), leaving no dominant dot in either cluster.
+    // Dropped ONLY for 甲+糙 (owner, 2026-08-07): 甲's tread bands sit across
+    // this exact region, and the two overlays fighting there read as noise —
+    // 糙 alone, or 甲 alone, are both unaffected by this.
+    if (!(isShell && isRough)) {
+      DOTS.push([-0.65, 0.46, 0.68], [-0.48, 0.32, 0.73], [-0.49, 0.60, 0.75]);
+    }
     const R0 = BB.hr * 0.105;
     ctx.save();
     ctx.beginPath(); closedPath(ctx, pts); ctx.clip();

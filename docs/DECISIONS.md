@@ -5704,3 +5704,28 @@ ink-bounds net and the 28-cell byte-identity sweep both clean (only the two
 fish-tail fixtures moved). /dev-tails screenshot shows the flukes visibly
 crossing near their tips rather than spreading cleanly apart. tsc clean;
 full suite 1410/1410.
+
+## 糙 rough skin: lower 3-dot cluster dropped for 甲+糙 only — *(Sonnet)* — ✅ SHIPPED 2026-08-07
+Owner: "For shell & fried rough skin. Take out the lower 3 dots (only for
+this combination)." Confirmed visually first (throwaway `/dev-skin-check`
+bench, not committed): 甲's tread bands run straight across the exact region
+糙's lower-left 3-dot cluster occupies, and the two overlays fighting there
+reads as noise, not texture. 甲/毛 left the 膚 precedence chain in the
+method-only skin rearrangement and now compose freely with any skin, so this
+is the first place two independent overlays actually collide in the same
+region — not a bug in either one alone.
+
+`DOTS` split into the upper-right 4 (always drawn) and the lower-left 3,
+which now only push in when `!(isShell && isRough)`. 糙 alone still shows
+all 7 (verified on the bench); 甲 alone is untouched (no dots to begin
+with). No other skin/overlay pair is affected — this is a two-flag AND
+gate, not a general "shell suppresses dots" rule.
+
+No test coverage added: this skin/overlay layer has no existing unit tests
+(SKIN_ROUGH/boneOverlay are exercised structurally, not pixel-by-pixel),
+and the fix was verified the way the rest of this layer always has been —
+rendered and looked at, on both sides of the combination. tsc clean; full
+suite unaffected (confirmed by running tests/creatureForm.test.ts and
+tests/inkBounds.test.ts in isolation — the full suite had unrelated,
+pre-existing failures in the restaurant-picker files from a concurrent
+edit in progress elsewhere in the tree, unrelated to this change).
