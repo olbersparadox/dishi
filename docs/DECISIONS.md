@@ -6389,3 +6389,52 @@ size-pulse as a fresh idea.
 
 Verification: tsc clean; full suite 1423/1423; screenshot of the live
 `/dev-tails` bench confirmed the curl holds a stable size.
+
+## 禽尾 bird tail, redone from scratch: one fan, not five slivers — *(Opus)* — ✅ SHIPPED 2026-08-07
+Owner: "for bird tail, redo from scratch / use your understanding of a
+bird's tail as reference / geometry wise, maybe like a half open fan
+(picture the logo of Mandarin Oriental)."
+
+Checked TRACES first per the porting tripwire — there is no 禽尾 among the
+owner's seven sketches, so this was a clean design rather than a port.
+But 其一 DOES carry a directly-applicable correction the owner already
+made on the chicken WING: "SUBSTANTIAL ruffle-fans — stubby arms, not
+feather slivers." The dead tail was exactly the thing that note rejects —
+five SEPARATE blades radiating from the hinge at width/length 0.10, where
+the owner's own approved wing fan sits at 0.28. Separated slivers are
+also wrong anatomy: a bird's rectrices OVERLAP, so a spread tail is one
+continuous sheet whose feathers are legible only at its rim, never five
+spikes with daylight between them.
+
+New geometry: a single filled SECTOR off the buried hinge, with the
+feathers read entirely from the scalloped outer edge — one lobe per
+feather, the notch between them cutting in to 0.85 of the tip radius so
+each tip stays distinct without the shape reverting to a comb. No
+interior lines: that is the same cut-paper solution 甲殼尾's abdomen
+already uses for its tergites, REUSED rather than re-invented per the
+house rule. 7 feathers, SPREAD 1.5 rad (~86°) — "half open" is the
+owner's framing and also how a real tail sits unless the bird is
+displaying — and a mild 8% graduation keeping the centre feathers longest
+so the tip arc reads as a rounded tail, not a geometric pie slice.
+
+The one non-obvious number is LENGTH. A first pass at 0.74·R with shallow
+round scallops read as a CLOUD, not a fan, and the reason is the burial:
+`TAIL_BURIAL` is 0.8 for every non-fish tail, so the hinge sits inside
+the body and what's actually visible is the sector's outer crescent —
+wide and short, with the radiating direction invisible. Length is the
+lever that sells "fan" against that, so L went to 1.0·R; the scallops
+went from deep-and-round (which read as a bunch of grapes) to a crisper
+notch. Both corrections came from looking at a large render, not from the
+constants.
+
+Verification: tsc clean; 142 creature + ink-bounds tests; direct bounds
+sweep over six poultry fixtures × seven sizes (96 → 600px) — no overflow
+anywhere, worst case 1.9px INSIDE the edge at 96px; full suite 1423/1423;
+30-cell byte-identity sweep against an expected-diff set declared BEFORE
+running it — exactly the five poultry-tail-bearing metabolism cells moved
+(`air`, `benchPoultry`, `fire`, `goose`, `rooster`; `fire` verified as a
+genuine poultry claim at sizeF 0.48, not a leak), and all fifteen legacy
+renders byte-identical, so the frozen control stayed frozen. Screenshots
+at 110/150/190px confirmed the notches survive to thumbnail size instead
+of mushing, and on the `/dev-tails` bench the fan sits at consistent
+weight beside the other four gestures.

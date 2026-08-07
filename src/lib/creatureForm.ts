@@ -1289,12 +1289,59 @@ function drawTail(
     }
     ctx.stroke();
   } else {
-    // 禽 fan: five blades from one hinge, centre-longest
-    for (let i = 0; i < 5; i++) {
-      const a = -0.7 + i * 0.35;
-      tailBlade(ctx, px(0, 0), py(0, 0), R * (0.85 - Math.abs(i - 2) * 0.09) * f,
-        R * 0.085 * f, th + a);
+    /* 禽尾 · ONE half-open fan, redrawn from scratch (owner: "redo from
+       scratch … use your understanding of a bird's tail as reference …
+       geometry wise, maybe like a half open fan").
+
+       The dead version drew five SEPARATE thin blades radiating from the
+       hinge (width/length 0.10), which is the exact failure the owner
+       already corrected once on the chicken WING in their own sketch —
+       lab v7 TRACES 其一, "SUBSTANTIAL ruffle-fans — stubby arms, not
+       feather slivers". Separated slivers are also wrong anatomy: a
+       bird's rectrices OVERLAP, so a spread tail is one continuous sheet
+       whose feathers are legible only at its rim, not five spikes with
+       daylight between them.
+
+       So the fan is a single filled SECTOR off the buried hinge, and the
+       feathers are read from the SCALLOPED outer edge alone — one convex
+       lobe per feather, dipping at each seam. No interior lines: that is
+       the same cut-paper solution the 甲殼尾 abdomen uses for its
+       tergites, reused here rather than re-invented, and it degrades
+       correctly (at thumbnail size the scallops fade and it stays a
+       clean fan instead of collapsing into a comb).
+
+       SPREAD is deliberately ~97°, not the 180° of a fully-open fan —
+       "half open" is the owner's framing and also how a real tail sits
+       unless the bird is displaying. GRAD keeps the centre feathers
+       longest so the tip arc reads as a rounded tail rather than a
+       geometric pie slice. */
+    const FEATHERS = 7, SPREAD = 1.5, GRAD = 0.08;
+    const L = R * 1.0 * f;
+    const TIP = 1.0, SEAM = 0.85; // feather tip vs. the notch cut between tips
+    // graduated length at a given angle off the fan's bisector
+    const gradAt = (a: number) => 1 - GRAD * Math.abs(a) / (SPREAD / 2);
+    const at = (a: number, k: number): [number, number] => {
+      const r = L * gradAt(a) * k;
+      return [Math.cos(a) * r, Math.sin(a) * r];
+    };
+    const step = SPREAD / FEATHERS;
+    ctx.beginPath();
+    ctx.moveTo(px(0, 0), py(0, 0));
+    let [sx, sy] = at(-SPREAD / 2, SEAM);
+    ctx.lineTo(px(sx, sy), py(sx, sy));
+    for (let i = 0; i < FEATHERS; i++) {
+      const a0 = -SPREAD / 2 + i * step, a1 = a0 + step;
+      const [ex, ey] = at(a1, SEAM);          // next seam
+      const [mx, my] = at((a0 + a1) / 2, TIP); // crown of this feather
+      // a quadratic sits at (P0 + 2C + P2)/4 at t=.5, so this control point
+      // puts the curve's midpoint exactly on the crown — the lobe bulges by
+      // TIP rather than by whatever a hand-picked control happened to give
+      const cx2 = 2 * mx - (sx + ex) / 2, cy2 = 2 * my - (sy + ey) / 2;
+      ctx.quadraticCurveTo(px(cx2, cy2), py(cx2, cy2), px(ex, ey), py(ex, ey));
+      sx = ex; sy = ey;
     }
+    ctx.closePath();
+    ctx.fill();
   }
 }
 
