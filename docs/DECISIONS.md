@@ -6438,3 +6438,39 @@ renders byte-identical, so the frozen control stayed frozen. Screenshots
 at 110/150/190px confirmed the notches survive to thumbnail size instead
 of mushing, and on the `/dev-tails` bench the fan sits at consistent
 weight beside the other four gestures.
+
+## 禽尾 bird tail, switched to 翼's own stroke grammar — *(Sonnet)* — ✅ SHIPPED 2026-08-07
+Owner: "if you now understand the anatomy of it. why not use the
+treatment you have for the wings and do that for the tail? To tell they
+are representing the same family."
+
+The same-day filled-sector redraw got the SILHOUETTE right (one
+half-open fan, feathers read from a scalloped rim) but was its own
+technique — a single filled shape — while 翼 wings (`S.wings.on`, same
+file) draw each feather as an individual tapering STROKE: length, width
+and opacity all shrink together toward the outer feathers, bowed by one
+fixed perpendicular hump, no fill at all. Two body parts that are both
+"feathers" rendered by two unrelated methods don't read as kin even when
+each individually looks fine — which is exactly what the owner caught.
+
+Ported the wing loop's own falloff shape onto the tail's existing
+FEATHERS/SPREAD silhouette (those numbers already read correctly from
+the prior round, so only the DRAWING technique changed): centre feather
+at k=0 (full length/width/opacity), outermost at k=1 (`length ×0.86`,
+`width ×0.85`, `opacity 0.62→0.55`), swept around one bisector instead of
+built as two mirrored shoulder fans the way wings are. This was Sonnet,
+not Fable, because the reference technique already exists, is already
+approved, and is already on screen — adapting a working component to a
+new location is the "edit an existing surface" case, not a blind
+new-surface design.
+
+Verification: tsc clean; 142 creature + ink-bounds tests; direct bounds
+sweep, six poultry fixtures × seven sizes (96–600px), no overflow
+anywhere (worst case 1.9px inside the edge at 96px); full suite
+1423/1423; byte-identity sweep against the SAME expected-diff set as the
+prior round — exactly the five poultry-bearing metabolism cells changed
+(the geometry itself changed, so a diff there is correct), all ten other
+metabolism cells and all fifteen legacy renders byte-identical to before
+this round. Screenshot with wings and tail on the same rooster-heavy body
+confirmed they now read as one grammar — same tapering-stroke fan, same
+ink weight — at both large size and thumbnail (110/150/190px).
