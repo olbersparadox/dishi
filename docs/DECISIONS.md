@@ -5942,3 +5942,36 @@ Verification: tsc clean; 141 creature tests; ink-bounds net clean; full
 suite 1422/1422; byte-identity re-swept post-gating with legacy confirmed
 100% frozen; /dev-skin-check (throwaway, not committed) confirmed the third
 band now touches both rims and tendrils sit clear of a centred tail.
+
+## Shellfish 2.0, round 4: third band derived from band 2, not re-measured — *(Sonnet)* — ✅ SHIPPED 2026-08-07
+Owner: "the 3rd band still doesn't look right with the right side not
+touching the rim of the body now" (the LEFT side had been the complaint the
+round before) — "Without moving position of the 1st band, add the 3rd band
+exactly like the band 1 and band 2 but only shorter. if decrease the
+spacings between them can do the job easier, do it."
+
+The pattern across two rounds — left short, then right short on a
+different palate — was the tell: independently re-measuring the silhouette
+at the third band's own height isn't reading a real left/right bias, it's
+reading an unreliable SCAN, down where the body outline sits close to the
+tail attachment. No amount of correcting "which side" fixes an unreliable
+measurement; the owner's instruction sidesteps it entirely.
+
+**Reverted** `spanAt`/`trace` fully to the original single symmetric
+radius — bands 1/2 now use EXACTLY the pre-shellfish-2.0 code path again,
+byte-identical, no mode-gating needed since there's only one path.
+**The third band no longer measures the silhouette at all**: it takes band
+2's own already-measured span and multiplies by `THIRD_SHRINK = 0.62` —
+geometrically guaranteed centred and shaped like bands 1/2 (same `trace()`
+call, same `M` profile), impossible to read as off-rim on either side by
+construction. `THIRD_GAP = 0.85` tightens the vertical step before it
+(0.85h instead of a full h) per the owner's spacing offer, so the shrink
+reads as a taper rather than an isolated shape.
+
+Verification: tsc clean; 141 creature tests; ink-bounds clean; full suite
+1422/1422; byte-identity sweep — legacy 14/14 SAME (confirming the full
+revert), metabolism DIFF on exactly crab/lobster/ownerReal (the only
+shell-bearing fixtures — tendrils untouched this round), 28/28 as
+predicted; two-palate side-by-side throwaway bench (not committed)
+confirmed the third band touches both rims on both palates, not just the
+one that happened to read fine before.

@@ -1886,15 +1886,17 @@ export function drawCreatureFrame(
     // Measuring the outline per band is what makes them a dome; it is also the
     // same nominal-vs-drawn distinction the rest of this renderer now obeys,
     // since a lopsided palate's body is nowhere near an R-wide ellipse.
-    // Returns the LEFT and RIGHT reach separately, each measured from BB.cx —
-    // not one symmetric radius. A single `(hi-lo)/2` assumes the silhouette
-    // is centred on BB.cx at every height, which a lopsided palate's slice
-    // is not; the new third band (shellfish 2.0) sits low enough, near the
-    // tail attachment, that the gap became visible: the owner caught the
-    // LEFT end sitting short of the rim while the right end read fine — the
-    // shared radius was splitting an asymmetric gap symmetrically. Each side
-    // now reaches its own actual edge.
-    const spanAt = (y: number): { l: number; r: number } => {
+    // Half-width of the DRAWN silhouette at a given height, symmetric about
+    // BB.cx. Tried an independent left/right version instead (measuring each
+    // side to its own actual edge) when the third band's LEFT end sat short
+    // of the rim — but the owner then found the RIGHT end short on a
+    // different palate. The body's own silhouette near the tail attachment,
+    // low and close to where legs/tail crowd the outline, is where THIS
+    // measurement itself gets unreliable — not a left-vs-right bias to
+    // correct for. Reverted to the single symmetric radius bands 1/2 always
+    // used successfully; the third band (below) sidesteps the low-down
+    // measurement entirely rather than trusting it.
+    const spanAt = (y: number): number => {
       let lo = Infinity, hi = -Infinity;
       for (let i = 0; i < P; i++) {
         const a = pts[i], b2 = pts[(i + 1) % P];
@@ -1903,7 +1905,7 @@ export function drawCreatureFrame(
         if (x < lo) lo = x;
         if (x > hi) hi = x;
       }
-      return hi > lo ? { l: BB.cx - lo, r: hi - BB.cx } : { l: 0, r: 0 };
+      return hi > lo ? (hi - lo) / 2 : 0;
     };
     // Vertical extent anchored to the drawn box, not to R: sizes the GRID for
     // all 4 nominal band slots (3 gaps + a fixed drop allowance) so it covers
@@ -1913,14 +1915,12 @@ export function drawCreatureFrame(
     // day's tread flatten (M's own drop is now 0.22, not 0.62). Re-tuning
     // either one must never silently move the other.
     const nB = 4, h = (1.34 * BB.vr) / (nB - 1 + 0.62), y0 = BB.cy - 0.67 * BB.vr;
-    const trace = (yTop: number, spanL: number, spanR: number) => {
+    const trace = (yTop: number, span: number) => {
       ctx.beginPath();
       M.forEach(([u, v], i) => {
         // u/1.3 normalises the tread's own extremes to ±1, so the shape is
-        // unchanged and only its width follows the body — independently on
-        // each side, so an asymmetric slice no longer overshoots one rim to
-        // split the difference with the one that's short.
-        const x = BB.cx + (u / 1.3) * (u < 0 ? spanL : spanR), y = yTop + v * h;
+        // unchanged and only its width follows the body
+        const x = BB.cx + (u / 1.3) * span, y = yTop + v * h;
         if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y);
       });
     };
@@ -1968,27 +1968,36 @@ export function drawCreatureFrame(
     // clear of the lower band's top — comfortably past the 0.38h point where
     // two bands start reading as a 3rd implied line.
     const upperNudge = 0.210;
+    // The third band (owner, 2026-08-07, second correction: "add the 3rd
+    // band exactly like band 1 and band 2 but only shorter... if decrease
+    // the spacings between them can do the job easier, do it") does NOT
+    // measure its own span from the silhouette — that independent
+    // measurement is exactly what read wrong two rounds running (short on
+    // the left, then short on the right, on different palates), because the
+    // body outline down near the tail attachment is where this scan itself
+    // gets unreliable, not because of a left/right bias to correct for.
+    // Instead it's band 2's OWN measured span, scaled down — geometrically
+    // guaranteed to be centred and shaped exactly like bands 1/2, just
+    // shorter, which is the literal ask. THIRD_GAP tightens the vertical
+    // step before it (0.85h instead of a full h) so the shrink reads as a
+    // natural taper rather than an isolated shape.
+    const THIRD_GAP = 0.85, THIRD_SHRINK = 0.62;
+    let band2Span = 0;
     for (let b = bFrom; b < bTo; b++) {
-      const yTop = y0 + b * h + (b === bFrom ? upperNudge * h : 0);
+      const isThirdBand = b === nB; // the new slot, one past the original 4-slot grid
+      const yTop = isThirdBand
+        ? y0 + (nB - 1) * h + THIRD_GAP * h
+        : y0 + b * h + (b === bFrom ? upperNudge * h : 0);
       // measured at the band's own ink centre, and overshot by a hair so the
-      // ends still clip flush against the rim instead of leaving a sliver.
-      // METABOLISM ONLY: legacy recombines l/r back into the old symmetric
-      // radius before applying it to both sides equally — (l+r)/2 is exactly
-      // (hi-lo)/2, the prior formula — so legacy's two bands stay pixel-for-
-      // pixel what they were before this helper split, even though it now
-      // shares code with the fixed metabolism path. Caught by the byte-
-      // identity sweep: the independent-sides version alone shifted EVERY
-      // shell-bearing legacy render, not just the new third band.
-      const sp = spanAt(yTop + 0.31 * h);
-      const symmetric = (sp.l + sp.r) / 2;
-      const spanL = (mode === 'metabolism' ? sp.l : symmetric) * 1.04;
-      const spanR = (mode === 'metabolism' ? sp.r : symmetric) * 1.04;
+      // ends still clip flush against the rim instead of leaving a sliver
+      const span = isThirdBand ? band2Span * THIRD_SHRINK : spanAt(yTop + 0.31 * h) * 1.04;
+      if (b === nB - 1) band2Span = span; // band 2 (grid slot 3) — the third band's reference
       ctx.strokeStyle = `rgba(8,7,6,${gapA})`; // the gap the next plate slides into
       ctx.lineWidth = Math.max(1.8, R * 0.085);
-      trace(yTop + R * 0.05, spanL, spanR); ctx.stroke();
+      trace(yTop + R * 0.05, span); ctx.stroke();
       ctx.strokeStyle = `rgba(${HILITE},${litA})`; // lit top edge, drawn over it
       ctx.lineWidth = Math.max(1.4 + 0.7 * sm, R * 0.05);
-      trace(yTop, spanL, spanR); ctx.stroke();
+      trace(yTop, span); ctx.stroke();
     }
     ctx.restore();
   }
