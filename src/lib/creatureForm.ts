@@ -989,6 +989,25 @@ export function tailPlan(domains: DomainEvidence, mode: GrowthMode): TailPlan | 
   return { variant: claims[0].variant, sizeF: claims[0].sizeF };
 }
 
+// 牛尾 swat (owner: "flips and wiggle, like a cow keeping the mosquitos /
+// flies away"): a cow's tail hangs in a lazy wiggle for most of the loop,
+// then CRACKS across the flank — out, back through centre, out the other
+// side, back — and settles into the wiggle again. Keyed off time-within-
+// the-loop so every pass is identical (the wing rounds' periodicity
+// lesson). The wiggle fits the period in WHOLE cycles so the loop wrap is
+// seamless, and the swat's sin(πφ) envelope starts and ends at exactly 0,
+// so it rides on top of the wiggle without ever snapping against it.
+const COW_PERIOD = 3400, COW_SWAT_START = 2720, COW_SWAT_LEN = 340;
+const COW_WIGGLE_AMP = 0.07, COW_SWAT_AMP = 0.55;
+function cowSwat(t: number): number {
+  const cyc = t % COW_PERIOD;
+  const wiggle = COW_WIGGLE_AMP * Math.sin(TAU * 5 * (cyc / COW_PERIOD));
+  if (cyc < COW_SWAT_START || cyc >= COW_SWAT_START + COW_SWAT_LEN) return wiggle;
+  const ph = (cyc - COW_SWAT_START) / COW_SWAT_LEN;
+  // sin(2πφ) is the double-sided whip; sin(πφ) tapers it in and out
+  return wiggle + COW_SWAT_AMP * Math.sin(TAU * ph) * Math.sin(Math.PI * ph);
+}
+
 /** Lab v7's leaf blade, ported: a filled quadratic leaf from (x,y) at `ang`. */
 function tailBlade(
   ctx: CanvasRenderingContext2D,
@@ -1028,6 +1047,7 @@ function drawTail(
   const FISH_FLIP_AMP = 0.32, FISH_FLIP_FREQ = 0.0032;
   const sway = !t ? 0
     : plan.variant === 'fish' ? Math.sin(t * FISH_FLIP_FREQ + 1.1) * FISH_FLIP_AMP
+    : plan.variant === 'beef' ? cowSwat(t)
     : Math.sin(t * 0.0008 + 1.1) * 0.055;
   const th = outAng + sway;
   const cosT = Math.cos(th), sinT = Math.sin(th);

@@ -6027,3 +6027,33 @@ it won. Added a fixture matching the `/dev-tails` bench's own 牛尾 cell
 change. tsc clean; full suite 1422/1422; byte-identity — only that one
 fixture's metabolism render moved, everything else including all legacy
 untouched; /dev-tails screenshot confirmed the whip reads subtly smaller.
+
+## 牛尾 motion: the fly-swat — lazy wiggle, then the whip-crack — *(Fable)* — ✅ SHIPPED 2026-08-07
+Owner: "add animation on the cow tail so that it flips and wiggle, like a
+cow keeping the mosquitos / flies away." The reference animal has a very
+specific rhythm, and that rhythm IS the design: a cow's tail hangs in a
+lazy sway almost all the time, then snaps across the flank in one fast
+double-sided crack — out, back through centre, out the other side, back —
+and returns to the sway. Not the fish's steady swimming beat, not the
+wings' burst-pause: a mostly-idle loop with one violent moment.
+
+`cowSwat(t)`: 3400ms loop. Wiggle: ±0.07 rad, exactly FIVE whole sine
+cycles per loop so the wrap is seamless (the wing rounds' periodicity
+lesson, applied at design time rather than caught by a test after).
+Swat window [2720, 3060): ±0.55 rad × sin(2πφ) — the double-sided whip —
+tapered by sin(πφ) so it starts and ends at exactly 0 and rides ON the
+wiggle without snapping against it. Keyed off time-within-loop
+throughout; every pass identical. Wired as a third branch of drawTail's
+per-variant sway dispatch (fish flip · cow swat · shared drift), behind
+the same `!t` gate, so snapshots are untouched by construction.
+
+Verification: tsc clean; full suite 1422/1422 (no test surface — the
+motion is entirely behind `t`); dedicated crop sweep across the full
+3400ms cycle at 40ms resolution (~9 samples inside the swat window), on
+BOTH beef claim paths (vacancy first-part at the bench's own mix, and the
+deep foot-holder second-part) at every production size — worst overflow
+0.00px even at the swat's ±0.49 rad peak swing on the 10%-shrunk whip;
+single-fixture snapshot byte-identity check confirmed the structural
+guarantee; two live frames a second apart show the wiggle phase moving.
+The swat itself is a 340ms window (10% duty cycle) — verified by math and
+owner's live eye, per the standing motion-round instruction.
