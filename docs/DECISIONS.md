@@ -6211,3 +6211,28 @@ byte-identity sweep with the diff enumerated first — only the fixture that
 actually carries a beef tail moved, all 13 others and every legacy render
 untouched; /dev-tails screenshot confirms the whip now reads as a small
 tight curl close to the body.
+
+## 豬尾 pig tail: redrawn — one clean loop, not a 1.55-turn spiral — *(Sonnet)* — ✅ SHIPPED 2026-08-07
+Owner, with an annotated screenshot circling a stray disconnected shape
+next to the curl: "for pig tail, we need a redraw. treat it like a simple
+stroke with a loop." The existing code was a faithful port of the lab's
+own VOCAB spec (1.55 turns, radius decaying to 0.58) — not a porting bug,
+but a case where the original spec's near-double-wind reads as one coherent
+coil at the lab's reference scale and as two disconnected loops at this
+body's actual proportions. The annotation made the failure mode
+unambiguous where words alone might not have.
+
+Redrawn as ONE turn (1.08 — just past a full revolution, enough for
+exactly one crossing, never almost two) with a much milder radius taper
+(0.8 vs. the old 0.58) so the stroke still tails into the loop rather than
+snapping shut flush. Same lead-out quadratic, same line weight, same
+32-point polyline approach — only the turn count and decay changed, per
+"a simple stroke with a loop" rather than a structural redesign.
+
+Verification: tsc clean; 141 creature tests; ink-bounds clean; full suite
+1422/1422; 30-cell byte-identity sweep — three fixtures actually carry a
+pork tail (not just the one named `porkTail`; `land` and `oxtail` were
+already known from the beef round to resolve to pork via the vacancy and
+second-part paths respectively), all three moved and only those three,
+every legacy render and every other claim untouched; /dev-tails screenshot
+confirms a single continuous curl, no stray loop.

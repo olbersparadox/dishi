@@ -1211,16 +1211,24 @@ function drawTail(
       tailBlade(ctx, px(tipX, tipY), py(tipX, tipY), R * 0.3 * bf, R * 0.075 * bf, th + Math.PI / 2 + a + tipRot);
     }
   } else if (plan.variant === 'pork') {
-    // the curl: a short lead-out clear of the body, then a decaying coil
+    /* The curl, redrawn (owner: "treat it like a simple stroke with a
+       loop" — the original lab spec's 1.55-TURN decaying spiral was a
+       faithful port, but a near-double-wind at this body's scale reads as
+       a stray disconnected loop rather than one coil, confirmed on the
+       bench with an actual annotation on the stray shape). ONE turn
+       (1.08, just past a full revolution — enough for exactly one
+       crossing, not almost two), mild radius taper (0.8, not 0.58) so it
+       still tails into the loop rather than snapping shut flush: a simple
+       stroke that happens to loop, not a spiral. */
     ctx.lineWidth = Math.max(1, R * 0.15 * f);
     ctx.beginPath();
     ctx.moveTo(px(0, 0), py(0, 0));
-    const ccx = R * 0.62 * f, ccy = -R * 0.12 * f;
+    const ccx = R * 0.58 * f, ccy = -R * 0.12 * f, loopR = R * 0.24 * f;
     ctx.quadraticCurveTo(
       px(R * 0.3 * f, -R * 0.1 * f), py(R * 0.3 * f, -R * 0.1 * f),
-      px(ccx + R * 0.3 * f, ccy), py(ccx + R * 0.3 * f, ccy));
-    for (let i = 0; i <= 44; i++) {
-      const u = i / 44, ca = u * TAU * 1.55, rr = R * 0.3 * f * (1 - u * 0.42);
+      px(ccx + loopR, ccy), py(ccx + loopR, ccy));
+    for (let i = 0; i <= 32; i++) {
+      const u = i / 32, ca = u * TAU * 1.08, rr = loopR * (1 - u * 0.2);
       const lx = ccx + Math.cos(ca) * rr, ly = ccy + Math.sin(ca) * rr * 0.92;
       ctx.lineTo(px(lx, ly), py(lx, ly));
     }
