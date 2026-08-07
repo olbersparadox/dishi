@@ -645,6 +645,14 @@ describe('clawSeats — one pair per coexisting variant', () => {
     expect(s[0].seat).not.toBe(s[1].seat);
   });
 
+  it('shellfish 2.0: metabolism seats sit LOWER — prime 2.15, second 1.45; legacy keeps 1.95', () => {
+    const s = clawSeats(M({ crab: 4.5, lobster: 4.0 }), 'metabolism', 0.9);
+    expect(s[0].seat).toBeCloseTo(2.15, 6);
+    expect(s[1].seat).toBeCloseTo(1.45, 6);
+    // the undifferentiated fallback rides the same lowered prime
+    expect(clawSeats(M({}), 'metabolism', 0.9)[0].seat).toBeCloseTo(2.15, 6);
+  });
+
   it('a prawn-dominant palate wears PRAWN pincers — its own species, since G4', () => {
     // The owner's real profile. Before the 蝦 gesture existed (G4 round 1,
     // 2026-08-07) this evidence was folded into a 龍蝦 prime seat it never

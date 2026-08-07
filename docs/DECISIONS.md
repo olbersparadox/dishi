@@ -5813,3 +5813,50 @@ predicted. /dev-tails screenshot: the abdomen hangs centred under the crab
 body, scalloped taper legible, fan flaring at the tip. Full suite
 1421/1421 (the concurrent stream's picker work landed between runs; their
 tests pass alongside).
+
+## Shellfish 2.0: bands, banded abdomen, real fan, lowered claws — *(Fable)* — ✅ SHIPPED 2026-08-07
+Owner, on approving the 龍蝦 abdomen ("Good : )"), five asks in one batch:
+"add one more band on the body 2 > 3 · 甲殼尾 segmented abdomen, add extend
+bands on the segments · revise the 5 piece fan at the tip to more like a
+lobster tail tip · lower the position of the bottom claws · lower the
+position of the upper claws as well, and have them move outward a bit from
+the body (and / or rotate it a bit) so that the 2 jaws can be seen clearly."
+
+The load-bearing discovery before writing anything: the 甲 bands and the
+claw machinery render in LEGACY too, so every one of these had to be either
+mode-gated or structurally metabolism-only —
+- **Body bands 2 → 3**: `bFrom` gated on mode — metabolism restores grid
+  slot 1; legacy keeps the shipped two-band cut byte-for-byte.
+- **Abdomen bands**: each tergite junction wears the carapace's own
+  dark-gap-plus-lit-edge pair, arced toward the fan so the line follows its
+  plate. Tail-only, so metabolism-only by construction. (No thumbnail
+  contrast ramp yet — the 甲 overlay's sm/dk ramps need `size`, which
+  drawTail doesn't take; flagged for a later round if small renders wash.)
+- **The fan, take 2**: five broad overlapping PADDLES (telson + two uropods
+  per side) as rotated ellipses radiating from the hinge — same stacked-
+  ellipse language as the tergites. First cut at ±0.62 rad merged into a
+  single knob at bench size; outer pair swung to ±0.80 so the scallop
+  notches between paddle tips survive, which is the whole fan read.
+- **Claw seats**: new `CLAW_SEATS_META = [2.15, 1.45]` (from [1.95, 1.25],
+  same 0.7 rad spacing so the calibrated overlap math still holds) used by
+  every metabolism path including the undifferentiated fallback; legacy
+  keeps `CLAW_SEATS` untouched, pinned by its existing exact-1.95 test.
+  The draw site's second-seat detection was `seat !== CLAW_SEATS[0]` —
+  wrong the moment metabolism got its own prime value; now matched against
+  the second-seat positions explicitly.
+- **Upper pair out + rotated**: `CRAB_SECOND_BURIAL` 0.94 → 0.98 (right at
+  the 1.0 wrist ceiling) and a new `SECOND_SEAT_ANG = −0.26` swings the
+  whole gesture toward the horizontal, mirrored per side — the gape clears
+  the silhouette into open air. Both structurally metabolism-only: legacy
+  never seats a second pair.
+
+Verification: tsc clean; 141 creature tests green including a new pin on
+the metabolism seats (2.15/1.45 + fallback) beside the untouched legacy
+1.95 pin; ink-bounds net clean at every size with the moved claws and wider
+fan; 28-cell byte-identity sweep with the diff set enumerated FIRST —
+exactly the three shell-bearing fixtures (crab, lobster, ownerReal) moved,
+metabolism only; all 14 legacy renders and every shell-less fixture
+untouched, 28/28. /dev-tails screenshot: three carapace bands, banded
+abdomen, scalloped fan, both claw pairs lower with the upper pair's jaws
+in open air. Full suite 1422/1422 (concurrent picker stream's tests green
+alongside).

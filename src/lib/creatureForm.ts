@@ -668,11 +668,25 @@ const CLAW_MIN = 0.28;  // a newborn pair reads as a small pincer, not a speck
    the composition rules forbid outright, so some overlap is the correct
    trade and 1.25 keeps 0.45rad of clearance above. */
 const CLAW_SEATS = [1.95, 1.25] as const;
+/** Shellfish 2.0 (owner, 2026-08-07): both pairs sit LOWER in metabolism —
+ *  prime 1.95 → 2.15, second 1.25 → 1.45 (same 0.7 rad spacing, so the
+ *  overlap math above still holds). Legacy keeps CLAW_SEATS untouched: it is
+ *  the frozen control, and its own test pins the prime at exactly 1.95. */
+const CLAW_SEATS_META = [2.15, 1.45] as const;
 /** 蟹 at the SECOND seat pushes its wrist out toward the silhouette edge — see
  *  WRIST_BURIAL. 1.0 is the hard ceiling (the wrist crossing the edge exactly,
- *  beyond which no body pixels sit behind the join and it floats loose), so
- *  this keeps a real margin inside it, the same margin 龍蝦's calibrated .96 does. */
-const CRAB_SECOND_BURIAL = 0.94;
+ *  beyond which no body pixels sit behind the join and it floats loose).
+ *  0.94 → 0.98 (shellfish 2.0: "have them move outward a bit from the body")
+ *  — right up against that ceiling, the rest of the visibility ask carried by
+ *  the second pair's rotation below. Metabolism-only by construction: legacy
+ *  never seats a second pair. */
+const CRAB_SECOND_BURIAL = 0.98;
+/** The second pair also ROTATES toward the horizontal (shellfish 2.0: "so
+ *  that the 2 jaws can be seen clearly") — the upper wrists sit near the
+ *  body's widest point, where the default axis tucks the pincer gape behind
+ *  the silhouette; swinging the whole gesture up by a quarter radian clears
+ *  it into open air. Mirrored per side at the draw site. */
+const SECOND_SEAT_ANG = -0.26;
 
 export type ClawSeat = { species: ClawSpecies; sizeF: number; seat: number };
 
@@ -722,13 +736,13 @@ export function clawSeats(
   if (evOf(metaPrime) <= SUB_BUD && evOf(others[0]) <= SUB_BUD) {
     // nothing individually lived — undifferentiated shell falls back to the
     // parent gesture at the parent's size, same as always
-    return [{ species: metaPrime, sizeF: 0.5 + 0.5 * clawF, seat: CLAW_SEATS[0] }];
+    return [{ species: metaPrime, sizeF: 0.5 + 0.5 * clawF, seat: CLAW_SEATS_META[0] }];
   }
   const seats: ClawSeat[] = [
-    { species: metaPrime, sizeF: ramp(evOf(metaPrime)), seat: CLAW_SEATS[0] },
+    { species: metaPrime, sizeF: ramp(evOf(metaPrime)), seat: CLAW_SEATS_META[0] },
   ];
   if (evOf(others[0]) > SUB_BUD) {
-    seats.push({ species: others[0], sizeF: ramp(evOf(others[0])), seat: CLAW_SEATS[1] });
+    seats.push({ species: others[0], sizeF: ramp(evOf(others[0])), seat: CLAW_SEATS_META[1] });
   }
   return seats;
 }
@@ -1057,12 +1071,51 @@ function drawTail(
       ctx.ellipse(px(cxA * R * f, 0), py(cxA * R * f, 0), hL * R * f, hw * R * f, th, 0, TAU);
       ctx.fill();
     }
-    const fanX = 0.86 * R * f;
-    const FAN: [number, number][] = [
-      [-0.55, 0.28], [-0.27, 0.33], [0, 0.37], [0.27, 0.33], [0.55, 0.28],
+    // Shellfish 2.0 (owner): the body's 甲 band language extends onto the
+    // abdomen — at each tergite junction, the same dark-gap-plus-lit-edge
+    // pair the carapace plates wear, arced gently toward the fan so each
+    // line follows its plate's curvature. Alphas are the 甲 overlay's
+    // large-render base values; the tail has no thumbnail contrast ramp yet.
+    for (let i = 0; i < SEGS.length - 1; i++) {
+      const xj = (SEGS[i][0] + SEGS[i][1] * 0.5 + SEGS[i + 1][0] - SEGS[i + 1][1] * 0.5) / 2 * R * f;
+      const span = SEGS[i + 1][2] * 0.9 * R * f;
+      const bow = 0.09 * R * f;
+      const band = (off: number) => {
+        ctx.beginPath();
+        ctx.moveTo(px(xj + off, -span), py(xj + off, -span));
+        ctx.quadraticCurveTo(px(xj + off + bow, 0), py(xj + off + bow, 0),
+          px(xj + off, span), py(xj + off, span));
+        ctx.stroke();
+      };
+      ctx.lineCap = 'round';
+      ctx.strokeStyle = 'rgba(8,7,6,0.62)';           // the gap the next plate slides into
+      ctx.lineWidth = Math.max(1.4, R * 0.05 * f);
+      band(R * 0.025 * f);
+      ctx.strokeStyle = `rgba(${HILITE},0.24)`;       // lit plate edge, drawn over it
+      ctx.lineWidth = Math.max(1, R * 0.03 * f);
+      band(0);
+    }
+    /* The fan, take 2 (owner: "more like a lobster tail tip"): five broad
+       overlapping PADDLES instead of thin leaves — telson centre, two
+       uropods per side — each a rounded ellipse radiating from the hinge,
+       overlapping its neighbour, the outer pair shorter. The wide scalloped
+       semicircle this stack makes is the real animal's fan read, and it
+       stays in the same stacked-ellipse language as the tergites above. */
+    const fanX = 0.84 * R * f;
+    const FAN: [number, number, number, number][] = [
+      // [angle off the axis, hinge→centre distance, radial half-length, lateral half-width] · R
+      // outer pair swung to ±0.80 — at ±0.62 the five paddles merged into one
+      // rounded knob at bench size; the wider swing is what lets the scallop
+      // notches between paddle tips survive, which is the whole fan read
+      [-0.80, 0.20, 0.16, 0.095], [-0.40, 0.23, 0.19, 0.10],
+      [0, 0.25, 0.21, 0.095],
+      [0.40, 0.23, 0.19, 0.10], [0.80, 0.20, 0.16, 0.095],
     ];
-    for (const [a, L] of FAN) {
-      tailBlade(ctx, px(fanX, 0), py(fanX, 0), L * R * f, R * 0.085 * f, th + a);
+    for (const [a, d, rL, rW] of FAN) {
+      const lx = fanX + Math.cos(a) * d * R * f, ly = Math.sin(a) * d * R * f;
+      ctx.beginPath();
+      ctx.ellipse(px(lx, ly), py(lx, ly), rL * R * f, rW * R * f, th + a, 0, TAU);
+      ctx.fill();
     }
   } else if (plan.variant === 'beef') {
     // thin whip rising then drooping, tufted at the tip
@@ -1521,18 +1574,25 @@ export function drawCreatureFrame(
     // are in the body". 龍蝦 barely notices (0.96 already rides the edge, and
     // it loses 83→68), which is why lobster-on-top reads fine as it is. So the
     // compensation is 蟹-at-second only; both calibrated prime values stand.
-    const secondSeat = seat !== CLAW_SEATS[0];
+    // the second seat is a POSITION in either constant set — never infer it
+    // from "not the prime", which broke the moment metabolism got its own
+    // lowered prime value
+    const secondSeat = seat === CLAW_SEATS[1] || seat === CLAW_SEATS_META[1];
     // 蝦's long thin arm carries its own reach, so its wrist sits at the crab
     // depth rather than riding the silhouette edge like 龍蝦's — the arm
     // length is the species' reach, burial shouldn't double it.
     const WRIST_BURIAL = species === 'lobster' ? 0.96
       : species === 'prawn' ? (secondSeat ? CRAB_SECOND_BURIAL : 0.84)
       : secondSeat ? CRAB_SECOND_BURIAL : 0.82;
+    // the upper pair swings toward the horizontal so its gape clears the
+    // silhouette (SECOND_SEAT_ANG) — mirrored per side, like the axis itself
+    const seatAng = secondSeat ? SECOND_SEAT_ANG : 0;
     for (const side of [-1, 1] as const) {
       const p = flank(side, seat);
       const bx = BB.cx + (p.x - BB.cx) * WRIST_BURIAL, by = BB.cy + (p.y - BB.cy) * WRIST_BURIAL;
       const mo = clawMotion(t, side, seatIndex);
-      const ang = side > 0 ? CLAW_AXIS + mo.sway : Math.PI - CLAW_AXIS + mo.sway;
+      const ang = side > 0 ? CLAW_AXIS + seatAng + mo.sway
+        : Math.PI - CLAW_AXIS - seatAng + mo.sway;
       const drawFn = species === 'lobster' ? drawLobsterClaw
         : species === 'prawn' ? drawPrawnClaw : drawCrabClaw;
       drawFn(ctx, bx, by, ang, Rclaw, sizeF * (side < 0 ? sL : sR), mo, clawInk);
@@ -1841,7 +1901,10 @@ export function drawCreatureFrame(
     // read as tyre tread rather than carapace, and their four identical centre
     // notches stacked into a column down the middle, which is drawing rule 7's
     // seam arriving by a side door.
-    const bFrom = 2;
+    // Shellfish 2.0 (owner, 2026-08-07): one band back — 2 → 3, slot 1
+    // restored. METABOLISM ONLY: legacy is the frozen control and keeps the
+    // two-band cut exactly as shipped.
+    const bFrom = mode === 'metabolism' ? 1 : 2;
     // 200px and below, the pair washes out — the lit edge worst, since .24 is
     // calibrated for a large render and a thin light line on a dark body loses
     // most of its contrast to antialiasing as it shrinks. Both alphas ramp up
