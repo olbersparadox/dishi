@@ -1211,26 +1211,33 @@ function drawTail(
       tailBlade(ctx, px(tipX, tipY), py(tipX, tipY), R * 0.3 * bf, R * 0.075 * bf, th + Math.PI / 2 + a + tipRot);
     }
   } else if (plan.variant === 'pork') {
-    /* The curl, redrawn (owner: "treat it like a simple stroke with a
-       loop" — the original lab spec's 1.55-TURN decaying spiral was a
-       faithful port, but a near-double-wind at this body's scale reads as
-       a stray disconnected loop rather than one coil, confirmed on the
-       bench with an actual annotation on the stray shape). ONE turn
-       (1.08, just past a full revolution — enough for exactly one
-       crossing, not almost two), mild radius taper (0.8, not 0.58) so it
-       still tails into the loop rather than snapping shut flush: a simple
-       stroke that happens to loop, not a spiral. */
-    ctx.lineWidth = Math.max(1, R * 0.15 * f);
+    /* Redrawn from scratch (owner: "redo the pig tail. it doesn't look
+       like a pig tail. Delete this one and redo it"). A pig's tail is a
+       CORKSCREW — a helix seen from the side — which means loops whose
+       CENTRE ADVANCES along the axis while the angle turns: cursive
+       "eee", the spring doodle. That advance is the load-bearing
+       property, and both dead versions lacked it: nested loops around
+       one shared centre (the lab spiral) fall apart into separate rings,
+       and a single ring at the end of a stroke (the "simple loop" round)
+       reads as a lasso. Overlapping ADVANCING loops read as one springy
+       coil. 2.25 turns; pitch 0.2R per turn — under the 0.32R coil
+       diameter, so consecutive loops overlap like a drawn spring; slight
+       taper toward the tip; y squashed 0.85 for the side-on read. The
+       curve starts exactly at the base (phase π puts u=0 at the first
+       coil's left edge, and the centre starts one coil-radius out), so
+       there is no separate lead-out stroke to read as its own shape. */
+    ctx.lineWidth = Math.max(1, R * 0.1 * f);
     ctx.beginPath();
-    ctx.moveTo(px(0, 0), py(0, 0));
-    const ccx = R * 0.58 * f, ccy = -R * 0.12 * f, loopR = R * 0.24 * f;
-    ctx.quadraticCurveTo(
-      px(R * 0.3 * f, -R * 0.1 * f), py(R * 0.3 * f, -R * 0.1 * f),
-      px(ccx + loopR, ccy), py(ccx + loopR, ccy));
-    for (let i = 0; i <= 32; i++) {
-      const u = i / 32, ca = u * TAU * 1.08, rr = loopR * (1 - u * 0.2);
-      const lx = ccx + Math.cos(ca) * rr, ly = ccy + Math.sin(ca) * rr * 0.92;
-      ctx.lineTo(px(lx, ly), py(lx, ly));
+    const TURNS = 2.25, COIL_R = 0.16, PITCH = 0.2;
+    const N = 64;
+    for (let i = 0; i <= N; i++) {
+      const u = i / N;
+      const thC = Math.PI + u * TAU * TURNS;
+      const rr = R * COIL_R * f * (1 - 0.15 * u);
+      const cxA = R * COIL_R * f + u * R * PITCH * TURNS * f;
+      const lx = cxA + Math.cos(thC) * rr;
+      const ly = Math.sin(thC) * rr * 0.85;
+      if (i) ctx.lineTo(px(lx, ly), py(lx, ly)); else ctx.moveTo(px(lx, ly), py(lx, ly));
     }
     ctx.stroke();
   } else {

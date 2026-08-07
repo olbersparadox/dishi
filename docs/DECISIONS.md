@@ -6236,3 +6236,43 @@ already known from the beef round to resolve to pork via the vacancy and
 second-part paths respectively), all three moved and only those three,
 every legacy render and every other claim untouched; /dev-tails screenshot
 confirms a single continuous curl, no stray loop.
+
+## 豬尾 pig tail, redone from scratch: a corkscrew, not a loop — *(Fable)* — ✅ SHIPPED 2026-08-07
+Owner: "redo the pig tail. it doesn't look like a pig tail. Delete this
+one and redo it." The single-loop redraw from the previous round was
+itself a dead end, not just a tuning miss — both attempts share the same
+root cause: a pig's tail is a CORKSCREW, a helix seen from the side, and
+neither version had the one property that makes a corkscrew read as a
+corkscrew — the loop's own CENTRE ADVANCING along the tail's axis as it
+turns. The lab's original 1.55-turn spiral kept every loop concentric
+around one fixed centre, which is why it fell apart into separate rings
+rather than reading as one coil. The single-loop version that replaced it
+dropped the multi-loop structure entirely, reading as a lasso tied to a
+string instead. Fixing the SIZE or TURN COUNT of either shape could never
+fix this — it required rebuilding the parametric curve around the right
+property from the start, which is why this was Fable (a structural
+redesign, not a numeric tune) rather than a further Sonnet round on the
+same broken geometry.
+
+New curve: `TURNS = 2.25` revolutions, starting at phase π so the coil's
+own left edge sits at the body attachment (no separate lead-out stroke to
+read as its own disconnected shape — the checklist's own lesson about a
+gesture floating loose from its anchor, applied here to a STROKE rather
+than a filled shape's wrist). The centre advances `PITCH = 0.2·R` per
+turn — deliberately LESS than the coil's own diameter (`2 × 0.16·R`), so
+consecutive loops physically overlap rather than sitting apart like beads
+on a wire; that overlap is what reads as a drawn spring. Mild radius taper
+(15%) toward the tip, and the whole curve is squashed 0.85 in the local-y
+axis for a side-on read rather than a flat circle.
+
+Verification: tsc clean; 141 creature tests; ink-bounds net clean at every
+production size (checked directly, since this is new parametric geometry
+with no existing test coverage for its specific shape); full suite
+1422/1422; 30-cell byte-identity sweep — the same three pork-tail-bearing
+fixtures from the prior round moved (`porkTail`, `land`, `oxtail` — the
+latter two resolve to pork via the vacancy and second-part claim paths
+respectively, established in the beef round), every legacy render and
+every other claim untouched; a large (600px) throwaway render confirmed
+the shape reads as two overlapping advancing loops — a spring silhouette —
+rather than a nested spiral collapsing into separate rings or a single
+lasso loop, and sits attached to the body with no floating gap.
