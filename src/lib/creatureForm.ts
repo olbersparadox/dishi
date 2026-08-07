@@ -1229,21 +1229,30 @@ function drawTail(
        is generous enough that the tip visibly swings past the loop's
        own circumference as a little flick/tail-off, rather than just
        lapping the start point. Taper toward the tip; y squashed 0.85 for
-       the side-on read. Phase π puts u=0 at the coil's own left edge
-       (the centre starts one coil-radius out), so there is no separate
-       lead-out stroke to read as its own disconnected shape. */
+       the side-on read.
+
+       STEM: the owner then asked to "position it outward from the body
+       more" — pushing the coil itself further out (bigger COIL_R/PITCH)
+       would also inflate the loop's own size, which isn't what was
+       asked. Instead an explicit straight STEM segment runs from the
+       body attachment (0,0) out to the coil's start, so the whole curl
+       translates outward as a unit while staying visibly connected —
+       exactly the "no separate lead-out stroke to read as its own
+       disconnected shape" rule, just satisfied by drawing that stroke
+       instead of by omitting it. */
     ctx.lineWidth = Math.max(1, R * 0.1 * f);
     ctx.beginPath();
-    const TURNS = 1.4, COIL_R = 0.24, PITCH = 0.34;
+    const TURNS = 1.4, COIL_R = 0.24, PITCH = 0.34, STEM = 0.3;
     const N = 64;
+    ctx.moveTo(px(0, 0), py(0, 0));
     for (let i = 0; i <= N; i++) {
       const u = i / N;
       const thC = Math.PI + u * TAU * TURNS;
       const rr = R * COIL_R * f * (1 - 0.15 * u);
-      const cxA = R * COIL_R * f + u * R * PITCH * TURNS * f;
+      const cxA = R * (STEM + COIL_R) * f + u * R * PITCH * TURNS * f;
       const lx = cxA + Math.cos(thC) * rr;
       const ly = Math.sin(thC) * rr * 0.85;
-      if (i) ctx.lineTo(px(lx, ly), py(lx, ly)); else ctx.moveTo(px(lx, ly), py(lx, ly));
+      ctx.lineTo(px(lx, ly), py(lx, ly));
     }
     ctx.stroke();
   } else {

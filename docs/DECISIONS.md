@@ -6315,3 +6315,19 @@ rather than a plain "O". `COIL_R`/`PITCH` unchanged.
 Verification: tsc clean (known pre-existing i18n.test.ts error only);
 141/141 creature + ink-bounds tests; screenshot of the live `/dev-tails`
 bench confirmed the flick past the loop closure.
+
+## 豬尾 pig tail, stem pushes the curl out from the body — *(Sonnet)* — ✅ SHIPPED 2026-08-07
+Owner: "position it outward from the body more." Inflating `COIL_R`/
+`PITCH` would have grown the loop itself, not just its distance from the
+body — the wrong axis for this ask — so instead a new `STEM = 0.3`
+constant adds an explicit straight lead-in segment from the body
+attachment `(0,0)` out to the coil's start, translating the whole curl
+outward as a rigid unit while an actual drawn stroke (not just empty
+space) keeps it visibly attached to the body — the same "no floating
+gesture" rule the corkscrew redesign already followed, just satisfied
+here by drawing the connector instead of omitting it.
+
+Verification: tsc clean (known pre-existing i18n.test.ts error only);
+141/141 creature + ink-bounds tests; screenshot of the live `/dev-tails`
+bench confirmed the curl now sits clearly away from the body on a
+visible stem, not tucked at the rim.
