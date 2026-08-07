@@ -871,28 +871,31 @@ describe('wingShape — the 雞/鴨鵝 blend', () => {
       expect(w.countMul).toBeCloseTo(1, 6);    // flat 1 now — no species variation
     });
 
-    it('pure 雞 gets exactly +40% thickness and +40% extra curvature', () => {
+    it('pure 雞 gets +40% curvature and a STACKED thickness (1.4x then another 1.5x)', () => {
       const w = wingShape({ chicken: 10 }, 'metabolism');
-      // plain blend at k=1: widthMul 1.3, humpMul 1.3 — each dial multiplies by 1.4
-      expect(w.widthMul).toBeCloseTo(1.3 * 1.4, 6);
+      // plain blend at k=1: widthMul 1.3, humpMul 1.3. Thickness carries TWO
+      // multiplicative passes (owner: "increase stroke thickness by another
+      // 50%", read as stacked on the existing +40%) — curvature is untouched
+      // by this round and stays at the single +40% dial.
+      expect(w.widthMul).toBeCloseTo(1.3 * 1.4 * 1.5, 6);
       expect(w.humpMul).toBeCloseTo(1.3 * 1.4, 6);
     });
 
-    it('both dials are ONE-SIDED: any 鴨鵝-leaning mix gets exactly zero boost', () => {
+    it('the stacked thickness dial is ONE-SIDED: any 鴨鵝-leaning mix gets exactly zero boost', () => {
       for (const mix of [{ duck_goose: 1 }, { chicken: 1, duck_goose: 3 }, { duck_goose: 100 }]) {
         const w = wingShape(mix, 'metabolism');
         const k = (mix.chicken ?? 0) / ((mix.chicken ?? 0) + mix.duck_goose) * 2 - 1;
-        expect(w.widthMul).toBeCloseTo(1 + 0.3 * k, 6); // no 1.4x anywhere on this side
+        expect(w.widthMul).toBeCloseTo(1 + 0.3 * k, 6); // no stack anywhere on this side
         expect(w.humpMul).toBeCloseTo(1 + 0.3 * k, 6);
       }
     });
 
-    it('ramp continuously from the neutral middle, never jump', () => {
+    it('ramps continuously from the neutral middle, never jumps', () => {
       const shares = [0.5, 0.6, 0.7, 0.8, 0.9, 1.0].map(ck =>
         wingShape({ chicken: ck, duck_goose: 1 - ck }, 'metabolism').widthMul);
       for (let i = 1; i < shares.length; i++) expect(shares[i]).toBeGreaterThan(shares[i - 1]);
-      expect(shares[0]).toBeCloseTo(1, 6);              // 50/50 = neutral = k≈0 = no boost
-      expect(shares[shares.length - 1]).toBeCloseTo(1.3 * 1.4, 6); // pure 雞 = full boost
+      expect(shares[0]).toBeCloseTo(1, 6);                    // 50/50 = neutral = k≈0 = no boost
+      expect(shares[shares.length - 1]).toBeCloseTo(1.3 * 1.4 * 1.5, 6); // pure 雞 = full stack
     });
 
     it('angle carries no dial — only thickness (width) and curvature (hump) move', () => {

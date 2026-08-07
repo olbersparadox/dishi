@@ -797,11 +797,17 @@ export function wingShape(
   // for both dials (no number was given for curvature) — an easy pair of
   // knobs to retune independently on the next round if either reads wrong. */
   const chickenBoost = Math.max(0, k);
-  const thicknessMul = 1 + 0.4 * chickenBoost; // stroke thickness only
-  const curveMul = 1 + 0.4 * chickenBoost;     // extra bow on top of the blend's own hump
+  // A second thickness pass, STACKED on the first (owner, same session:
+  // "increase stroke thickness by another 50%" — "another" read as on top of
+  // the existing +40%, not a replacement for it). Both terms ride the same
+  // chickenBoost, so the stack stays one continuous ramp rather than two
+  // independently-shaped curves that could disagree at partial mixes; at
+  // pure 雞 that is 1.4 × 1.5 = 2.1× the plain blend's width value.
+  const thicknessMul = (1 + 0.4 * chickenBoost) * (1 + 0.5 * chickenBoost); // stroke thickness only
+  const curveMul = 1 + 0.4 * chickenBoost;     // extra bow on top of the blend's own hump — untouched by this round
   return {
     lenMul: 1 - 0.35 * k,                   // UNCHANGED — same length as the plain blend
-    widthMul: (1 + 0.3 * k) * thicknessMul, // 雞 1.3→1.82 · 鴨鵝 thinner, untouched
+    widthMul: (1 + 0.3 * k) * thicknessMul, // 雞 1.3→2.73 (stacked 1.4×1.5) · 鴨鵝 thinner, untouched
     spreadMul: 1 + 0.5 * k,                 // fan width — untouched, always was
     baseAng: -0.32 - 0.28 * k,              // 雞 raised toward flutter, 鴨鵝 flat glide
     humpMul: (1 + 0.3 * k) * curveMul,      // 雞 rounder arc AND more curved · 鴨鵝 untouched

@@ -5284,3 +5284,30 @@ SAME short length — the three attributes move independently for the first
 time this round.
 
 11 tests replaced/added. tsc clean; full suite 1385/1385.
+
+## G4 round 2 tune 3: 雞 thickness stacked another +50% — *(Sonnet)* — ✅ SHIPPED 2026-08-07
+Owner, on the wing bench, immediately after the thickness+curvature
+correction above: "try increase stroke thickness by another 50%." Read as
+"another" — stacked on top of the existing +40% thickness dial, not a
+replacement for it and not touching curvature. Sonnet-tier: a numeric tune
+on an already-shipped gesture with a live reference on screen.
+
+`thicknessMul` became `(1 + 0.4 * chickenBoost) * (1 + 0.5 * chickenBoost)`
+— two multiplicative passes riding the SAME `chickenBoost` term, so the
+stack stays one continuous ramp rather than two independently-shaped curves
+that could disagree at partial mixes. `curveMul` is untouched at `1 + 0.4 *
+chickenBoost`. At pure 雞 the plain blend's widthMul 1.3 now carries a 1.4 ×
+1.5 = 2.1× stack, landing at 2.73 — humpMul stays at the single-dial 1.3 ×
+1.4 = 1.82.
+
+Same one-sided guarantee, reconfirmed: 11-fixture byte-identity sweep —
+legacy identical across all 11 fixtures, metabolism identical for all 10
+non-owner fixtures (including both goose fixtures), only the owner's
+chicken-leaning render changed. Visual check on `/dev-wings`: 雞·pure now
+reads distinctly heavier than 雞-lean, which in turn reads heavier than the
+prior round's single-dial version; generic and 鴨鵝 cells unchanged; legacy
+row stays flat across all five cells.
+
+4 test assertions updated (widthMul references moved from `1.3 * 1.4` to
+`1.3 * 1.4 * 1.5`; humpMul assertions left at `1.3 * 1.4`, unchanged this
+round). tsc clean; full suite 1385/1385.
