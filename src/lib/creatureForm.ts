@@ -1220,17 +1220,21 @@ function drawTail(
        enough to read as a curl once that advance is present; the owner
        tried 2.25 overlapping turns first ("more clear out from the
        body") then simplified back down ("just one loop is fine, no need
-       for double loop") — so TURNS sits just past a full revolution
-       (the tip laps the start slightly, reading as a closed hook rather
-       than a perfect open circle), with a bigger radius and a longer
-       lead-out than the double-loop version so the single curl still
-       sits clearly away from the body. Taper toward the tip; y squashed
-       0.85 for the side-on read. Phase π puts u=0 at the coil's own left
-       edge (the centre starts one coil-radius out), so there is no
-       separate lead-out stroke to read as its own disconnected shape. */
+       for double loop") — so TURNS sits past a full revolution, with a
+       bigger radius and a longer lead-out than the double-loop version
+       so the single curl still sits clearly away from the body. A bare
+       ~1.05-1.15 turns reads as a plain closed circle, though — the
+       owner caught this ("prolong the end of the loop, otherwise it'd
+       just look like a circle") — so the extra fraction past 1.0 turn
+       is generous enough that the tip visibly swings past the loop's
+       own circumference as a little flick/tail-off, rather than just
+       lapping the start point. Taper toward the tip; y squashed 0.85 for
+       the side-on read. Phase π puts u=0 at the coil's own left edge
+       (the centre starts one coil-radius out), so there is no separate
+       lead-out stroke to read as its own disconnected shape. */
     ctx.lineWidth = Math.max(1, R * 0.1 * f);
     ctx.beginPath();
-    const TURNS = 1.15, COIL_R = 0.24, PITCH = 0.34;
+    const TURNS = 1.4, COIL_R = 0.24, PITCH = 0.34;
     const N = 64;
     for (let i = 0; i <= N; i++) {
       const u = i / N;

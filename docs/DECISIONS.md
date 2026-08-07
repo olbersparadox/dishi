@@ -6298,3 +6298,20 @@ downlevelIteration error); 141/141 creature + ink-bounds tests; screenshot
 of the live `/dev-tails` bench confirmed a single clear curl standing
 away from the body, replacing the overlapping double-loop intermediate
 step (never shipped on its own).
+
+## 豬尾 pig tail, prolonged past the loop closure — *(Sonnet)* — ✅ SHIPPED 2026-08-07
+Owner: "need to prolong the end of the loop, other wise it'd just look
+like a circle." At `TURNS = 1.15` the tip only lapped the start by 54°,
+which is not enough for the eye to separate "closed loop" from "closed
+circle" — a numeric tune on the same single-curl geometry.
+
+`TURNS` moved from 1.15 to 1.4, so the tip now swings a further ~144°
+past the one-turn mark. Because the loop's centre keeps advancing along
+`PITCH` for that whole extra stretch (the corkscrew property from the
+original redesign), the tail-off doesn't retrace the loop's own line —
+it visibly flicks clear of the loop's circumference, reading as a "6"
+rather than a plain "O". `COIL_R`/`PITCH` unchanged.
+
+Verification: tsc clean (known pre-existing i18n.test.ts error only);
+141/141 creature + ink-bounds tests; screenshot of the live `/dev-tails`
+bench confirmed the flick past the loop closure.
