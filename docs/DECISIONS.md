@@ -5384,3 +5384,61 @@ flow from the same `WS` object already under test into the term both wing
 sides consume.
 
 4 tests added. tsc clean; full suite 1392/1392.
+
+## G4 round 2, animation take 2: 雞 burst-pause, 鴨鵝 burst-glide rhythm — *(Sonnet)* — ✅ SHIPPED 2026-08-07
+Owner, on the wing bench, immediately after the freq/amp round above —
+not a number this time, a described RHYTHM: "chicken should be flap flap
+flap.....pause... then flap flap flap in loop" / "goose duck should be flap
+flap.....flappppp.....gliding.....then flap......gliding.....then loop.
+just try to tune, no need to verify your side given the noise and static
+comparison. Just estimate the sequence and i verify for you on screen."
+Explicit owner instruction to skip visual verification this round — an
+earlier attempt to empirically confirm the previous round's plain
+frequency-scaled sine via pixel sampling had already proven the signal too
+noisy to isolate wing-only motion from shared body animation, which the
+owner had directly observed too ("no visual difference").
+
+A plain frequency/amplitude scale on ONE continuous sine cannot produce a
+pause-then-burst rhythm — this SUPERSEDES the freq/amp round rather than
+adding to it. `WingShape.flapFreqMul`/`flapAmpMul` are gone, replaced by a
+single `speciesK` field (the raw blend, +1 pure 雞 … −1 pure 鴨鵝) that feeds
+a new exported pure function, `wingFlapAngle(k, t)`, which owns the whole
+waveform:
+
+- **雞 — burst-pause**, 1600ms loop: a 700ms burst of ~4.5 quick beats
+  (0.04 rad/ms), enveloped by `sin(πφ)` so nothing snaps to zero, then
+  900ms held EXACTLY still (not slow — zero).
+- **鴨鵝 — burst-glide**, 4200ms loop, two unequal flap-then-glide phases
+  per the owner's asymmetric description: a 900ms ramp (~2.5 beats trailing
+  into one longer stroke, flatter `sin(πφ)^0.6` envelope so the tail reads
+  as held rather than clipped), a 1400ms glide (held extended, exactly
+  zero), a 400ms single flap (~1 beat), a 1500ms glide (exactly zero).
+- **k=0 (neutral/legacy)** — a continuous cross-fade using the SAME
+  one-sided `chickenBoost`/`gooseBoost` ramps `wingShape`'s thickness dials
+  already use, so at k=0 the function reduces to EXACTLY the original
+  single sine, byte-for-byte unchanged from before this whole series —
+  pinned by test, not just assumed.
+
+Fixed one bug during implementation: the oscillation phase inside each
+burst was initially keyed to raw `t`, so each loop iteration would look
+subtly different (0.04 × 1600ms isn't a multiple of 2π) — caught by a
+periodicity test I wrote to confirm the "then loop" framing, not by eye.
+Reworked to key the oscillation off time-within-the-cycle instead, so
+every pass is now identical, and the periodicity test passes exactly.
+
+Per the owner's explicit instruction, skipped both the browser motion
+verification and the screenshot-implies-correctness framing for the
+RHYTHM itself — a static image cannot show a pause. What's still true and
+was still done: `npx tsc --noEmit` clean, full suite (13 new/rewritten
+wingFlapAngle tests covering exact stillness during every declared
+pause/glide window, boundedness during every flap window, exact k=0
+fallback to the untouched original sine, and exact periodicity per
+species — 1396/1396 total), the 11-fixture byte-identity sweep (all 22
+cells unchanged — this animation can never touch a snapshot, since
+`creatureSnapshotSvg` always calls at `t=0` where the caller's flap term
+is unconditionally `0` before `wingFlapAngle` is ever invoked), and one
+static `/dev-wings` screenshot confirming the render itself didn't break.
+Owner verifies the actual feel live.
+
+13 tests (replacing the 4 flapFreqMul/flapAmpMul tests from the superseded
+round). tsc clean; full suite 1396/1396.

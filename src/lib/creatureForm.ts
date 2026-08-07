@@ -765,7 +765,7 @@ export function domOfStable<K extends string>(
    control never grows variants. */
 export type WingShape = {
   lenMul: number; widthMul: number; spreadMul: number; baseAng: number; humpMul: number;
-  countMul: number; flapFreqMul: number; flapAmpMul: number;
+  countMul: number; speciesK: number;
 };
 export function wingShape(
   airBag: { chicken?: number; duck_goose?: number } | undefined,
@@ -773,7 +773,7 @@ export function wingShape(
 ): WingShape {
   const NEUTRAL: WingShape = {
     lenMul: 1, widthMul: 1, spreadMul: 1, baseAng: -0.32, humpMul: 1, countMul: 1,
-    flapFreqMul: 1, flapAmpMul: 1,
+    speciesK: 0,
   };
   if (mode !== 'metabolism') return NEUTRAL;
   // NOT subMix: its absent→1 default is right for the legs' calibrated
@@ -814,19 +814,6 @@ export function wingShape(
   // is non-1. No curvature dial requested for this side.
   const gooseBoost = Math.max(0, -k);
   const gooseThicknessMul = 1 + 0.2 * gooseBoost; // stroke thickness only
-  // Owner, on the wing bench, after the shape/thickness dials settled: "can
-  // we turn animation for specific sides?" — clarified as 雞 vs 鴨鵝, not
-  // left vs right. Continuous in k like lenMul/spreadMul/baseAng above
-  // (flutter-vs-glide is a spectrum property of the species blend itself,
-  // not an extra one-sided add-on the way the thickness stacks were), so it
-  // needs no separate boost term and is exactly 1 at k=0. 雞 (k=+1) flaps
-  // 1.6x FASTER at 0.6x the reach — quick, small flutter. 鴨鵝 (k=−1) flaps
-  // 0.4x slower at 1.4x the reach — slow, wide glide. Both fall out of the
-  // same early NEUTRAL/legacy returns above, so this has zero effect on any
-  // static snapshot (creatureSnapshotSvg always calls at t=0, where the draw
-  // site's flap term is unconditionally 0) — only the live canvas moves.
-  const flapFreqMul = 1 + 0.6 * k;
-  const flapAmpMul = 1 - 0.4 * k;
   return {
     lenMul: 1 - 0.35 * k,                   // UNCHANGED — same length as the plain blend
     widthMul: (1 + 0.3 * k) * thicknessMul * gooseThicknessMul, // 雞 1.3→2.73 · 鴨鵝 0.7→0.84
@@ -834,9 +821,74 @@ export function wingShape(
     baseAng: -0.32 - 0.28 * k,              // 雞 raised toward flutter, 鴨鵝 flat glide
     humpMul: (1 + 0.3 * k) * curveMul,      // 雞 rounder arc AND more curved · 鴨鵝 untouched
     countMul: 1,                            // UNCHANGED — same stroke count as the plain blend
-    flapFreqMul,                            // 雞 1.6x faster · 鴨鵝 0.6x slower
-    flapAmpMul,                             // 雞 0.6x reach (tight flutter) · 鴨鵝 1.4x reach (wide glide)
+    speciesK: k,                            // feeds wingFlapAngle's burst-pattern blend below
   };
+}
+
+// 雞's flap period: a burst of quick beats, then a held pause, on loop —
+// "flap flap flap ..... pause ..... flap flap flap" (owner, on the wing
+// bench, describing the rhythm rather than a number this time). 1600ms
+// period, burst fills the first 700ms (~4.5 quick beats tapered by a
+// sin(πφ) envelope so nothing snaps to zero), the remaining 900ms is
+// EXACTLY 0 — wings hold dead still, not just slow.
+// Oscillation phase rides `cyc` (time WITHIN the loop), not raw `t` — the
+// owner's "then loop" implies each pass looks the same, not a pattern that
+// slowly drifts out of phase with itself (0.04 * 1600 isn't a multiple of
+// 2π, so phase-on-`t` would never exactly repeat).
+const CHICKEN_PERIOD = 1600, CHICKEN_BURST = 700, CHICKEN_OSC = 0.04, CHICKEN_AMP = 1.1;
+function chickenBurstPause(t: number): number {
+  const cyc = t % CHICKEN_PERIOD;
+  if (cyc >= CHICKEN_BURST) return 0; // the pause — held still, not slow
+  const env = Math.sin(Math.PI * (cyc / CHICKEN_BURST));
+  return CHICKEN_AMP * env * Math.sin(CHICKEN_OSC * cyc);
+}
+
+// 鴨鵝's flap period: two flap-then-glide phases per loop, unequal — a
+// launch-like ramp (a few beats trailing into one longer stroke) then a
+// long glide, then a single flap then a shorter glide — "flap flap
+// flappppp ..... gliding ..... then flap ...... gliding ..... then loop"
+// (owner, same message). 4200ms period: ramp 900ms (~2.5 cycles, a flatter
+// sin(πφ)^0.6 envelope so the tail reads as held rather than clipped),
+// glide 1400ms (exactly 0 — held extended, not drifting), single flap
+// 400ms (~1 cycle), glide 1500ms (exactly 0).
+const GOOSE_PERIOD = 4200, GOOSE_RAMP = 900, GOOSE_GLIDE1 = 1400, GOOSE_FLAP2 = 400;
+const GOOSE_OSC_RAMP = 0.0175, GOOSE_OSC_FLAP2 = 0.0157, GOOSE_AMP = 1.4;
+function gooseBurstGlide(t: number): number {
+  let cyc = t % GOOSE_PERIOD;
+  if (cyc < GOOSE_RAMP) {
+    const env = Math.pow(Math.sin(Math.PI * (cyc / GOOSE_RAMP)), 0.6);
+    return GOOSE_AMP * env * Math.sin(GOOSE_OSC_RAMP * cyc);
+  }
+  cyc -= GOOSE_RAMP;
+  if (cyc < GOOSE_GLIDE1) return 0; // glide — held extended, not drifting
+  cyc -= GOOSE_GLIDE1;
+  if (cyc < GOOSE_FLAP2) {
+    const env = Math.sin(Math.PI * (cyc / GOOSE_FLAP2));
+    return GOOSE_AMP * env * Math.sin(GOOSE_OSC_FLAP2 * cyc);
+  }
+  return 0; // glide — held extended, not drifting
+}
+
+/**
+ * The wing flap angle contribution, in radians (before the caller's own
+ * (0.3 + airShare) reach scale) — a continuous cross-fade between three
+ * waveforms by `speciesK` (`WingShape.speciesK`, +1 pure 雞 … −1 pure 鴨鵝):
+ * the ORIGINAL plain single sine at k=0 (so any being with no lived sub.air,
+ * or any equal-mix eater, keeps exactly today's motion, unchanged since
+ * before this round), crossing into 雞's burst-pause or 鴨鵝's burst-glide
+ * pattern as k moves toward either pure endpoint. `chickenBoost`/
+ * `gooseBoost` are the SAME one-sided ramps `wingShape` already uses for
+ * its thickness dials, so this fades in on the identical schedule.
+ */
+export function wingFlapAngle(k: number, t: number): number {
+  const chickenBoost = Math.max(0, k);
+  const gooseBoost = Math.max(0, -k);
+  const plain = Math.sin(t * 0.0013); // unchanged: the pre-existing single-sine flutter
+  return 0.13 * (
+    plain * (1 - chickenBoost - gooseBoost)
+    + chickenBurstPause(t) * chickenBoost
+    + gooseBurstGlide(t) * gooseBoost
+  );
 }
 
 /* 腿 · leg. cow = thick pillar on a cleft hoof; pig = shorter, softer, small
@@ -1057,7 +1109,7 @@ export function drawCreatureFrame(
     // without lived sub.air, and always a no-op in legacy mode.
     const WS = wingShape(domains.sub?.air, mode);
     const span = R * (0.55 + 0.75 * S.wings.shareF) * S.wings.evF * WS.lenMul;
-    const flap = t ? 0.13 * WS.flapAmpMul * Math.sin(t * 0.0013 * WS.flapFreqMul) * (0.3 + a) : 0;
+    const flap = t ? wingFlapAngle(WS.speciesK, t) * (0.3 + a) : 0;
     for (const side of [-1, 1]) {
       const base = flank(side, 0.8);
       // countMul is 1.0 for everything except a 雞-leaning mix (see wingShape),

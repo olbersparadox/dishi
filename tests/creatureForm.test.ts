@@ -816,12 +816,12 @@ describe('蝦 prawn as a first-class claw species (G4 round 1)', () => {
    Ported from the lab v7 endpoints; detector is G3's sub.air. The load-bearing
    property: EQUAL MIX IS EXACTLY NEUTRAL — undifferentiated air renders the
    generic fan byte-for-byte, and legacy is pinned neutral whatever the data. */
-import { wingShape } from '../src/lib/creatureForm';
+import { wingShape, wingFlapAngle } from '../src/lib/creatureForm';
 
 describe('wingShape — the 雞/鴨鵝 blend', () => {
   const NEUTRAL = {
     lenMul: 1, widthMul: 1, spreadMul: 1, baseAng: -0.32, humpMul: 1, countMul: 1,
-    flapFreqMul: 1, flapAmpMul: 1,
+    speciesK: 0,
   };
 
   it('legacy is neutral REGARDLESS of the bag — the frozen control grows no variants', () => {
@@ -941,39 +941,80 @@ describe('wingShape — the 雞/鴨鵝 blend', () => {
     });
   });
 
-  /** Owner, on the wing bench, after the shape/thickness dials: "can we turn
-   *  animation for specific sides?" — clarified as 雞 vs 鴨鵝 (species), not
-   *  left vs right (physical side). Continuous in k, like lenMul/spreadMul/
-   *  baseAng — not a one-sided boost, since flutter-vs-glide is a spectrum
-   *  property of the blend itself. */
-  describe('flap animation dials (雞 flutters, 鴨鵝 glides)', () => {
-    it('neutral (no lived data, or legacy) has no animation dial — exactly 1x', () => {
-      expect(wingShape(undefined, 'metabolism').flapFreqMul).toBeCloseTo(1, 6);
-      expect(wingShape(undefined, 'metabolism').flapAmpMul).toBeCloseTo(1, 6);
-      expect(wingShape({ chicken: 5, duck_goose: 5 }, 'metabolism').flapFreqMul).toBeCloseTo(1, 6);
-      expect(wingShape({ chicken: 30 }, 'legacy').flapFreqMul).toBeCloseTo(1, 6);
-      expect(wingShape({ chicken: 30 }, 'legacy').flapAmpMul).toBeCloseTo(1, 6);
-    });
+  it('speciesK carries the raw blend for wingFlapAngle — 0 at neutral/legacy, ±1 at the pure endpoints', () => {
+    expect(wingShape(undefined, 'metabolism').speciesK).toBe(0);
+    expect(wingShape({ chicken: 5, duck_goose: 5 }, 'metabolism').speciesK).toBeCloseTo(0, 6);
+    expect(wingShape({ chicken: 30 }, 'legacy').speciesK).toBe(0); // legacy is always NEUTRAL
+    expect(wingShape({ chicken: 10 }, 'metabolism').speciesK).toBeCloseTo(1, 6);
+    expect(wingShape({ duck_goose: 10 }, 'metabolism').speciesK).toBeCloseTo(-1, 6);
+  });
+});
 
-    it('pure 雞: faster, tighter flutter — freq up, reach down', () => {
-      const w = wingShape({ chicken: 10 }, 'metabolism');
-      expect(w.flapFreqMul).toBeCloseTo(1.6, 6);
-      expect(w.flapAmpMul).toBeCloseTo(0.6, 6);
-    });
+/** Owner, on the wing bench, after the shape/thickness dials settled — not a
+ *  number this time but a described RHYTHM: "chicken should be flap flap
+ *  flap.....pause... then flap flap flap in loop" / "goose duck should be
+ *  flap flap.....flappppp.....gliding.....then flap......gliding.....then
+ *  loop." Supersedes the same-session flapFreqMul/flapAmpMul dial (a plain
+ *  frequency/amplitude scale on one continuous sine can't produce a
+ *  pause-then-burst rhythm) rather than adding to it — WingShape.speciesK
+ *  replaces those two fields, and this pure function owns the waveform.
+ *  Owner verifies the feel live on /dev-wings; these tests pin the
+ *  STRUCTURE (exact stillness during declared pause/glide windows,
+ *  periodicity, boundedness, and the k=0 fallback to the untouched original
+ *  single sine) rather than a "looks right" claim no unit test can make. */
+describe('wingFlapAngle — the burst-pause (雞) / burst-glide (鴨鵝) rhythm', () => {
+  it('k=0 (neutral) is EXACTLY the original single sine, unchanged', () => {
+    for (const t of [0, 137, 500, 1250, 3000, 9999]) {
+      expect(wingFlapAngle(0, t)).toBeCloseTo(0.13 * Math.sin(t * 0.0013), 10);
+    }
+  });
 
-    it('pure 鴨鵝: slower, wider glide — freq down, reach up', () => {
-      const w = wingShape({ duck_goose: 10 }, 'metabolism');
-      expect(w.flapFreqMul).toBeCloseTo(0.4, 6);
-      expect(w.flapAmpMul).toBeCloseTo(1.4, 6);
-    });
+  it('pure 雞 (k=1): held EXACTLY still during the declared pause window', () => {
+    // period 1600ms, burst fills [0,700), pause is [700,1600)
+    for (const t of [750, 900, 1100, 1300, 1599, 1600 + 750, 3 * 1600 + 1000]) {
+      expect(wingFlapAngle(1, t)).toBe(0);
+    }
+  });
 
-    it('ramps continuously and oppositely across the whole blend, never jumps', () => {
-      const mixes = [-1, -0.6, -0.2, 0, 0.2, 0.6, 1].map(k =>
-        wingShape({ chicken: (k + 1) / 2, duck_goose: (1 - k) / 2 }, 'metabolism'));
-      for (let i = 1; i < mixes.length; i++) {
-        expect(mixes[i].flapFreqMul).toBeGreaterThan(mixes[i - 1].flapFreqMul);
-        expect(mixes[i].flapAmpMul).toBeLessThan(mixes[i - 1].flapAmpMul);
+  it('pure 雞 (k=1): nonzero and bounded during the burst window', () => {
+    for (const t of [50, 150, 300, 450, 650]) {
+      const v = wingFlapAngle(1, t);
+      expect(Math.abs(v)).toBeGreaterThan(0);
+      expect(Math.abs(v)).toBeLessThanOrEqual(0.13 * 1.1 + 1e-9);
+    }
+  });
+
+  it('pure 鴨鵝 (k=-1): held EXACTLY still during both declared glide windows', () => {
+    // period 4200ms: ramp [0,900), glide1 [900,2300), flap2 [2300,2700), glide2 [2700,4200)
+    for (const t of [1000, 1800, 2299, 2800, 3500, 4199, 4200 + 1500]) {
+      expect(wingFlapAngle(-1, t)).toBe(0);
+    }
+  });
+
+  it('pure 鴨鵝 (k=-1): nonzero and bounded during both flap windows', () => {
+    for (const t of [100, 400, 700, 2350, 2600, 2650]) {
+      const v = wingFlapAngle(-1, t);
+      expect(Math.abs(v)).toBeGreaterThan(0);
+      expect(Math.abs(v)).toBeLessThanOrEqual(0.13 * 1.4 + 1e-9);
+    }
+  });
+
+  it('is periodic — each species repeats its own declared period exactly', () => {
+    for (const t of [0, 233, 811, 1599]) {
+      expect(wingFlapAngle(1, t)).toBeCloseTo(wingFlapAngle(1, t + 1600), 10);
+    }
+    for (const t of [0, 500, 2100, 4199]) {
+      expect(wingFlapAngle(-1, t)).toBeCloseTo(wingFlapAngle(-1, t + 4200), 10);
+    }
+  });
+
+  it('never produces NaN or runs away, across the whole k range', () => {
+    for (let k = -1; k <= 1; k += 0.25) {
+      for (const t of [0, 1, 500, 1234, 5000, 10000]) {
+        const v = wingFlapAngle(k, t);
+        expect(Number.isFinite(v)).toBe(true);
+        expect(Math.abs(v)).toBeLessThan(0.13 * 1.5); // generous ceiling above every dial's peak
       }
-    });
+    }
   });
 });
