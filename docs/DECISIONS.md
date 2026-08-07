@@ -6331,3 +6331,13 @@ Verification: tsc clean (known pre-existing i18n.test.ts error only);
 141/141 creature + ink-bounds tests; screenshot of the live `/dev-tails`
 bench confirmed the curl now sits clearly away from the body on a
 visible stem, not tucked at the rim.
+
+## 豬尾 pig tail, shrunk 15% — *(Sonnet)* — ✅ SHIPPED 2026-08-07
+Owner: "good, srink it by 15%." New `PORK_SHRINK = 0.85` scales the
+stem+coil unit uniformly (stroke weight included via `pf` replacing `f`
+throughout), matching the existing `BEEF_SHRINK` pattern on the cow tail
+rather than inventing a new scaling convention.
+
+Verification: tsc clean (known pre-existing i18n.test.ts error only);
+141/141 creature + ink-bounds tests; screenshot of the live `/dev-tails`
+bench confirmed the smaller tail still reads clearly as a stemmed curl.

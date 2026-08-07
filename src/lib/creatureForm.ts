@@ -1239,8 +1239,14 @@ function drawTail(
        translates outward as a unit while staying visibly connected —
        exactly the "no separate lead-out stroke to read as its own
        disconnected shape" rule, just satisfied by drawing that stroke
-       instead of by omitting it. */
-    ctx.lineWidth = Math.max(1, R * 0.1 * f);
+       instead of by omitting it.
+
+       PORK_SHRINK = 0.85 (owner: "shrink it by 15%") scales the whole
+       stem+coil unit uniformly, including the stroke weight, rather than
+       just the coil radius — a size tune, not a reshape. */
+    const PORK_SHRINK = 0.85;
+    const pf = f * PORK_SHRINK;
+    ctx.lineWidth = Math.max(1, R * 0.1 * pf);
     ctx.beginPath();
     const TURNS = 1.4, COIL_R = 0.24, PITCH = 0.34, STEM = 0.3;
     const N = 64;
@@ -1248,8 +1254,8 @@ function drawTail(
     for (let i = 0; i <= N; i++) {
       const u = i / N;
       const thC = Math.PI + u * TAU * TURNS;
-      const rr = R * COIL_R * f * (1 - 0.15 * u);
-      const cxA = R * (STEM + COIL_R) * f + u * R * PITCH * TURNS * f;
+      const rr = R * COIL_R * pf * (1 - 0.15 * u);
+      const cxA = R * (STEM + COIL_R) * pf + u * R * PITCH * TURNS * pf;
       const lx = cxA + Math.cos(thC) * rr;
       const ly = Math.sin(thC) * rr * 0.85;
       ctx.lineTo(px(lx, ly), py(lx, ly));
