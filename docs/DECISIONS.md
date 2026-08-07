@@ -5729,3 +5729,44 @@ suite unaffected (confirmed by running tests/creatureForm.test.ts and
 tests/inkBounds.test.ts in isolation — the full suite had unrelated,
 pre-existing failures in the restaurant-picker files from a concurrent
 edit in progress elsewhere in the tree, unrelated to this change).
+
+## Restaurant attribution: honest blanks, and a list you can page (2026-08-07)
+
+Field session on a Wan Chai dish, straight after the `radius_m` fix. Three
+things the owner called, plus the bug that fell out of the third.
+
+- **略過 CLEARS the restaurant; it does not mean "leave it".** Owner: "Better
+  with blanks than a wrong restaurant attached. Maybe this is why it was kept
+  as 美心皇宮." It was. In 食記 the picker was mounted with NO `onNone` handler
+  and the dirty gate was `draftRestaurant !== null` — so 略過 set null, read as
+  "nothing to save", and saved nothing. A dish attributed 1836m away could not
+  be un-attributed from the very editor offering to fix it, and 住家菜 was
+  equally inert (`{kind:'home'}` matched no branch of the PATCH body). Both now
+  mean "no restaurant for this dish": `clear_restaurant` on
+  `PATCH /api/my/dishes` nulls `restaurant_id`. The restaurant ROW is never
+  touched — it may hold other people's dishes, and this edit speaks for one
+  dish. Un-picking 略過 retracts the clear, so the tap stays a toggle.
+  - Deliberately NOT decided here: whether 住家菜 in 食記 should also set
+    `dishes.source = 'home'`. It clears the restaurant, which is what the chip
+    visibly promises; changing `source` changes what the row MEANS and is the
+    owner's call, not a rider on a bugfix.
+
+- **"Next 10".** Ranking by distance is not sufficient in HK density: in Tsim
+  Sha Tsui the tenth nearest restaurant was 21m away, so the shop actually
+  wanted sat just outside a list whose every entry was within a block — and a
+  forgotten name is exactly what browsing further is for. Places now asks for
+  20 (its maximum; Nearby Search bills per REQUEST and the field mask picks the
+  SKU, so the extra ten are free — the caution above `searchPlacesText` is about
+  the pricier TEXT search and does not apply). The picker shows ten and reveals
+  ten more per tap, with the remaining count on the chip. Collapsed state is
+  byte-identical to the old behaviour, and a new location collapses again
+  rather than inheriting the last one's expansion.
+
+- **Type-then-pick stays.** Typing a name and choosing from real matches
+  already worked and is confirmed good; paging is the complement for when you
+  cannot remember the name at all.
+
+- **Picker action buttons share one treatment.** 不是，是新的店 and + 更多資料
+  were `btn ghost small` while 略過/住家菜 beside them were `chip chip-util`.
+  Now all `chip chip-util`. `picker.uselivegeo` was left alone — not named, and
+  it sits inside the add form rather than the chip row.

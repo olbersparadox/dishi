@@ -243,6 +243,13 @@ export default function MyDishes({ t, lang, onPublished }: {
   // for something most edits never touch.
   const [changingRestaurant, setChangingRestaurant] = useState(false);
   const [draftRestaurant, setDraftRestaurant] = useState<RestaurantChoice>(null);
+  // 略過/住家菜 as an ANSWER: "this dish's restaurant is wrong and none of these is
+  // right." Tracked separately because both chips report the same null choice the
+  // picker also sends for ordinary bookkeeping (opening the add form un-picks a
+  // chip), and null alone read as "nothing to save" — which is why a dish
+  // attributed 1836m away could not be un-attributed from the very editor offering
+  // to fix it. Blank beats wrong.
+  const [clearRestaurant, setClearRestaurant] = useState(false);
   const [changingRating, setChangingRating] = useState(false);
   const [ratingSaved, setRatingSaved] = useState<string | null>(null); // dish id, transient
 
@@ -369,7 +376,7 @@ export default function MyDishes({ t, lang, onPublished }: {
     setDraftNameZh(d.name_zh ?? '');
     setEditedEn(false); setEditedZh(false);
     setSaveError(null);
-    setChangingRestaurant(false); setDraftRestaurant(null);
+    setChangingRestaurant(false); setDraftRestaurant(null); setClearRestaurant(false);
     setChangingRating(false);
   }
 
@@ -383,7 +390,7 @@ export default function MyDishes({ t, lang, onPublished }: {
     // silently demoted a menu-scan name from AUTHORITY_MENU to AUTHORITY_HUMAN —
     // corrupting dish-identity naming for a name nobody actually touched.
     const wantsNameChange = (editedEn || editedZh) && (!!name || !!name_zh);
-    const wantsRestaurantChange = changingRestaurant && draftRestaurant !== null;
+    const wantsRestaurantChange = changingRestaurant && (draftRestaurant !== null || clearRestaurant);
     if (!wantsNameChange && !wantsRestaurantChange) { setEditing(null); return; }
     setSaving(true); setSaveError(null);
     const res = await fetch('/api/my/dishes', {
@@ -396,6 +403,7 @@ export default function MyDishes({ t, lang, onPublished }: {
         edited_en: editedEn, edited_zh: editedZh,
         restaurant_id: wantsRestaurantChange && draftRestaurant?.kind === 'existing' ? draftRestaurant.id : undefined,
         new_restaurant: wantsRestaurantChange && draftRestaurant?.kind === 'new' ? draftRestaurant : undefined,
+        clear_restaurant: wantsRestaurantChange && clearRestaurant ? true : undefined,
       }),
     });
     setSaving(false);
@@ -406,8 +414,15 @@ export default function MyDishes({ t, lang, onPublished }: {
     }
     const { dish, relearned } = await res.json();
     setDishes(prev => prev?.map(d => d.id === id
-      ? { ...d, name: dish.name, name_zh: dish.name_zh, cuisine: dish.cuisine, restaurant: dish.restaurant ?? d.restaurant }
+      ? {
+        ...d, name: dish.name, name_zh: dish.name_zh, cuisine: dish.cuisine,
+        // `?? d.restaurant` keeps the old value when the server simply didn't
+        // speak about the restaurant — but a CLEAR is the server speaking, and
+        // the fallback would silently redisplay the attribution just removed.
+        restaurant: clearRestaurant ? null : (dish.restaurant ?? d.restaurant),
+      }
       : d) ?? null);
+    setClearRestaurant(false);
     setEditing(null);
     if (relearned) {
       setRelearnedId(id);
@@ -644,7 +659,11 @@ export default function MyDishes({ t, lang, onPublished }: {
                           things. EXIF or nothing here; live GPS stays reachable inside the add
                           form, on an explicit tap, purely to PIN a newly typed place. */}
                       <RestaurantPicker
-                        onChange={setDraftRestaurant}
+                        // 住家菜 arrives here as {kind:'home'} while 略過 arrives via
+                        // onNone — different routes, same meaning for this dish: no
+                        // restaurant. A real pick supersedes an earlier 略過.
+                        onChange={c => { setDraftRestaurant(c); setClearRestaurant(c?.kind === 'home'); }}
+                        onNone={() => setClearRestaurant(true)}
                         photoOnly
                         seedCoords={d.lat != null && d.lng != null ? { lat: d.lat, lng: d.lng } : null}
                       />
@@ -666,7 +685,7 @@ export default function MyDishes({ t, lang, onPublished }: {
                     <button
                       className={`icon-btn save ${
                         ((editedEn || editedZh) && (draftName.trim() || draftNameZh.trim())) ||
-                        (changingRestaurant && draftRestaurant !== null)
+                        (changingRestaurant && (draftRestaurant !== null || clearRestaurant))
                           ? 'dirty' : ''
                       }`}
                       disabled={saving} onClick={() => rename(d.id)}

@@ -15,6 +15,10 @@ type Nearby = {
   lng: number;
   distance_m: number | null;
 };
+/** Nearby chips revealed per tap. Ten is what the list showed before paging
+ *  existed, so the collapsed state is exactly the old behaviour. */
+const NEARBY_PAGE = 10;
+
 export type RestaurantChoice =
   | { kind: 'existing'; id: string; name: string }
   | { kind: 'new'; name: string; lat: number; lng: number; area?: string; address?: string; place_id?: string }
@@ -83,6 +87,10 @@ export default function RestaurantPicker({ onChange, skipFirst = false, seedCoor
   const { t, lang } = useLang();
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [nearby, setNearby] = useState<Nearby[]>([]);
+  // How many nearby chips are on screen. Grows by NEARBY_PAGE on tap and resets
+  // whenever a fresh lookup lands, so a new location never inherits the previous
+  // one's expanded list.
+  const [shownCount, setShownCount] = useState(NEARBY_PAGE);
   // 'nogeo' is photoOnly's own end state: the photo carries no location, so there
   // is no honest shortlist to offer. Distinct from 'denied' (location permission
   // off), which is about the device, not the photo.
@@ -125,6 +133,7 @@ export default function RestaurantPicker({ onChange, skipFirst = false, seedCoor
       const res = await fetch(`/api/restaurants/nearby?lat=${lat}&lng=${lng}&lang=${lang}`);
       const json = await res.json();
       setNearby(json.restaurants ?? []);
+      setShownCount(NEARBY_PAGE); // a new place starts collapsed again
     } catch { /* empty list is handled below */ }
     setStatus('ready');
   }, [lang, onCoords]);
@@ -327,7 +336,7 @@ export default function RestaurantPicker({ onChange, skipFirst = false, seedCoor
           <button className={`chip chip-util ${selectedKey === 'skip' ? 'on' : ''}`} onClick={() => noRestaurant('skip')}>{t('grow.skip')}</button>
           {homeOption && <button className={`chip chip-util ${selectedKey === 'home' ? 'on' : ''}`} onClick={() => noRestaurant('home')}>{t('place.home')}</button>}
         </>)}
-        {nearby.map(r => {
+        {nearby.slice(0, shownCount).map(r => {
           const key = r.source === 'dishi' ? r.id! : r.place_id!;
           // Single name, in whichever language the app currently displays. Google
           // results already come back in that language (requested server-side);
@@ -342,6 +351,17 @@ export default function RestaurantPicker({ onChange, skipFirst = false, seedCoor
             </button>
           );
         })}
+        {/* "Show the next ten." The list is distance-ranked, so the tail is still
+            genuinely nearby — in Tsim Sha Tsui the tenth nearest was 21m away,
+            which is exactly when the shop you want sits just past the cut. Reveal
+            on tap rather than rendering all ~28 at once: a wall of chips is its
+            own kind of useless, and the first ten are right most of the time. */}
+        {nearby.length > shownCount && (
+          <button className="chip chip-util" onClick={() => setShownCount(n => n + NEARBY_PAGE)}>
+            {t('picker.morenearby')}
+            <span style={{ opacity: 0.55 }}> · {nearby.length - shownCount}</span>
+          </button>
+        )}
         {!adding && selectedKey === 'manual-new' && (
           <button className="chip on" onClick={reopenManual}>
             {newName.trim()}
@@ -400,7 +420,7 @@ export default function RestaurantPicker({ onChange, skipFirst = false, seedCoor
                 ))}
               </div>
               <button
-                className="btn ghost small" style={{ marginTop: 8 }}
+                className="chip chip-util" style={{ marginTop: 8 }}
                 onClick={() => { setSearchMatches([]); createNew(newName.trim()); }}
               >
                 {t('picker.notsame')}
@@ -420,7 +440,7 @@ export default function RestaurantPicker({ onChange, skipFirst = false, seedCoor
                   {t('picker.samesame')}
                 </button>
                 <button
-                  className="btn ghost small"
+                  className="chip chip-util"
                   onClick={() => { setSuggestionDismissed(true); createNew(newName.trim()); }}
                 >
                   {t('picker.notsame')}
@@ -430,7 +450,7 @@ export default function RestaurantPicker({ onChange, skipFirst = false, seedCoor
           )}
 
           {!showDetails ? (
-            <button className="btn ghost small" style={{ marginTop: 8 }} onClick={openDetails}>
+            <button className="chip chip-util" style={{ marginTop: 8 }} onClick={openDetails}>
               {t('picker.moredetails')}
             </button>
           ) : (

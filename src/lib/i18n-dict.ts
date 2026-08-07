@@ -333,6 +333,11 @@ export const dict: Record<string, { zh: string; en: string }> = {
   'picker.locating': { zh: '正在尋找你附近的地區…', en: 'Finding your area…' },
   'picker.detailshint': { zh: '這些已為你預先填好，隨時可以修改 — 想記錄在其他地方吃過的也可以。', en: 'These are pre-filled guesses \u2014 edit freely, including to log a dish from somewhere else entirely.' },
   'picker.new': { zh: '新', en: 'new' },
+  // The nearby list shows ten at a time and reveals the next ten on tap. In dense
+  // HK the correct shop can sit just outside the first ten even when all ten are
+  // within a block (Tsim Sha Tsui: the tenth was 21m away), and a name you have
+  // forgotten is exactly what you need the list to jog.
+  'picker.morenearby': { zh: '更多', en: 'More' },
   'picker.sameas': { zh: '係咪即係「{name}」？', en: 'Same place as "{name}"?' },
   'picker.samesame': { zh: '是，同一間', en: 'Yes, same place' },
   'picker.notsame': { zh: '不是，是新的店', en: 'No, it\u2019s a new place' },

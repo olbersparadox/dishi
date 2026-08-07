@@ -29,7 +29,12 @@ describe('searchNearbyRestaurants request shape', () => {
     expect(body.rankPreference).toBe('DISTANCE');
     // Radius is REQUIRED even with DISTANCE ranking — it bounds the candidate set.
     expect(body.locationRestriction.circle.radius).toBe(300);
-    expect(body.maxResultCount).toBe(10);
+    // 20 (the API maximum) since 2026-08-07, up from 10. Nearby Search bills per
+    // REQUEST and the field mask picks the SKU, so the extra ten are free. Ten was
+    // not enough in dense HK even ranked by distance: in Tsim Sha Tsui the tenth
+    // nearest was 21m away, so the shop actually wanted could sit just outside a
+    // list whose every entry was within a block. The picker pages through them.
+    expect(body.maxResultCount).toBe(20);
   });
 
   it('fails soft to [] on a non-ok response (a Places outage never blocks logging)', async () => {

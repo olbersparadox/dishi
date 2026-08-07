@@ -355,7 +355,14 @@ export async function PATCH(req: NextRequest) {
   const name = typeof body.name === 'string' ? body.name.trim().slice(0, 120) : undefined;
   const nameZh = typeof body.name_zh === 'string' ? body.name_zh.trim().slice(0, 120) : undefined;
   const editedEn = !!body.edited_en, editedZh = !!body.edited_zh;
-  const wantsRestaurantChange = typeof body.restaurant_id === 'string' || !!body.new_restaurant;
+  // clear_restaurant is 略過/住家菜 in 食記 saying "none of these" about a dish that
+  // ALREADY has a restaurant. Before 2026-08-07 there was no way to express that:
+  // both chips produced a null choice, the client read null as "nothing to save,"
+  // and a wrong attribution was unremovable through the UI that offered to fix it.
+  // Blank beats wrong — an empty restaurant is honest, a confidently wrong one
+  // pollutes execution comparisons and the taste engine's per-restaurant read.
+  const clearRestaurant = body.clear_restaurant === true;
+  const wantsRestaurantChange = typeof body.restaurant_id === 'string' || !!body.new_restaurant || clearRestaurant;
   if (name === undefined && nameZh === undefined && !wantsRestaurantChange) {
     return NextResponse.json({ error: 'Nothing to update.' }, { status: 400 });
   }
@@ -390,7 +397,11 @@ export async function PATCH(req: NextRequest) {
   }
 
   if (wantsRestaurantChange) {
-    if (typeof body.restaurant_id === 'string') {
+    if (clearRestaurant) {
+      // Detach only. The restaurant row itself is left alone — it may carry other
+      // people's dishes, and this edit speaks for ONE dish.
+      patch.restaurant_id = null;
+    } else if (typeof body.restaurant_id === 'string') {
       patch.restaurant_id = body.restaurant_id;
     } else {
       const resolved = await resolveOrCreateRestaurant(supabase, user.id, null, body.new_restaurant);

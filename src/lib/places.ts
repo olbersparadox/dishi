@@ -47,7 +47,17 @@ export async function searchNearbyRestaurants(
     },
     body: JSON.stringify({
       includedTypes: ['restaurant'],
-      maxResultCount: 10,
+      // 20 (the API maximum), not 10, since 2026-08-07. Nearby Search bills per
+      // REQUEST, not per result, so the extra ten are free — and the field mask
+      // (which is what picks the SKU) is untouched. The caution above
+      // searchPlacesText about raising maxResultCount is about TEXT search, which
+      // is a different, more expensive SKU; it does not apply here.
+      //
+      // Ten was not enough in dense HK even ranked by distance: in Tsim Sha Tsui
+      // the tenth nearest restaurant was 21m away, so the real shop could sit
+      // just outside a list where every entry is within a block. The picker shows
+      // ten at a time and reveals the rest on tap rather than dumping all of them.
+      maxResultCount: 20,
       // Rank by DISTANCE, not the default POPULARITY. In dense HK a well-known spot
       // the user is literally standing in routinely misses the 10 prominence slots
       // (the 新容記 Tin Wan miss), and a "closest 10" is a far more honest quick-pick
