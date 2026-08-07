@@ -5636,3 +5636,26 @@ for an approved version of a gesture BEFORE porting its PART 1 VOCAB entry.
 Both exist for several gestures and the approved one wins. Added as step 0 of
 the porting checklist in the lab v7 file header, where a porter will actually
 read it (header commentary only — the rescued code below is untouched).
+
+## G4 round 3 tune, take 2: 魚尾 burial 0.95→0.98 (position, not size) — *(Sonnet)* — ✅ SHIPPED 2026-08-07
+Owner, same bench: "stick out the fish tail more." First attempt (this
+session, reverted same session) scaled `FISH_TAIL_REACH` — the fluke's own
+length and width — which grew the gesture rather than moving it. Owner:
+"revert, you are making it larger, not repositioning." Correct read: "stick
+out" means the base moves further from the body, the WRIST_BURIAL kind of
+lever, not the gesture's own size.
+
+`TAIL_BURIAL('fish')` 0.95→0.98 on the owner's own follow-up number ("try
+0.98") — still short of the 1.0 hard ceiling the claws' WRIST_BURIAL logic
+already established (a join with no body pixels behind it floats loose).
+Fluke length/width are back to the trace-measured 0.49·R / 0.128·R exactly,
+untouched by this round.
+
+Verified: ink-bounds net (already carrying the fishtail fixture) confirms
+no crop at any production size even with burial pushed to 0.98; 28-cell
+byte-identity sweep — only the two fish-tail-bearing fixtures moved, all
+legacy and every other variant untouched; /dev-tails screenshot shows the
+fork sitting visibly lower and further out, base at the rim rather than the
+flukes themselves growing. tsc clean; full suite 1410/1410 (no test changes
+— burial is exercised by the existing ink-bounds/byte-identity coverage,
+not a new assertion surface).

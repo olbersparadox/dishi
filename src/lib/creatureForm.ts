@@ -1076,10 +1076,13 @@ const TAIL_SEAT = 2.35;
  *  gestures lead out from their base with a stem, segments or a coil, so the
  *  base itself is hidden at 0.8. 魚 has no stem — its flukes ARE the gesture
  *  and spring straight off the rim, which is where the owner's trace anchors
- *  them (0.956); burying that deep would swallow half the fork. Kept just
- *  inside the edge for the same reason WRIST_BURIAL is: a join with no body
- *  pixels behind it floats loose. */
-const TAIL_BURIAL = (v: TailVariant) => (v === 'fish' ? 0.95 : 0.8);
+ *  them (0.956); burying that deep would swallow half the fork. Raised
+ *  0.95→0.98 (owner, on the tail bench: "stick out the fish tail more",
+ *  corrected to mean POSITION after a first attempt wrongly grew the
+ *  gesture's own size instead — "try 0.98"). Kept just inside 1.0 for the
+ *  same reason WRIST_BURIAL is: a join with no body pixels behind it floats
+ *  loose. */
+const TAIL_BURIAL = (v: TailVariant) => (v === 'fish' ? 0.98 : 0.8);
 
 /* 腿 · leg. cow = thick pillar on a cleft hoof; pig = shorter, softer, small
    trotter; chicken = thin, backward knee, three splayed toes. (lab v5) */
