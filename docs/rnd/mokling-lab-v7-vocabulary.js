@@ -50,6 +50,14 @@
  *
  * PORTING CHECKLIST (do not skip any step — this is exactly how the original
  * v6 port silently dropped 烤 sear marks and invented the sea_crustacean bug):
+ *   0. CHECK TRACES FIRST for an approved version of the same gesture. Several
+ *      exist in BOTH parts, and where they do the trace WINS — it is the shape
+ *      the owner drew and approved, VOCAB is the specimen study. They can
+ *      differ structurally, not just cosmetically: G4 round 3 shipped VOCAB's
+ *      魚尾 (peduncle + two blades at its tip) when TRACES 其二 had the
+ *      approved one (no stem at all — "one solid two-fluke shape off the
+ *      lower-right rim"), and the owner caught it same-day. Port the trace's
+ *      proportions by MEASUREMENT off its own body ellipse, never by eye.
  *   1. Re-base each fn's anchor from stub() onto the real body's flank/bottom
  *      points (creatureForm.ts already does this correctly for legs/claws —
  *      follow that pattern, not VOCAB's stub() pattern).

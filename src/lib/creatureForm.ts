@@ -1009,11 +1009,15 @@ function drawTail(
   ctx.strokeStyle = ink;
   ctx.lineCap = 'round';
   if (plan.variant === 'fish') {
-    // forked: a tapering peduncle, then two flukes opening outward
-    const sx = R * 0.5 * f;
-    taperQuad(ctx, px(0, 0), py(0, 0), px(sx, 0), py(sx, 0), R * 0.16 * f, R * 0.09 * f);
-    tailBlade(ctx, px(sx, 0), py(sx, 0), R * 0.48 * f, R * 0.1 * f, th - 0.62);
-    tailBlade(ctx, px(sx, 0), py(sx, 0), R * 0.48 * f, R * 0.1 * f, th + 0.55);
+    /* "one solid two-fluke shape off the lower-right rim" — the owner's own
+       sketch (lab v7 TRACES 其二), not VOCAB's specimen study. The two differ
+       structurally and the trace is the approved one: NO peduncle, both flukes
+       springing from a single point at the rim, and the pair swung off the
+       radial so the tail trails horizontally rather than pointing straight out.
+       Measured off the trace: flukes 0.49·R long, half-width 0.128·R, 0.76 rad
+       apart, bisector 0.47 rad off the outward ray. */
+    tailBlade(ctx, px(0, 0), py(0, 0), R * 0.49 * f, R * 0.128 * f, th - 0.853);
+    tailBlade(ctx, px(0, 0), py(0, 0), R * 0.49 * f, R * 0.128 * f, th - 0.093);
   } else if (plan.variant === 'crustacean') {
     // segmented abdomen telescoping out, ending in the four-blade fan
     let x = 0, y = 0;
@@ -1065,8 +1069,17 @@ function drawTail(
   }
 }
 
-const TAIL_SEAT = 2.35;  // lower-right flank, between the claw prime seat and the legs
-const TAIL_BURIAL = 0.8; // base well inside the silhouette; the body fill covers the join
+/** Lower-right flank, between the claw prime seat and the legs — the outward
+ *  ray here (~0.78 rad) is the one the owner's traced tails sit on (0.753). */
+const TAIL_SEAT = 2.35;
+/** How far out the base sits, as a fraction of centre → flank point. Four
+ *  gestures lead out from their base with a stem, segments or a coil, so the
+ *  base itself is hidden at 0.8. 魚 has no stem — its flukes ARE the gesture
+ *  and spring straight off the rim, which is where the owner's trace anchors
+ *  them (0.956); burying that deep would swallow half the fork. Kept just
+ *  inside the edge for the same reason WRIST_BURIAL is: a join with no body
+ *  pixels behind it floats loose. */
+const TAIL_BURIAL = (v: TailVariant) => (v === 'fish' ? 0.95 : 0.8);
 
 /* 腿 · leg. cow = thick pillar on a cleft hoof; pig = shorter, softer, small
    trotter; chicken = thin, backward knee, three splayed toes. (lab v5) */
@@ -1385,7 +1398,8 @@ export function drawCreatureFrame(
   const tail = tailPlan(domains, mode);
   if (tail) {
     const p = flank(1, TAIL_SEAT);
-    const tbx = BB.cx + (p.x - BB.cx) * TAIL_BURIAL, tby = BB.cy + (p.y - BB.cy) * TAIL_BURIAL;
+    const bur = TAIL_BURIAL(tail.variant);
+    const tbx = BB.cx + (p.x - BB.cx) * bur, tby = BB.cy + (p.y - BB.cy) * bur;
     drawTail(ctx, tbx, tby, Math.atan2(p.y - BB.cy, p.x - BB.cx), R, tail, t);
   }
   // 螯 claws — the calibrated pair (creatureGestures), which replaced the lab's

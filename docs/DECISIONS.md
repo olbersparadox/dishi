@@ -5571,3 +5571,68 @@ verified all five variants + control + tail-free legacy row. 牛尾/豬尾 are
 the strongest reads; 魚尾 modest (the sea body pinches at the tail seat);
 甲殼尾/禽尾 legible but close to their neighbouring gestures — tuning
 follow-ups expected, wing-round style. tsc clean; full suite 1410/1410.
+
+## G4 round 3 correction: 魚尾 follows the owner's APPROVED trace, not the VOCAB specimen — *(Opus)* — ✅ SHIPPED 2026-08-07
+Owner, immediately on seeing the round ship: "there should be fish tail
+specifically designed and confirmed before." Correct, and I had missed it.
+
+**The miss:** lab v7 holds TWO fish tails, and I ported the wrong one. PART 1
+VOCAB is the parametric specimen library; PART 3 TRACES are traces of the
+OWNER'S OWN seven sketches (2026-08-02, "trace them if you need to. I need to
+know if you can do it"). The file header states the precedence outright —
+TRACES are "calibration reference for exact proportions and style **the owner
+already approved**", and the lab's own note says "if these pass, the gesture
+library is refactored to THESE shapes". I read the porting checklist (which
+lives above VOCAB) and ported VOCAB without checking whether an approved
+trace existed for the same gesture. It did: 其二, "fish tail: one solid
+two-fluke shape off the lower-right rim".
+
+**What actually differed** — structural, not cosmetic:
+| | VOCAB (shipped in error) | TRACES 其二 (approved) |
+|---|---|---|
+| structure | tapering peduncle, then two blades at its tip | NO stem — both flukes spring from one point |
+| anchor | buried 0.80 inside the rim | 0.956 — essentially on the rim |
+| aim | flukes straddle the outward ray | pair swung 0.473 rad off radial, trailing horizontally |
+
+Measured off the trace rather than eyeballed (its body ellipse rx .21 / ry
+.26, anchor .60/.70, flukes at −.10 and .66, L .115, w .030): anchor sits at
+0.956 of the rim, flukes 0.489 × body radius, half-width 0.128, 0.760 rad
+apart, bisector 0.473 rad off the outward ray. All four now in the code.
+`TAIL_BURIAL` became per-variant for this: the other four gestures lead out
+from their base with a stem, segments or a coil so 0.8 correctly hides the
+join, but 魚's flukes ARE the gesture and burying them 20% deep swallowed
+half the fork — 0.95 matches the trace and keeps the margin-inside-the-edge
+rule the claws' WRIST_BURIAL already follows.
+
+Two things checked and left alone: the seat was already right (2.35 gives an
+outward ray of ~0.78 vs the trace's 0.753), and VOCAB's 牛尾 agrees
+structurally with the approved 其一 cow tail (thin line, three-prong tuft),
+so only 魚尾 was wrong.
+
+**Fidelity honestly stated:** the fluke is 0.49·R by construction, matching
+the trace's 0.489 — but R is the nominal size unit while the DRAWN body runs
+~10% larger than R on this sea-heavy profile (the sea bump pushes the
+silhouette out), so against the drawn body the fork measures ~0.445 rather
+than 0.489 — about 9% short of the sketch. Left as-is rather than
+over-fitted: every other gesture in the file sizes off R, the gap is
+diet-dependent, and the structural fix is the substantive one. Flagged for
+the owner's eye rather than silently compensated.
+
+**Still unported from TRACES, flagged not fixed:** 其六 carries a third
+approved tail — "THICK and smooth with an upturned tip (**first pass was a
+wire**)" — two stacked taperQuads, .048→.030→.012, sagging then rising. That
+parenthesis is an owner correction on record, and the general lesson (tails
+are thick tapering FILLS, not strokes) applies to the 牛 whip and 豬 curl,
+which are both strokes today. Not touched this round — one element per
+round, and the owner asked about the fish.
+
+Verification: 28-cell byte-identity sweep with the expected-diff set
+enumerated first — exactly the two fish-tail-bearing fixtures moved, all
+legacy frozen, the other eleven metabolism renders untouched; ink-bounds net
+still clean; /dev-tails screenshot. tsc clean; full suite 1410/1410.
+
+**Process lesson, carried into the next port (鰭 fins):** check PART 3 TRACES
+for an approved version of a gesture BEFORE porting its PART 1 VOCAB entry.
+Both exist for several gestures and the approved one wins. Added as step 0 of
+the porting checklist in the lab v7 file header, where a porter will actually
+read it (header commentary only — the rescued code below is untouched).
