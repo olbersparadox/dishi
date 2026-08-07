@@ -841,14 +841,15 @@ describe('wingShape — the 雞/鴨鵝 blend', () => {
   });
 
   it('pure 鴨鵝: long, thin, tight sweep, flattened toward glide — UNCHANGED by any 雞 dial', () => {
-    // the goose endpoint must read exactly the plain blend: chickenBoost is
-    // clamped to k>=0 only, so it is 0 here by construction
+    // the goose endpoint must read exactly the plain blend on every axis
+    // except its OWN thickness dial (chickenBoost is clamped to k>=0 only,
+    // so it is 0 here by construction; gooseBoost supplies the +20% instead)
     const w = wingShape({ duck_goose: 10 }, 'metabolism');
     expect(w.lenMul).toBeCloseTo(1.35, 6);
-    expect(w.widthMul).toBeCloseTo(0.7, 6);
+    expect(w.widthMul).toBeCloseTo(0.7 * 1.2, 6);
     expect(w.spreadMul).toBeCloseTo(0.5, 6);
     expect(w.baseAng).toBeGreaterThan(-0.1);
-    expect(w.humpMul).toBeCloseTo(0.7, 6);
+    expect(w.humpMul).toBeCloseTo(0.7, 6); // no curvature dial on this side
     expect(w.countMul).toBeCloseTo(1, 6);
   });
 
@@ -881,12 +882,15 @@ describe('wingShape — the 雞/鴨鵝 blend', () => {
       expect(w.humpMul).toBeCloseTo(1.3 * 1.4, 6);
     });
 
-    it('the stacked thickness dial is ONE-SIDED: any 鴨鵝-leaning mix gets exactly zero boost', () => {
+    it('the stacked thickness dial is ONE-SIDED: any 鴨鵝-leaning mix gets exactly zero 雞 boost', () => {
       for (const mix of [{ duck_goose: 1 }, { chicken: 1, duck_goose: 3 }, { duck_goose: 100 }]) {
         const w = wingShape(mix, 'metabolism');
         const k = (mix.chicken ?? 0) / ((mix.chicken ?? 0) + mix.duck_goose) * 2 - 1;
-        expect(w.widthMul).toBeCloseTo(1 + 0.3 * k, 6); // no stack anywhere on this side
-        expect(w.humpMul).toBeCloseTo(1 + 0.3 * k, 6);
+        // widthMul on this side carries the GOOSE dial (below), not the 雞
+        // stack — isolate it by dividing the goose dial back out.
+        const gooseBoost = Math.max(0, -k);
+        expect(w.widthMul / (1 + 0.2 * gooseBoost)).toBeCloseTo(1 + 0.3 * k, 6);
+        expect(w.humpMul).toBeCloseTo(1 + 0.3 * k, 6); // no curvature dial on this side either
       }
     });
 
@@ -901,6 +905,36 @@ describe('wingShape — the 雞/鴨鵝 blend', () => {
     it('angle carries no dial — only thickness (width) and curvature (hump) move', () => {
       const w = wingShape({ chicken: 10 }, 'metabolism');
       expect(w.baseAng).toBeCloseTo(-0.6, 6); // the plain blend's raised angle, untouched
+    });
+  });
+
+  /** Owner, same session, next message: "duck / goose stroke thickness
+   *  increase by 20%." Mirrors 雞's thickness dial on the opposite side —
+   *  thickness only, no curvature dial requested for 鴨鵝. */
+  describe('鴨鵝 thickness dial (mirrors the 雞 dial, opposite side)', () => {
+    it('pure 鴨鵝 gets exactly +20% thickness, curvature untouched', () => {
+      const w = wingShape({ duck_goose: 10 }, 'metabolism');
+      // plain blend at k=-1: widthMul 0.7, humpMul 0.7 — only width picks up the dial
+      expect(w.widthMul).toBeCloseTo(0.7 * 1.2, 6);
+      expect(w.humpMul).toBeCloseTo(0.7, 6);
+    });
+
+    it('is ONE-SIDED: any 雞-leaning mix (including neutral) gets exactly zero goose boost', () => {
+      for (const mix of [{ chicken: 1 }, { chicken: 3, duck_goose: 1 }, { chicken: 1, duck_goose: 1 }]) {
+        const w = wingShape(mix, 'metabolism');
+        const k = (mix.chicken ?? 0) / ((mix.chicken ?? 0) + (mix.duck_goose ?? 0)) * 2 - 1;
+        const chickenBoost = Math.max(0, k);
+        const thicknessMul = (1 + 0.4 * chickenBoost) * (1 + 0.5 * chickenBoost);
+        expect(w.widthMul).toBeCloseTo((1 + 0.3 * k) * thicknessMul, 6); // no goose dial anywhere on this side
+      }
+    });
+
+    it('ramps continuously from the neutral middle toward pure 鴨鵝, never jumps', () => {
+      const shares = [0.5, 0.4, 0.3, 0.2, 0.1, 0.0].map(ck =>
+        wingShape({ chicken: ck, duck_goose: 1 - ck }, 'metabolism').widthMul);
+      for (let i = 1; i < shares.length; i++) expect(shares[i]).toBeLessThan(shares[i - 1]);
+      expect(shares[0]).toBeCloseTo(1, 6);                 // 50/50 = neutral = k≈0 = no boost
+      expect(shares[shares.length - 1]).toBeCloseTo(0.7 * 1.2, 6); // pure 鴨鵝 = full goose boost
     });
   });
 });

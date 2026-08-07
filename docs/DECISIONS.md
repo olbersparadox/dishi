@@ -5311,3 +5311,29 @@ row stays flat across all five cells.
 4 test assertions updated (widthMul references moved from `1.3 * 1.4` to
 `1.3 * 1.4 * 1.5`; humpMul assertions left at `1.3 * 1.4`, unchanged this
 round). tsc clean; full suite 1385/1385.
+
+## G4 round 2 tune 4: 鴨鵝 gets its own +20% thickness dial — *(Sonnet)* — ✅ SHIPPED 2026-08-07
+Owner, on the wing bench, immediately after the 雞 stack above: "duck / goose
+stroke thickness increase by 20%." A mirror-side request, not a further 雞
+tune. Sonnet-tier: numeric dial on an already-shipped gesture, live reference
+on screen.
+
+New `gooseBoost = max(0, -k)` — ramps 0→1 only across k∈[-1,0] (pure 鴨鵝
+through neutral) and is exactly 0 for any 雞-leaning mix, mirroring
+`chickenBoost`'s construction on the opposite half of the blend. Feeds a new
+`gooseThicknessMul = 1 + 0.2 * gooseBoost`, multiplied into `widthMul`
+alongside the existing `thicknessMul` — at any given k only one of the two
+boosts is ever non-1, so they can never stack on each other. No curvature
+dial requested for this side; `humpMul` is untouched. At pure 鴨鵝 the plain
+blend's widthMul 0.7 becomes 0.7 × 1.2 = 0.84.
+
+Verified: 11-fixture byte-identity sweep — legacy identical across all 11,
+metabolism identical for the 9 fixtures with no goose-leaning air data
+(including `owner`, still chicken-leaning), only `goose` and `gooseLean`
+changed. Visual check on `/dev-wings`: 鴨鵝·pure now reads visibly thicker
+than before while 雞·pure, 雞-lean, and generic are unchanged; legacy row
+stays flat.
+
+7 tests added/updated (a new nested describe for the goose dial, plus the
+pure-鴨鵝 and one-sided-鴨鵝-mix assertions updated to account for it). tsc
+clean; full suite 1388/1388.
