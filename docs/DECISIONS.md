@@ -5479,3 +5479,33 @@ same as every prior animation round, for the same t=0 reason). Owner
 verifies the actual feel live.
 
 4 tests changed/added. tsc clean; full suite 1397/1397.
+
+## G4 round 2, animation take 4: 雞 gets a lead flap at 2.5 before the burst — TESTING, explicit revert-if-not-good — *(Sonnet)* — ✅ SHIPPED 2026-08-07
+Owner, on the wing bench, framed explicitly as a trial: "just one more for
+testing, if not good revert back to this one — for chicken, before the
+burst of flap, add a BIG flap with magnitude 2.5 at the beginning then the
+burst with 1.8." The "revert back to this one" makes the prior commit
+(`c8a63dd`) the named fallback if this variant doesn't read right.
+
+Prepended as its OWN segment rather than folded into the existing burst —
+`CHICKEN_BIG_FLAP` (250ms, one beat, `CHICKEN_BIG_AMP = 2.5`, its own
+`sin(πφ)` envelope so it starts and ends at exactly 0 like every other
+segment) now runs before the unchanged 700ms/1.8 burst and the unchanged
+900ms pause. This extends `CHICKEN_PERIOD` 1600→1850ms (the burst and pause
+durations were NOT shortened to make room — the ask was to ADD a flap, not
+resize the existing rhythm). Sequence per loop: big lead flap → quick-beat
+burst → held-still pause → repeat.
+
+Verified: `npx tsc --noEmit` clean, full suite (window boundaries shifted
+in the existing pause/burst tests to match the new segment offsets, one new
+test asserting the lead flap is both nonzero-bounded at 2.5 AND actually
+exceeds the burst's own peak — the entire point of this round — plus the
+periodicity test's expected period updated 1600→1850; 鴨鵝 untouched and
+unchecked beyond re-running — 1398/1398 total), and the 11-fixture
+byte-identity sweep (all 22 cells unchanged, same t=0 gate as every prior
+animation round). Per the owner's standing instruction, no browser motion
+verification. If this reads wrong live, `git revert` this commit — it does
+not touch `c8a63dd`'s glide-sway or magnitude changes, only 雞's segment
+sequence.
+
+6 tests changed/added. tsc clean; full suite 1398/1398.

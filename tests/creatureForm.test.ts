@@ -977,20 +977,34 @@ describe('wingFlapAngle — the burst-pause (雞) / burst-glide (鴨鵝) rhythm'
   });
 
   it('pure 雞 (k=1): held EXACTLY still during the declared pause window', () => {
-    // period 1600ms, burst fills [0,700), pause is [700,1600)
-    for (const t of [750, 900, 1100, 1300, 1599, 1600 + 750, 3 * 1600 + 1000]) {
+    // period 1850ms: big flap [0,250), burst [250,950), pause [950,1850)
+    for (const t of [1000, 1200, 1400, 1700, 1849, 1850 + 1000, 3 * 1850 + 1200]) {
       expect(wingFlapAngle(1, t)).toBe(0);
     }
   });
 
+  it('pure 雞 (k=1): ONE big lead flap at the start of the loop, bigger than the burst', () => {
+    // owner testing a variant: "before the burst of flap, add a BIG flap
+    // with magnitude 2.5 at the beginning then the burst with 1.8" — if
+    // this doesn't read right, revert to the plain burst-pause commit.
+    const bigVals = [40, 80, 160, 200, 230].map(t => wingFlapAngle(1, t));
+    for (const v of bigVals) {
+      expect(Math.abs(v)).toBeGreaterThan(0);
+      expect(Math.abs(v)).toBeLessThanOrEqual(0.13 * 2.5 + 1e-9);
+    }
+    const bigPeak = Math.max(...bigVals.map(Math.abs));
+    const burstPeak = Math.max(...[300, 450, 600, 750, 900].map(t => Math.abs(wingFlapAngle(1, t))));
+    expect(bigPeak).toBeGreaterThan(burstPeak); // 2.5 > 1.8, the whole point of this round
+  });
+
   it('pure 雞 (k=1): nonzero and bounded during the burst window, at the larger magnitude', () => {
-    for (const t of [50, 150, 300, 450, 650]) {
+    for (const t of [300, 450, 600, 750, 900]) {
       const v = wingFlapAngle(1, t);
       expect(Math.abs(v)).toBeGreaterThan(0);
       expect(Math.abs(v)).toBeLessThanOrEqual(0.13 * 1.8 + 1e-9);
     }
     // and it actually IS larger than the pre-bump ceiling somewhere in the burst
-    const peak = Math.max(...[50, 150, 300, 450, 650].map(t => Math.abs(wingFlapAngle(1, t))));
+    const peak = Math.max(...[300, 450, 600, 750, 900].map(t => Math.abs(wingFlapAngle(1, t))));
     expect(peak).toBeGreaterThan(0.13 * 1.1);
   });
 
@@ -1020,8 +1034,8 @@ describe('wingFlapAngle — the burst-pause (雞) / burst-glide (鴨鵝) rhythm'
   });
 
   it('is periodic — each species repeats its own declared period exactly', () => {
-    for (const t of [0, 233, 811, 1599]) {
-      expect(wingFlapAngle(1, t)).toBeCloseTo(wingFlapAngle(1, t + 1600), 10);
+    for (const t of [0, 233, 811, 1849]) {
+      expect(wingFlapAngle(1, t)).toBeCloseTo(wingFlapAngle(1, t + 1850), 10);
     }
     for (const t of [0, 500, 2100, 4199]) {
       expect(wingFlapAngle(-1, t)).toBeCloseTo(wingFlapAngle(-1, t + 4200), 10);
@@ -1033,7 +1047,7 @@ describe('wingFlapAngle — the burst-pause (雞) / burst-glide (鴨鵝) rhythm'
       for (const t of [0, 1, 500, 1234, 5000, 10000]) {
         const v = wingFlapAngle(k, t);
         expect(Number.isFinite(v)).toBe(true);
-        expect(Math.abs(v)).toBeLessThan(0.13 * 2); // generous ceiling above every dial's peak (雞's 1.8 is now the largest)
+        expect(Math.abs(v)).toBeLessThan(0.13 * 2.5); // generous ceiling above every dial's peak (雞's lead flap, 2.5, is now the largest)
       }
     }
   });

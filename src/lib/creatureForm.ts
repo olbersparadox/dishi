@@ -825,24 +825,30 @@ export function wingShape(
   };
 }
 
-// 雞's flap period: a burst of quick beats, then a held pause, on loop —
-// "flap flap flap ..... pause ..... flap flap flap" (owner, on the wing
-// bench, describing the rhythm rather than a number this time). 1600ms
-// period, burst fills the first 700ms (~4.5 quick beats tapered by a
-// sin(πφ) envelope so nothing snaps to zero), the remaining 900ms is
-// EXACTLY 0 — wings hold dead still, not just slow.
-// Oscillation phase rides `cyc` (time WITHIN the loop), not raw `t` — the
-// owner's "then loop" implies each pass looks the same, not a pattern that
-// slowly drifts out of phase with itself (0.04 * 1600 isn't a multiple of
-// 2π, so phase-on-`t` would never exactly repeat).
-// CHICKEN_AMP bumped 1.1→1.8 (owner, same bench: "the magnitude of flap
-// larger" — no number given, a clearly-bigger first estimate to react to).
-const CHICKEN_PERIOD = 1600, CHICKEN_BURST = 700, CHICKEN_OSC = 0.04, CHICKEN_AMP = 1.8;
+// 雞's flap period: ONE big lead flap, then a burst of quick beats, then a
+// held pause, on loop — "before the burst of flap, add a BIG flap with
+// magnitude 2.5 at the beginning then the burst with 1.8" (owner, same
+// bench, testing a variant — "if not good revert back to this one"). The
+// big flap is prepended as its OWN segment rather than folded into the
+// burst, extending the period by its own duration (1600→1850ms) so the
+// burst and pause keep their previously-tuned lengths untouched.
+// Oscillation phase rides `cyc` (time WITHIN the loop, reset per segment),
+// not raw `t` — see the periodicity note in the original burst-pause round.
+const CHICKEN_BIG_FLAP = 250, CHICKEN_BIG_OSC = 0.025, CHICKEN_BIG_AMP = 2.5;
+const CHICKEN_BURST = 700, CHICKEN_OSC = 0.04, CHICKEN_AMP = 1.8;
+const CHICKEN_PERIOD = CHICKEN_BIG_FLAP + CHICKEN_BURST + 900; // 900ms pause, unchanged
 function chickenBurstPause(t: number): number {
-  const cyc = t % CHICKEN_PERIOD;
-  if (cyc >= CHICKEN_BURST) return 0; // the pause — held still, not slow
-  const env = Math.sin(Math.PI * (cyc / CHICKEN_BURST));
-  return CHICKEN_AMP * env * Math.sin(CHICKEN_OSC * cyc);
+  let cyc = t % CHICKEN_PERIOD;
+  if (cyc < CHICKEN_BIG_FLAP) {
+    const env = Math.sin(Math.PI * (cyc / CHICKEN_BIG_FLAP));
+    return CHICKEN_BIG_AMP * env * Math.sin(CHICKEN_BIG_OSC * cyc);
+  }
+  cyc -= CHICKEN_BIG_FLAP;
+  if (cyc < CHICKEN_BURST) {
+    const env = Math.sin(Math.PI * (cyc / CHICKEN_BURST));
+    return CHICKEN_AMP * env * Math.sin(CHICKEN_OSC * cyc);
+  }
+  return 0; // the pause — held still, not slow
 }
 
 // 鴨鵝's flap period: two flap-then-glide phases per loop, unequal — a
