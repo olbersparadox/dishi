@@ -835,7 +835,9 @@ export function wingShape(
 // owner's "then loop" implies each pass looks the same, not a pattern that
 // slowly drifts out of phase with itself (0.04 * 1600 isn't a multiple of
 // 2π, so phase-on-`t` would never exactly repeat).
-const CHICKEN_PERIOD = 1600, CHICKEN_BURST = 700, CHICKEN_OSC = 0.04, CHICKEN_AMP = 1.1;
+// CHICKEN_AMP bumped 1.1→1.8 (owner, same bench: "the magnitude of flap
+// larger" — no number given, a clearly-bigger first estimate to react to).
+const CHICKEN_PERIOD = 1600, CHICKEN_BURST = 700, CHICKEN_OSC = 0.04, CHICKEN_AMP = 1.8;
 function chickenBurstPause(t: number): number {
   const cyc = t % CHICKEN_PERIOD;
   if (cyc >= CHICKEN_BURST) return 0; // the pause — held still, not slow
@@ -849,10 +851,15 @@ function chickenBurstPause(t: number): number {
 // flappppp ..... gliding ..... then flap ...... gliding ..... then loop"
 // (owner, same message). 4200ms period: ramp 900ms (~2.5 cycles, a flatter
 // sin(πφ)^0.6 envelope so the tail reads as held rather than clipped),
-// glide 1400ms (exactly 0 — held extended, not drifting), single flap
-// 400ms (~1 cycle), glide 1500ms (exactly 0).
-const GOOSE_PERIOD = 4200, GOOSE_RAMP = 900, GOOSE_GLIDE1 = 1400, GOOSE_FLAP2 = 400;
-const GOOSE_OSC_RAMP = 0.0175, GOOSE_OSC_FLAP2 = 0.0157, GOOSE_AMP = 1.4;
+// glide 1400ms, single flap 400ms (~1 cycle), glide 1500ms.
+// Glide is now a SLOW SWAY, not dead stillness (owner, same bench: "during
+// gliding, there should be slow animation, not dead still") — one gentle
+// full cycle (sin(2πφ), φ = position within that glide's own duration) at
+// GOOSE_GLIDE_AMP, well under a flap's GOOSE_AMP reach. A full cycle starts
+// AND ends at exactly 0, so it always meets the flap segments on either
+// side at zero too — no snap at either boundary, pinned by test.
+const GOOSE_PERIOD = 4200, GOOSE_RAMP = 900, GOOSE_GLIDE1 = 1400, GOOSE_FLAP2 = 400, GOOSE_GLIDE2 = 1500;
+const GOOSE_OSC_RAMP = 0.0175, GOOSE_OSC_FLAP2 = 0.0157, GOOSE_AMP = 1.4, GOOSE_GLIDE_AMP = 0.6;
 function gooseBurstGlide(t: number): number {
   let cyc = t % GOOSE_PERIOD;
   if (cyc < GOOSE_RAMP) {
@@ -860,13 +867,14 @@ function gooseBurstGlide(t: number): number {
     return GOOSE_AMP * env * Math.sin(GOOSE_OSC_RAMP * cyc);
   }
   cyc -= GOOSE_RAMP;
-  if (cyc < GOOSE_GLIDE1) return 0; // glide — held extended, not drifting
+  if (cyc < GOOSE_GLIDE1) return GOOSE_GLIDE_AMP * Math.sin(2 * Math.PI * (cyc / GOOSE_GLIDE1));
   cyc -= GOOSE_GLIDE1;
   if (cyc < GOOSE_FLAP2) {
     const env = Math.sin(Math.PI * (cyc / GOOSE_FLAP2));
     return GOOSE_AMP * env * Math.sin(GOOSE_OSC_FLAP2 * cyc);
   }
-  return 0; // glide — held extended, not drifting
+  cyc -= GOOSE_FLAP2;
+  return GOOSE_GLIDE_AMP * Math.sin(2 * Math.PI * (cyc / GOOSE_GLIDE2));
 }
 
 /**

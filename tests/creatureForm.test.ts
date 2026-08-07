@@ -958,10 +958,17 @@ describe('wingShape — the 雞/鴨鵝 blend', () => {
  *  frequency/amplitude scale on one continuous sine can't produce a
  *  pause-then-burst rhythm) rather than adding to it — WingShape.speciesK
  *  replaces those two fields, and this pure function owns the waveform.
- *  Owner verifies the feel live on /dev-wings; these tests pin the
- *  STRUCTURE (exact stillness during declared pause/glide windows,
- *  periodicity, boundedness, and the k=0 fallback to the untouched original
- *  single sine) rather than a "looks right" claim no unit test can make. */
+ *  Two immediate follow-ups, same bench, folded into the same constants
+ *  rather than layered on top: "for chicken, the magnitude of flap larger"
+ *  (CHICKEN_AMP 1.1→1.8) and "for duck/goose, during gliding, there should
+ *  be slow animation, not dead still" (glide windows now a gentle full-cycle
+ *  sway, GOOSE_GLIDE_AMP, instead of a flat 0 — still exactly 0 at both
+ *  edges of each glide window so it never snaps against the flap segments
+ *  on either side). Owner verifies the feel live on /dev-wings; these tests
+ *  pin the STRUCTURE (exact stillness only where still is still claimed —
+ *  雞's pause and every segment boundary — periodicity, boundedness, and the
+ *  k=0 fallback to the untouched original single sine) rather than a "looks
+ *  right" claim no unit test can make. */
 describe('wingFlapAngle — the burst-pause (雞) / burst-glide (鴨鵝) rhythm', () => {
   it('k=0 (neutral) is EXACTLY the original single sine, unchanged', () => {
     for (const t of [0, 137, 500, 1250, 3000, 9999]) {
@@ -976,18 +983,31 @@ describe('wingFlapAngle — the burst-pause (雞) / burst-glide (鴨鵝) rhythm'
     }
   });
 
-  it('pure 雞 (k=1): nonzero and bounded during the burst window', () => {
+  it('pure 雞 (k=1): nonzero and bounded during the burst window, at the larger magnitude', () => {
     for (const t of [50, 150, 300, 450, 650]) {
       const v = wingFlapAngle(1, t);
       expect(Math.abs(v)).toBeGreaterThan(0);
-      expect(Math.abs(v)).toBeLessThanOrEqual(0.13 * 1.1 + 1e-9);
+      expect(Math.abs(v)).toBeLessThanOrEqual(0.13 * 1.8 + 1e-9);
+    }
+    // and it actually IS larger than the pre-bump ceiling somewhere in the burst
+    const peak = Math.max(...[50, 150, 300, 450, 650].map(t => Math.abs(wingFlapAngle(1, t))));
+    expect(peak).toBeGreaterThan(0.13 * 1.1);
+  });
+
+  it('pure 鴨鵝 (k=-1): a gentle SWAY during both glide windows, not dead stillness', () => {
+    // period 4200ms: ramp [0,900), glide1 [900,2300), flap2 [2300,2700), glide2 [2700,4200)
+    // sample away from each glide's own zero-crossing midpoint/edges
+    for (const t of [1200, 1250, 2000, 3000, 3075, 3900]) {
+      const v = wingFlapAngle(-1, t);
+      expect(Math.abs(v)).toBeGreaterThan(0);                    // NOT dead still anymore
+      expect(Math.abs(v)).toBeLessThanOrEqual(0.13 * 0.6 + 1e-9); // but clearly gentler than a full flap
     }
   });
 
-  it('pure 鴨鵝 (k=-1): held EXACTLY still during both declared glide windows', () => {
-    // period 4200ms: ramp [0,900), glide1 [900,2300), flap2 [2300,2700), glide2 [2700,4200)
-    for (const t of [1000, 1800, 2299, 2800, 3500, 4199, 4200 + 1500]) {
-      expect(wingFlapAngle(-1, t)).toBe(0);
+  it('pure 鴨鵝 (k=-1): every segment boundary meets at EXACTLY 0 — glide sway never snaps', () => {
+    // ramp start/end, glide1 start/end, flap2 start/end, glide2 start/end (== period wrap)
+    for (const t of [0, 900, 900 + 1400, 900 + 1400 + 400, 4200]) {
+      expect(wingFlapAngle(-1, t)).toBeCloseTo(0, 9);
     }
   });
 
@@ -1013,7 +1033,7 @@ describe('wingFlapAngle — the burst-pause (雞) / burst-glide (鴨鵝) rhythm'
       for (const t of [0, 1, 500, 1234, 5000, 10000]) {
         const v = wingFlapAngle(k, t);
         expect(Number.isFinite(v)).toBe(true);
-        expect(Math.abs(v)).toBeLessThan(0.13 * 1.5); // generous ceiling above every dial's peak
+        expect(Math.abs(v)).toBeLessThan(0.13 * 2); // generous ceiling above every dial's peak (雞's 1.8 is now the largest)
       }
     }
   });

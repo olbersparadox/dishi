@@ -5442,3 +5442,40 @@ Owner verifies the actual feel live.
 
 13 tests (replacing the 4 flapFreqMul/flapAmpMul tests from the superseded
 round). tsc clean; full suite 1396/1396.
+
+## G4 round 2, animation take 3: 雞 bigger flap, 鴨鵝 glide sways instead of holding dead still — *(Sonnet)* — ✅ SHIPPED 2026-08-07
+Owner, on the wing bench, immediately after the burst-pause/burst-glide
+round: "for chicken, the magnitude of flap larger" / "for duck / goose,
+during gliding, there should be slow animation, not dead still." Two small
+constant-level tunes on the same waveform, not a redesign.
+
+`CHICKEN_AMP` 1.1 → 1.8 (no number given — a clearly-bigger first estimate
+for the owner to react to, same "just estimate" latitude as the rhythm
+round). `雞`'s pause is untouched — still exactly 0, since the ask was
+about the burst's size, not the silence between bursts.
+
+`鴨鵝`'s two glide windows, previously an exact `0`, now carry a gentle
+full-cycle sway: `GOOSE_GLIDE_AMP * Math.sin(2π * φ)` where φ is position
+within that glide's own duration (1400ms or 1500ms). A full sine cycle is
+exactly 0 at both φ=0 and φ=1 by construction, so the sway always meets the
+flap segments on either side at zero too — no snap at any of the four
+segment boundaries, which was the main risk of touching this (the ramp/
+flap2 envelopes already taper to 0 at their own edges; a naive glide sway
+that didn't land on 0 at the same points would have reintroduced exactly
+the discontinuity the burst-pause round's periodicity fix had just
+eliminated). `GOOSE_GLIDE_AMP = 0.6`, well under `GOOSE_AMP = 1.4`, so the
+sway reads as gentle drift, not a third flap.
+
+Per the owner's standing instruction from the previous round, again skipped
+browser motion verification — this is a magnitude/stillness tune, not a
+new structural claim a screenshot could ever check anyway. What's still
+true: `npx tsc --noEmit` clean, full suite (2 tests rewritten for the new
+CHICKEN_AMP ceiling and to assert the burst is now actually bigger than the
+pre-bump bound; the two "held EXACTLY still" 鴨鵝-glide assertions replaced
+with a "nonzero but gentler than a full flap" sway check plus a new
+explicit exact-zero check at all four segment boundaries — 1397/1397
+total), and the 11-fixture byte-identity sweep (all 22 cells unchanged,
+same as every prior animation round, for the same t=0 reason). Owner
+verifies the actual feel live.
+
+4 tests changed/added. tsc clean; full suite 1397/1397.
