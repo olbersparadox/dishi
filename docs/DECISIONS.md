@@ -6276,3 +6276,25 @@ every other claim untouched; a large (600px) throwaway render confirmed
 the shape reads as two overlapping advancing loops — a spring silhouette —
 rather than a nested spiral collapsing into separate rings or a single
 lasso loop, and sits attached to the body with no floating gap.
+
+## 豬尾 pig tail, simplified to a single clear curl — *(Sonnet)* — ✅ SHIPPED 2026-08-07
+Owner, in two steps on the just-shipped corkscrew: "it looks right. have
+it longer so the loop is more clear out from the body" then, on seeing
+the lengthened double-loop version, "just one loop is fine, no need for
+double loop." Both a numeric tune on the same geometry, not a structural
+change — Sonnet, with the live `/dev-tails` bench as reference.
+
+Landed at `TURNS = 1.15` (just past one full revolution, so the tip laps
+the start slightly and reads as a closed hook rather than a perfectly
+open circle), `COIL_R = 0.24`, `PITCH = 0.34` — a bigger single loop with
+a longer lead-out than the original double-loop version, so it still
+sits clearly away from the body with only one loop instead of ~2.25
+overlapping ones. The centre-advances-while-turning property from the
+prior round's redesign is unchanged; only the turn count and the two
+size constants moved.
+
+Verification: tsc clean (only the known pre-existing i18n.test.ts
+downlevelIteration error); 141/141 creature + ink-bounds tests; screenshot
+of the live `/dev-tails` bench confirmed a single clear curl standing
+away from the body, replacing the overlapping double-loop intermediate
+step (never shipped on its own).
