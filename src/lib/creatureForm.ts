@@ -905,6 +905,169 @@ export function wingFlapAngle(k: number, t: number): number {
   );
 }
 
+/* ── 尾 tail — G4 round 3 (2026-08-07): ONE tail slot, Decision 6 wired ──────
+   A sub-node is a POOL of parts, and something must choose WHICH part grows
+   (growth R&D Decision 6). For the tail the choice runs vacancy → priority:
+
+   - 魚: fins are unported, so the forked tail is the fish sub-node's FIRST
+     portable part — it claims at the same bud floor a claw variant does.
+     軟體 cephalopod never claims (its parts are tentacles, not tails).
+   - 牛/豬: the foot slot belongs to the dominant land sub-node, so a species
+     that does NOT hold the foot routes its expression to the tail — the
+     owner's own example ("a pork-legged body … grows a cow TAIL"). The
+     species that DOES hold the foot only buds a tail as a SECOND part.
+   - 甲殼/禽: claws and wings express whenever those domains do at all, so
+     their tails are always SECOND parts.
+
+   A SECOND part unlocks at the depth where stage() saturates (evidence 12,
+   FORM_FLOOR + FORM_SPAN): the first part is fully grown, so further depth
+   spends as breadth — "at 精, a second may bud". Contention for the one slot:
+   dominant claimant by evidence, exact ties by the framework's fixed variants
+   order (魚 甲殼 牛 豬 禽) so replay stays deterministic. Duels do not enter:
+   they resolve same-family dominance for feet and claw prime seats; the tail
+   contest is cross-family, where evidence is the only honest rank.
+
+   Legacy returns null unconditionally — the frozen control grows no parts. */
+export type TailVariant = 'fish' | 'crustacean' | 'beef' | 'pork' | 'poultry';
+export type TailPlan = { variant: TailVariant; sizeF: number };
+
+const TAIL_MIN = 0.35;                        // a newborn tail pops in, like BUD_MIN
+const TAIL_SECOND = 12, TAIL_SECOND_SPAN = 7; // breadth unlocks where depth saturates
+
+export function tailPlan(domains: DomainEvidence, mode: GrowthMode): TailPlan | null {
+  if (mode !== 'metabolism') return null;
+  const S = limbStrengths(domains, 'metabolism');
+  const firstF = (e: number) =>
+    TAIL_MIN + (1 - TAIL_MIN) * smooth01((e - SUB_BUD) / (SUB_FORM - SUB_BUD));
+  const secondF = (e: number) =>
+    TAIL_MIN + (1 - TAIL_MIN) * smooth01((e - TAIL_SECOND) / TAIL_SECOND_SPAN);
+  const claims: { variant: TailVariant; e: number; sizeF: number }[] = [];
+
+  const fish = Math.max(0, domains.sub?.sea?.fish ?? 0);
+  if (fish > SUB_BUD) claims.push({ variant: 'fish', e: fish, sizeF: firstF(fish) });
+
+  // Land claims exist only once legs do — the pool's priority is legs > tail,
+  // so with no legs at all the node's expression starts there, not here.
+  if (S.legs > 0) {
+    const foot = domOfStable<'beef' | 'pork' | 'chicken'>(
+      domains.sub?.land, ['beef', 'pork', 'chicken'], 'land', domains.duels);
+    for (const sp of ['beef', 'pork'] as const) {
+      const e = Math.max(0, domains.sub?.land?.[sp] ?? 0);
+      if (foot !== sp) {
+        if (e > SUB_BUD) claims.push({ variant: sp, e, sizeF: firstF(e) });
+      } else if (e > TAIL_SECOND) claims.push({ variant: sp, e, sizeF: secondF(e) });
+    }
+  }
+
+  const shell = Math.max(0, domains.shell ?? 0);
+  if (shell > TAIL_SECOND) claims.push({ variant: 'crustacean', e: shell, sizeF: secondF(shell) });
+  const air = Math.max(0, domains.air ?? 0);
+  if (air > TAIL_SECOND) claims.push({ variant: 'poultry', e: air, sizeF: secondF(air) });
+
+  if (!claims.length) return null;
+  const ORDER: TailVariant[] = ['fish', 'crustacean', 'beef', 'pork', 'poultry'];
+  claims.sort((x, y) => (y.e - x.e) || (ORDER.indexOf(x.variant) - ORDER.indexOf(y.variant)));
+  return { variant: claims[0].variant, sizeF: claims[0].sizeF };
+}
+
+/** Lab v7's leaf blade, ported: a filled quadratic leaf from (x,y) at `ang`. */
+function tailBlade(
+  ctx: CanvasRenderingContext2D,
+  x: number, y: number, L: number, w: number, ang: number,
+) {
+  const c = Math.cos(ang), s = Math.sin(ang);
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+  ctx.quadraticCurveTo(x + c * L * 0.5 - s * w, y + s * L * 0.5 + c * w, x + c * L, y + s * L);
+  ctx.quadraticCurveTo(x + c * L * 0.5 + s * w, y + s * L * 0.5 - c * w, x, y);
+  ctx.fill();
+}
+
+/* The five 尾 gestures, ported from mokling-lab-v7-vocabulary.js and re-based
+   per the port checklist: every gesture starts at (0,0) — the buried base —
+   in a LOCAL frame whose +x is the drawn silhouette's outward ray at the
+   anchor (checklist step 4: direction from the drawn body, one anchor, no
+   mirrored hand-rolled signs — the class of bug that once drew tails INTO
+   the body). The rotation is computed in code, never via ctx.translate/rotate:
+   the SVG recorder implements exactly the ops the renderer uses and fails
+   loud on anything else, and teaching it a transform stack would also mean
+   making ink measurement transform-aware — coordinates are the cheaper, safer
+   side of that trade. Lengths are in R units so the tail scales with the
+   body; the whole gesture scales by sizeF the way a claw does. */
+function drawTail(
+  ctx: CanvasRenderingContext2D,
+  bx: number, by: number, outAng: number, R: number, plan: TailPlan, t: number,
+) {
+  const f = plan.sizeF;
+  const ink = 'rgba(33,29,24,.93)'; // 骨 parts wear neutral ink, never 膚's colour
+  const sway = t ? Math.sin(t * 0.0008 + 1.1) * 0.055 : 0;
+  const th = outAng + sway;
+  const cosT = Math.cos(th), sinT = Math.sin(th);
+  const px = (lx: number, ly: number) => bx + lx * cosT - ly * sinT;
+  const py = (lx: number, ly: number) => by + lx * sinT + ly * cosT;
+  ctx.fillStyle = ink;
+  ctx.strokeStyle = ink;
+  ctx.lineCap = 'round';
+  if (plan.variant === 'fish') {
+    // forked: a tapering peduncle, then two flukes opening outward
+    const sx = R * 0.5 * f;
+    taperQuad(ctx, px(0, 0), py(0, 0), px(sx, 0), py(sx, 0), R * 0.16 * f, R * 0.09 * f);
+    tailBlade(ctx, px(sx, 0), py(sx, 0), R * 0.48 * f, R * 0.1 * f, th - 0.62);
+    tailBlade(ctx, px(sx, 0), py(sx, 0), R * 0.48 * f, R * 0.1 * f, th + 0.55);
+  } else if (plan.variant === 'crustacean') {
+    // segmented abdomen telescoping out, ending in the four-blade fan
+    let x = 0, y = 0;
+    for (let i = 0; i < 4; i++) {
+      const w = R * (0.3 - i * 0.04) * f;
+      const nx = x + R * 0.16 * f, ny = y - R * 0.025 * f;
+      taperQuad(ctx, px(x, y), py(x, y), px(nx, ny), py(nx, ny), w, w * 0.85);
+      x = nx; y = ny;
+    }
+    for (const a of [-0.55, -0.18, 0.18, 0.55]) {
+      tailBlade(ctx, px(x, y), py(x, y), R * 0.4 * f, R * 0.08 * f, th + a);
+    }
+  } else if (plan.variant === 'beef') {
+    // thin whip rising then drooping, tufted at the tip
+    ctx.lineWidth = Math.max(1, R * 0.11 * f);
+    ctx.beginPath();
+    ctx.moveTo(px(0, 0), py(0, 0));
+    ctx.bezierCurveTo(
+      px(R * 0.5 * f, -R * 0.28 * f), py(R * 0.5 * f, -R * 0.28 * f),
+      px(R * 0.72 * f, R * 0.3 * f), py(R * 0.72 * f, R * 0.3 * f),
+      px(R * 0.55 * f, R * 0.72 * f), py(R * 0.55 * f, R * 0.72 * f));
+    ctx.stroke();
+    for (const a of [-0.5, 0, 0.5]) {
+      tailBlade(ctx, px(R * 0.55 * f, R * 0.72 * f), py(R * 0.55 * f, R * 0.72 * f),
+        R * 0.3 * f, R * 0.075 * f, th + Math.PI / 2 + a);
+    }
+  } else if (plan.variant === 'pork') {
+    // the curl: a short lead-out clear of the body, then a decaying coil
+    ctx.lineWidth = Math.max(1, R * 0.15 * f);
+    ctx.beginPath();
+    ctx.moveTo(px(0, 0), py(0, 0));
+    const ccx = R * 0.62 * f, ccy = -R * 0.12 * f;
+    ctx.quadraticCurveTo(
+      px(R * 0.3 * f, -R * 0.1 * f), py(R * 0.3 * f, -R * 0.1 * f),
+      px(ccx + R * 0.3 * f, ccy), py(ccx + R * 0.3 * f, ccy));
+    for (let i = 0; i <= 44; i++) {
+      const u = i / 44, ca = u * TAU * 1.55, rr = R * 0.3 * f * (1 - u * 0.42);
+      const lx = ccx + Math.cos(ca) * rr, ly = ccy + Math.sin(ca) * rr * 0.92;
+      ctx.lineTo(px(lx, ly), py(lx, ly));
+    }
+    ctx.stroke();
+  } else {
+    // 禽 fan: five blades from one hinge, centre-longest
+    for (let i = 0; i < 5; i++) {
+      const a = -0.7 + i * 0.35;
+      tailBlade(ctx, px(0, 0), py(0, 0), R * (0.85 - Math.abs(i - 2) * 0.09) * f,
+        R * 0.085 * f, th + a);
+    }
+  }
+}
+
+const TAIL_SEAT = 2.35;  // lower-right flank, between the claw prime seat and the legs
+const TAIL_BURIAL = 0.8; // base well inside the silhouette; the body fill covers the join
+
 /* 腿 · leg. cow = thick pillar on a cleft hoof; pig = shorter, softer, small
    trotter; chicken = thin, backward knee, three splayed toes. (lab v5) */
 /** LENGTH still scales with the growth factor; GIRTH gets its own, passed in.
@@ -1215,6 +1378,15 @@ export function drawCreatureFrame(
         b.x + sway * 1.4 + fr * R * 0.18, b.y + L * (1 - 0.08 * Math.abs(fr)));
       ctx.stroke();
     }
+  }
+  // 尾 tail — the ONE tail slot (tailPlan, G4 round 3). Anchored to the DRAWN
+  // lower flank, base buried like a wrist so the body fill covers the join;
+  // outward direction is the drawn-silhouette ray (BB centre → flank point).
+  const tail = tailPlan(domains, mode);
+  if (tail) {
+    const p = flank(1, TAIL_SEAT);
+    const tbx = BB.cx + (p.x - BB.cx) * TAIL_BURIAL, tby = BB.cy + (p.y - BB.cy) * TAIL_BURIAL;
+    drawTail(ctx, tbx, tby, Math.atan2(p.y - BB.cy, p.x - BB.cx), R, tail, t);
   }
   // 螯 claws — the calibrated pair (creatureGestures), which replaced the lab's
   // palm-and-prongs sketch. Wrists pull 18% inside the flank point so the body

@@ -1361,9 +1361,10 @@ now UNBLOCKED: ports render under gates real users see.)
 
 ## G4. Gesture ports, one per round, owner sign-off each — *(Fable first pass each)*
 (Round 1 — 蝦 prawn pincers — SHIPPED 2026-08-07, owner SIGNED OFF
-("good job"). Round 2 — 翼 雞/鴨鵝 variants — SHIPPED 2026-08-07, pending owner
-sign-off. Next: 尾 tails. See DECISIONS.md.) Then 翼 雞/鴨鵝 variants,
-尾 tails, 鰭 fins, 耳/角. Port checklist in mokling-lab-v7-vocabulary.js.
+("good job"). Round 2 — 翼 雞/鴨鵝 variants + flap rhythm — SHIPPED
+2026-08-07, owner closed the tuning session ("ok done"). Round 3 — 尾 tails —
+SHIPPED 2026-08-07, pending owner sign-off. Next: 鰭 fins. See DECISIONS.md.)
+Then 鰭 fins, 耳/角. Port checklist in mokling-lab-v7-vocabulary.js.
 Each port wires the Decision 6 expression ladder: one node = a POOL of parts
 (cow → legs/tail/ears/horns), chosen by slot vacancy → fixed
 priority, never rolled — a seafood body wearing a fish tail grows cow LEGS

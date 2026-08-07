@@ -172,6 +172,11 @@ const SCENARIO_LIVES: Record<string, DomainEvidence> = {
   goose: { air: 30, land: 8, sub: { air: { duck_goose: 24 } } },
   rooster: { air: 30, land: 8, sub: { air: { chicken: 24 } } },
   bake: { field: 3, land: 3 },
+  // 尾 tails (G4 round 3): the two longest-reach variants at full size —
+  // the fish fork points down-right toward the corner; the beef whip is the
+  // deepest-drooping gesture the pool has, so it guards the bottom edge
+  fishtail: { sea: 30, land: 8, sub: { sea: { fish: 22, cephalopod: 2 } } },
+  oxtail: { land: 30, air: 4, sub: { land: { beef: 9, pork: 14, chicken: 2 } } },
 };
 
 describe('no creature ever inks outside its canvas', () => {

@@ -816,7 +816,7 @@ describe('蝦 prawn as a first-class claw species (G4 round 1)', () => {
    Ported from the lab v7 endpoints; detector is G3's sub.air. The load-bearing
    property: EQUAL MIX IS EXACTLY NEUTRAL — undifferentiated air renders the
    generic fan byte-for-byte, and legacy is pinned neutral whatever the data. */
-import { wingShape, wingFlapAngle } from '../src/lib/creatureForm';
+import { wingShape, wingFlapAngle, tailPlan } from '../src/lib/creatureForm';
 
 describe('wingShape — the 雞/鴨鵝 blend', () => {
   const NEUTRAL = {
@@ -1050,5 +1050,110 @@ describe('wingFlapAngle — the burst-pause (雞) / burst-glide (鴨鵝) rhythm'
         expect(Math.abs(v)).toBeLessThan(0.13 * 2.5); // generous ceiling above every dial's peak (雞's lead flap, 2.5, is now the largest)
       }
     }
+  });
+});
+
+/* 尾 tail — G4 round 3. The gates ARE the honesty here: one slot, claims by
+   Decision 6's vacancy → priority, legacy pinned null. The gestures themselves
+   are verified visually (bench + ink-bounds net); these tests pin the CHOICE. */
+describe('tailPlan — the one tail slot (Decision 6 vacancy → priority)', () => {
+  it('legacy is null REGARDLESS of data — the frozen control grows no parts', () => {
+    expect(tailPlan({ shell: 30, air: 30, land: 30, sea: 30,
+      sub: { sea: { fish: 20 }, land: { beef: 20 } } }, 'legacy')).toBeNull();
+  });
+
+  it('no animal claims → null: plant domains and undifferentiated sea never claim', () => {
+    expect(tailPlan({ field: 26, fungus: 12, algae: 5 }, 'metabolism')).toBeNull();
+    // sea without a fish sub-node has no claimant — tendrils are the DOMAIN's
+    // gesture; the tail belongs to the fish sub-node specifically
+    expect(tailPlan({ sea: 34, shell: 4 }, 'metabolism')).toBeNull();
+    // cephalopod is not a tail claimant — its parts are tentacles
+    expect(tailPlan({ sea: 20, sub: { sea: { cephalopod: 15 } } }, 'metabolism')).toBeNull();
+  });
+
+  it('魚 is a FIRST-part claim: one loved fish dish over the bud floor grows the fork', () => {
+    const p = tailPlan({ sea: 8, sub: { sea: { fish: 2 } } }, 'metabolism');
+    expect(p?.variant).toBe('fish');
+    expect(p!.sizeF).toBeGreaterThanOrEqual(0.35); // pops in at the floor, not from zero
+    // below the bud floor: nothing
+    expect(tailPlan({ sea: 8, sub: { sea: { fish: 1 } } }, 'metabolism')).toBeNull();
+  });
+
+  it("the owner's vacancy example: a pork-legged body meeting steak grows a cow TAIL", () => {
+    const p = tailPlan(
+      { land: 20, sub: { land: { pork: 8, beef: 3 } } }, 'metabolism');
+    expect(p?.variant).toBe('beef'); // foot is pork's, so beef expresses here
+  });
+
+  it('mirrored: a beef-hoofed body meeting char siu grows the pork CURL', () => {
+    const p = tailPlan(
+      { land: 20, sub: { land: { beef: 8, pork: 3 } } }, 'metabolism');
+    expect(p?.variant).toBe('pork');
+  });
+
+  it('the foot-holder only buds a tail as a SECOND part, at saturation depth', () => {
+    // beef holds the foot, beef 8 < 12 — no claim at all
+    expect(tailPlan({ land: 20, sub: { land: { beef: 8 } } }, 'metabolism')).toBeNull();
+    // beef holds the foot AND is deeply lived — breadth unlocks, the whip buds
+    const deep = tailPlan({ land: 30, sub: { land: { beef: 14 } } }, 'metabolism');
+    expect(deep?.variant).toBe('beef');
+    expect(deep!.sizeF).toBeLessThan(0.6); // freshly budded — small, not full-grown
+  });
+
+  it('land claims need legs: pool priority is legs > tail, so no legs means no land tail', () => {
+    // land too thin for legs, but a beef sub somehow present — no claim
+    expect(tailPlan({ land: 0.5, sub: { land: { pork: 0.3, beef: 0.2 } } }, 'metabolism'))
+      .toBeNull();
+  });
+
+  it('甲殼 and 禽 are SECOND parts (claws/wings already express) — depth 12 unlocks', () => {
+    expect(tailPlan({ shell: 11 }, 'metabolism')).toBeNull();
+    expect(tailPlan({ shell: 13 }, 'metabolism')?.variant).toBe('crustacean');
+    expect(tailPlan({ air: 11 }, 'metabolism')).toBeNull();
+    expect(tailPlan({ air: 13 }, 'metabolism')?.variant).toBe('poultry');
+  });
+
+  it('ONE slot: the dominant claimant wins cross-family contention', () => {
+    // fish 10 vs beef-first-part 3 (pork foot) vs shell 13 → shell's 13 wins
+    const p = tailPlan({
+      sea: 12, land: 20, shell: 13,
+      sub: { sea: { fish: 10 }, land: { pork: 8, beef: 3 } },
+    }, 'metabolism');
+    expect(p?.variant).toBe('crustacean');
+    // remove the shell depth → fish (10) beats beef (3)
+    const q = tailPlan({
+      sea: 12, land: 20, shell: 4,
+      sub: { sea: { fish: 10 }, land: { pork: 8, beef: 3 } },
+    }, 'metabolism');
+    expect(q?.variant).toBe('fish');
+  });
+
+  it('exact ties fall to the fixed variants order — deterministic, never rolled', () => {
+    // fish 13 vs shell 13: 魚 precedes 甲殼 in the framework order
+    const p = tailPlan({ sea: 15, shell: 13, sub: { sea: { fish: 13 } } }, 'metabolism');
+    expect(p?.variant).toBe('fish');
+  });
+
+  it('sizeF grows monotonically with the claim evidence', () => {
+    const sizes = [2, 3, 4.5, 6, 8].map(e =>
+      tailPlan({ sea: 10, sub: { sea: { fish: e } } }, 'metabolism')!.sizeF);
+    for (let i = 1; i < sizes.length; i++) expect(sizes[i]).toBeGreaterThanOrEqual(sizes[i - 1]);
+    expect(sizes[sizes.length - 1]).toBeCloseTo(1, 6); // saturates at full
+  });
+
+  it("the owner's real profile grows the fish fork — the fish node's first expression", () => {
+    // shaped like the live record: fish deeply lived (11.7) with no fin port,
+    // pork holding the foot, beef a small homeless claim, shell/air below 12
+    const p = tailPlan({
+      sea: 10.6, land: 7.3, shell: 6.7, air: 2.8, field: 3.5,
+      sub: {
+        sea: { fish: 11.7, cephalopod: 0.9 },
+        land: { beef: 2.7, pork: 5.4, chicken: 3.4 },
+        shell: { prawn: 5.2, lobster: 1.2 },
+        air: { chicken: 4.7, duck_goose: 1.1 },
+      },
+    }, 'metabolism');
+    expect(p?.variant).toBe('fish');
+    expect(p!.sizeF).toBeCloseTo(1, 2); // 11.7 is far past SUB_FORM — full fork
   });
 });

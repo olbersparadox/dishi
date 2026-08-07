@@ -69,7 +69,7 @@ the distinction that matters is what it would take to finish:
 | 螯 pincers | 蝦 prawn | **SHIPPED** 2026-08-07 (G4 round 1, `drawPrawnClaw`) — NOT a lab port; the variants table specified it but no lab built it, so it is a first pass under the standing working method. Metabolism mode only; legacy keeps the frozen crab/lobster pair | — |
 | 角 horns | 牛 · 脂 · 罪 | **LAB-ONLY** | 牛 READY (`LAND_SUB`), 脂 READY (`heaviness`), 罪 needs a time-of-day read |
 | 耳 ears | 豬 · 牛 · 羊 | **LAB-ONLY** | 豬/牛 READY (`LAND_SUB`); 羊 needs `lamb` added to the land sub bag |
-| 尾 tails | 魚 · 甲殼 · 牛 · 豬 · 禽 | **LAB-ONLY** | 甲殼/牛/豬 READY; 魚 and 禽 need their sub-nodes |
+| 尾 tails | 魚 · 甲殼 · 牛 · 豬 · 禽 | **SHIPPED** 2026-08-07 (G4 round 3, `tailPlan`/`drawTail`) — ONE tail slot, Decision 6 vacancy → priority: 魚 forks as the fish sub-node's first part (fins unported), 牛/豬 claim first when the OTHER species holds the foot, 甲殼/禽 bud as second parts at saturation depth (12). Metabolism only; legacy pinned null | — (the old "魚 and 禽 need their sub-nodes" was stale — G3 shipped both detectors) |
 | 翼 wings | 雞 · 鴨鵝 | **SHIPPED** 2026-08-07 (G4 round 2, `wingShape`) — TWO-way blend matching the shipped detector (`sub.air`); 雞 short flutter vs 鴨鵝 long glide, equal mix = the generic fan byte-for-byte, legacy pinned neutral. The 鴨/鵝 split stays LAB-ONLY until a finer detector exists | — |
 | 足 webbed | 鴨 | **LAB-ONLY** | same 羽 sub-node |
 | 鰭 fins | 尖 · 圓 · 帶 | **LAB-ONLY** | 魚 sub-node × method |

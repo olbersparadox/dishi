@@ -5509,3 +5509,65 @@ not touch `c8a63dd`'s glide-sway or magnitude changes, only 雞's segment
 sequence.
 
 6 tests changed/added. tsc clean; full suite 1398/1398.
+
+## G4 round 3: 尾 tails — the one slot, Decision 6 wired — *(Fable)* — ✅ SHIPPED 2026-08-07
+Model call stated per the tier rules: Fable — a new visible gesture family on
+a live production being, the calibration class where claws burned six rounds;
+BACKLOG tags every G4 round Fable-first. A true lab port (all five gestures
+built in lab v7), and the first port that wires Decision 6's expression
+ladder for real: this is the round the "vacancy → priority" rule stops being
+prose and starts choosing pixels.
+
+**The claim rules (`tailPlan`, pure, exported):** ONE tail slot, animal nodes
+only. 魚 forks as the fish sub-node's FIRST portable part (fins are unported;
+tendrils are the sea DOMAIN's gesture, not the fish's) — it claims at the
+same bud floor a claw variant does (SUB_BUD 1.2). 軟體 cephalopod never
+claims: its parts are tentacles. 牛/豬 run the owner's own vacancy example
+verbatim: the species that does NOT hold the foot routes its expression to
+the tail at the bud floor ("a pork-legged body … grows a cow TAIL"); the
+foot-holder only buds a tail as a SECOND part. 甲殼/禽 are always second
+parts — claws and wings express whenever those domains do at all. A second
+part unlocks at evidence 12, exactly where stage() saturates: the first part
+is fully grown, so further depth spends as breadth ("at 精, a second may
+bud"). Contention: dominant claimant by evidence; exact ties by the
+framework's fixed variants order (魚 甲殼 牛 豬 禽). Duels deliberately do
+NOT enter — they resolve same-family dominance (feet, claw prime seats); the
+tail contest is cross-family, where evidence is the only honest rank. Land
+claims require legs to exist first (pool priority legs > tail). Legacy
+returns null unconditionally.
+
+**The stale-Ledger catch:** the 尾 row still said "魚 and 禽 need their
+sub-nodes" — written before G3 shipped `sub.sea` and `sub.air`. All five
+detectors exist; the row was updated in this commit (port checklist step 5).
+
+**Geometry:** five gestures ported from lab v7, re-based per the checklist
+onto the drawn silhouette — anchored at the lower-right flank (seat 2.35,
+between the claw prime seat and the legs), base buried at 0.8 like a wrist
+so the body fill covers the join, outward direction = the drawn-body ray
+(BB centre → flank point), one anchor, no mirrored hand-rolled signs. The
+rotation is computed in code, NOT via ctx.translate/rotate: the SVG
+recorder's fail-loud proxy caught the first cut using canvas transforms
+(exactly as designed — the two-renderer contract refusing to silently drop
+a stroke), and teaching the recorder a transform stack would also mean
+making ink measurement transform-aware; coordinates were the cheaper, safer
+side of that trade.
+
+**The owner's own creature grows the 魚 forked tail** — their real profile
+carries fish 11.7, deeply lived with zero expression until now (fins
+unported), pork holding the foot, shell/air below the depth-12 unlock. The
+fish fork is that node's first part, at full size — pinned by a test shaped
+like the live record.
+
+Verification: 12 tailPlan tests (legacy null, no-claim nulls, both vacancy
+directions, the second-part unlock, cross-family contention, tie order,
+monotone sizing, the owner's-profile case); ink-bounds net extended with
+fishtail (fork toward the corner) and oxtail (deepest-drooping gesture,
+bottom-edge guard) — no crop at any size, both modes, owner's real profile
+included; byte-identity sweep across 13 fixtures with the expected-diff set
+enumerated BEFORE running (legacy 13/13 identical; metabolism diffs exactly
+the nine tail-earning fixtures, the four non-qualifying ones identical) —
+all 26 cells matched the prediction; /dev-tails bench (untracked) screenshot
+verified all five variants + control + tail-free legacy row. 牛尾/豬尾 are
+the strongest reads; 魚尾 modest (the sea body pinches at the tail seat);
+甲殼尾/禽尾 legible but close to their neighbouring gestures — tuning
+follow-ups expected, wing-round style. tsc clean; full suite 1410/1410.
