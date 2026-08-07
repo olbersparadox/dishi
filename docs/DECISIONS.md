@@ -6185,3 +6185,29 @@ beef claim paths, every size): still 0.00px overflow, since the warp only
 redistributes WHEN the same bounded values occur, never how large they
 get. tsc clean; full suite 1422/1422 (unchanged, still entirely behind
 `t`).
+
+## 牛尾: another 15% smaller, whole animation 30% slower — *(Sonnet)* — ✅ SHIPPED 2026-08-07
+Owner: "slower and shrink size 15%." Two independent numeric tunes.
+
+`BEEF_SHRINK` 0.9 → 0.9 × 0.85 = 0.765 of the unshrunk gesture, stacked on
+the earlier 10% the same way the fish tail's reach round stacked — one
+`bf` multiplier feeding every dimension in the branch (line width, both
+control points, the tip), so the whole gesture shrinks uniformly rather
+than just its length.
+
+Speed: rather than retuning `COW_PERIOD`, `COW_SWAT_LEN` and `COW_LAG`
+individually (which would risk desyncing the slow-swing/quick-flip pacing
+warp from two rounds ago, since that warp's shape is relative to the
+swat's own span), introduced ONE virtual cow-clock — `t * COW_SPEED`
+(0.7) — feeding every use of `t` in the branch. The whole animation
+stretches together in real time; every internal relationship (wiggle
+frequency vs. swat duration vs. lag vs. the pacing curve) stays exactly
+as shaped, just slower to watch.
+
+Verification: tsc clean; full suite 1422/1422; crop-swept the full
+STRETCHED cycle (real period is now 3400/0.7 ≈ 4857ms) at 681 samples
+across both beef claim paths, every size — still 0.00px overflow; 28-cell
+byte-identity sweep with the diff enumerated first — only the fixture that
+actually carries a beef tail moved, all 13 others and every legacy render
+untouched; /dev-tails screenshot confirms the whip now reads as a small
+tight curl close to the body.

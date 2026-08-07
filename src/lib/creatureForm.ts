@@ -1160,12 +1160,12 @@ function drawTail(
       ctx.fill();
     }
   } else if (plan.variant === 'beef') {
-    // thin whip rising then drooping, tufted at the tip. Shrunk 10% (owner,
-    // tail bench: first tried 40%, "revert, and shrink 10% instead") — a
-    // local scale on top of sizeF, not a change to sizeF itself, so the
-    // growth ramp (bud → full) is untouched and only the FULLY-GROWN
-    // gesture reads smaller.
-    const BEEF_SHRINK = 0.9;
+    // thin whip rising then drooping, tufted at the tip. Shrunk 10%, then
+    // another 15% (owner: "shrink size 15%", stacked on the earlier 10% —
+    // 0.9 × 0.85 = 0.765 of the unshrunk gesture) — a local scale on top of
+    // sizeF, not a change to sizeF itself, so the growth ramp (bud → full)
+    // is untouched and only the FULLY-GROWN gesture reads smaller.
+    const BEEF_SHRINK = 0.9 * 0.85;
     const bf = f * BEEF_SHRINK;
     /* The swat CURVES the stroke via genuine per-point ROTATION, not a
        small-angle linear offset (owner, third correction: "right now it is
@@ -1185,8 +1185,15 @@ function drawTail(
        genuine flip at the tip (≈2.6 rad ≈149°, well past horizontal);
        `u^1.3` still keeps the near-body length stiffer than the tip. The
        tuft rotates by the tip's own angle, since it's rigidly attached. */
-    const ROT_POW = 1.3, ROT_GAIN = 4.2, COW_LAG = 180;
-    const rotAt = (u: number) => (t ? cowSwat(t - COW_LAG * u) : 0) * ROT_GAIN * Math.pow(u, ROT_POW);
+    // Slower overall (owner: "slower") — one virtual cow-clock, `t *
+    // COW_SPEED`, feeds everything below (wiggle, swat window, the lag),
+    // so the whole animation stretches together in real time rather than
+    // needing every constant (COW_PERIOD, COW_SWAT_LEN, COW_LAG) retuned
+    // individually — and the slow-swing/quick-flip pacing warp, which is
+    // relative to the swat's own (now longer) real-time span, survives
+    // exactly as shaped.
+    const ROT_POW = 1.3, ROT_GAIN = 4.2, COW_LAG = 180, COW_SPEED = 0.7;
+    const rotAt = (u: number) => (t ? cowSwat(t * COW_SPEED - COW_LAG * u) : 0) * ROT_GAIN * Math.pow(u, ROT_POW);
     const rotate = (lx0: number, ly0: number, ang: number): [number, number] => {
       const c = Math.cos(ang), s = Math.sin(ang);
       return [lx0 * c - ly0 * s, lx0 * s + ly0 * c];
