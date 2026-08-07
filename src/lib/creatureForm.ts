@@ -812,10 +812,15 @@ export function wingShape(
   // stacks with `thicknessMul` — at any given k only one of the two boosts
   // is non-1. No curvature dial requested for this side.
   const gooseBoost = Math.max(0, -k);
-  const gooseThicknessMul = 1 + 0.2 * gooseBoost; // stroke thickness only
+  // A second thickness pass, STACKED on the first (owner, same session:
+  // "duck / goose stroke thickness increase another 20%" — read the same
+  // way as the earlier 雞 stack, on top of the existing +20% rather than
+  // replacing it). At pure 鴨鵝 that is 1.2 × 1.2 = 1.44× the plain blend's
+  // width value.
+  const gooseThicknessMul = (1 + 0.2 * gooseBoost) * (1 + 0.2 * gooseBoost); // stroke thickness only
   return {
     lenMul: 1 - 0.35 * k,                   // UNCHANGED — same length as the plain blend
-    widthMul: (1 + 0.3 * k) * thicknessMul * gooseThicknessMul, // 雞 1.3→2.73 · 鴨鵝 0.7→0.84
+    widthMul: (1 + 0.3 * k) * thicknessMul * gooseThicknessMul, // 雞 1.3→2.73 · 鴨鵝 0.7→1.008 (stacked 1.2×1.2)
     spreadMul: 1 + 0.5 * k,                 // fan width — untouched, always was
     baseAng: -0.32 - 0.28 * k,              // 雞 raised toward flutter, 鴨鵝 flat glide
     humpMul: (1 + 0.3 * k) * curveMul,      // 雞 rounder arc AND more curved · 鴨鵝 untouched
