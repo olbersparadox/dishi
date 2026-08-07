@@ -6126,3 +6126,35 @@ beef claim paths, every size) after the rewrite: still 0.00px overflow —
 the delay changes WHEN each point peaks, not the bound on how far any
 single point can reach. tsc clean; full suite 1422/1422 (unchanged, still
 entirely behind `t`).
+
+## 牛尾 motion, third correction: genuine large-angle flip — a rotation, not an offset — *(Sonnet)* — ✅ SHIPPED 2026-08-07
+Owner, after watching the frame grid: "right now it is bending downward
+with the tip facing the ground, the right animation would be bending
+upward with the tip facing the sky." The delay round DID fix the curving
+(proven by the ratio check), but the mechanism — adding a length-scaled
+offset to the `ly` (perpendicular) local axis — is a SMALL-ANGLE
+approximation of rotation. No additive shift on top of the tail's own
+resting droop can ever cross from "hanging down" to "pointing up" without
+the approximation itself breaking down; the previous round could curve,
+but never flip.
+
+Replaced the additive offset with a genuine 2D rotation of each point's
+ORIGINAL local position around the fixed base (`rotate(lx0, ly0, ang)` —
+real `cos`/`sin`, not a linear nudge), still driven by the SAME per-point
+delayed sample (`cowSwat(t − COW_LAG·u)`) that made the curving read
+correctly — the follow-through principle didn't need to change, only how
+its output gets APPLIED to the geometry. `ROT_GAIN = 4.2` amplifies
+`cowSwat`'s own small-angle range (peak ≈0.62 rad) up to a real flip at the
+tip (≈2.6 rad ≈149°, well past horizontal); `u^1.3` keeps the near-body
+length stiffer than the tip, same shape of falloff as before.
+
+Verified with a fresh controlled-frame render across the swat window
+(t=2650…3280 at 70ms steps): the rest pose droops down as always, and at
+t=2930 the tip is clearly swung UP AND AWAY from the body — a genuinely
+different pose, not a bigger wobble around the same droop. Re-swept the
+full cycle at even higher resolution (681 samples — a big rotation range
+raises real overshoot risk that the smaller offset never did) across both
+beef claim paths at every production size: still 0.00px overflow, since
+the tail's own reach stays well inside the canvas margin even at a 149°
+swing. Snapshot byte-identity re-confirmed (t=0 always short-circuits
+`rotAt` to 0 regardless of `ROT_GAIN`). tsc clean; full suite 1422/1422.

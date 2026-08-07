@@ -1157,46 +1157,41 @@ function drawTail(
     // gesture reads smaller.
     const BEEF_SHRINK = 0.9;
     const bf = f * BEEF_SHRINK;
-    /* The swat CURVES the stroke — the tip's motion actually LAGS the
-       base's in time, not just a static shape scaled up and down (owner,
-       second correction: "it's still a stiff movement just changed
-       direction... to 'flip' it, is to have the other end 'curved' to
-       another position. The 'curving' itself is the animation process,
-       like a moving string"). A single instantaneous bend value scaled by
-       position — what the first attempt did — draws the SAME curve shape
-       at every instant, just bigger or smaller; a rigid rotation and a
-       "scaled static shape" read identically, because neither one ever
-       changes shape, only size. Real string/whip motion needs different
-       points along the length executing the SAME motion at DIFFERENT
-       times — the animation principle is follow-through/drag: each point
-       samples `cowSwat` at `t` minus a delay proportional to `u` (0 at the
-       anchored body, growing toward the tip), so at any instant the tip is
-       showing what the base felt `COW_LAG`ms ago. During the fast 340ms
-       swat this produces a real S-curve — the base already snapping back
-       while the tip is still near the peak — which IS what curving looks
-       like; during the slow wiggle the lag is barely visible, same as the
-       real animal. `bendReach` ties the offset's scale to the tail's own
-       size; the mild `u^1.3` still keeps the base a touch stiller than a
-       pure delay alone would, without doing the main work itself anymore.
-       The tuft samples the same delayed value as the tip, since it's
-       rigidly attached there. */
-    const BEND_POW = 1.3, bendReach = R * bf * 0.75, COW_LAG = 180;
-    const bendAt = (u: number) => (t ? cowSwat(t - COW_LAG * u) : 0) * bendReach * Math.pow(u, BEND_POW);
-    const tipBend = t ? cowSwat(t - COW_LAG) : 0;
-    const c1y = -R * 0.28 * bf + bendAt(0.45);
-    const c2y = R * 0.3 * bf + bendAt(0.75);
-    const tipY = R * 0.72 * bf + bendAt(1.0);
+    /* The swat CURVES the stroke via genuine per-point ROTATION, not a
+       small-angle linear offset (owner, third correction: "right now it is
+       bending downward with the tip facing the ground, the right animation
+       would be bending upward with the tip facing the sky" — the additive
+       ly-nudge from the previous round physically cannot get there; it's a
+       small-angle approximation of rotation, and no additive shift reaches
+       past horizontal into "pointing up" without the geometry breaking
+       down. This round rotates each point's ORIGINAL local position around
+       the fixed base by a real angle, so a big enough swing genuinely
+       flips the tip from hanging down to pointing at the sky.
+       Each point still samples `cowSwat` at a per-point DELAYED time
+       (`COW_LAG`, growing with `u`) — the follow-through/drag principle
+       from the previous round, which the ratio-of-two-points check proved
+       is what makes it read as curving rather than rigid. `ROT_GAIN`
+       amplifies `cowSwat`'s own small-angle range (peak ≈0.62 rad) up to a
+       genuine flip at the tip (≈2.6 rad ≈149°, well past horizontal);
+       `u^1.3` still keeps the near-body length stiffer than the tip. The
+       tuft rotates by the tip's own angle, since it's rigidly attached. */
+    const ROT_POW = 1.3, ROT_GAIN = 4.2, COW_LAG = 180;
+    const rotAt = (u: number) => (t ? cowSwat(t - COW_LAG * u) : 0) * ROT_GAIN * Math.pow(u, ROT_POW);
+    const rotate = (lx0: number, ly0: number, ang: number): [number, number] => {
+      const c = Math.cos(ang), s = Math.sin(ang);
+      return [lx0 * c - ly0 * s, lx0 * s + ly0 * c];
+    };
+    const [c1x, c1y] = rotate(R * 0.5 * bf, -R * 0.28 * bf, rotAt(0.45));
+    const [c2x, c2y] = rotate(R * 0.72 * bf, R * 0.3 * bf, rotAt(0.75));
+    const tipRot = rotAt(1.0);
+    const [tipX, tipY] = rotate(R * 0.55 * bf, R * 0.72 * bf, tipRot);
     ctx.lineWidth = Math.max(1, R * 0.11 * bf);
     ctx.beginPath();
     ctx.moveTo(px(0, 0), py(0, 0));
-    ctx.bezierCurveTo(
-      px(R * 0.5 * bf, c1y), py(R * 0.5 * bf, c1y),
-      px(R * 0.72 * bf, c2y), py(R * 0.72 * bf, c2y),
-      px(R * 0.55 * bf, tipY), py(R * 0.55 * bf, tipY));
+    ctx.bezierCurveTo(px(c1x, c1y), py(c1x, c1y), px(c2x, c2y), py(c2x, c2y), px(tipX, tipY), py(tipX, tipY));
     ctx.stroke();
     for (const a of [-0.5, 0, 0.5]) {
-      tailBlade(ctx, px(R * 0.55 * bf, tipY), py(R * 0.55 * bf, tipY),
-        R * 0.3 * bf, R * 0.075 * bf, th + Math.PI / 2 + a + tipBend);
+      tailBlade(ctx, px(tipX, tipY), py(tipX, tipY), R * 0.3 * bf, R * 0.075 * bf, th + Math.PI / 2 + a + tipRot);
     }
   } else if (plan.variant === 'pork') {
     // the curl: a short lead-out clear of the body, then a decaying coil
