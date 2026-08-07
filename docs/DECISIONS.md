@@ -5686,3 +5686,21 @@ motion between frames. Script was temporary, not committed.
 tsc clean; full suite 1410/1410 (no test changes — the crop sweep isn't
 unit-test material, it's a one-time verification the same way a screenshot
 is).
+
+## G4 round 3 tune: 魚尾 fork spread narrowed for more overlap — *(Sonnet)* — ✅ SHIPPED 2026-08-07
+Owner, tail bench: "can we have the fork overlap each other more." The
+trace's own 0.76 rad spread between the two flukes narrowed to 0.42, with
+the bisector (−0.473 rad off the outward ray) held fixed — the pair still
+trails the same direction, just tighter. Both flukes share one origin point
+(the trace has no peduncle — see the round above), so a smaller spread
+reads directly as more of their filled area crossing rather than needing a
+separate overlap mechanism.
+
+Re-verified everything the flip round's motion introduced, since this
+gesture both narrows AND swings: the crop sweep (41 samples across a full
+flip period, every production size, calibration fixture + owner's real
+profile) — worst overflow 0.00px, same as before the spread change. Static
+ink-bounds net and the 28-cell byte-identity sweep both clean (only the two
+fish-tail fixtures moved). /dev-tails screenshot shows the flukes visibly
+crossing near their tips rather than spreading cleanly apart. tsc clean;
+full suite 1410/1410.

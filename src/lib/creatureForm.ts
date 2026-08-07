@@ -1023,10 +1023,17 @@ function drawTail(
        structurally and the trace is the approved one: NO peduncle, both flukes
        springing from a single point at the rim, and the pair swung off the
        radial so the tail trails horizontally rather than pointing straight out.
-       Measured off the trace: flukes 0.49·R long, half-width 0.128·R, 0.76 rad
-       apart, bisector 0.47 rad off the outward ray. */
-    tailBlade(ctx, px(0, 0), py(0, 0), R * 0.49 * f, R * 0.128 * f, th - 0.853);
-    tailBlade(ctx, px(0, 0), py(0, 0), R * 0.49 * f, R * 0.128 * f, th - 0.093);
+       Measured off the trace: flukes 0.49·R long, half-width 0.128·R, bisector
+       0.47 rad off the outward ray. The trace's own 0.76 rad spread between
+       them narrowed to 0.42 (owner, tail bench: "can we have the fork overlap
+       each other more") — bisector held fixed, so the pair still trails the
+       same direction, just tighter; both flukes share one origin point, so a
+       smaller spread reads directly as more of their filled area crossing. */
+    const FORK_SPREAD = 0.42, FORK_BISECTOR = -0.473;
+    tailBlade(ctx, px(0, 0), py(0, 0), R * 0.49 * f, R * 0.128 * f,
+      th + FORK_BISECTOR - FORK_SPREAD / 2);
+    tailBlade(ctx, px(0, 0), py(0, 0), R * 0.49 * f, R * 0.128 * f,
+      th + FORK_BISECTOR + FORK_SPREAD / 2);
   } else if (plan.variant === 'crustacean') {
     // segmented abdomen telescoping out, ending in the four-blade fan
     let x = 0, y = 0;
