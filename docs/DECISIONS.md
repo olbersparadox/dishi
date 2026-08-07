@@ -6004,3 +6004,26 @@ bodies only; every rough-skinned fixture in a five-fixture sweep changed as
 expected. /dev-skin-check (throwaway, not committed) confirmed both fixes
 side by side: dots no longer touch in the hairy+rough case AND the
 fur-free comparison, color visibly darker in both.
+
+## 牛尾 cow tail: shrunk 10% — *(Sonnet)* — ✅ SHIPPED 2026-08-07
+Owner, tail bench: "for cow tail, shrink it by 40%", then before it shipped:
+"revert, and shrink 10% instead." Since the 40% version was still
+uncommitted when the correction landed, no `git revert` was needed — the
+constant was simply changed in place.
+
+New local scale `BEEF_SHRINK = 0.9`, applied on top of `sizeF` (`bf = f *
+BEEF_SHRINK`) rather than folded into `sizeF` itself — the bud→full growth
+ramp is untouched; only the fully-grown gesture reads smaller. Same pattern
+as `FISH_TAIL_REACH`: scaled uniformly across the bezier stem AND the tuft
+blades so proportions hold, not just length.
+
+Verification note: neither of the sweep's existing named fixtures (`land`,
+`oxtail`) actually resolves to a beef tail once checked against `tailPlan`
+directly — `land`'s pork sub-evidence (5) clears the vacancy bud floor
+before beef's own evidence does, and `oxtail`'s pork (14, holding the foot)
+outranks beef (9) on raw evidence even though beef would render larger if
+it won. Added a fixture matching the `/dev-tails` bench's own 牛尾 cell
+(pork holds the foot, beef 6 claims vacancy) to actually exercise the
+change. tsc clean; full suite 1422/1422; byte-identity — only that one
+fixture's metabolism render moved, everything else including all legacy
+untouched; /dev-tails screenshot confirmed the whip reads subtly smaller.

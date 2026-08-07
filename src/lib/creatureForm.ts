@@ -1123,18 +1123,24 @@ function drawTail(
       ctx.fill();
     }
   } else if (plan.variant === 'beef') {
-    // thin whip rising then drooping, tufted at the tip
-    ctx.lineWidth = Math.max(1, R * 0.11 * f);
+    // thin whip rising then drooping, tufted at the tip. Shrunk 10% (owner,
+    // tail bench: first tried 40%, "revert, and shrink 10% instead") — a
+    // local scale on top of sizeF, not a change to sizeF itself, so the
+    // growth ramp (bud → full) is untouched and only the FULLY-GROWN
+    // gesture reads smaller.
+    const BEEF_SHRINK = 0.9;
+    const bf = f * BEEF_SHRINK;
+    ctx.lineWidth = Math.max(1, R * 0.11 * bf);
     ctx.beginPath();
     ctx.moveTo(px(0, 0), py(0, 0));
     ctx.bezierCurveTo(
-      px(R * 0.5 * f, -R * 0.28 * f), py(R * 0.5 * f, -R * 0.28 * f),
-      px(R * 0.72 * f, R * 0.3 * f), py(R * 0.72 * f, R * 0.3 * f),
-      px(R * 0.55 * f, R * 0.72 * f), py(R * 0.55 * f, R * 0.72 * f));
+      px(R * 0.5 * bf, -R * 0.28 * bf), py(R * 0.5 * bf, -R * 0.28 * bf),
+      px(R * 0.72 * bf, R * 0.3 * bf), py(R * 0.72 * bf, R * 0.3 * bf),
+      px(R * 0.55 * bf, R * 0.72 * bf), py(R * 0.55 * bf, R * 0.72 * bf));
     ctx.stroke();
     for (const a of [-0.5, 0, 0.5]) {
-      tailBlade(ctx, px(R * 0.55 * f, R * 0.72 * f), py(R * 0.55 * f, R * 0.72 * f),
-        R * 0.3 * f, R * 0.075 * f, th + Math.PI / 2 + a);
+      tailBlade(ctx, px(R * 0.55 * bf, R * 0.72 * bf), py(R * 0.55 * bf, R * 0.72 * bf),
+        R * 0.3 * bf, R * 0.075 * bf, th + Math.PI / 2 + a);
     }
   } else if (plan.variant === 'pork') {
     // the curl: a short lead-out clear of the body, then a decaying coil
