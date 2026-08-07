@@ -5896,3 +5896,49 @@ bands with the original two unmoved, both claw pairs lower, and — on a
 mixed crab/lobster diet where the second pair actually has size — the
 upper claw's own gape now reads as clearly separate from the lower pair's,
 rotated into open air. Full suite 1422/1422.
+
+## Shellfish 2.0, round 3: third band touches the rim, tentacles clear the tail — *(Sonnet)* — ✅ SHIPPED 2026-08-07
+Owner: "the 3 band is too short with the left side not touching the rim of
+the body so it doesn't look like a segment · move the tentacle a bit, away
+from the tail so that they could be seen."
+
+**Band rim fix**: `spanAt` used one symmetric radius, `(hi-lo)/2`, applied
+to both sides of the tread equally. That assumes the silhouette is centred
+on `BB.cx` at every height, which a lopsided palate's slice is not — near
+the tail attachment (where the new third band sits) the gap is wide enough
+to see. `spanAt` now returns `{l, r}` measured independently from `BB.cx`,
+and `trace` applies each side its own reach.
+
+**Tentacle clearance**: same floor-at-0.22 fix as tendrils, but a real
+discovery en route — investigating why the `land` fixture (no shell, sea
+evidence 3) showed an unexpected byte-diff turned up a wrong assumption in
+last round's own comment. The `fr` formula's denominator, `max(1, (nT-1)/2)`,
+clamps to 1 at `nT=2`, so the plain two-tendril case sits at `fr=±0.5`, NOT
+the `±1` a quick read of the formula suggests — checked by an actual debug
+print, not re-derived on paper. That means the floor moves EVERY tendril
+count, not just the odd ones the original comment claimed were the only
+risk. Comment corrected; behavior was already right, only the stated
+reasoning was wrong.
+
+**The regression this round almost shipped**: both fixes above operate on
+helpers (`spanAt`/`trace`, the tendril offset) that LEGACY also calls —
+`isShell` and `S.tendrils.on` aren't mode-gated blocks, only `bFrom`/`bTo`
+were. The first pass left both fixes ungated, and the byte-identity sweep
+caught legacy moving for `sea`, `crab`, `lobster`, `fishtail`, `ownerReal` —
+a direct violation of "legacy is the frozen control," which every prior
+round has held. Fixed by gating both explicitly: bands recombine `l+r` back
+into the exact old symmetric radius for legacy before applying it
+symmetrically (so legacy's two bands are pixel-identical to before this
+whole helper existed), and tendrils fall back to the raw `fr * 0.8` for
+legacy. Re-swept after gating: legacy 14/14 SAME; metabolism DIFF on
+exactly the fixtures with sea and/or shell evidence (sea, crab, lobster,
+land, fishtail, ownerReal) — all expected, all correct.
+
+Also cleared: a `.next/types` staleness 404 from manually deleting a
+throwaway dev route's generated types while the dev server was live —
+process restart, not a code issue.
+
+Verification: tsc clean; 141 creature tests; ink-bounds net clean; full
+suite 1422/1422; byte-identity re-swept post-gating with legacy confirmed
+100% frozen; /dev-skin-check (throwaway, not committed) confirmed the third
+band now touches both rims and tendrils sit clear of a centred tail.

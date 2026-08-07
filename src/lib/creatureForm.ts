@@ -1495,7 +1495,24 @@ export function drawCreatureFrame(
     const L = R * (0.8 + 0.6 * s) * S.tendrils.evF;
     for (let i = 0; i < nT; i++) {
       const fr = (i - (nT - 1) / 2) / Math.max(1, (nT - 1) / 2);
-      const b = bottom(fr * 0.8);
+      // Floored at 0.22 clear of dead centre (owner, on the tail bench:
+      // "move the tentacle a bit, away from the tail so that they could be
+      // seen") — 尾 draws FIRST/deepest of every appendage (shellfish 2.0's
+      // z-order round), so a tendril anchored at or near bottom(0) sits
+      // directly over a centred tail (甲殼's abdomen anchors at bottom(0)
+      // exactly). This moves EVERY tendril count, not just odd ones: the
+      // fr formula's own denominator, max(1, (nT-1)/2), clamps to 1 at
+      // nT=2, so even the plain two-tendril case sits at fr=±0.5 rather
+      // than the ±1 a quick read suggests — checked by print, not assumed,
+      // after the byte-identity sweep flagged an nT=2 fixture as changed
+      // when an earlier draft of this comment claimed it couldn't be.
+      // METABOLISM ONLY: legacy never grows a tail (tailPlan returns null
+      // there unconditionally), so there is nothing to clear — confirmed by
+      // the sweep, which also caught the ungated version moving legacy's
+      // tendrils, which must stay the frozen fr*0.8 fan.
+      const off = mode !== 'metabolism' ? fr * 0.8
+        : fr === 0 ? 0.22 : Math.sign(fr) * (0.22 + Math.abs(fr) * 0.58);
+      const b = bottom(off);
       const sway = t ? Math.sin(t * 0.0011 + i * 1.7) * (R * 0.14) * (0.4 + s) : 0;
       ctx.strokeStyle = `rgba(33,29,24,${0.7 - 0.07 * Math.abs(fr)})`;
       ctx.lineWidth = Math.max(1, R * 0.075 * (1 - 0.25 * Math.abs(fr)));
@@ -1869,7 +1886,15 @@ export function drawCreatureFrame(
     // Measuring the outline per band is what makes them a dome; it is also the
     // same nominal-vs-drawn distinction the rest of this renderer now obeys,
     // since a lopsided palate's body is nowhere near an R-wide ellipse.
-    const spanAt = (y: number): number => {
+    // Returns the LEFT and RIGHT reach separately, each measured from BB.cx —
+    // not one symmetric radius. A single `(hi-lo)/2` assumes the silhouette
+    // is centred on BB.cx at every height, which a lopsided palate's slice
+    // is not; the new third band (shellfish 2.0) sits low enough, near the
+    // tail attachment, that the gap became visible: the owner caught the
+    // LEFT end sitting short of the rim while the right end read fine — the
+    // shared radius was splitting an asymmetric gap symmetrically. Each side
+    // now reaches its own actual edge.
+    const spanAt = (y: number): { l: number; r: number } => {
       let lo = Infinity, hi = -Infinity;
       for (let i = 0; i < P; i++) {
         const a = pts[i], b2 = pts[(i + 1) % P];
@@ -1878,7 +1903,7 @@ export function drawCreatureFrame(
         if (x < lo) lo = x;
         if (x > hi) hi = x;
       }
-      return hi > lo ? (hi - lo) / 2 : 0;
+      return hi > lo ? { l: BB.cx - lo, r: hi - BB.cx } : { l: 0, r: 0 };
     };
     // Vertical extent anchored to the drawn box, not to R: sizes the GRID for
     // all 4 nominal band slots (3 gaps + a fixed drop allowance) so it covers
@@ -1888,12 +1913,14 @@ export function drawCreatureFrame(
     // day's tread flatten (M's own drop is now 0.22, not 0.62). Re-tuning
     // either one must never silently move the other.
     const nB = 4, h = (1.34 * BB.vr) / (nB - 1 + 0.62), y0 = BB.cy - 0.67 * BB.vr;
-    const trace = (yTop: number, span: number) => {
+    const trace = (yTop: number, spanL: number, spanR: number) => {
       ctx.beginPath();
       M.forEach(([u, v], i) => {
         // u/1.3 normalises the tread's own extremes to ±1, so the shape is
-        // unchanged and only its width follows the body
-        const x = BB.cx + (u / 1.3) * span, y = yTop + v * h;
+        // unchanged and only its width follows the body — independently on
+        // each side, so an asymmetric slice no longer overshoots one rim to
+        // split the difference with the one that's short.
+        const x = BB.cx + (u / 1.3) * (u < 0 ? spanL : spanR), y = yTop + v * h;
         if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y);
       });
     };
@@ -1944,14 +1971,24 @@ export function drawCreatureFrame(
     for (let b = bFrom; b < bTo; b++) {
       const yTop = y0 + b * h + (b === bFrom ? upperNudge * h : 0);
       // measured at the band's own ink centre, and overshot by a hair so the
-      // ends still clip flush against the rim instead of leaving a sliver
-      const span = spanAt(yTop + 0.31 * h) * 1.04;
+      // ends still clip flush against the rim instead of leaving a sliver.
+      // METABOLISM ONLY: legacy recombines l/r back into the old symmetric
+      // radius before applying it to both sides equally — (l+r)/2 is exactly
+      // (hi-lo)/2, the prior formula — so legacy's two bands stay pixel-for-
+      // pixel what they were before this helper split, even though it now
+      // shares code with the fixed metabolism path. Caught by the byte-
+      // identity sweep: the independent-sides version alone shifted EVERY
+      // shell-bearing legacy render, not just the new third band.
+      const sp = spanAt(yTop + 0.31 * h);
+      const symmetric = (sp.l + sp.r) / 2;
+      const spanL = (mode === 'metabolism' ? sp.l : symmetric) * 1.04;
+      const spanR = (mode === 'metabolism' ? sp.r : symmetric) * 1.04;
       ctx.strokeStyle = `rgba(8,7,6,${gapA})`; // the gap the next plate slides into
       ctx.lineWidth = Math.max(1.8, R * 0.085);
-      trace(yTop + R * 0.05, span); ctx.stroke();
+      trace(yTop + R * 0.05, spanL, spanR); ctx.stroke();
       ctx.strokeStyle = `rgba(${HILITE},${litA})`; // lit top edge, drawn over it
       ctx.lineWidth = Math.max(1.4 + 0.7 * sm, R * 0.05);
-      trace(yTop, span); ctx.stroke();
+      trace(yTop, spanL, spanR); ctx.stroke();
     }
     ctx.restore();
   }
