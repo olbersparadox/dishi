@@ -670,17 +670,19 @@ const CLAW_MIN = 0.28;  // a newborn pair reads as a small pincer, not a speck
 const CLAW_SEATS = [1.95, 1.25] as const;
 /** Shellfish 2.0 (owner, 2026-08-07): both pairs sit LOWER in metabolism —
  *  prime 1.95 → 2.15, second 1.25 → 1.45 (same 0.7 rad spacing, so the
- *  overlap math above still holds). Legacy keeps CLAW_SEATS untouched: it is
- *  the frozen control, and its own test pins the prime at exactly 1.95. */
-const CLAW_SEATS_META = [2.15, 1.45] as const;
+ *  overlap math above still holds), then a same-session follow-up ("move the
+ *  2 pairs of claws further lower") took both another +0.15 → 2.30 / 1.60,
+ *  spacing still exactly 0.7. Legacy keeps CLAW_SEATS untouched: it is the
+ *  frozen control, and its own test pins the prime at exactly 1.95. */
+const CLAW_SEATS_META = [2.30, 1.60] as const;
 /** 蟹 at the SECOND seat pushes its wrist out toward the silhouette edge — see
  *  WRIST_BURIAL. 1.0 is the hard ceiling (the wrist crossing the edge exactly,
  *  beyond which no body pixels sit behind the join and it floats loose).
- *  0.94 → 0.98 (shellfish 2.0: "have them move outward a bit from the body")
- *  — right up against that ceiling, the rest of the visibility ask carried by
- *  the second pair's rotation below. Metabolism-only by construction: legacy
- *  never seats a second pair. */
-const CRAB_SECOND_BURIAL = 0.98;
+ *  0.94 → 0.98 → 1.0 (shellfish 2.0, then same-session "move the upper claws
+ *  further out of the body") — now sitting exactly AT that ceiling, as far
+ *  out as a wrist can go while a body pixel still backs the join. Metabolism-
+ *  only by construction: legacy never seats a second pair. */
+const CRAB_SECOND_BURIAL = 1.0;
 /** The second pair also ROTATES toward the horizontal (shellfish 2.0: "so
  *  that the 2 jaws can be seen clearly") — the upper wrists sit near the
  *  body's widest point, where the default axis tucks the pincer gape behind
@@ -1901,10 +1903,17 @@ export function drawCreatureFrame(
     // read as tyre tread rather than carapace, and their four identical centre
     // notches stacked into a column down the middle, which is drawing rule 7's
     // seam arriving by a side door.
-    // Shellfish 2.0 (owner, 2026-08-07): one band back — 2 → 3, slot 1
-    // restored. METABOLISM ONLY: legacy is the frozen control and keeps the
-    // two-band cut exactly as shipped.
-    const bFrom = mode === 'metabolism' ? 1 : 2;
+    // Shellfish 2.0, corrected (owner, 2026-08-07: "the original position of
+    // the 2 bands should not moved. Just add the 3rd one below the 2"). The
+    // first attempt restored grid slot 1 instead — ABOVE band 2, and it also
+    // silently moved band 2 itself, since upperNudge only ever applies to
+    // whichever band is `bFrom` and slot 1 took the nudge that slot 2 used
+    // to carry. `bFrom` stays 2 for both modes now — bands 2/3 are
+    // byte-identical to before this round — and metabolism alone extends the
+    // loop one slot PAST 3, at the same fixed spacing `h`, which is strictly
+    // larger y = further down the body. Legacy still stops at nB (two bands).
+    const bFrom = 2;
+    const bTo = mode === 'metabolism' ? nB + 1 : nB;
     // 200px and below, the pair washes out — the lit edge worst, since .24 is
     // calibrated for a large render and a thin light line on a dark body loses
     // most of its contrast to antialiasing as it shrinks. Both alphas ramp up
@@ -1932,7 +1941,7 @@ export function drawCreatureFrame(
     // clear of the lower band's top — comfortably past the 0.38h point where
     // two bands start reading as a 3rd implied line.
     const upperNudge = 0.210;
-    for (let b = bFrom; b < nB; b++) {
+    for (let b = bFrom; b < bTo; b++) {
       const yTop = y0 + b * h + (b === bFrom ? upperNudge * h : 0);
       // measured at the band's own ink centre, and overshot by a hair so the
       // ends still clip flush against the rim instead of leaving a sliver

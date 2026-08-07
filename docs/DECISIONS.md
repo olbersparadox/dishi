@@ -5860,3 +5860,39 @@ untouched, 28/28. /dev-tails screenshot: three carapace bands, banded
 abdomen, scalloped fan, both claw pairs lower with the upper pair's jaws
 in open air. Full suite 1422/1422 (concurrent picker stream's tests green
 alongside).
+
+## Shellfish 2.0, corrected: band position fix + claws further lower/out — *(Sonnet)* — ✅ SHIPPED 2026-08-07
+Owner, on seeing the batch render: "when added the 3rd band on the body,
+the original position of the 2 bands should not moved. Just add the 3rd
+one below the 2 · move the 2 pairs of claws further lower to the body ·
+move the upper claws further out of the body." One real bug plus two more
+numeric pushes.
+
+**The band bug**: the first attempt restored grid slot 1 (`bFrom: 1`) to
+get a third band, which is wrong twice over — slot 1 sits ABOVE slot 2 in
+the grid (smaller index = smaller y = closer to the crown), so it added the
+new band on the wrong side entirely; and `upperNudge` only ever applies to
+whichever band is `bFrom`, so moving `bFrom` from 2 to 1 silently transferred
+band 2's own positional nudge onto band 1 — band 2 itself shifted up by
+`upperNudge * h`, exactly the "original position... should not moved"
+the owner caught. Fixed by decoupling start from extent: `bFrom` is 2 in
+both modes now (bands 2/3 byte-identical to before this whole batch), and
+metabolism alone raises the loop's UPPER bound by one slot (`bTo = nB + 1`),
+adding a new band strictly below band 3 at the same fixed spacing `h`.
+
+**Claws further**: `CLAW_SEATS_META` [2.15, 1.45] → [2.30, 1.60], another
++0.15 on both, spacing still exactly 0.7 (the calibrated overlap math).
+`CRAB_SECOND_BURIAL` 0.98 → 1.0 — now sitting exactly at the documented
+hard ceiling (the wrist crossing the silhouette edge exactly), as far out
+as a wrist can go while a body pixel still backs the join.
+
+Verification: tsc clean; 141 creature tests (the shellfish-2.0 seat test
+updated to the new 2.30/1.60 values); ink-bounds net clean at every size
+even with the wrist at the exact 1.0 ceiling; 28-cell byte-identity sweep
+— crab/lobster/ownerReal moved (metabolism only), all 25 other cells and
+every legacy render untouched, 28/28 as predicted. A large (600px)
+throwaway bench (not committed) confirmed all three fixes by eye: three
+bands with the original two unmoved, both claw pairs lower, and — on a
+mixed crab/lobster diet where the second pair actually has size — the
+upper claw's own gape now reads as clearly separate from the lower pair's,
+rotated into open air. Full suite 1422/1422.
