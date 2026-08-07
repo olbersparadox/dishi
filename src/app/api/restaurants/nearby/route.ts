@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase/server';
 import { cachedNearbyPlaces } from '@/lib/placesCache';
-import { dedupeAgainstDishi } from '@/lib/places';
+import { dedupeAgainstDishi, orderByTrueDistance } from '@/lib/places';
 
 /**
  * GET /api/restaurants/nearby?lat=..&lng=..
@@ -53,6 +53,8 @@ export async function GET(req: NextRequest) {
     // one. (Distance ranking upstream means these are the NEAREST places, not random.)
     google = deduped.map(p => ({
       place_id: p.place_id, name: p.name, lat: p.lat, lng: p.lng, address: p.address,
+      // Null on arrival: Places Nearby Search returns prominence order and no
+      // distance. orderByTrueDistance computes it below.
       distance_m: null, source: 'google' as const,
     }));
   } catch (e) {
@@ -60,5 +62,19 @@ export async function GET(req: NextRequest) {
     console.error('Places lookup failed', e);
   }
 
-  return NextResponse.json({ restaurants: [...dishi, ...google] });
+  // ONE list ordered by true distance, not by who owns the row.
+  //
+  // This returned `[...dishi, ...google]` until 2026-08-07 — every restaurant the
+  // person had visited before, ahead of every one they hadn't, at any distance.
+  // Paired with nearby_restaurants' dead radius_m (see
+  // supabase/applied/nearby_restaurants_honor_radius.sql) it put eight
+  // own-restaurants reaching 1791m in front of the shops actually across the
+  // street from a Wan Chai photo — and RatingStack optimistically commits the
+  // FIRST row, so the dish was attributed 270m from where it was eaten.
+  //
+  // Owner call, asked directly: no, your own restaurants should not always
+  // outrank Google's. Distance decides; provenance only breaks a tie.
+  return NextResponse.json({
+    restaurants: orderByTrueDistance([...dishi, ...google], lat, lng),
+  });
 }

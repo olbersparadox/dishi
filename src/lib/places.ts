@@ -162,3 +162,38 @@ export function dedupeAgainstDishi<T extends { lat: number; lng: number }>(
   return googleResults.filter(g =>
     !dishiResults.some(d => haversineMeters(g.lat, g.lng, d.lat, d.lng) < 40));
 }
+
+/** One nearby suggestion, from either source, once both are in the same list. */
+export type RankedNearby = {
+  lat: number; lng: number;
+  distance_m: number | null;
+  source: 'dishi' | 'google';
+};
+
+/**
+ * Order Dishi's own restaurants and Google's together by TRUE distance.
+ *
+ * Until 2026-08-07 the route returned `[...dishi, ...google]`, so a restaurant the
+ * person had visited outranked one they hadn't no matter how far away it was. With
+ * nearby_restaurants' radius parameter dead (~2km instead of 300m), that meant a
+ * Wan Chai dish was offered eight own-restaurants out to 1791m BEFORE the shops
+ * actually across the street, and RatingStack — which optimistically commits the
+ * first row — attributed the dish 270m from where it was eaten.
+ *
+ * Owner call, 2026-08-07, asked explicitly: should your own restaurants always
+ * outrank Google's? No. Distance decides; provenance only breaks a tie.
+ *
+ * Google gives prominence order and no distance of its own, so its rows arrive
+ * with distance_m null and get it computed here. The tie-break prefers Dishi
+ * because that row may already carry real dish history and a stable id, whereas
+ * picking the Google twin would create a second record for one physical place.
+ */
+export function orderByTrueDistance<T extends RankedNearby>(rows: T[], lat: number, lng: number): T[] {
+  return rows
+    .map(r => (r.distance_m == null
+      ? { ...r, distance_m: haversineMeters(lat, lng, r.lat, r.lng) }
+      : r))
+    .sort((a, b) =>
+      (a.distance_m! - b.distance_m!)
+      || (a.source === b.source ? 0 : a.source === 'dishi' ? -1 : 1));
+}

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { searchNearbyRestaurants, searchPlacesText, dedupeAgainstDishi } from '../src/lib/places';
+import { searchNearbyRestaurants, searchPlacesText, dedupeAgainstDishi, orderByTrueDistance } from '../src/lib/places';
 
 // The Tin Wan miss: 新容記, a well-known spot the user was standing in, fell outside
 // the 10 prominence-ranked Google slots. Ranking by DISTANCE makes the 10 the NEAREST
@@ -115,5 +115,66 @@ describe('dedupeAgainstDishi', () => {
     const google = [{ place_id: 'g1', lat: 22.2500, lng: 114.1500 }];
     const dishi = [{ lat: 22.2600, lng: 114.1600 }]; // ~1.4km away
     expect(dedupeAgainstDishi(google, dishi)).toHaveLength(1);
+  });
+});
+
+// The Wan Chai report, 2026-08-07. A dish photographed in Wan Chai offered a list
+// that read as Central. The list was NOT mis-located: it was correctly ordered by
+// distance, but nearby_restaurants' radius_m parameter was dead (a hardcoded ~2km
+// box), so the eight nearest own-restaurants reached 1791m — and the route returned
+// [...dishi, ...google], putting all eight ahead of the shops across the street.
+// RatingStack commits the FIRST row optimistically, so the dish was attributed to a
+// restaurant 270m from where it was eaten. An audit found one committed at 1836m.
+//
+// Owner call, asked directly: no, your own restaurants should not always outrank
+// Google's. Distance decides; provenance only breaks a tie.
+describe('orderByTrueDistance — distance decides, not provenance', () => {
+  const LAT = 22.2772638888889, LNG = 114.171944444444; // the Wan Chai photo
+
+  // Roughly 100m and 700m north of the photo.
+  const near = (m: number) => ({ lat: LAT + m / 111320, lng: LNG });
+
+  it('puts a closer Google place ahead of a further own-restaurant', () => {
+    const rows = [
+      { ...near(700), distance_m: 700, source: 'dishi' as const, name: 'visited, far' },
+      { ...near(100), distance_m: null, source: 'google' as const, name: 'never visited, close' },
+    ];
+    expect(orderByTrueDistance(rows, LAT, LNG).map(r => r.name))
+      .toEqual(['never visited, close', 'visited, far']);
+  });
+
+  it('computes the missing distance for Google rows rather than sinking them', () => {
+    const [top] = orderByTrueDistance(
+      [{ ...near(100), distance_m: null, source: 'google' as const }], LAT, LNG,
+    );
+    expect(top.distance_m).toBeGreaterThan(90);
+    expect(top.distance_m).toBeLessThan(110);
+  });
+
+  it('keeps a trusted distance already supplied by the RPC', () => {
+    const [top] = orderByTrueDistance(
+      [{ ...near(100), distance_m: 42, source: 'dishi' as const }], LAT, LNG,
+    );
+    expect(top.distance_m).toBe(42);
+  });
+
+  // Provenance still matters when distance cannot separate them: the Dishi row may
+  // carry real dish history and a stable id, and preferring the Google twin would
+  // mint a second record for one physical place.
+  it('breaks an exact tie toward the row that already exists in Dishi', () => {
+    const rows = [
+      { ...near(100), distance_m: 100, source: 'google' as const, name: 'g' },
+      { ...near(100), distance_m: 100, source: 'dishi' as const, name: 'd' },
+    ];
+    expect(orderByTrueDistance(rows, LAT, LNG).map(r => r.name)).toEqual(['d', 'g']);
+  });
+
+  it('reproduces the report: the real neighbour outranks eight distant favourites', () => {
+    const mine = [270, 1192, 1263, 1387, 1388, 1494, 1581, 1791].map(m => ({
+      ...near(m), distance_m: m, source: 'dishi' as const, name: `mine-${m}`,
+    }));
+    const theirs = [{ ...near(60), distance_m: null, source: 'google' as const, name: '潮興魚蛋粉' }];
+    // RatingStack auto-commits whatever lands first — that is the whole bug.
+    expect(orderByTrueDistance([...mine, ...theirs], LAT, LNG)[0].name).toBe('潮興魚蛋粉');
   });
 });

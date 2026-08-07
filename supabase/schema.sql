@@ -39,18 +39,29 @@ create policy "restaurants readable" on restaurants for select using (true);
 create policy "restaurants insertable" on restaurants for insert with check (auth.uid() is not null);
 
 -- Haversine distance in meters, used by the GPS quick-pick.
+-- radius_m is REAL: it was accepted and ignored until 2026-08-07 (a hardcoded
+-- ~2km box), which mis-attributed dishes and let name-dedup match across 2km.
+-- See supabase/applied/nearby_restaurants_honor_radius.sql for the full story.
 create or replace function nearby_restaurants(user_lat double precision, user_lng double precision, radius_m double precision default 300, max_results int default 8)
-returns table (id uuid, name text, lat double precision, lng double precision, address text, distance_m double precision)
+returns table (id uuid, name text, name_zh text, lat double precision, lng double precision, address text, area text, distance_m double precision)
 language sql stable as $$
-  select r.id, r.name, r.lat, r.lng, r.address,
-    2 * 6371000 * asin(sqrt(
-      pow(sin(radians(r.lat - user_lat) / 2), 2) +
-      cos(radians(user_lat)) * cos(radians(r.lat)) *
-      pow(sin(radians(r.lng - user_lng) / 2), 2)
-    )) as distance_m
-  from restaurants r
-  where abs(r.lat - user_lat) < 0.02 and abs(r.lng - user_lng) < 0.02
-  order by distance_m asc
+  select q.id, q.name, q.name_zh, q.lat, q.lng, q.address, q.area, q.distance_m
+  from (
+    select r.id, r.name, r.name_zh, r.lat, r.lng, r.address, r.area,
+      2 * 6371000 * asin(sqrt(
+        pow(sin(radians(r.lat - user_lat) / 2), 2) +
+        cos(radians(user_lat)) * cos(radians(r.lat)) *
+        pow(sin(radians(r.lng - user_lng) / 2), 2)
+      )) as distance_m
+    from restaurants r
+    -- Cheap prefilter, sized FROM radius_m and deliberately conservative (cos(lat)
+    -- on both axes) so it can never clip a row the true circle would keep.
+    where r.lat is not null and r.lng is not null
+      and abs(r.lat - user_lat) < (radius_m / 111320.0) / greatest(cos(radians(user_lat)), 0.1)
+      and abs(r.lng - user_lng) < (radius_m / 111320.0) / greatest(cos(radians(user_lat)), 0.1)
+  ) q
+  where q.distance_m <= radius_m
+  order by q.distance_m asc
   limit max_results;
 $$;
 
