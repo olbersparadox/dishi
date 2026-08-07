@@ -843,11 +843,10 @@ describe('wingShape — the 雞/鴨鵝 blend', () => {
   it('pure 鴨鵝: long, thin, tight sweep, flattened toward glide — UNCHANGED by any 雞 dial', () => {
     // the goose endpoint must read exactly the plain blend on every axis
     // except its OWN thickness dial (chickenBoost is clamped to k>=0 only,
-    // so it is 0 here by construction; gooseBoost supplies the stacked
-    // +20%-then-+20% instead)
+    // so it is 0 here by construction; gooseBoost supplies the +20% instead)
     const w = wingShape({ duck_goose: 10 }, 'metabolism');
     expect(w.lenMul).toBeCloseTo(1.35, 6);
-    expect(w.widthMul).toBeCloseTo(0.7 * 1.2 * 1.2, 6);
+    expect(w.widthMul).toBeCloseTo(0.7 * 1.2, 6);
     expect(w.spreadMul).toBeCloseTo(0.5, 6);
     expect(w.baseAng).toBeGreaterThan(-0.1);
     expect(w.humpMul).toBeCloseTo(0.7, 6); // no curvature dial on this side
@@ -887,12 +886,10 @@ describe('wingShape — the 雞/鴨鵝 blend', () => {
       for (const mix of [{ duck_goose: 1 }, { chicken: 1, duck_goose: 3 }, { duck_goose: 100 }]) {
         const w = wingShape(mix, 'metabolism');
         const k = (mix.chicken ?? 0) / ((mix.chicken ?? 0) + mix.duck_goose) * 2 - 1;
-        // widthMul on this side carries the GOOSE dial (below, itself now a
-        // stack of two +20% passes), not the 雞 stack — isolate it by
-        // dividing the squared goose dial back out.
+        // widthMul on this side carries the GOOSE dial (below), not the 雞
+        // stack — isolate it by dividing the goose dial back out.
         const gooseBoost = Math.max(0, -k);
-        const gooseThicknessMul = (1 + 0.2 * gooseBoost) * (1 + 0.2 * gooseBoost);
-        expect(w.widthMul / gooseThicknessMul).toBeCloseTo(1 + 0.3 * k, 6);
+        expect(w.widthMul / (1 + 0.2 * gooseBoost)).toBeCloseTo(1 + 0.3 * k, 6);
         expect(w.humpMul).toBeCloseTo(1 + 0.3 * k, 6); // no curvature dial on this side either
       }
     });
@@ -911,15 +908,14 @@ describe('wingShape — the 雞/鴨鵝 blend', () => {
     });
   });
 
-  /** Owner, same session: "duck / goose stroke thickness increase by 20%",
-   *  then immediately "duck / goose stroke thickness increase another 20%"
-   *  — a second pass STACKED on the first, same "another" reading as the
-   *  earlier 雞 stack. Thickness only, no curvature dial requested for 鴨鵝. */
-  describe('鴨鵝 thickness dial (mirrors the 雞 dial, opposite side, now stacked)', () => {
-    it('pure 鴨鵝 gets a STACKED +20% thickness (1.2x then another 1.2x), curvature untouched', () => {
+  /** Owner, same session, next message: "duck / goose stroke thickness
+   *  increase by 20%." Mirrors 雞's thickness dial on the opposite side —
+   *  thickness only, no curvature dial requested for 鴨鵝. */
+  describe('鴨鵝 thickness dial (mirrors the 雞 dial, opposite side)', () => {
+    it('pure 鴨鵝 gets exactly +20% thickness, curvature untouched', () => {
       const w = wingShape({ duck_goose: 10 }, 'metabolism');
-      // plain blend at k=-1: widthMul 0.7, humpMul 0.7 — only width picks up the stack
-      expect(w.widthMul).toBeCloseTo(0.7 * 1.2 * 1.2, 6);
+      // plain blend at k=-1: widthMul 0.7, humpMul 0.7 — only width picks up the dial
+      expect(w.widthMul).toBeCloseTo(0.7 * 1.2, 6);
       expect(w.humpMul).toBeCloseTo(0.7, 6);
     });
 
@@ -929,27 +925,16 @@ describe('wingShape — the 雞/鴨鵝 blend', () => {
         const k = (mix.chicken ?? 0) / ((mix.chicken ?? 0) + (mix.duck_goose ?? 0)) * 2 - 1;
         const chickenBoost = Math.max(0, k);
         const thicknessMul = (1 + 0.4 * chickenBoost) * (1 + 0.5 * chickenBoost);
-        expect(w.widthMul).toBeCloseTo((1 + 0.3 * k) * thicknessMul, 6); // no goose stack anywhere on this side
+        expect(w.widthMul).toBeCloseTo((1 + 0.3 * k) * thicknessMul, 6); // no goose dial anywhere on this side
       }
     });
 
-    it('starts at neutral and lands on the full stack at the pure endpoint', () => {
-      // NOT a strict monotonic ramp end-to-end: once this dial's own stack
-      // (effective near-neutral slope 0.4, since two +20% passes compound to
-      // just over +40% close to m=0) exceeds the plain blend's own 0.3
-      // coefficient working the opposite direction (widthMul trends DOWN as
-      // 鴨鵝 lean grows), the product very slightly OVERSHOOTS before settling
-      // — peaks near 1.029 around a 55-65% 鴨鵝 lean, vs 1.008 at the pure
-      // endpoint. ~2% of a stroke width that's already scaled by R*0.05 is
-      // sub-pixel and was confirmed invisible on /dev-wings; asserting a
-      // false monotonic-everywhere guarantee here would be worse than
-      // documenting the real, harmless shape. The 雞 side has no equivalent
-      // wobble because its blend and boost both move the SAME direction.
+    it('ramps continuously from the neutral middle toward pure 鴨鵝, never jumps', () => {
       const shares = [0.5, 0.4, 0.3, 0.2, 0.1, 0.0].map(ck =>
         wingShape({ chicken: ck, duck_goose: 1 - ck }, 'metabolism').widthMul);
-      expect(shares[0]).toBeCloseTo(1, 6);                       // 50/50 = neutral = k≈0 = no boost
-      expect(shares[shares.length - 1]).toBeCloseTo(0.7 * 1.2 * 1.2, 6); // pure 鴨鵝 = full stack
-      for (const s of shares) expect(s).toBeLessThan(1.03);      // the overshoot stays tiny, never runs away
+      for (let i = 1; i < shares.length; i++) expect(shares[i]).toBeLessThan(shares[i - 1]);
+      expect(shares[0]).toBeCloseTo(1, 6);                 // 50/50 = neutral = k≈0 = no boost
+      expect(shares[shares.length - 1]).toBeCloseTo(0.7 * 1.2, 6); // pure 鴨鵝 = full goose boost
     });
   });
 });
