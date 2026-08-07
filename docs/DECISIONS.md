@@ -5770,3 +5770,46 @@ things the owner called, plus the bug that fell out of the third.
   were `btn ghost small` while 略過/住家菜 beside them were `chip chip-util`.
   Now all `chip chip-util`. `picker.uselivegeo` was left alone — not named, and
   it sits inside the add form rather than the chip row.
+
+## G4 round 3 redesign: 甲殼尾 becomes a true 龍蝦 abdomen — *(Fable)* — ✅ SHIPPED 2026-08-07
+Owner, after confirming what the fan means (the shell domain's second part,
+not a species receipt): "Can we redesign so that it look much more like a
+lobster tail? in this case, the whole lobster tail would replace the bottom
+of the body, not diagonal, but vertically attached to the bottom part of
+the body. Use your understanding of lobster anatomy and design sense, and
+propose the look. It should be under the tentacle, covering nothing."
+Fable per the tier rules — a redesigned visible gesture is a new-surface
+first pass, not a numeric tune. No TRACES version exists for a crustacean
+tail (checked per checklist step 0), so fresh design authority was granted
+and taken.
+
+The design, from lobster anatomy translated to cut-paper ink:
+- **Five overlapping tergite segments** hung VERTICALLY from the drawn
+  bottom point, each an ellipse plate narrower than the one above
+  (half-widths 0.50R → 0.24R). One ink, no interior lines — the scalloped
+  silhouette where each plate steps in IS the segmentation. The top plate
+  is ~half the body's width and buried at 0.85 so the body fill swallows
+  the join: the "replaces the bottom of the body" read.
+- **The five-piece fan** at the tip — telson centre, two uropods per side —
+  flaring WIDER than the last segment. The flare after the taper is the
+  single most iconic lobster cue.
+- **Axis is a stated design constant** (straight down, owner: "not
+  diagonal"), not the computed outward ray — which at the bottom point sits
+  within a few degrees of vertical anyway, so the checklist's
+  direction-from-the-drawn-body rule is bent knowingly, not broken blindly.
+  The shared gentle sway still pendulums it.
+- **Z-order: the tail block moved to FIRST in the behind-body section** for
+  all five variants — 尾 is now the deepest appendage layer, under
+  tendrils, algae, legs and claws alike ("under the tentacle, covering
+  nothing"). One uniform depth rule beats a per-variant special case.
+
+Verification: tsc clean; both creature suites green; ink-bounds net (crab/
+lobster fixtures carry deep shell at full tail size) confirms no crop at
+any production size; 28-cell byte-identity sweep with the diff set
+enumerated FIRST — every tail-bearing metabolism fixture moved (z-order
+reorders the SVG stream for all variants, geometry changed for 甲殼), all
+four no-tail fixtures and all 14 legacy renders untouched, 28/28 as
+predicted. /dev-tails screenshot: the abdomen hangs centred under the crab
+body, scalloped taper legible, fan flaring at the tip. Full suite
+1421/1421 (the concurrent stream's picker work landed between runs; their
+tests pass alongside).

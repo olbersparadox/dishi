@@ -1035,16 +1035,34 @@ function drawTail(
     tailBlade(ctx, px(0, 0), py(0, 0), R * 0.49 * f, R * 0.128 * f,
       th + FORK_BISECTOR + FORK_SPREAD / 2);
   } else if (plan.variant === 'crustacean') {
-    // segmented abdomen telescoping out, ending in the four-blade fan
-    let x = 0, y = 0;
-    for (let i = 0; i < 4; i++) {
-      const w = R * (0.3 - i * 0.04) * f;
-      const nx = x + R * 0.16 * f, ny = y - R * 0.025 * f;
-      taperQuad(ctx, px(x, y), py(x, y), px(nx, ny), py(nx, ny), w, w * 0.85);
-      x = nx; y = ny;
+    /* A true 龍蝦 abdomen (owner redesign, 2026-08-07: "look much more like
+       a lobster tail … the whole lobster tail would replace the bottom of
+       the body, not diagonal, but vertically attached"), superseding the
+       old diagonal telescope. Five overlapping tergite segments narrowing
+       down the axis — ONE ink, no interior lines: the scalloped silhouette
+       where each rounded plate steps in IS the segmentation, per the
+       cut-paper style. Then the five-piece fan: telson centre, two uropods
+       per side, flaring WIDER than the last segment — the flare after the
+       taper is the lobster signature. The caller anchors this at the
+       body's drawn bottom point and passes a vertical axis; z-order puts
+       it beneath every other appendage ("under the tentacle, covering
+       nothing"). */
+    const SEGS: [number, number, number][] = [
+      // [centre along the axis, half-length, lateral half-width] · R
+      [0.10, 0.13, 0.50], [0.28, 0.125, 0.42], [0.45, 0.12, 0.35],
+      [0.61, 0.11, 0.29], [0.76, 0.10, 0.24],
+    ];
+    for (const [cxA, hL, hw] of SEGS) {
+      ctx.beginPath();
+      ctx.ellipse(px(cxA * R * f, 0), py(cxA * R * f, 0), hL * R * f, hw * R * f, th, 0, TAU);
+      ctx.fill();
     }
-    for (const a of [-0.55, -0.18, 0.18, 0.55]) {
-      tailBlade(ctx, px(x, y), py(x, y), R * 0.4 * f, R * 0.08 * f, th + a);
+    const fanX = 0.86 * R * f;
+    const FAN: [number, number][] = [
+      [-0.55, 0.28], [-0.27, 0.33], [0, 0.37], [0.27, 0.33], [0.55, 0.28],
+    ];
+    for (const [a, L] of FAN) {
+      tailBlade(ctx, px(fanX, 0), py(fanX, 0), L * R * f, R * 0.085 * f, th + a);
     }
   } else if (plan.variant === 'beef') {
     // thin whip rising then drooping, tufted at the tip
@@ -1311,6 +1329,30 @@ export function drawCreatureFrame(
   }
 
   // ── appendages BEHIND the body ────────────────────────────────────────────
+  // 尾 tail — the ONE tail slot (tailPlan, G4 round 3). FIRST in the section,
+  // so it is the deepest appendage of all: every other limb draws over it
+  // (owner, on the 龍蝦 redesign: "under the tentacle, covering nothing").
+  const tail = tailPlan(domains, mode);
+  if (tail) {
+    if (tail.variant === 'crustacean') {
+      // 龍蝦 abdomen hangs VERTICALLY from the drawn bottom point — the one
+      // tail whose axis is a stated design constant (owner: "not diagonal,
+      // vertically attached to the bottom part of the body") rather than the
+      // computed outward ray, which at the bottom sits within a few degrees
+      // of vertical anyway. Buried at 0.85 so the body fill swallows the
+      // top tergite's join.
+      const p = bottom(0);
+      const tbx = BB.cx + (p.x - BB.cx) * 0.85, tby = BB.cy + (p.y - BB.cy) * 0.85;
+      drawTail(ctx, tbx, tby, Math.PI / 2, R, tail, t);
+    } else {
+      // the other four: anchored to the DRAWN lower flank, base buried like
+      // a wrist; outward direction is the silhouette ray (BB centre → flank).
+      const p = flank(1, TAIL_SEAT);
+      const bur = TAIL_BURIAL(tail.variant);
+      const tbx = BB.cx + (p.x - BB.cx) * bur, tby = BB.cy + (p.y - BB.cy) * bur;
+      drawTail(ctx, tbx, tby, Math.atan2(p.y - BB.cy, p.x - BB.cx), R, tail, t);
+    }
+  }
   // wings — lateral fans from the shoulder, angled out
   if (S.wings.on) {
     // 雞/鴨鵝 variant blend (wingShape) — at equal mix every multiplier is 1.0
@@ -1410,16 +1452,6 @@ export function drawCreatureFrame(
         b.x + sway * 1.4 + fr * R * 0.18, b.y + L * (1 - 0.08 * Math.abs(fr)));
       ctx.stroke();
     }
-  }
-  // 尾 tail — the ONE tail slot (tailPlan, G4 round 3). Anchored to the DRAWN
-  // lower flank, base buried like a wrist so the body fill covers the join;
-  // outward direction is the drawn-silhouette ray (BB centre → flank point).
-  const tail = tailPlan(domains, mode);
-  if (tail) {
-    const p = flank(1, TAIL_SEAT);
-    const bur = TAIL_BURIAL(tail.variant);
-    const tbx = BB.cx + (p.x - BB.cx) * bur, tby = BB.cy + (p.y - BB.cy) * bur;
-    drawTail(ctx, tbx, tby, Math.atan2(p.y - BB.cy, p.x - BB.cx), R, tail, t);
   }
   // 螯 claws — the calibrated pair (creatureGestures), which replaced the lab's
   // palm-and-prongs sketch. Wrists pull 18% inside the flank point so the body
