@@ -1015,20 +1015,9 @@ function drawTail(
        springing from a single point at the rim, and the pair swung off the
        radial so the tail trails horizontally rather than pointing straight out.
        Measured off the trace: flukes 0.49·R long, half-width 0.128·R, 0.76 rad
-       apart, bisector 0.47 rad off the outward ray.
-       FISH_TAIL_REACH scales both dimensions together, preserving that
-       measured proportion — owner, same bench: "stick out the fish tail
-       more" (the fluke already ran ~9% short of the trace against the DRAWN
-       body, which runs larger than R on a sea-heavy profile; this goes past
-       just closing that gap into visibly longer). Burial is already inside
-       WRIST_BURIAL's own hard-ceiling logic (0.95, close to 1.0's "no body
-       pixels behind the join" limit), so length is the correct lever, not
-       position — same "reach is the gesture's own size, not the anchor's
-       distance" split the claws already use in reverse. */
-    const FISH_TAIL_REACH = 1.35;
-    const flukeL = R * 0.49 * FISH_TAIL_REACH * f, flukeW = R * 0.128 * FISH_TAIL_REACH * f;
-    tailBlade(ctx, px(0, 0), py(0, 0), flukeL, flukeW, th - 0.853);
-    tailBlade(ctx, px(0, 0), py(0, 0), flukeL, flukeW, th - 0.093);
+       apart, bisector 0.47 rad off the outward ray. */
+    tailBlade(ctx, px(0, 0), py(0, 0), R * 0.49 * f, R * 0.128 * f, th - 0.853);
+    tailBlade(ctx, px(0, 0), py(0, 0), R * 0.49 * f, R * 0.128 * f, th - 0.093);
   } else if (plan.variant === 'crustacean') {
     // segmented abdomen telescoping out, ending in the four-blade fan
     let x = 0, y = 0;
