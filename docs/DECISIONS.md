@@ -5636,3 +5636,27 @@ for an approved version of a gesture BEFORE porting its PART 1 VOCAB entry.
 Both exist for several gestures and the approved one wins. Added as step 0 of
 the porting checklist in the lab v7 file header, where a porter will actually
 read it (header commentary only — the rescued code below is untouched).
+
+## G4 round 3 tune: 魚尾 reach +35% — *(Sonnet)* — ✅ SHIPPED 2026-08-07
+Owner, same bench, right after the trace correction: "stick out the fish
+tail more." Sonnet-tier: a numeric tune on an already-shipped, already-
+corrected gesture with a live reference on screen.
+
+`FISH_TAIL_REACH = 1.35`, scaling BOTH fluke length and half-width together
+so the trace's measured proportion (length:width ≈ 3.8:1) survives — a
+length-only stretch would have thinned the fork into a whisker. Length was
+the right lever, not burial: burial (0.95) already sits close to
+WRIST_BURIAL's own hard ceiling (1.0 — the join floating loose once no body
+pixels sit behind it), so squeezing more reach out of position was the wrong
+place to look; the gesture's own size is. Lands past just correcting the
+prior round's ~9%-short-of-trace gap (drawn-body vs nominal-R mismatch on a
+sea-heavy profile) into visibly longer, per the owner's ask for MORE, not
+merely matched.
+
+Verified: the ink-bounds net (already carrying the fishtail fixture from the
+prior round) confirmed no crop at any production size with the reach applied;
+28-cell byte-identity sweep — only the two fish-tail-bearing fixtures moved,
+all legacy and every other variant untouched; /dev-tails screenshot shows
+the fork visibly longer against the same body. tsc clean; full suite
+1410/1410 (no test changes — sizeF/reach math is exercised by the existing
+tailPlan and ink-bounds suites, not a new assertion surface).
