@@ -1362,16 +1362,28 @@ function drawTail(
        shrink with it or the curve reads as over-bowed for a smaller fan
        — but deliberately NOT `ctx.lineWidth`, which stays on `widthMul`
        alone. `SPREAD` (an angle, not a length) and `FEATHERS` are
-       likewise untouched: "size" is reach, not shape or count. */
+       likewise untouched: "size" is reach, not shape or count.
+
+       雞 STOPPED differentiating (owner, seeing the three side by side:
+       "apply tail from generic and apply to chicken pure") — chicken's
+       tail now renders exactly as the k=0 generic case: same length,
+       spread, width, AND flap pattern (`wingFlapAngle`'s plain sine, not
+       `chickenBurstPause`). `tailK = Math.min(0, speciesK)` clamps the
+       positive (雞) side of the blend to zero everywhere it feeds the
+       tail, while the negative (鴨鵝) side passes through unchanged — so
+       鴨鵝's own longer/narrower/thinner/glide-flapping tail is untouched
+       by this. Wings are UNAFFECTED: they read `WS.speciesK` directly in
+       their own block, never this tail-local clamp. */
     const speciesK = plan.speciesK ?? 0;
-    const lenMul = 1 - 0.35 * speciesK;
-    const spreadMul = 1 + 0.5 * speciesK;
-    const widthMul = 1 + 0.3 * speciesK;
+    const tailK = Math.min(0, speciesK);
+    const lenMul = 1 - 0.35 * tailK;
+    const spreadMul = 1 + 0.5 * tailK;
+    const widthMul = 1 + 0.3 * tailK;
     const SIZE = 0.8;
     const FEATHERS = 7, SPREAD = 1.1 * spreadMul;
     const L = R * 1.05 * f * lenMul * SIZE;
     const half = (FEATHERS - 1) / 2;
-    const flap = t ? wingFlapAngle(speciesK, t) * (0.3 + (plan.airShare ?? 0)) : 0;
+    const flap = t ? wingFlapAngle(tailK, t) * (0.3 + (plan.airShare ?? 0)) : 0;
     for (let i = 0; i < FEATHERS; i++) {
       const off = i - half;                    // signed distance from the centre feather
       const k = Math.abs(off) / half;           // 0 centre … 1 outermost

@@ -6574,3 +6574,26 @@ no separate overflow sweep was needed — every fixture was already
 comfortably inside canvas at the larger size). Screenshots of 雞 chicken
 pure, 中性 generic, and 鴨鵝 duck/goose pure side by side confirmed all
 three read visibly smaller with stroke weight unchanged.
+
+## 禽尾 bird tail, 雞 stopped differentiating — *(Sonnet)* — ✅ SHIPPED 2026-08-08
+Owner, having just seen chicken/generic/duck-goose side by side: "apply
+tail from generic and apply to chicken pure."
+
+New `tailK = Math.min(0, speciesK)` clamps the positive (雞) side of the
+blend to zero for every dial that feeds the tail — `lenMul`, `spreadMul`,
+`widthMul`, and now `flap`'s own `wingFlapAngle` call too, so a pure-雞
+tail also drops `chickenBurstPause` for the plain sine `wingFlapAngle`
+uses at k=0. 雞's tail is now pixel-for-pixel the generic (k=0) case:
+same length, spread, width, and flap timing. The negative (鴨鵝) side
+passes through the clamp unchanged, so duck/goose keeps its own longer/
+narrower/thinner/glide-flapping tail exactly as shipped two rounds ago.
+Wings are untouched — they read `WS.speciesK` directly in their own
+block, never this tail-local clamp, so chicken's wings stay rounder/
+thicker/curled as before; only the tail lost its differentiation.
+
+Verification: tsc clean; full suite 1423/1423 (a strict narrowing of an
+already-tested range — pure-雞 now renders exactly the already-verified
+k=0 geometry, so no new geometry to bounds-check). Screenshot of chicken
+pure next to generic confirmed the tails now match exactly while the
+wings still visibly differ, which is correct — only the tail was asked
+to change.
