@@ -6597,3 +6597,32 @@ k=0 geometry, so no new geometry to bounds-check). Screenshot of chicken
 pure next to generic confirmed the tails now match exactly while the
 wings still visibly differ, which is correct — only the tail was asked
 to change.
+
+## 禽尾 bird tail, 雞 flipped vertically and re-synced with the wing — *(Sonnet)* — ✅ SHIPPED 2026-08-08
+Owner: "good, now for chicken pure, flip the tail vertically, sync with
+chicken wings animation." Two 雞-only changes, neither touching 鴨鵝 or
+generic.
+
+**Flip.** New `ySign = speciesK > 0 ? -1 : 1` negates every local-Y term
+together — the per-feather spread offset AND the hump's bow — so a
+雞-leaning tail mirrors across its own outward axis. Reading off the raw
+`speciesK` (not `tailK`, which is always ≤0 and can't distinguish 雞 from
+generic on its own) is what lets this fire for chicken specifically while
+tailK still keeps the SHAPE generic.
+
+**Re-sync.** The flap went back to reading the FULL `speciesK` instead of
+the `tailK` the previous round had (accidentally) clamped it to — that
+clamp meant a pure-雞 tail was flapping with the GENERIC plain sine
+instead of `chickenBurstPause`, silently undoing the animation sync
+shipped two rounds ago the moment the shape got clamped. `tailK` still
+governs length/spread/width (generic-shaped, per the prior round);
+`speciesK` alone drives the flap now, so 雞's tail is generic-SHAPED but
+beats in the true 雞 rhythm, literally the same value the wing reads.
+
+Verification: tsc clean; full suite 1423/1423; direct bounds sweep, five
+species/evidence points × seven sizes at the still frame — no overflow
+(the flip changes which direction the hump bows, so this wasn't assumed
+safe by symmetry alone). Screenshot of chicken pure next to generic
+confirmed the feathers now curl the opposite direction; two frames a
+second apart showed both wings and tail shift together, consistent with
+reading the identical driving value again.

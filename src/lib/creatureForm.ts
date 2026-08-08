@@ -1366,14 +1366,32 @@ function drawTail(
 
        雞 STOPPED differentiating (owner, seeing the three side by side:
        "apply tail from generic and apply to chicken pure") — chicken's
-       tail now renders exactly as the k=0 generic case: same length,
-       spread, width, AND flap pattern (`wingFlapAngle`'s plain sine, not
-       `chickenBurstPause`). `tailK = Math.min(0, speciesK)` clamps the
+       tail SHAPE now renders exactly as the k=0 generic case: same
+       length, spread, width. `tailK = Math.min(0, speciesK)` clamps the
        positive (雞) side of the blend to zero everywhere it feeds the
-       tail, while the negative (鴨鵝) side passes through unchanged — so
-       鴨鵝's own longer/narrower/thinner/glide-flapping tail is untouched
+       tail's STATIC dials, while the negative (鴨鵝) side passes through
+       unchanged — so 鴨鵝's own longer/narrower/thinner tail is untouched
        by this. Wings are UNAFFECTED: they read `WS.speciesK` directly in
-       their own block, never this tail-local clamp. */
+       their own block, never this tail-local clamp.
+
+       Next round (owner: "for chicken pure, flip the tail vertically,
+       sync with chicken wings animation") — two 雞-only changes, neither
+       touching 鴨鵝 or generic:
+
+       FLIP: `ySign` negates every local-Y term (the per-feather spread
+       offset AND the hump's bow together) whenever `speciesK > 0` — the
+       raw, un-clamped sign, so this fires off the SAME "is this being
+       雞-leaning" read the flap sync below uses, not off `tailK` (which
+       is always ≤0 and can't tell 雞 from generic on its own).
+
+       RE-SYNC: the flap went back to reading the FULL `speciesK` (not
+       `tailK`) — the previous round had clamped it too, which meant a
+       pure-雞 tail flapped with the GENERIC plain sine instead of
+       `chickenBurstPause`, silently un-syncing it from the wings the
+       round before had just wired together. `tailK` still governs the
+       static shape (length/spread/width stay generic); `speciesK` alone
+       drives the animation, so 雞's tail is generic-SHAPED but flaps in
+       the true 雞 rhythm, exactly like the wings. */
     const speciesK = plan.speciesK ?? 0;
     const tailK = Math.min(0, speciesK);
     const lenMul = 1 - 0.35 * tailK;
@@ -1383,14 +1401,15 @@ function drawTail(
     const FEATHERS = 7, SPREAD = 1.1 * spreadMul;
     const L = R * 1.05 * f * lenMul * SIZE;
     const half = (FEATHERS - 1) / 2;
-    const flap = t ? wingFlapAngle(tailK, t) * (0.3 + (plan.airShare ?? 0)) : 0;
+    const flap = t ? wingFlapAngle(speciesK, t) * (0.3 + (plan.airShare ?? 0)) : 0;
+    const ySign = speciesK > 0 ? -1 : 1;
     for (let i = 0; i < FEATHERS; i++) {
       const off = i - half;                    // signed distance from the centre feather
       const k = Math.abs(off) / half;           // 0 centre … 1 outermost
       const a = (off / half) * (SPREAD / 2) + flap; // local angle off the fan's bisector
       const Li = L * (1 - 0.14 * k);
-      const tipX = Math.cos(a) * Li, tipY = Math.sin(a) * Li;
-      const midX = Math.cos(a) * Li * 0.5, midY = Math.sin(a) * Li * 0.5 - R * 0.32 * f * SIZE;
+      const tipX = Math.cos(a) * Li, tipY = ySign * Math.sin(a) * Li;
+      const midX = Math.cos(a) * Li * 0.5, midY = ySign * (Math.sin(a) * Li * 0.5 - R * 0.32 * f * SIZE);
       ctx.strokeStyle = `rgba(33,29,24,${0.62 - 0.07 * k})`;
       ctx.lineWidth = Math.max(1, R * 0.06 * f * widthMul * (1 - 0.15 * k));
       ctx.beginPath();
