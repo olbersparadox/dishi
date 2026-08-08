@@ -841,7 +841,7 @@ describe('蝦 prawn as a first-class claw species (G4 round 1)', () => {
    Ported from the lab v7 endpoints; detector is G3's sub.air. The load-bearing
    property: EQUAL MIX IS EXACTLY NEUTRAL — undifferentiated air renders the
    generic fan byte-for-byte, and legacy is pinned neutral whatever the data. */
-import { wingShape, wingFlapAngle, tailPlan } from '../src/lib/creatureForm';
+import { wingShape, wingFlapAngle, tailPlan, finPlan } from '../src/lib/creatureForm';
 
 describe('wingShape — the 雞/鴨鵝 blend', () => {
   const NEUTRAL = {
@@ -1180,5 +1180,48 @@ describe('tailPlan — the one tail slot (Decision 6 vacancy → priority)', () 
     }, 'metabolism');
     expect(p?.variant).toBe('fish');
     expect(p!.sizeF).toBeCloseTo(1, 2); // 11.7 is far past SUB_FORM — full fork
+  });
+});
+
+/* 鰭 fins — G4 round 4. The fish pool's SECOND part: tail claims at bud,
+   fins bud at saturation (12), the same breadth-after-depth rule 甲殼尾/禽尾
+   follow. The gesture itself is TRACES 其三, verified visually. */
+describe('finPlan — the fish pool second part', () => {
+  it('legacy is null REGARDLESS of data — the frozen control grows no parts', () => {
+    expect(finPlan({ sea: 30, sub: { sea: { fish: 20 } } }, 'legacy')).toBeNull();
+  });
+
+  it('needs the fish sub-node specifically — undifferentiated sea and cephalopod never claim', () => {
+    expect(finPlan({ sea: 34 }, 'metabolism')).toBeNull();
+    expect(finPlan({ sea: 30, sub: { sea: { cephalopod: 20 } } }, 'metabolism')).toBeNull();
+  });
+
+  it('a SECOND part: buds only past saturation depth, not at the tail bud floor', () => {
+    // fish 8 grows a full tail (first part) but no fins yet
+    expect(finPlan({ sea: 10, sub: { sea: { fish: 8 } } }, 'metabolism')).toBeNull();
+    expect(finPlan({ sea: 14, sub: { sea: { fish: 12 } } }, 'metabolism')).toBeNull();
+    const p = finPlan({ sea: 15, sub: { sea: { fish: 13 } } }, 'metabolism');
+    expect(p).not.toBeNull();
+    expect(p!.sizeF).toBeGreaterThanOrEqual(0.35); // pops in at the floor
+    expect(p!.sizeF).toBeLessThan(0.6);            // freshly budded — small
+  });
+
+  it('sizeF grows monotonically past the unlock and saturates at full', () => {
+    const sizes = [13, 14.5, 16, 17.5, 19, 21].map(e =>
+      finPlan({ sea: e + 2, sub: { sea: { fish: e } } }, 'metabolism')!.sizeF);
+    for (let i = 1; i < sizes.length; i++) expect(sizes[i]).toBeGreaterThanOrEqual(sizes[i - 1]);
+    expect(sizes[sizes.length - 1]).toBeCloseTo(1, 6);
+  });
+
+  it('independent of the tail slot: fins grow even when another family holds the tail', () => {
+    // shell 20 outranks fish 14 for the ONE tail slot — fins are unaffected
+    const d = { sea: 16, shell: 20, sub: { sea: { fish: 14 } } };
+    expect(tailPlan(d, 'metabolism')?.variant).toBe('crustacean');
+    expect(finPlan(d, 'metabolism')).not.toBeNull();
+  });
+
+  it("the owner's real profile (fish 11.7) has NOT yet unlocked fins — tail only", () => {
+    expect(finPlan({ sea: 10.6, sub: { sea: { fish: 11.7, cephalopod: 0.9 } } },
+      'metabolism')).toBeNull();
   });
 });

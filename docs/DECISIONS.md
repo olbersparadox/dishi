@@ -6714,3 +6714,54 @@ full period each (not just eyeballing a screenshot), since a sparse
 burst is easy to miss in a single screenshot and the codebase's own
 precedent (`hairWindBend`'s test suite) is to verify motion via the pure
 function rather than assume a live capture caught it.
+
+## 鰭 fins: the fish pool's second part, from the owner's own trace — *(Fable)* — ✅ SHIPPED 2026-08-08
+Owner: "nice. move on to fins." G4 round 4, the first NEW gesture family
+since tails.
+
+**TRACES first (the port checklist's step 0, the rule the 魚尾 VOCAB
+mistake bought):** TRACES 其三 ("smooth skin · fin") holds an approved
+fin — one solid pointed leaf per flank, mirrored, just above the
+midline, drawn BEHIND the body — so that form ships, not VOCAB's three
+specimen studies. Of those, 帶 eel-ribbon needs a 長身魚 detector that
+doesn't exist ("no detector, no feature", the wing round's own rule),
+and 尖 raw / 圓 steamed are METHOD conditionings that can arrive as
+later rounds on top of an approved base — the same base-then-variants
+sequence tails and wings both shipped in. Ported by MEASUREMENT (trace
+body r = 0.235S): base at 0.92 of centre→flank on each side (join hides
+behind the body fill), seat 1.48 rad from top — just above the
+horizontal midline — blade 0.40R long × 0.12R half-wide, swung 0.29 rad
+above the horizontal. The blade is drawn by the EXISTING `tailBlade`:
+its filled-quadratic math is byte-identical to the trace's own `trLeaf`
+(both put one control point perpendicular at half-length), so no new
+primitive was added.
+
+**Gate (`finPlan`):** the forked tail is the fish pool's FIRST part and
+claims at bud; fins are breadth-after-depth and bud where stage()
+saturates (`TAIL_SECOND` = 12) — exactly the second-part rule 甲殼尾/禽尾
+already follow. The claim is INDEPENDENT of the tail slot's cross-family
+contest: a fish eater whose one tail slot went to a stronger family
+still grows fins (spent depth doesn't un-spend because a different slot
+was lost) — pinned by test. Legacy null unconditionally. The owner's own
+profile (fish 11.7) has NOT unlocked fins yet — also pinned, so the
+growth moment stays ahead of them rather than being pre-spent.
+
+**Motion:** the flutter reads the SAME module-scope clock as 魚尾's swim
+flip — `FISH_FLIP_FREQ`/`FISH_FLIP_PHASE` were hoisted from `drawTail`
+locals precisely so both parts share one constant, not two copies — at
+1/3 the tail's amplitude, mirrored with the blades so both fins sweep
+together. One swimming beat across tail and fins, the same one-signal
+rule that syncs the bird tail to its wings.
+
+Verification: tsc clean; 6 new finPlan gate tests (legacy null,
+sub-node specificity, second-part unlock at 12, monotonic sizeF,
+tail-slot independence, owner-profile-not-yet); 148 creature +
+ink-bounds tests; full suite 1429/1429; bounds sweep over deep-fish,
+just-budded, and fins-without-tail-slot fixtures × seven sizes (96–600),
+no overflow; 30-cell byte-identity sweep against a diff set declared
+BEFORE running — exactly `metabolism/fishtail` moved, `sea`
+(undifferentiated, no fish sub) and all fifteen legacy renders
+byte-identical. Large-render screenshots confirmed the full pair reads
+as the trace's side-leaves and the fresh bud pops in small at the floor.
+Framework Ledger's 鰭 row updated LAB-ONLY → SHIPPED (base form), with
+尖/圓/帶 noted as the remaining lab-only variants.

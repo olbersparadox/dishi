@@ -1019,6 +1019,33 @@ export function tailPlan(domains: DomainEvidence, mode: GrowthMode): TailPlan | 
   return { variant: winner.variant, sizeF: winner.sizeF, speciesK, airShare };
 }
 
+/* ── 鰭 fins — G4 round 4 (2026-08-08): the fish pool's SECOND part ─────────
+   TRACES 其三 is the approved form (checked FIRST, per the port checklist's
+   own step 0): one solid pointed leaf per flank, mirrored, just above the
+   midline, drawn BEHIND the body. VOCAB's three method variants (尖 raw /
+   圓 steamed / 帶 eel ribbon) stay LAB-ONLY for now: 帶 needs a 長身魚
+   detector that doesn't exist ("no detector, no feature"), and 尖/圓 are
+   method conditionings of a base gesture that should be approved first —
+   the same base-then-variants sequence tails and wings both shipped in.
+
+   Gate: the forked tail is the fish pool's FIRST part (claims at bud);
+   fins bud where stage() saturates (TAIL_SECOND = 12) — depth past
+   saturation spends as breadth, exactly the rule 甲殼尾/禽尾 follow as
+   their families' second parts. The claim is independent of the tail
+   SLOT's cross-family contest: a fish eater whose tail slot went to a
+   stronger family still grows fins — spent depth doesn't un-spend
+   because a different slot was lost.
+
+   Legacy returns null unconditionally — the frozen control grows no
+   parts. */
+export type FinPlan = { sizeF: number };
+export function finPlan(domains: DomainEvidence, mode: GrowthMode): FinPlan | null {
+  if (mode !== 'metabolism') return null;
+  const fish = Math.max(0, domains.sub?.sea?.fish ?? 0);
+  if (fish <= TAIL_SECOND) return null;
+  return { sizeF: TAIL_MIN + (1 - TAIL_MIN) * smooth01((fish - TAIL_SECOND) / TAIL_SECOND_SPAN) };
+}
+
 // 牛尾 swat (owner: "flips and wiggle, like a cow keeping the mosquitos /
 // flies away"): a cow's tail hangs in a lazy wiggle for most of the loop,
 // then CRACKS across the flank — out, back through centre, out the other
@@ -1106,6 +1133,11 @@ function tailBlade(
    making ink measurement transform-aware — coordinates are the cheaper, safer
    side of that trade. Lengths are in R units so the tail scales with the
    body; the whole gesture scales by sizeF the way a claw does. */
+// 魚's swimming beat — module scope because it is ONE clock shared by two
+// parts: the tail's flip (below) and the fins' flutter (drawCreatureFrame),
+// same frequency AND phase so the whole fish strokes on a single rhythm —
+// the same one-signal rule that syncs the bird tail to its wings.
+const FISH_FLIP_AMP = 0.32, FISH_FLIP_FREQ = 0.0032, FISH_FLIP_PHASE = 1.1;
 function drawTail(
   ctx: CanvasRenderingContext2D,
   bx: number, by: number, outAng: number, R: number, plan: TailPlan, t: number,
@@ -1118,13 +1150,12 @@ function drawTail(
   // reads as a rhythmic beat rather than a drift. Continuous, not the wings'
   // burst-pause: a swimming tail strokes steadily, it doesn't rest between
   // bursts the way a bird's wing does.
-  const FISH_FLIP_AMP = 0.32, FISH_FLIP_FREQ = 0.0032;
   // 牛尾 doesn't rotate as one rigid unit (owner: "the movement within the
   // Stroke, bending left and right, instead of the whole thing like moving
   // a stiff curved stick") — its motion is applied per-point, below, so it
   // takes NO share of `th`; the base direction stays exactly `outAng`.
   const sway = !t ? 0
-    : plan.variant === 'fish' ? Math.sin(t * FISH_FLIP_FREQ + 1.1) * FISH_FLIP_AMP
+    : plan.variant === 'fish' ? Math.sin(t * FISH_FLIP_FREQ + FISH_FLIP_PHASE) * FISH_FLIP_AMP
     : plan.variant === 'beef' ? 0
     : Math.sin(t * 0.0008 + 1.1) * 0.055;
   const th = outAng + sway;
@@ -1735,6 +1766,28 @@ export function drawCreatureFrame(
       const bur = TAIL_BURIAL(tail.variant);
       const tbx = BB.cx + (p.x - BB.cx) * bur, tby = BB.cy + (p.y - BB.cy) * bur;
       drawTail(ctx, tbx, tby, Math.atan2(p.y - BB.cy, p.x - BB.cx), R, tail, t);
+    }
+  }
+  // 鰭 fins — the fish pool's second part (finPlan, G4 round 4). TRACES 其三,
+  // ported by MEASUREMENT (body r = 0.235S in the trace): one pointed leaf
+  // per flank via tailBlade (its filled-quadratic math is byte-identical to
+  // the trace's own trLeaf), base at 0.92 of centre→flank so the join hides
+  // behind the body fill, seat 1.48 rad from top (just above the horizontal
+  // midline), blade 0.40R × 0.12R half-width, swung 0.29 rad above the
+  // horizontal, mirrored. The flutter rides the SAME clock as 魚尾's swim
+  // flip — same FISH_FLIP constants, same phase — at ~1/3 amplitude, and is
+  // mirrored WITH the blade (both fins sweep up and down together), so tail
+  // and fins read as one swimming beat rather than two rhythms.
+  const fins = finPlan(domains, mode);
+  if (fins) {
+    ctx.fillStyle = 'rgba(33,29,24,.93)'; // 骨 parts wear neutral ink
+    const FIN_SEAT = 1.48, FIN_BURIAL = 0.92, FIN_ANG = -0.29;
+    const flut = t ? Math.sin(t * FISH_FLIP_FREQ + FISH_FLIP_PHASE) * (FISH_FLIP_AMP / 3) : 0;
+    for (const side of [-1, 1] as const) {
+      const p = flank(side, FIN_SEAT);
+      const fbx = BB.cx + (p.x - BB.cx) * FIN_BURIAL, fby = BB.cy + (p.y - BB.cy) * FIN_BURIAL;
+      const ang = side > 0 ? FIN_ANG + flut : Math.PI - (FIN_ANG + flut);
+      tailBlade(ctx, fbx, fby, R * 0.40 * fins.sizeF, R * 0.12 * fins.sizeF, ang);
     }
   }
   // wings — lateral fans from the shoulder, angled out
