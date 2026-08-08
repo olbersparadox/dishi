@@ -1051,6 +1051,37 @@ function cowSwat(t: number): number {
   return wiggle + COW_SWAT_AMP * Math.sin(TAU * ph) * Math.sin(Math.PI * ph);
 }
 
+// 龍蝦尾 wiggle (owner, overall fine-tuning pass: "have it wiggle a bit,
+// not too drastic, just a little bit from time to time with quick
+// movement") — long stillness, then a short quick side-to-side flick, the
+// same quiet-then-burst shape `cowSwat` uses but far smaller and with no
+// idle wiggle floor in between (a lobster tail doesn't drift the way a
+// cow's does — it's rigid armour until it flicks). `Math.sin(TAU·2.2·ph)`
+// gives just over two full back-and-forth cycles within the short window,
+// which is what reads as "quick" rather than one slow swing; `sin(πph)`
+// tapers both ends to exactly 0 so it never snaps into or out of the burst.
+const LOBSTER_PERIOD = 5200, LOBSTER_START = 4550, LOBSTER_LEN = 380, LOBSTER_AMP = 0.06;
+function lobsterWiggle(t: number): number {
+  const cyc = ((t % LOBSTER_PERIOD) + LOBSTER_PERIOD) % LOBSTER_PERIOD;
+  if (cyc < LOBSTER_START || cyc >= LOBSTER_START + LOBSTER_LEN) return 0;
+  const ph = (cyc - LOBSTER_START) / LOBSTER_LEN;
+  return LOBSTER_AMP * Math.sin(TAU * 2.2 * ph) * Math.sin(Math.PI * ph);
+}
+
+// 足 walk envelope (owner, overall fine-tuning pass: "for all legs, mostly
+// static, but from time to time add animation of walking") — legs used to
+// carry a small CONTINUOUS sway (always-on, every frame); that reads as
+// restless fidgeting rather than "mostly static", so the sway is now
+// gated to 0 outside a short walking window that recurs occasionally.
+// `Math.sin(Math.PI·ph)` ramps the envelope up from and back down to
+// exactly 0, so legs settle rather than snap in/out of the walk.
+const WALK_PERIOD = 7400, WALK_START = 6300, WALK_LEN = 900;
+function walkEnvelope(t: number): number {
+  const cyc = ((t % WALK_PERIOD) + WALK_PERIOD) % WALK_PERIOD;
+  if (cyc < WALK_START || cyc >= WALK_START + WALK_LEN) return 0;
+  return Math.sin(Math.PI * (cyc - WALK_START) / WALK_LEN);
+}
+
 /** Lab v7's leaf blade, ported: a filled quadratic leaf from (x,y) at `ang`. */
 function tailBlade(
   ctx: CanvasRenderingContext2D,
@@ -1114,11 +1145,16 @@ function drawTail(
        them narrowed to 0.42 (owner, tail bench: "can we have the fork overlap
        each other more") — bisector held fixed, so the pair still trails the
        same direction, just tighter; both flukes share one origin point, so a
-       smaller spread reads directly as more of their filled area crossing. */
+       smaller spread reads directly as more of their filled area crossing.
+       FISH_SIZE = 1.2 (owner, overall fine-tuning pass: "increase fish
+       tail size by 20%") scales both fluke length and half-width — a
+       uniform size tune, not a reshape, so FORK_SPREAD/FORK_BISECTOR
+       (both angles) stay exactly as measured off the trace. */
+    const FISH_SIZE = 1.2;
     const FORK_SPREAD = 0.42, FORK_BISECTOR = -0.473;
-    tailBlade(ctx, px(0, 0), py(0, 0), R * 0.49 * f, R * 0.128 * f,
+    tailBlade(ctx, px(0, 0), py(0, 0), R * 0.49 * f * FISH_SIZE, R * 0.128 * f * FISH_SIZE,
       th + FORK_BISECTOR - FORK_SPREAD / 2);
-    tailBlade(ctx, px(0, 0), py(0, 0), R * 0.49 * f, R * 0.128 * f,
+    tailBlade(ctx, px(0, 0), py(0, 0), R * 0.49 * f * FISH_SIZE, R * 0.128 * f * FISH_SIZE,
       th + FORK_BISECTOR + FORK_SPREAD / 2);
   } else if (plan.variant === 'crustacean') {
     /* A true 龍蝦 abdomen (owner redesign, 2026-08-07: "look much more like
@@ -1132,7 +1168,19 @@ function drawTail(
        taper is the lobster signature. The caller anchors this at the
        body's drawn bottom point and passes a vertical axis; z-order puts
        it beneath every other appendage ("under the tentacle, covering
-       nothing"). */
+       nothing").
+
+       WIGGLE (owner, overall fine-tuning pass): `wob` is `lobsterWiggle`'s
+       output, a small extra rotation applied around the tail's own base
+       (0,0) — composed with the shared `px`/`py` rotation via `px2`/`py2`
+       rather than folded into `th` itself, since `th` is shared across
+       every variant and this motion is 龍蝦-only. Every point AND every
+       ellipse's own rotation parameter gets `wob` (an ellipse that moved
+       without rotating would look like it slid rather than flicked). */
+    const wob = t ? lobsterWiggle(t) : 0;
+    const cw = Math.cos(wob), sw = Math.sin(wob);
+    const px2 = (lx: number, ly: number) => px(lx * cw - ly * sw, lx * sw + ly * cw);
+    const py2 = (lx: number, ly: number) => py(lx * cw - ly * sw, lx * sw + ly * cw);
     const SEGS: [number, number, number][] = [
       // [centre along the axis, half-length, lateral half-width] · R
       [0.10, 0.13, 0.50], [0.28, 0.125, 0.42], [0.45, 0.12, 0.35],
@@ -1140,7 +1188,7 @@ function drawTail(
     ];
     for (const [cxA, hL, hw] of SEGS) {
       ctx.beginPath();
-      ctx.ellipse(px(cxA * R * f, 0), py(cxA * R * f, 0), hL * R * f, hw * R * f, th, 0, TAU);
+      ctx.ellipse(px2(cxA * R * f, 0), py2(cxA * R * f, 0), hL * R * f, hw * R * f, th + wob, 0, TAU);
       ctx.fill();
     }
     // Shellfish 2.0 (owner): the body's 甲 band language extends onto the
@@ -1154,9 +1202,9 @@ function drawTail(
       const bow = 0.09 * R * f;
       const band = (off: number) => {
         ctx.beginPath();
-        ctx.moveTo(px(xj + off, -span), py(xj + off, -span));
-        ctx.quadraticCurveTo(px(xj + off + bow, 0), py(xj + off + bow, 0),
-          px(xj + off, span), py(xj + off, span));
+        ctx.moveTo(px2(xj + off, -span), py2(xj + off, -span));
+        ctx.quadraticCurveTo(px2(xj + off + bow, 0), py2(xj + off + bow, 0),
+          px2(xj + off, span), py2(xj + off, span));
         ctx.stroke();
       };
       ctx.lineCap = 'round';
@@ -1186,7 +1234,7 @@ function drawTail(
     for (const [a, d, rL, rW] of FAN) {
       const lx = fanX + Math.cos(a) * d * R * f, ly = Math.sin(a) * d * R * f;
       ctx.beginPath();
-      ctx.ellipse(px(lx, ly), py(lx, ly), rL * R * f, rW * R * f, th + a, 0, TAU);
+      ctx.ellipse(px2(lx, ly), py2(lx, ly), rL * R * f, rW * R * f, th + a + wob, 0, TAU);
       ctx.fill();
     }
   } else if (plan.variant === 'beef') {
@@ -1538,8 +1586,22 @@ export function drawCreatureFrame(
   const cx = c0;
   const squash = 1 - 0.2 * l + 0.14 * a + 0.1 * f;
   const widen = 1 + 0.14 * l - 0.14 * a + 0.12 * c - 0.06 * f;
+  // Hoisted above `cyAt`/`bodyAt` (its usual spot is right before the
+  // appendage loops, much later) so the wing-bob term below can read
+  // `S.wings.on` — `limbStrengths` only needs `domains`/`mode`, both
+  // already in scope, so this is a pure reordering, not a new dependency.
+  const S = limbStrengths(domains, mode);
+  // 飛 FLIGHT BOB (owner, overall fine-tuning pass: "all wing added body
+  // should add smooth up and down animation for express flight motion") —
+  // a slow, smooth vertical drift on the BODY CENTRE itself, not another
+  // per-stroke wing motion (wings already flap their own strokes via
+  // `wingFlapAngle`; this is the body reading as airborne). Only fires
+  // for beings whose wings actually render (`S.wings.on`), so a grounded
+  // being's silhouette is completely unaffected.
+  const wingBobAt = (tt: number) => (tt && S.wings.on) ? R * 0.045 * Math.sin(tt * 0.0022) : 0;
   const cyAt = (tt: number) => c0 - size * 0.03 + R * 0.1 * l - R * 0.05 * s + R * 0.1 * tem.weight
-    + (tt ? s * size * 0.012 * Math.sin(tt * 0.0008) : 0);
+    + (tt ? s * size * 0.012 * Math.sin(tt * 0.0008) : 0)
+    - wingBobAt(tt);
   /* The silhouette at a given time. Callable at t=0 to recover the STATIC body,
      which anything anchored to the skin needs: a feature placed off the
      breathing outline drifts with the breath instead of staying put. */
@@ -1591,8 +1653,9 @@ export function drawCreatureFrame(
 
   ctx.lineCap = 'round';
   // ONE gate layer for every appendage — limbStrengths carries both modes and
-  // the whole rationale; no block below re-derives a gate.
-  const S = limbStrengths(domains, mode);
+  // the whole rationale; no block below re-derives a gate. (Computed earlier
+  // now, alongside `cyAt`, so the wing-bob term above can read it — see
+  // the comment there.)
 
   // ── skin type: ONE source of truth, `skinOf` above, which carries the
   // rearrangement's rationale and is unit-tested. Never re-derive the
@@ -1895,7 +1958,13 @@ export function drawCreatureFrame(
     for (let i = 0; i < nL; i++) {
       const fr = (i - (nL - 1) / 2) / Math.max(1, (nL - 1) / 2);
       const b = bottom(fr * 0.55);
-      const step = t ? Math.sin(t * 0.0009 + i * 2.1) * 0.35 * l : 0;
+      // gated by `walkEnvelope` (mostly static; see its own comment) and,
+      // during the window, an `i·π` phase so ADJACENT legs alternate —
+      // legs 0&2 in phase, 1&3 opposite, a diagonal trot rather than every
+      // leg swinging in lockstep. Frequency is faster than the old
+      // continuous sway (0.009 vs 0.0009) so the burst reads as stepping
+      // cadence, not a slow drift sped up.
+      const step = t ? Math.sin(t * 0.009 + i * Math.PI) * 0.6 * l * walkEnvelope(t) : 0;
       drawLeg(ctx, b.x, b.y - R * 0.04, R, legF, mix, fr + step, legW,
         domOfStable<'beef' | 'pork' | 'chicken'>(
           domains.sub?.land, ['beef', 'pork', 'chicken'], 'land', domains.duels));

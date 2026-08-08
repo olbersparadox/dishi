@@ -6651,3 +6651,66 @@ Screenshots of chicken pure / generic / duck-goose pure side by side
 confirmed the flip is gone (chicken curls the same way as generic
 again) and chicken now reads visibly smaller and a touch thicker than
 generic, per spec; bench left live per owner request for review.
+
+## Overall fine-tuning pass: fish size, lobster wiggle, flight bob, leg walk — *(Sonnet)* — ✅ SHIPPED 2026-08-08
+Owner: "for overall fine tuning — increase fish tail size by 20%;
+animation for lobster tails, have it wiggle a bit, not too drastic, just
+a little bit from time to time with quick movement; all wing added body
+should add smooth up and down animation for express flight motion; for
+all legs, mostly static, but from time to time add animation of walking."
+Four independent changes, one round.
+
+**魚尾 +20%.** New `FISH_SIZE = 1.2` scales both fluke length and
+half-width in the two `tailBlade` calls. `FORK_SPREAD`/`FORK_BISECTOR`
+(both angles, measured off the owner's own trace) are untouched — a size
+tune, not a reshape, the same discipline every other tail size change
+this session has followed.
+
+**龍蝦尾 wiggle.** New module-level `lobsterWiggle(t)`, same quiet-then-
+burst shape `cowSwat` uses but with NO idle-wiggle floor (a lobster tail
+is rigid armour, not something that drifts continuously the way a cow's
+tail does) — 5200ms period, a 380ms window, `sin(TAU·2.2·ph)` for just
+over two back-and-forth cycles within that window (reads as "quick"),
+tapered by `sin(π·ph)` so it never snaps in or out. Applied as an EXTRA
+rotation (`wob`) composed with the shared `px`/`py` projection via new
+`px2`/`py2` helpers — every segment, band, and fan-paddle point AND every
+ellipse's own rotation parameter gets it, so the whole tail flicks as one
+rigid unit rather than the ellipses sliding without rotating. Confirmed
+active only ~6.7% of the time, peak ≈2.9° — "not too drastic."
+
+**飛 flight bob.** `limbStrengths` (`S`, and specifically `S.wings.on`)
+is now computed BEFORE `cyAt`/`bodyAt` instead of much later — a pure
+reordering (the function only needs `domains`/`mode`, both already in
+scope), which lets a new `wingBobAt(tt)` term feed into `cyAt` itself:
+`R·0.045·sin(tt·0.0022)`, subtracted from the body CENTRE'S y so the
+whole silhouette drifts smoothly up and down, gated to fire only when
+`S.wings.on`. This is a body-level motion, distinct from the wings' own
+per-stroke `wingFlapAngle` — the body reads as airborne, not just the
+wings as flapping. A grounded being is completely unaffected (`wingBobAt`
+returns exactly 0 when `S.wings.on` is false).
+
+**足 walk, gated.** Legs carried a small CONTINUOUS sway before this
+round (every frame, always on) — the owner's "mostly static" framing is
+the opposite of that, so the sway is now gated to 0 outside a recurring
+walking window via new `walkEnvelope(t)` (7400ms period, a 900ms window,
+ramped both ends via `sin(π·ph)`). Inside the window the phase also
+switched from a plain per-leg offset to `i·π` — adjacent legs now
+alternate (legs 0&2 in phase, 1&3 opposite, a diagonal trot) instead of
+swinging in lockstep — and the frequency went from 0.0009 to 0.009 so the
+burst reads as an actual stepping cadence rather than the old slow drift
+sped up. Confirmed ~11% duty cycle, matching WALK_LEN/WALK_PERIOD.
+
+Verification: tsc clean; full suite 1423/1423; direct ink-bounds sweep
+on the fish tail (the only genuine STILL-FRAME geometry change — the
+other three are all t-gated to exactly 0 at t=0, the same limitation
+every other animation in this file already carries), no overflow at any
+production size; byte-identity sweep confirmed ONLY `fishtail` moved
+within the fixture set — crustacean-, poultry-, and leg-bearing fixtures
+were all byte-identical at the still frame, exactly as the t-gating
+predicts. Live canvas pixel sampling over ~8.8s on the bench confirmed
+real movement in the crustacean, leg, and wing cells; the walk/wiggle
+envelope math was independently verified by direct evaluation across a
+full period each (not just eyeballing a screenshot), since a sparse
+burst is easy to miss in a single screenshot and the codebase's own
+precedent (`hairWindBend`'s test suite) is to verify motion via the pure
+function rather than assume a live capture caught it.
