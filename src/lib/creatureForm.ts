@@ -1375,41 +1375,41 @@ function drawTail(
        their own block, never this tail-local clamp.
 
        Next round (owner: "for chicken pure, flip the tail vertically,
-       sync with chicken wings animation") — two 雞-only changes, neither
-       touching 鴨鵝 or generic:
+       sync with chicken wings animation") added a 雞-only vertical flip
+       and re-synced the flap to the full `speciesK` (not `tailK`, which
+       the shape-matching round had accidentally clamped it to too,
+       silently un-syncing chicken's tail from its wings). The RE-SYNC
+       stayed; the FLIP was reverted next round ("my bad, revert the flip
+       for chick") in favour of two smaller 雞-only dials instead:
 
-       FLIP: `ySign` negates every local-Y term (the per-feather spread
-       offset AND the hump's bow together) whenever `speciesK > 0` — the
-       raw, un-clamped sign, so this fires off the SAME "is this being
-       雞-leaning" read the flap sync below uses, not off `tailK` (which
-       is always ≤0 and can't tell 雞 from generic on its own).
-
-       RE-SYNC: the flap went back to reading the FULL `speciesK` (not
-       `tailK`) — the previous round had clamped it too, which meant a
-       pure-雞 tail flapped with the GENERIC plain sine instead of
-       `chickenBurstPause`, silently un-syncing it from the wings the
-       round before had just wired together. `tailK` still governs the
-       static shape (length/spread/width stay generic); `speciesK` alone
-       drives the animation, so 雞's tail is generic-SHAPED but flaps in
-       the true 雞 rhythm, exactly like the wings. */
+       CHICK_WIDTH = 1.15 ("increase stroke thickness a little bit") and
+       CHICK_SIZE = 0.9 ("decrease size by 10%") — both apply ONLY when
+       `speciesK > 0`, on top of the shared, all-poultry `SIZE = 0.8`
+       from two rounds ago (so a pure-雞 tail ends up 0.8 × 0.9 = 0.72 of
+       the pre-shrink length, not a re-derived absolute number). Neither
+       touches 鴨鵝 or generic, which stay at the CHICK_* neutrals (1, 1).
+       `tailK` still governs length/spread/width's generic SHAPE;
+       `speciesK` still drives the flap timing — this round only adds a
+       size/weight lean on top of that unchanged foundation. */
     const speciesK = plan.speciesK ?? 0;
     const tailK = Math.min(0, speciesK);
+    const isChick = speciesK > 0;
+    const CHICK_WIDTH = isChick ? 1.15 : 1, CHICK_SIZE = isChick ? 0.9 : 1;
     const lenMul = 1 - 0.35 * tailK;
     const spreadMul = 1 + 0.5 * tailK;
-    const widthMul = 1 + 0.3 * tailK;
-    const SIZE = 0.8;
+    const widthMul = (1 + 0.3 * tailK) * CHICK_WIDTH;
+    const SIZE = 0.8 * CHICK_SIZE;
     const FEATHERS = 7, SPREAD = 1.1 * spreadMul;
     const L = R * 1.05 * f * lenMul * SIZE;
     const half = (FEATHERS - 1) / 2;
     const flap = t ? wingFlapAngle(speciesK, t) * (0.3 + (plan.airShare ?? 0)) : 0;
-    const ySign = speciesK > 0 ? -1 : 1;
     for (let i = 0; i < FEATHERS; i++) {
       const off = i - half;                    // signed distance from the centre feather
       const k = Math.abs(off) / half;           // 0 centre … 1 outermost
       const a = (off / half) * (SPREAD / 2) + flap; // local angle off the fan's bisector
       const Li = L * (1 - 0.14 * k);
-      const tipX = Math.cos(a) * Li, tipY = ySign * Math.sin(a) * Li;
-      const midX = Math.cos(a) * Li * 0.5, midY = ySign * (Math.sin(a) * Li * 0.5 - R * 0.32 * f * SIZE);
+      const tipX = Math.cos(a) * Li, tipY = Math.sin(a) * Li;
+      const midX = Math.cos(a) * Li * 0.5, midY = Math.sin(a) * Li * 0.5 - R * 0.32 * f * SIZE;
       ctx.strokeStyle = `rgba(33,29,24,${0.62 - 0.07 * k})`;
       ctx.lineWidth = Math.max(1, R * 0.06 * f * widthMul * (1 - 0.15 * k));
       ctx.beginPath();

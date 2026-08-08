@@ -6626,3 +6626,28 @@ safe by symmetry alone). Screenshot of chicken pure next to generic
 confirmed the feathers now curl the opposite direction; two frames a
 second apart showed both wings and tail shift together, consistent with
 reading the identical driving value again.
+
+## 禽尾 bird tail, flip reverted for 雞, thickness+size tuned instead — *(Sonnet)* — ✅ SHIPPED 2026-08-08
+Owner: "my bad, revert the flip for chick, just increase stoke thickness
+a little bit, and decrease size by 10%."
+
+`ySign` removed entirely — 雞's tail curls the same direction as
+generic's again. In its place, two flat 雞-only dials, both gated on the
+raw `speciesK > 0` (not `tailK`): `CHICK_WIDTH = 1.15` stacks onto the
+existing `widthMul`, and `CHICK_SIZE = 0.9` stacks onto the shared,
+all-poultry `SIZE = 0.8` from two rounds ago — so a pure-雞 tail ends up
+at 0.8 × 0.9 = 0.72 of the pre-shrink length, not a re-derived absolute
+number. Neither dial touches 鴨鵝 or generic (`CHICK_WIDTH`/`CHICK_SIZE`
+both sit at their neutral 1 there). `tailK` still keeps the SHAPE
+(length/spread/width ratios) generic; `speciesK` still drives the flap —
+this round only leans the FINAL size/weight numbers, on top of that
+unchanged foundation.
+
+Verification: tsc clean; full suite 1423/1423; direct bounds sweep,
+six species/evidence points × seven sizes at the still frame, no
+overflow (a size decrease and a small width increase are both safe
+directions independently, but checked together rather than assumed).
+Screenshots of chicken pure / generic / duck-goose pure side by side
+confirmed the flip is gone (chicken curls the same way as generic
+again) and chicken now reads visibly smaller and a touch thicker than
+generic, per spec; bench left live per owner request for review.
