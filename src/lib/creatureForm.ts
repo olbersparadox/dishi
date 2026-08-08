@@ -967,13 +967,15 @@ export function wingFlapAngle(k: number, t: number): number {
 
    Legacy returns null unconditionally — the frozen control grows no parts. */
 export type TailVariant = 'fish' | 'crustacean' | 'beef' | 'pork' | 'poultry';
-/** speciesK only carries meaning for `variant: 'poultry'` — the SAME +1
- *  pure-雞 … −1 pure-鴨鵝 blend `wingShape` computes for wings, reused
- *  rather than re-derived so a diner's species mix drives both parts off
- *  one signal (owner: "why not use the treatment you have for the wings
- *  … to tell they are representing the same family" — extended here from
- *  the drawing technique to the species blend itself). */
-export type TailPlan = { variant: TailVariant; sizeF: number; speciesK?: number };
+/** speciesK/airShare only carry meaning for `variant: 'poultry'` — the SAME
+ *  +1 pure-雞 … −1 pure-鴨鵝 blend and the same air domain SHARE `wingShape`
+ *  and the wing flap's own `(0.3 + a)` reach scale already use for wings,
+ *  reused rather than re-derived so a diner's species mix and the wing
+ *  BEAT ITSELF drive both parts off one signal (owner: "why not use the
+ *  treatment you have for the wings … to tell they are representing the
+ *  same family" — extended here from the drawing technique to the species
+ *  blend and now the animation). */
+export type TailPlan = { variant: TailVariant; sizeF: number; speciesK?: number; airShare?: number };
 
 const TAIL_MIN = 0.35;                        // a newborn tail pops in, like BUD_MIN
 const TAIL_SECOND = 12, TAIL_SECOND_SPAN = 7; // breadth unlocks where depth saturates
@@ -1013,7 +1015,8 @@ export function tailPlan(domains: DomainEvidence, mode: GrowthMode): TailPlan | 
   claims.sort((x, y) => (y.e - x.e) || (ORDER.indexOf(x.variant) - ORDER.indexOf(y.variant)));
   const winner = claims[0];
   const speciesK = winner.variant === 'poultry' ? wingShape(domains.sub?.air, mode).speciesK : undefined;
-  return { variant: winner.variant, sizeF: winner.sizeF, speciesK };
+  const airShare = winner.variant === 'poultry' ? domainShares(domains).a : undefined;
+  return { variant: winner.variant, sizeF: winner.sizeF, speciesK, airShare };
 }
 
 // 牛尾 swat (owner: "flips and wiggle, like a cow keeping the mosquitos /
@@ -1328,19 +1331,42 @@ function drawTail(
        chicken/goose dials wings layered on later — those were owner
        corrections to a specific wing-thickness complaint, not a general
        species law, so they don't transfer here without their own ask.
-       `baseAng` has no tail analogue (a fan doesn't hold a flap posture
-       the way a wing does) and is deliberately left untouched. */
+
+       Next round (owner, same day): "i want them a bit smaller spread,
+       the whole thing placed outward from the body a bit so the fan
+       shape is more obvious. and add animation sync with the wing."
+       SPREAD's base dropped 1.5→1.1 rad — narrower fans read their
+       individual feathers more clearly than a wide-open hand of cards.
+       "Outward from the body" is handled at TAIL_BURIAL (0.8→0.9 for
+       poultry only, above) rather than here — this fan has no stem of
+       its own the way 牛/豬/甲殼 do, so the only lever for its POSITION
+       is where its strokes originate, exactly the fix 魚's own 0.98
+       burial already used for the identical complaint.
+
+       FLAP is now real, reusing `wingFlapAngle` — the SAME function, the
+       SAME `t`, and the SAME `speciesK` wings feed it, plus `plan
+       .airShare` standing in for wings' own `(0.3 + a)` reach scale (`a`
+       is the air domain share; `tailPlan` carries it onto the plan for
+       exactly this, the same reuse-not-rederive move `speciesK` already
+       made). One flap value added identically to every feather's angle
+       rotates the whole fan open-and-closed in the SAME beat as the
+       wings — not a tail-local rhythm that happens to look similar, the
+       literal same timing signal. `baseAng` still has no tail analogue
+       (a fan doesn't hold a raised/flat flight posture the way a wing
+       does) and stays untouched — only the OSCILLATION ported, not the
+       static per-species angle. */
     const speciesK = plan.speciesK ?? 0;
     const lenMul = 1 - 0.35 * speciesK;
     const spreadMul = 1 + 0.5 * speciesK;
     const widthMul = 1 + 0.3 * speciesK;
-    const FEATHERS = 7, SPREAD = 1.5 * spreadMul;
+    const FEATHERS = 7, SPREAD = 1.1 * spreadMul;
     const L = R * 1.05 * f * lenMul;
     const half = (FEATHERS - 1) / 2;
+    const flap = t ? wingFlapAngle(speciesK, t) * (0.3 + (plan.airShare ?? 0)) : 0;
     for (let i = 0; i < FEATHERS; i++) {
       const off = i - half;                    // signed distance from the centre feather
       const k = Math.abs(off) / half;           // 0 centre … 1 outermost
-      const a = (off / half) * (SPREAD / 2);    // local angle off the fan's bisector
+      const a = (off / half) * (SPREAD / 2) + flap; // local angle off the fan's bisector
       const Li = L * (1 - 0.14 * k);
       const tipX = Math.cos(a) * Li, tipY = Math.sin(a) * Li;
       const midX = Math.cos(a) * Li * 0.5, midY = Math.sin(a) * Li * 0.5 - R * 0.32 * f;
@@ -1366,8 +1392,12 @@ const TAIL_SEAT = 2.35;
  *  corrected to mean POSITION after a first attempt wrongly grew the
  *  gesture's own size instead — "try 0.98"). Kept just inside 1.0 for the
  *  same reason WRIST_BURIAL is: a join with no body pixels behind it floats
- *  loose. */
-const TAIL_BURIAL = (v: TailVariant) => (v === 'fish' ? 0.98 : 0.8);
+ *  loose. 禽 raised 0.8→0.9 for the same POSITION reason (owner: "the whole
+ *  thing placed outward from the body a bit so the fan shape is more
+ *  obvious") — the fan has no stem of its own the way 牛/豬/甲殼 do, so like
+ *  魚 the only way to move it out is to move where its strokes ORIGINATE,
+ *  not to grow the strokes themselves. */
+const TAIL_BURIAL = (v: TailVariant) => (v === 'fish' ? 0.98 : v === 'poultry' ? 0.9 : 0.8);
 
 /* 腿 · leg. cow = thick pillar on a cleft hoof; pig = shorter, softer, small
    trotter; chicken = thin, backward knee, three splayed toes. (lab v5) */

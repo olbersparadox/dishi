@@ -6510,3 +6510,49 @@ blend is a no-op at neutral, all legacy renders untouched. Screenshots at
 400px and at 110/150/190px confirmed rooster's fan reads fuller/shorter/
 thicker and goose's reads narrower/longer/thinner, holding at thumbnail
 size, alongside the matching wing difference on the same bodies.
+
+## 禽尾 bird tail: narrower, pushed outward, flap synced to the wing — *(Sonnet)* — ✅ SHIPPED 2026-08-08
+Owner: "i want them a bit smaller spread, the whole thing placed outward
+from the body a bit so the fan shape is more obvious. and add animation
+sync with the wing."
+
+Three independent fixes on the same fan:
+
+1. **Spread.** `SPREAD`'s base dropped 1.5→1.1 rad. A wide-open fan reads
+   as a solid arc; a narrower one lets individual feathers separate.
+
+2. **Position.** The fan has no stem of its own the way 牛/豬/甲殼 do, so
+   growing the strokes wouldn't move the fan outward — it would just make
+   a bigger fan in the same spot. The only lever for POSITION is where
+   the strokes originate, which is exactly `TAIL_BURIAL`, the same fix
+   魚 already used for an identical complaint ("stick out the fish tail
+   more" → burial 0.95→0.98, not size). `TAIL_BURIAL` now special-cases
+   poultry: 0.8→0.9.
+
+3. **Animation.** The tail had none — it only inherited the shared
+   generic ~3° body-sway every non-fish, non-beef tail gets. Rather than
+   invent a tail-local rhythm, it now calls `wingFlapAngle` directly —
+   the SAME exported function, the SAME `t`, the SAME `speciesK` — and
+   scales it by `plan.airShare`, which `tailPlan` now also carries
+   (`domainShares(domains).a`, the literal same value `drawCreatureFrame`
+   feeds into the wing's own `(0.3 + a)` reach scale). Wing and tail
+   don't just share a formula shape, they read the identical number every
+   frame — a chicken's big-lead-flap-then-burst reads on both parts at
+   once, a goose's flap-then-glide the same. One `flap` value is added
+   identically to every feather's angle, rotating the whole fan
+   open-and-closed rigidly, the same additive convention the wing loop
+   already uses per stroke. `baseAng` (the wing's flap-posture dial) still
+   has no tail analogue and stays untouched — only the OSCILLATION
+   ported, not a static per-species angle.
+
+Verification: tsc clean; 142 creature + ink-bounds tests (bounds checked
+at the still frame, t=0, where flap is definitionally 0 — same limitation
+every other tail/wing animation in this file already carries, not a new
+gap); direct bounds sweep, eight species/evidence points × seven sizes,
+same margins as before at every size (the tail was never the binding
+edge); full suite 1423/1423; byte-identity sweep — all five poultry cells
+changed this round (SPREAD and burial are global to the branch, not
+species-gated), every non-poultry cell and every legacy render
+byte-identical. Screenshots on a pure-chicken body a few seconds apart
+showed wing tips and tail feathers shift together between frames — not
+merely similar timing, the literal same driving value.
