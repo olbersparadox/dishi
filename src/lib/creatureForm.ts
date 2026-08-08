@@ -1768,26 +1768,47 @@ export function drawCreatureFrame(
       drawTail(ctx, tbx, tby, Math.atan2(p.y - BB.cy, p.x - BB.cx), R, tail, t);
     }
   }
-  // 鰭 fins — the fish pool's second part (finPlan, G4 round 4). TRACES 其三,
-  // ported by MEASUREMENT (body r = 0.235S in the trace): one pointed leaf
-  // per flank via tailBlade (its filled-quadratic math is byte-identical to
-  // the trace's own trLeaf), base at 0.92 of centre→flank so the join hides
-  // behind the body fill, seat 1.48 rad from top (just above the horizontal
-  // midline), blade 0.40R × 0.12R half-width, swung 0.29 rad above the
-  // horizontal, mirrored. The flutter rides the SAME clock as 魚尾's swim
-  // flip — same FISH_FLIP constants, same phase — at ~1/3 amplitude, and is
-  // mirrored WITH the blade (both fins sweep up and down together), so tail
-  // and fins read as one swimming beat rather than two rhythms.
+  // 鰭 fins — the fish pool's second part (finPlan, G4 round 4). Anchor
+  // and gate are still TRACES 其三 by MEASUREMENT (body r = 0.235S): base
+  // at 0.92 of centre→flank so the join hides behind the body fill, seat
+  // 1.48 rad from top (just above the horizontal midline), bisector 0.29
+  // rad above the horizontal, mirrored.
+  //
+  // DRAWING TECHNIQUE switched to 翼's own (owner: "the treatment of wings
+  // should fit for fin, fan shaped with possible more thin strokes") —
+  // the single-leaf `tailBlade` port of the trace read as a fin-SHAPE but
+  // not a fin-FAMILY member; a fish's fins and a bird's wings are both
+  // "rayed membranes", and the wing loop right below already draws
+  // exactly that: individual tapering STROKES fanning from one hinge,
+  // shrinking length/width/opacity together toward the outer rays, bowed
+  // by a fixed perpendicular hump. This is that same loop, ported: same
+  // falloff shape, same hump convention, `nFinS` strokes per flank instead
+  // of one filled leaf. Overall reach (`finSpan`) and the bisector/seat/
+  // burial stay exactly as measured off the trace — only the technique
+  // that fills that reach changed, the same "silhouette already read
+  // correctly, only the drawing method changed" move the 禽尾 round made.
   const fins = finPlan(domains, mode);
   if (fins) {
-    ctx.fillStyle = 'rgba(33,29,24,.93)'; // 骨 parts wear neutral ink
     const FIN_SEAT = 1.48, FIN_BURIAL = 0.92, FIN_ANG = -0.29;
     const flut = t ? Math.sin(t * FISH_FLIP_FREQ + FISH_FLIP_PHASE) * (FISH_FLIP_AMP / 3) : 0;
+    const finSpan = R * 0.42 * fins.sizeF;
+    const nFinS = 5, FIN_STEP = 0.15;
     for (const side of [-1, 1] as const) {
       const p = flank(side, FIN_SEAT);
       const fbx = BB.cx + (p.x - BB.cx) * FIN_BURIAL, fby = BB.cy + (p.y - BB.cy) * FIN_BURIAL;
-      const ang = side > 0 ? FIN_ANG + flut : Math.PI - (FIN_ANG + flut);
-      tailBlade(ctx, fbx, fby, R * 0.40 * fins.sizeF, R * 0.12 * fins.sizeF, ang);
+      const baseAng = side > 0 ? FIN_ANG + flut : Math.PI - (FIN_ANG + flut);
+      for (let w = 0; w < nFinS; w++) {
+        const ang = side > 0 ? baseAng + FIN_STEP * w : baseAng - FIN_STEP * w;
+        const L = finSpan * (1 - 0.13 * w);
+        ctx.strokeStyle = `rgba(33,29,24,${0.62 - 0.06 * w})`;
+        ctx.lineWidth = Math.max(1, R * 0.045 * fins.sizeF * (1 - 0.12 * w));
+        ctx.beginPath();
+        ctx.moveTo(fbx, fby);
+        ctx.quadraticCurveTo(
+          fbx + Math.cos(ang) * L * 0.5, fby + Math.sin(ang) * L * 0.5 - R * 0.16 * fins.sizeF,
+          fbx + Math.cos(ang) * L, fby + Math.sin(ang) * L);
+        ctx.stroke();
+      }
     }
   }
   // wings — lateral fans from the shoulder, angled out

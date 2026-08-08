@@ -6765,3 +6765,37 @@ byte-identical. Large-render screenshots confirmed the full pair reads
 as the trace's side-leaves and the fresh bud pops in small at the floor.
 Framework Ledger's 鰭 row updated LAB-ONLY → SHIPPED (base form), with
 尖/圓/帶 noted as the remaining lab-only variants.
+
+## 鰭 fins, switched to 翼's own stroke-fan technique — *(Sonnet)* — ✅ SHIPPED 2026-08-08
+Owner, same day as the base ship: "with your understanding of how a fin
+should look. I'm thinking the treatment of wings should fit for fin, fan
+shaped with possible more thin strokes."
+
+The base round got the ANCHOR right (TRACES 其三's position/seat/burial,
+the fish-pool-second-part gate, the shared swim clock) but drew it as a
+single filled `tailBlade` leaf — a fin-shaped mark, not a member of the
+same visual family as 翼 wings, even though both are "rayed membranes" on
+the same body. `S.wings.on`'s own loop already draws exactly that
+family's technique: individual tapering strokes fanning from one hinge,
+shrinking length/width/opacity together, bowed by a fixed perpendicular
+hump. Ported verbatim onto the fin's existing anchor: 5 strokes per
+flank, `FIN_STEP = 0.15` rad apart, length/width/opacity falloff and
+hump convention identical in SHAPE to the wing loop's own (`(1-0.13w)`
+length, `(1-0.12w)` width, `0.62-0.06w` opacity, `-R·0.16·sizeF` hump —
+scaled down from the wing's own numbers since a fin's reach, `finSpan =
+R·0.42·sizeF`, is much smaller than a wing's span). `finSpan`/seat/
+burial/bisector are UNCHANGED from the base round — only the technique
+that fills that already-correct silhouette changed, the same move the
+禽尾 stroke-grammar round made on the same day.
+
+Verification: tsc clean; 148 creature + ink-bounds tests (finPlan's own
+gate tests are untouched by a drawing-technique change); full suite
+1429/1429; direct bounds sweep, deep-fish/just-budded/fins-without-tail
+fixtures × seven sizes, no overflow; byte-identity sweep against the
+base round's own snapshot set — exactly `metabolism/fishtail` moved (the
+geometry technique changed, so a diff there is correct), all other
+cells and every legacy render byte-identical. Large-render screenshot
+confirmed both fins now read as a tight fan of five tapering rays,
+matching the wings' visual language, with the tail's own leaf-shaped
+fork still visually distinct below them. Framework Ledger's 鰭 row
+updated to record the technique switch.
