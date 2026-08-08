@@ -6556,3 +6556,21 @@ species-gated), every non-poultry cell and every legacy render
 byte-identical. Screenshots on a pure-chicken body a few seconds apart
 showed wing tips and tail feathers shift together between frames — not
 merely similar timing, the literal same driving value.
+
+## 禽尾 bird tail, shrunk 20% with thickness held — *(Sonnet)* — ✅ SHIPPED 2026-08-08
+Owner: "decrease all bird tails size by 20%. keep the same stroke
+thickness."
+
+New `SIZE = 0.8` multiplies every LINEAR extent in the poultry branch —
+`L` (feather length) and the hump's bow (itself a length; leaving it
+unscaled would have made the curve read as over-bowed relative to a
+now-smaller fan) — but is deliberately absent from `ctx.lineWidth`, which
+stays on `widthMul` alone exactly as the owner specified. `SPREAD` (an
+angle) and `FEATHERS` (a count) are neither "size" nor touched.
+
+Verification: tsc clean; 142 creature + ink-bounds tests; full suite
+1423/1423 (a pure shrink can only tighten the existing bounds margin, so
+no separate overflow sweep was needed — every fixture was already
+comfortably inside canvas at the larger size). Screenshots of 雞 chicken
+pure, 中性 generic, and 鴨鵝 duck/goose pure side by side confirmed all
+three read visibly smaller with stroke weight unchanged.

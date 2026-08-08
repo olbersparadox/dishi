@@ -1354,13 +1354,22 @@ function drawTail(
        literal same timing signal. `baseAng` still has no tail analogue
        (a fan doesn't hold a raised/flat flight posture the way a wing
        does) and stays untouched — only the OSCILLATION ported, not the
-       static per-species angle. */
+       static per-species angle.
+
+       SIZE = 0.8 (owner: "decrease all bird tails size by 20%. keep the
+       same stroke thickness") scales every LINEAR extent — the length
+       `L` and the hump's bow, which is itself a length and needs to
+       shrink with it or the curve reads as over-bowed for a smaller fan
+       — but deliberately NOT `ctx.lineWidth`, which stays on `widthMul`
+       alone. `SPREAD` (an angle, not a length) and `FEATHERS` are
+       likewise untouched: "size" is reach, not shape or count. */
     const speciesK = plan.speciesK ?? 0;
     const lenMul = 1 - 0.35 * speciesK;
     const spreadMul = 1 + 0.5 * speciesK;
     const widthMul = 1 + 0.3 * speciesK;
+    const SIZE = 0.8;
     const FEATHERS = 7, SPREAD = 1.1 * spreadMul;
-    const L = R * 1.05 * f * lenMul;
+    const L = R * 1.05 * f * lenMul * SIZE;
     const half = (FEATHERS - 1) / 2;
     const flap = t ? wingFlapAngle(speciesK, t) * (0.3 + (plan.airShare ?? 0)) : 0;
     for (let i = 0; i < FEATHERS; i++) {
@@ -1369,7 +1378,7 @@ function drawTail(
       const a = (off / half) * (SPREAD / 2) + flap; // local angle off the fan's bisector
       const Li = L * (1 - 0.14 * k);
       const tipX = Math.cos(a) * Li, tipY = Math.sin(a) * Li;
-      const midX = Math.cos(a) * Li * 0.5, midY = Math.sin(a) * Li * 0.5 - R * 0.32 * f;
+      const midX = Math.cos(a) * Li * 0.5, midY = Math.sin(a) * Li * 0.5 - R * 0.32 * f * SIZE;
       ctx.strokeStyle = `rgba(33,29,24,${0.62 - 0.07 * k})`;
       ctx.lineWidth = Math.max(1, R * 0.06 * f * widthMul * (1 - 0.15 * k));
       ctx.beginPath();
