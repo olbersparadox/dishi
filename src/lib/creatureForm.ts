@@ -1037,13 +1037,27 @@ export function tailPlan(domains: DomainEvidence, mode: GrowthMode): TailPlan | 
    because a different slot was lost.
 
    Legacy returns null unconditionally — the frozen control grows no
-   parts. */
+   parts.
+
+   SIZE (owner, after seeing the bench's fish=18 cell at the shared
+   second-part curve's ~0.96 — near TAIL_MIN..1's own top, not its bud
+   floor: "treat this size of freshly budded. Then increase by 200% for
+   full grown size"). Fins get their OWN size range rather than sharing
+   TAIL_MIN with the tail second-parts — `FIN_BUD = 1.0` is the fresh-
+   bud reference now (not 0.35), and `FIN_GROWN = 3.0` is full growth: a
+   literal 200% INCREASE over the bud reference (bud × 3), not "200% of"
+   (which would read as ×2). The gate — unlock at evidence 12, saturate
+   at 19 — is UNCHANGED; only how big the fin is at each end of that
+   ramp moved. `sizeF` still multiplies every linear dimension at the
+   draw site exactly as before, so the bud-to-full range is now roughly
+   3× larger throughout, not just at the top. */
 export type FinPlan = { sizeF: number };
 export function finPlan(domains: DomainEvidence, mode: GrowthMode): FinPlan | null {
   if (mode !== 'metabolism') return null;
   const fish = Math.max(0, domains.sub?.sea?.fish ?? 0);
   if (fish <= TAIL_SECOND) return null;
-  return { sizeF: TAIL_MIN + (1 - TAIL_MIN) * smooth01((fish - TAIL_SECOND) / TAIL_SECOND_SPAN) };
+  const FIN_BUD = 1.0, FIN_GROWN = 3.0;
+  return { sizeF: FIN_BUD + (FIN_GROWN - FIN_BUD) * smooth01((fish - TAIL_SECOND) / TAIL_SECOND_SPAN) };
 }
 
 // 牛尾 swat (owner: "flips and wiggle, like a cow keeping the mosquitos /

@@ -6799,3 +6799,36 @@ confirmed both fins now read as a tight fan of five tapering rays,
 matching the wings' visual language, with the tail's own leaf-shaped
 fork still visually distinct below them. Framework Ledger's 鰭 row
 updated to record the technique switch.
+
+## 鰭 fins, own size range: bud=1.0, full grown=3.0 (200% increase) — *(Sonnet)* — ✅ SHIPPED 2026-08-08
+Owner, after asking whether the bench's fish=18 fin (sizeF≈0.964 under
+the old shared TAIL_MIN-based curve) was full or budding, and being told
+it was near-full: "treat this size of freshly budded. Then increase by
+200% for full grown size."
+
+`finPlan` no longer shares `TAIL_MIN`(0.35)..1 with the tail's second-
+part gestures — fins get their OWN range: `FIN_BUD = 1.0`, `FIN_GROWN =
+3.0`. "Increase BY 200%" is read literally as bud+2×bud = 3× bud, not
+"200% of" (which would read as 2×) — the same literal-percentage
+discipline every prior size tune this session used (shrink 15%, decrease
+20%, decrease 10%). The GATE is unchanged: unlock still at evidence 12,
+saturate still at 19 — only how big the fin is at each end of that ramp
+moved, via the same `smooth01` curve shape.
+
+Since `sizeF` already multiplies every linear dimension at the draw
+site, this alone triples the fin's reach at full growth with no other
+code change. That raised the overflow question seriously (a fin can now
+draw at 3× — bigger than the wings at full mix): a direct bounds sweep
+across bud/full/no-tail fixtures × seven production sizes showed ZERO
+overflow at any of them, worst case identical to before the size change
+— the fin was never the binding edge; something else (fur/wings) already
+set the canvas margin. No burial/position adjustment was needed.
+
+Verification: tsc clean; 132 creature tests (finPlan's two size-bearing
+tests updated for the new 1.0..3.0 range, everything else untouched);
+full suite 1429/1429; direct bounds sweep, 4 fixtures × 7 sizes, no
+overflow; byte-identity sweep — exactly `metabolism/fishtail` moved,
+everything else including all legacy renders byte-identical. Large
+renders at both ends confirmed the read: budding is subtly bigger than
+before, full growth is now a bold fan that visually rivals the wing's
+presence. Framework Ledger's 鰭 row updated with the new size range.

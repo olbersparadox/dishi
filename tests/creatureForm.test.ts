@@ -1202,15 +1202,18 @@ describe('finPlan — the fish pool second part', () => {
     expect(finPlan({ sea: 14, sub: { sea: { fish: 12 } } }, 'metabolism')).toBeNull();
     const p = finPlan({ sea: 15, sub: { sea: { fish: 13 } } }, 'metabolism');
     expect(p).not.toBeNull();
-    expect(p!.sizeF).toBeGreaterThanOrEqual(0.35); // pops in at the floor
-    expect(p!.sizeF).toBeLessThan(0.6);            // freshly budded — small
+    // owner: "treat this size of freshly budded" — fins get their OWN
+    // range (1..3), not TAIL_MIN(0.35)..1 shared with the tail second-parts
+    expect(p!.sizeF).toBeGreaterThanOrEqual(1.0); // pops in at the fin-specific floor
+    expect(p!.sizeF).toBeLessThan(1.6);           // freshly budded — small within that range
   });
 
-  it('sizeF grows monotonically past the unlock and saturates at full', () => {
+  it('sizeF grows monotonically past the unlock and saturates at 3x the bud reference', () => {
     const sizes = [13, 14.5, 16, 17.5, 19, 21].map(e =>
       finPlan({ sea: e + 2, sub: { sea: { fish: e } } }, 'metabolism')!.sizeF);
     for (let i = 1; i < sizes.length; i++) expect(sizes[i]).toBeGreaterThanOrEqual(sizes[i - 1]);
-    expect(sizes[sizes.length - 1]).toBeCloseTo(1, 6);
+    // owner: "increase by 200% for full grown size" — 3x the bud reference (1.0), not 2x
+    expect(sizes[sizes.length - 1]).toBeCloseTo(3, 6);
   });
 
   it('independent of the tail slot: fins grow even when another family holds the tail', () => {
