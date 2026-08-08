@@ -967,7 +967,13 @@ export function wingFlapAngle(k: number, t: number): number {
 
    Legacy returns null unconditionally — the frozen control grows no parts. */
 export type TailVariant = 'fish' | 'crustacean' | 'beef' | 'pork' | 'poultry';
-export type TailPlan = { variant: TailVariant; sizeF: number };
+/** speciesK only carries meaning for `variant: 'poultry'` — the SAME +1
+ *  pure-雞 … −1 pure-鴨鵝 blend `wingShape` computes for wings, reused
+ *  rather than re-derived so a diner's species mix drives both parts off
+ *  one signal (owner: "why not use the treatment you have for the wings
+ *  … to tell they are representing the same family" — extended here from
+ *  the drawing technique to the species blend itself). */
+export type TailPlan = { variant: TailVariant; sizeF: number; speciesK?: number };
 
 const TAIL_MIN = 0.35;                        // a newborn tail pops in, like BUD_MIN
 const TAIL_SECOND = 12, TAIL_SECOND_SPAN = 7; // breadth unlocks where depth saturates
@@ -1005,7 +1011,9 @@ export function tailPlan(domains: DomainEvidence, mode: GrowthMode): TailPlan | 
   if (!claims.length) return null;
   const ORDER: TailVariant[] = ['fish', 'crustacean', 'beef', 'pork', 'poultry'];
   claims.sort((x, y) => (y.e - x.e) || (ORDER.indexOf(x.variant) - ORDER.indexOf(y.variant)));
-  return { variant: claims[0].variant, sizeF: claims[0].sizeF };
+  const winner = claims[0];
+  const speciesK = winner.variant === 'poultry' ? wingShape(domains.sub?.air, mode).speciesK : undefined;
+  return { variant: winner.variant, sizeF: winner.sizeF, speciesK };
 }
 
 // 牛尾 swat (owner: "flips and wiggle, like a cow keeping the mosquitos /
@@ -1304,9 +1312,30 @@ function drawTail(
        around one bisector instead of built as two mirrored shoulder
        fans. FEATHERS/SPREAD carry over from the filled-sector round —
        they set the silhouette, which read correctly there; only the
-       DRAWING technique changes here. */
-    const FEATHERS = 7, SPREAD = 1.5;
-    const L = R * 1.05 * f;
+       DRAWING technique changes here.
+
+       SPECIES BLEND (owner, same session: "we have chicken pure and
+       lean, duck/goose pure and lean, can the tail be catered for
+       those?"): `speciesK` is the exact +1 pure-雞 … −1 pure-鴨鵝 value
+       wings compute in `wingShape`, carried onto the plan by `tailPlan`
+       — the same signal drives both parts rather than a second one
+       re-derived here. Only `lenMul` and `spreadMul` are reused at
+       wingShape's OWN base ratio (`1 ∓ 0.35k`, `1 ± 0.5k`) — 雞 a
+       shorter, fuller/rounder fan; 鴨鵝 a longer, narrower one, the same
+       short-flutter-vs-long-glide distinction wings already draw.
+       `widthMul` reuses wingShape's un-stacked base ratio (`1 + 0.3k`)
+       for a modest thickness lean, not the extra +40%/+50%/+20%
+       chicken/goose dials wings layered on later — those were owner
+       corrections to a specific wing-thickness complaint, not a general
+       species law, so they don't transfer here without their own ask.
+       `baseAng` has no tail analogue (a fan doesn't hold a flap posture
+       the way a wing does) and is deliberately left untouched. */
+    const speciesK = plan.speciesK ?? 0;
+    const lenMul = 1 - 0.35 * speciesK;
+    const spreadMul = 1 + 0.5 * speciesK;
+    const widthMul = 1 + 0.3 * speciesK;
+    const FEATHERS = 7, SPREAD = 1.5 * spreadMul;
+    const L = R * 1.05 * f * lenMul;
     const half = (FEATHERS - 1) / 2;
     for (let i = 0; i < FEATHERS; i++) {
       const off = i - half;                    // signed distance from the centre feather
@@ -1316,7 +1345,7 @@ function drawTail(
       const tipX = Math.cos(a) * Li, tipY = Math.sin(a) * Li;
       const midX = Math.cos(a) * Li * 0.5, midY = Math.sin(a) * Li * 0.5 - R * 0.32 * f;
       ctx.strokeStyle = `rgba(33,29,24,${0.62 - 0.07 * k})`;
-      ctx.lineWidth = Math.max(1, R * 0.06 * f * (1 - 0.15 * k));
+      ctx.lineWidth = Math.max(1, R * 0.06 * f * widthMul * (1 - 0.15 * k));
       ctx.beginPath();
       ctx.moveTo(px(0, 0), py(0, 0));
       ctx.quadraticCurveTo(px(midX, midY), py(midX, midY), px(tipX, tipY), py(tipX, tipY));

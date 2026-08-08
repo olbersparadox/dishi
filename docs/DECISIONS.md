@@ -6474,3 +6474,39 @@ metabolism cells and all fifteen legacy renders byte-identical to before
 this round. Screenshot with wings and tail on the same rooster-heavy body
 confirmed they now read as one grammar — same tapering-stroke fan, same
 ink weight — at both large size and thumbnail (110/150/190px).
+
+## 禽尾 bird tail, species blend for chicken vs duck/goose — *(Sonnet)* — ✅ SHIPPED 2026-08-08
+Owner: "we have chicken pure and lean, duck/goose pure and lean, can the
+tail easily be catered for those?"
+
+`tailPlan()` now carries `speciesK` on its `TailPlan` — the SAME +1
+pure-雞 … −1 pure-鴨鵝 value `wingShape` already computes from
+`domains.sub?.air`, called once at the winning claim (only meaningful
+when `variant === 'poultry'`) rather than re-derived. One signal now
+drives both parts, which is the point: a diner's own species mix moves
+wings and tail together instead of each reading its own opinion of "how
+chicken" the being is.
+
+In `drawTail`'s poultry branch, `lenMul`/`spreadMul` reuse wingShape's
+own BASE ratios verbatim (`1 ∓ 0.35k`, `1 ± 0.5k`) — 雞 a shorter,
+fuller/rounder fan; 鴨鵝 a longer, narrower one, the same short-flutter-
+vs-long-glide story wings already tell. `widthMul` reuses the un-stacked
+base ratio (`1 + 0.3k`) for a modest thickness lean only — deliberately
+NOT the extra +40%/+50%/+20% chicken/goose dials wings layered on in a
+later round, since those were the owner's correction to a SPECIFIC wing-
+thickness complaint, not a general species law; they don't transfer
+without their own ask. `baseAng` (wing's flap-posture dial) has no tail
+analogue — a fan doesn't hold a raised/flat posture the way a wing
+does — and was left untouched rather than invented.
+
+Verification: tsc clean; 142 creature + ink-bounds tests; direct bounds
+sweep across five species points (neutral, chicken/goose × lean/pure) ×
+seven sizes — no overflow anywhere, same margin as the neutral case at
+every size (the tail was never the binding edge); full suite 1423/1423;
+byte-identity sweep — only the two fixtures carrying an actual sub.air
+mix (`goose`, `rooster`) changed from the prior stroke-grammar round,
+every k=0 cell (`air`, `benchPoultry`, `fire`) byte-identical since the
+blend is a no-op at neutral, all legacy renders untouched. Screenshots at
+400px and at 110/150/190px confirmed rooster's fan reads fuller/shorter/
+thicker and goose's reads narrower/longer/thinner, holding at thumbnail
+size, alongside the matching wing difference on the same bodies.
